@@ -14,16 +14,23 @@ export const useSmoothScroll = () => {
       return;
     }
 
-    // Lenis configuration for natural, buttery-smooth luxury feel
+    // Exempt touch devices to keep 100% native 120Hz inertial scroll
+    const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+    if (isTouch) {
+      return;
+    }
+
+    // Lenis configuration: snappy, direct, 1:1 responsive with zero rubber-banding lag
     const lenis = new Lenis({
-      duration: 1.0,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // smooth exponential decay
+      duration: 0.55,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -12 * t)), // rapid smooth exponential settle
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      touchMultiplier: 1.0, // preserve natural touch/trackpad response
+      wheelMultiplier: 1.05,
+      touchMultiplier: 1.0,
       infinite: false,
+      syncTouch: false,
     });
 
     window.__lenis = lenis;

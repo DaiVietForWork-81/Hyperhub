@@ -65,7 +65,6 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({ platform }) => {
 
   return (
     <SpotlightCard
-      enableTilt={true}
       spotlightColor={spotlight}
       borderColor={border}
       className="liquid-glass p-8 flex flex-col justify-between hover:shadow-2xl hover:shadow-purple-950/40 h-full"

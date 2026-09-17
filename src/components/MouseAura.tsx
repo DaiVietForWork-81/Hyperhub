@@ -18,10 +18,25 @@ export const MouseAura: React.FC = () => {
     let currentY = mouseY;
     let animationFrameId: number;
 
+    let isRunning = false;
+
     const animate = () => {
-      // Smooth continuous lerp without abrupt scroll-stop hitching
-      currentX += (mouseX - currentX) * 0.08;
-      currentY += (mouseY - currentY) * 0.08;
+      const dx = mouseX - currentX;
+      const dy = mouseY - currentY;
+
+      // If close enough to target, snap and sleep RAF loop
+      if (Math.abs(dx) < 0.25 && Math.abs(dy) < 0.25) {
+        currentX = mouseX;
+        currentY = mouseY;
+        if (auraRef.current) {
+          auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
+        }
+        isRunning = false;
+        return;
+      }
+
+      currentX += dx * 0.12;
+      currentY += dy * 0.12;
 
       if (auraRef.current) {
         auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
@@ -33,14 +48,21 @@ export const MouseAura: React.FC = () => {
     const handleMouseMove = (e: MouseEvent) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
+      if (!isRunning) {
+        isRunning = true;
+        animationFrameId = requestAnimationFrame(animate);
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    isRunning = true;
     animationFrameId = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
   }, []);
 

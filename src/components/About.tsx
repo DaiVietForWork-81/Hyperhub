@@ -27,7 +27,6 @@ export const About: React.FC = () => {
         <div className="lg:col-span-5">
           <ScrollReveal delay={150}>
             <SpotlightCard 
-              enableTilt={true}
               spotlightColor="rgba(168, 85, 247, 0.18)"
               borderColor="rgba(236, 72, 153, 0.5)"
               className="liquid-glass p-7 sm:p-8 rounded-3xl shadow-2xl"

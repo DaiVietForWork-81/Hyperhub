@@ -82,7 +82,6 @@ export const Pillars: React.FC = () => {
           return (
             <ScrollReveal key={pillar.id} delay={index * 150}>
               <SpotlightCard
-                enableTilt={true}
                 spotlightColor={pillar.spotlightColor}
                 borderColor={pillar.borderColor}
                 className="liquid-glass p-8 h-full flex flex-col justify-between hover:shadow-2xl hover:shadow-purple-950/40"

@@ -68,7 +68,8 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
     <div
       ref={ref}
       className={cn(
-        'transform-gpu transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,opacity]',
+        'transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
+        !isVisible && 'will-change-[transform,opacity] transform-gpu',
         getTransformClass(),
         className
       )}

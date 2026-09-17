@@ -12,12 +12,13 @@ interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const SpotlightCard: React.FC<SpotlightCardProps> = ({
   children,
   className,
-  spotlightColor = 'rgba(168, 85, 247, 0.14)',
-  borderColor = 'rgba(236, 72, 153, 0.4)',
+  spotlightColor = 'rgba(168, 85, 247, 0.12)',
+  borderColor,
   enableTilt = false,
   ...props
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const rectRef = useRef<DOMRect | null>(null);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -28,11 +29,20 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     };
   }, []);
 
+  const handleMouseEnter = () => {
+    if (cardRef.current) {
+      rectRef.current = cardRef.current.getBoundingClientRect();
+    }
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (!rectRef.current && cardRef.current) {
+      rectRef.current = cardRef.current.getBoundingClientRect();
+    }
+    if (!rectRef.current) return;
+
+    const x = e.clientX - rectRef.current.left;
+    const y = e.clientY - rectRef.current.top;
 
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
@@ -42,15 +52,6 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
       if (!cardRef.current) return;
       cardRef.current.style.setProperty('--mouse-x', `${x}px`);
       cardRef.current.style.setProperty('--mouse-y', `${y}px`);
-
-      if (enableTilt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        const rotateX = ((y - centerY) / centerY) * -3.5;
-        const rotateY = ((x - centerX) / centerX) * 3.5;
-
-        cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
-      }
     });
   };
 
@@ -59,48 +60,31 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    rectRef.current = null;
     if (!cardRef.current) return;
     cardRef.current.style.setProperty('--mouse-x', '-999px');
     cardRef.current.style.setProperty('--mouse-y', '-999px');
-
-    if (enableTilt) {
-      cardRef.current.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0)';
-    }
   };
 
   return (
     <div
       ref={cardRef}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'group/spotlight spotlight-card relative rounded-3xl border overflow-hidden transition-[border-color,box-shadow,background-color] duration-300 transform-gpu',
-        'border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/40 text-slate-900',
+        'group/spotlight spotlight-card relative rounded-3xl border overflow-hidden transition-[border-color,box-shadow,background-color] duration-250',
+        'border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/40 text-slate-900 hover:border-purple-300 dark:hover:border-purple-500/40',
         'dark:border-white/[0.08] dark:bg-gradient-to-b dark:from-[#0e0e13] dark:to-[#060608] dark:shadow-none dark:text-white',
         className
       )}
-      style={{
-        transformStyle: 'preserve-3d',
-        willChange: enableTilt ? 'transform' : 'auto',
-      }}
       {...props}
     >
       {/* Spotlight Radial Background Glow */}
       <div
         className="pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 group-hover/spotlight:opacity-100 transition-opacity duration-300 z-0"
         style={{
-          background: `radial-gradient(450px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), ${spotlightColor}, transparent 80%)`,
-        }}
-      />
-
-      {/* Spotlight Traveling Glowing Border */}
-      <div
-        className="pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 group-hover/spotlight:opacity-100 transition-opacity duration-300 z-10 p-[1px]"
-        style={{
-          background: `radial-gradient(280px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), ${borderColor}, transparent 70%)`,
-          WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-          WebkitMaskComposite: 'xor',
-          maskComposite: 'exclude',
+          background: `radial-gradient(380px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), ${spotlightColor}, transparent 75%)`,
         }}
       />
 
