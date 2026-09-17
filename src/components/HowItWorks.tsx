@@ -9,7 +9,8 @@ import {
   CheckCircle2, 
   Compass,
   Heart,
-  Zap
+  Zap,
+  Headphones
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 
@@ -93,11 +94,11 @@ export const HowItWorks: React.FC = () => {
             <span>Lộ Trình Trải Nghiệm • How It Works</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4 text-balance">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-4 text-balance">
             Cách Hoạt Động Của <span className="cosmic-text-flow">HyperHub</span>
           </h2>
 
-          <p className="text-sm sm:text-base text-white/70 max-w-2xl text-balance leading-relaxed mb-6">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-2xl text-balance leading-relaxed mb-6">
             Từ lúc đặt chân vào máy chủ đến khi trở thành cao thủ đấu trường hoặc tìm được bạn cùng học lý tưởng, mọi thứ đều mượt mà và trực quan.
           </p>
 
@@ -112,9 +113,9 @@ export const HowItWorks: React.FC = () => {
                   key={step.number}
                   type="button"
                   onClick={() => setActiveStep(idx)}
-                  className={`flex-1 min-w-[120px] sm:min-w-0 py-2 px-3 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 min-w-[120px] sm:min-w-0 py-2 px-3 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ease-out cursor-pointer flex items-center justify-center gap-1.5 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/40 scale-[1.02]'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02]'
                       : 'text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.06]'
                   }`}
                 >
@@ -138,93 +139,142 @@ export const HowItWorks: React.FC = () => {
               key={step.number}
               onMouseEnter={() => setActiveStep(idx)}
               onClick={() => setActiveStep(idx)}
-              className={`zoom-card-transition transform-gpu relative flex flex-col justify-between p-6 sm:p-7 rounded-3xl cursor-pointer select-none border-2 ${
-                isFocused
-                  ? `scale-[1.02] sm:scale-[1.04] -translate-y-2 z-20 border-purple-500/80 bg-purple-50/95 dark:bg-gradient-to-b dark:from-purple-950/40 dark:to-slate-950/80 shadow-xl shadow-purple-500/15 dark:shadow-[0_0_35px_rgba(168,85,247,0.35)]`
-                  : 'scale-100 z-10 opacity-90 hover:opacity-100 bg-white/80 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] hover:border-purple-300 dark:hover:border-white/20 shadow-sm'
-              } backdrop-blur-xl`}
+              className="relative group"
             >
-              {/* Top Accent Gradient Line */}
+              {/* Ambient Glow behind active card */}
               <div 
-                className={`absolute top-0 left-6 right-6 h-1 rounded-full bg-gradient-to-r ${step.accentColor} transition-opacity duration-300 ${
-                  isFocused ? 'opacity-100' : 'opacity-40'
+                className={`absolute -inset-1 rounded-[28px] bg-gradient-to-r ${step.accentColor} blur-xl pointer-events-none transition-opacity duration-500 ease-out ${
+                  isFocused ? 'opacity-30 dark:opacity-40' : 'opacity-0'
                 }`}
               />
 
-              {/* Card Top: Step number & Focus Badge */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-br ${step.accentColor} text-white shadow-lg shadow-purple-950/40`}>
-                    <StepIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-mono tracking-widest text-purple-600 dark:text-purple-300 uppercase block font-semibold">
-                      BƯỚC {step.number}
-                    </span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${step.badgeGlow}`}>
-                      {step.tag}
-                    </span>
-                  </div>
-                </div>
+              {/* Main Interactive Card */}
+              <div
+                className={`zoom-card-transition transform-gpu relative h-full flex flex-col justify-between p-6 sm:p-7 rounded-3xl cursor-pointer select-none border-2 backdrop-blur-xl overflow-hidden ${
+                  isFocused
+                    ? '-translate-y-2.5 z-20 border-purple-500/80 bg-white/95 dark:bg-[#0d0e17]/95 shadow-xl shadow-purple-500/15 dark:shadow-[0_20px_40px_-15px_rgba(168,85,247,0.35)]'
+                    : 'translate-y-0 z-10 bg-white/80 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] hover:border-purple-300 dark:hover:border-white/20 shadow-sm'
+                }`}
+              >
+                {/* Active Inner Gradient Tint Layer (smoothly fades with zero snap) */}
+                <div 
+                  className={`absolute inset-0 rounded-3xl pointer-events-none transition-opacity duration-500 ease-out bg-gradient-to-b from-purple-500/10 via-indigo-500/5 to-transparent dark:from-purple-950/50 dark:via-indigo-950/20 dark:to-transparent ${
+                    isFocused ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
 
-                {isFocused && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-950/40 px-2 py-0.5 rounded-full border border-pink-300 dark:border-pink-500/30 animate-pulse">
-                    <Sparkles className="w-3 h-3" />
-                    ĐANG XEM
-                  </span>
-                )}
-              </div>
+                {/* Top Accent Gradient Line */}
+                <div 
+                  className={`absolute top-0 left-6 right-6 h-1 rounded-full bg-gradient-to-r ${step.accentColor} transition-all duration-500 ${
+                    isFocused ? 'opacity-100 scale-x-100' : 'opacity-30 scale-x-75'
+                  }`}
+                />
 
-              {/* Card Body */}
-              <div className="flex-1 flex flex-col mb-6">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1.5 tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
-                  {step.title}
-                </h3>
-                <p className="text-xs font-semibold text-purple-700 dark:text-purple-300/80 mb-3.5">
-                  {step.subtitle}
-                </p>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70 leading-relaxed font-sans mb-4">
-                  {step.description}
-                </p>
-
-                {/* Perk Checklist */}
-                <div className="space-y-2 mt-auto pt-4 border-t border-slate-200/80 dark:border-white/10">
-                  {step.perks.map((perk, perkIdx) => (
-                    <div key={perkIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-white/80">
-                      <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isFocused ? 'text-green-500 dark:text-green-400' : 'text-purple-500 dark:text-purple-400'}`} />
-                      <span>{perk}</span>
+                {/* Card Top: Step number & Focus Badge */}
+                <div className="relative z-10 flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2.5">
+                    <div 
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-br ${step.accentColor} text-white shadow-md transition-transform duration-300 ease-out ${
+                        isFocused ? 'scale-110 -rotate-3' : 'scale-100 rotate-0'
+                      }`}
+                    >
+                      <StepIcon className="w-5 h-5" />
                     </div>
-                  ))}
+                    <div>
+                      <span className="text-[10px] font-mono tracking-widest text-purple-600 dark:text-purple-300 uppercase block font-semibold">
+                        BƯỚC {step.number}
+                      </span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${step.badgeGlow}`}>
+                        {step.tag}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stable ĐANG XEM Badge (Never shifts DOM layout) */}
+                  <div 
+                    className={`flex items-center gap-1 text-[10px] font-bold text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-950/40 px-2 py-0.5 rounded-full border border-pink-300 dark:border-pink-500/30 transition-all duration-300 ease-out ${
+                      isFocused ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
+                    }`}
+                  >
+                    <Sparkles className="w-3 h-3 text-pink-500 dark:text-pink-400 animate-pulse" />
+                    <span>ĐANG XEM</span>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="relative z-10 flex-1 flex flex-col mb-5">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1.5 tracking-tight transition-colors">
+                    {step.title}
+                  </h3>
+                  <p className="text-xs font-semibold text-purple-700 dark:text-purple-300/80 mb-3.5">
+                    {step.subtitle}
+                  </p>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70 leading-relaxed font-sans mb-4">
+                    {step.description}
+                  </p>
+
+                  {/* Perk Checklist */}
+                  <div className="space-y-2 mt-auto pt-4 border-t border-slate-200/80 dark:border-white/10">
+                    {step.perks.map((perk, perkIdx) => (
+                      <div key={perkIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-white/80">
+                        <CheckCircle2 
+                          className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${
+                            isFocused ? 'text-green-600 dark:text-green-400' : 'text-purple-500 dark:text-purple-400'
+                          }`} 
+                        />
+                        <span>{perk}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card Footer: Action indication */}
+                <div className="relative z-10 pt-2 flex items-center justify-between text-xs font-semibold">
+                  <span className={`transition-colors duration-300 ${isFocused ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/50'}`}>
+                    {idx === 0 && 'Role chọn tự do'}
+                    {idx === 1 && 'Học 24/7'}
+                    {idx === 2 && 'Sinh tồn 2 ❤️❤️'}
+                    {idx === 3 && 'Lên Rank Discord'}
+                  </span>
+                  <ArrowRight 
+                    className={`w-4 h-4 transition-transform duration-300 ease-out ${
+                      isFocused ? 'translate-x-1.5 text-pink-600 dark:text-pink-400' : 'text-slate-400 dark:text-white/40'
+                    }`} 
+                  />
+                </div>
+
+                {/* Symmetrical interactive detail pills for all 4 steps */}
+                <div className="relative z-10 mt-3">
+                  {idx === 0 && (
+                    <div className="py-1.5 px-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center gap-1.5 text-[11px] text-purple-700 dark:text-purple-300 transition-colors">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                      <span className="font-mono font-bold">1-CLICK ROLE ONBOARDING</span>
+                    </div>
+                  )}
+
+                  {idx === 1 && (
+                    <div className="py-1.5 px-2.5 rounded-xl bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-500/20 flex items-center justify-center gap-1.5 text-[11px] text-pink-700 dark:text-pink-300 transition-colors">
+                      <Headphones className="w-3.5 h-3.5 text-pink-500 dark:text-pink-400" />
+                      <span className="font-mono font-bold">24/7 STUDY & POMODORO</span>
+                    </div>
+                  )}
+
+                  {idx === 2 && (
+                    <div className="py-1.5 px-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-500/20 flex items-center justify-center gap-1.5 text-[11px] text-red-700 dark:text-red-300 transition-colors">
+                      <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+                      <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+                      <span className="font-mono font-bold ml-1">2 LIVES BATTLE</span>
+                    </div>
+                  )}
+
+                  {idx === 3 && (
+                    <div className="py-1.5 px-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-500/20 flex items-center justify-center gap-1.5 text-[11px] text-cyan-700 dark:text-cyan-300 transition-colors">
+                      <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span className="font-mono font-bold">DISCORD BOT RANK ROLE</span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Card Footer: Action indication */}
-              <div className="pt-2 flex items-center justify-between text-xs font-semibold">
-                <span className={`transition-colors ${isFocused ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/50'}`}>
-                  {idx === 0 && 'Role chọn tự do'}
-                  {idx === 1 && 'Học 24/7'}
-                  {idx === 2 && 'Sinh tồn 2 ❤️❤️'}
-                  {idx === 3 && 'Lên Rank Discord'}
-                </span>
-                <ArrowRight className={`w-4 h-4 transition-transform duration-200 ${isFocused ? 'translate-x-1 text-pink-500 dark:text-pink-400' : 'text-slate-400 dark:text-white/40'}`} />
-              </div>
-
-              {/* Special interactive detail for Step 03: Arena Heart Indicator */}
-              {idx === 2 && (
-                <div className="mt-3 py-1.5 px-2.5 rounded-xl bg-red-950/40 border border-red-500/20 flex items-center justify-center gap-1.5 text-[11px] text-red-300">
-                  <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
-                  <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
-                  <span className="font-mono font-bold ml-1">2 LIVES BATTLE</span>
-                </div>
-              )}
-
-              {/* Special interactive detail for Step 04: Fast role badge */}
-              {idx === 3 && (
-                <div className="mt-3 py-1.5 px-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/20 flex items-center justify-center gap-1.5 text-[11px] text-cyan-300">
-                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="font-mono font-bold">DISCORD BOT RANK ROLE</span>
-                </div>
-              )}
             </div>
           );
         })}
@@ -236,7 +286,7 @@ export const HowItWorks: React.FC = () => {
           href="https://discord.gg/D34HX87bGe"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-purple-300 hover:text-pink-300 transition-colors"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-300 hover:text-pink-600 dark:hover:text-pink-300 transition-colors"
         >
           <span>Sẵn sàng trải nghiệm quy trình cùng HyperHub?</span>
           <ArrowRight className="w-4 h-4" />
