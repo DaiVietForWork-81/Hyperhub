@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperHub • Competitive Programming Ecosystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B0F19;
+            --bg-surface: #111827;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #38BDF8;
+            --primary-glow: rgba(56, 189, 248, 0.25);
+            --accent: #A855F7;
+            --accent-glow: rgba(168, 85, 247, 0.25);
+            --discord: #5865F2;
+            --gold: #FBBF24;
+            --success: #10B981;
+            --danger: #EF4444;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.06) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            background: rgba(11, 15, 25, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #FFFFFF, #94A3B8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-badges {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .discord-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(88, 101, 242, 0.15);
+            border: 1px solid rgba(88, 101, 242, 0.4);
+            color: #818CF8;
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success);
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        main {
+            flex: 1;
+            max-width: 1280px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .hero-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-desc {
+            color: var(--text-muted);
+            max-width: 650px;
+            line-height: 1.6;
+            font-size: 1.05rem;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(8px);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: #FFFFFF;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.75rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.85rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rank-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            display: inline-block;
+            width: 24px;
+            text-align: center;
+        }
+
+        .rank-1 { color: #F59E0B; }
+        .rank-2 { color: #94A3B8; }
+        .rank-3 { color: #D97706; }
+
+        .tier-pill {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(11, 15, 25, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-group">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">HyperHub Platform</div>
+        </div>
+        <div class="header-badges">
+            <div id="discord-badge" class="discord-pill">
+                <span>💬</span>
+                <span id="discord-guild-text">Discord Server...</span>
+            </div>
+            <div id="bot-status-badge" class="status-pill">
+                <span class="status-dot"></span>
+                <span id="bot-status-text">Đang kết nối...</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero-banner">
+            <div>
+                <h1 class="hero-title">Hệ Thống Đấu Trường Lập Trình Thi Đấu</h1>
+                <p class="hero-desc">
+                    Trang điều khiển Web độc lập tích hợp trực tiếp với <strong>Discord API Token</strong>,
+                    cầu nối <strong>Bot REST Bridge</strong> và <strong>CSDL chung</strong>.
+                </p>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Máy Chủ Discord (Token)</div>
+                <div class="kpi-value" id="kpi-guild-name" style="font-size: 1.25rem; color: #818CF8;">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Thành Viên Server</div>
+                <div class="kpi-value" id="kpi-members" style="color: var(--primary);">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Trạng Thái Bot Bridge</div>
+                <div class="kpi-value" id="kpi-status" style="color: var(--success);">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Trận Đang Đấu 1:1</div>
+                <div class="kpi-value" id="kpi-duels" style="color: var(--gold);">0</div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <!-- BẢNG XẾP HẠNG RANKED 1:1 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">⚔️ Bảng Xếp Hạng Ranked 1:1</div>
+                    <span class="tier-pill" style="color: var(--primary);">TOP ĐẤU TRƯỜNG</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Thí Sinh</th>
+                            <th>Bậc</th>
+                            <th>Rating</th>
+                            <th>Thắng/Thua</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ranked-tbody">
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- BẢNG XẾP HẠNG FREEDOM -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">🌟 Bảng Xếp Hạng Freedom</div>
+                    <span class="tier-pill" style="color: var(--gold);">CODEFORCES</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Thí Sinh</th>
+                            <th>Bậc</th>
+                            <th>Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody id="freedom-tbody">
+                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        HyperHub Competitive Programming Ecosystem • Multi-Channel Bridge (Discord Token + REST Bridge + DB Sync) 2026
+    </footer>
+
+    <script>
+        async function fetchDashboardData() {
+            try {
+                // 1. Discord Direct API via DISCORD_TOKEN
+                const guildRes = await fetch('/api/discord/server');
+                if (guildRes.ok) {
+                    const gData = await guildRes.json();
+                    if (gData.name) {
+                        document.getElementById('kpi-guild-name').textContent = gData.name;
+                        document.getElementById('kpi-members').textContent = `${gData.approximate_member_count || '--'} tv`;
+                        document.getElementById('discord-guild-text').textContent = `${gData.name} (${gData.approximate_member_count || 0} tv)`;
+                    }
+                }
+
+                // 2. Status via Bot Bridge
+                const statusRes = await fetch('/api/status');
+                if (statusRes.ok) {
+                    const status = await statusRes.json();
+                    document.getElementById('kpi-status').textContent = status.status.toUpperCase();
+                    
+                    const badgeText = document.getElementById('bot-status-text');
+                    if (status.status === 'online') {
+                        badgeText.textContent = `Bot Online (${status.bot_user})`;
+                    } else {
+                        badgeText.textContent = 'Bot Offline (DB Sync)';
+                    }
+                }
+
+                // 3. Active Duels
+                const duelsRes = await fetch('/api/duels');
+                if (duelsRes.ok) {
+                    const duelsData = await duelsRes.json();
+                    document.getElementById('kpi-duels').textContent = duelsData.active_count || 0;
+                }
+
+                // 4. Ranked Leaderboard
+                const rankedRes = await fetch('/api/leaderboard?mode=ranked&limit=10');
+                if (rankedRes.ok) {
+                    const rData = await rankedRes.json();
+                    const tbody = document.getElementById('ranked-tbody');
+                    if (rData.leaderboard && rData.leaderboard.length > 0) {
+                        tbody.innerHTML = rData.leaderboard.map(item => `
+                            <tr>
+                                <td><span class="rank-badge rank-${item.rank}">${item.rank}</span></td>
+                                <td><strong>${item.cf_handle || item.discord_id}</strong></td>
+                                <td><span class="tier-pill">${item.ranked_tier}</span></td>
+                                <td style="font-family: monospace; font-weight: 700; color: #38BDF8;">${item.ranked_rating}</td>
+                                <td>${item.ranked_wins}W / ${item.ranked_losses}L (${item.win_rate}%)</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Chưa có trận đấu nào</td></tr>';
+                    }
+                }
+
+                // 5. Freedom Leaderboard
+                const freedomRes = await fetch('/api/leaderboard?mode=freedom&limit=10');
+                if (freedomRes.ok) {
+                    const fData = await freedomRes.json();
+                    const tbody = document.getElementById('freedom-tbody');
+                    if (fData.leaderboard && fData.leaderboard.length > 0) {
+                        tbody.innerHTML = fData.leaderboard.map(item => `
+                            <tr>
+                                <td><span class="rank-badge rank-${item.rank}">${item.rank}</span></td>
+                                <td><strong>${item.cf_handle || item.discord_id}</strong></td>
+                                <td><span class="tier-pill">${item.tier}</span></td>
+                                <td style="font-family: monospace; font-weight: 700; color: #FBBF24;">${item.rating}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Chưa có dữ liệu</td></tr>';
+                    }
+                }
+            } catch (err) {
+                console.error("Lỗi cập nhật dashboard:", err);
+            }
+        }
+
+        fetchDashboardData();
+        setInterval(fetchDashboardData, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+import React, { useState } from 'react';
+import { HelpCircle, ChevronDown, Sparkles, MessageCircleQuestion } from 'lucide-react';
+import { ScrollReveal } from './ScrollReveal';
+
+interface FAQItem {
+  question: string;
+  answer: string;
+  category: string;
+}
+
+const FAQ_ITEMS: FAQItem[] = [
+  {
+    question: 'HyperHub có thu bất kỳ khoản phí nào không?',
+    answer: 'Hoàn toàn Miễn Phí 100%! Toàn bộ tài liệu, đề thi, phòng học Pomodoro 24/7, đấu trường đối kháng 1:1 và hệ thống cấp Rank Role Discord đều mở tự do cho mọi học sinh, sinh viên Việt Nam giao lưu và cùng tiến bộ.',
+    category: 'Chi Phí & Quyền Lợi',
+  },
+  {
+    question: 'Mình không có năng khiếu Tin / chưa biết lập trình thì có tham gia được không?',
+    answer: 'Rất hoan nghênh bạn! HyperHub là không gian học tập toàn diện, không chỉ có Tin học mà còn hỗ trợ mạnh mẽ các môn Toán, Ngữ Văn, Tiếng Anh, Vật Lý, Hóa Học, Sinh Học, Lịch Sử, Địa Lý và Ngoại Ngữ. Nếu bạn muốn bắt đầu học Tin học, server có sẵn tài liệu cơ bản từ con số 0 và các anh chị sẵn sàng giải đáp.',
+    category: 'Đối Tượng Tham Gia',
+  },
+  {
+    question: 'Đấu Trường Đối Kháng 1:1 Sinh Tồn 2 Mạng (❤️❤️) hoạt động ra sao?',
+    answer: 'Khi bạn tham gia thách đấu, bot sẽ tạo phòng thi đấu riêng biệt. Cả hai đấu thủ nhận cùng một bài toán thuật toán. Mỗi bên có 2 mạng sống (❤️❤️), mỗi lần nộp bài bị lỗi hoặc sai test (WA) sẽ bị trừ 1 mạng. Trình chấm Sandbox siêu tốc sẽ trả lời verdict ngay lập tức. Người giải đúng trước hoặc sống sót sau cùng sẽ giành chiến thắng!',
+    category: 'Đấu Trường 1:1',
+  },
+  {
+    question: 'Làm thế nào để leo Rank và nhận Rank Role trên Discord?',
+    answer: 'Điểm Elo của bạn sẽ được tích lũy tự động sau mỗi chiến thắng trong Đấu Trường 1:1 hoặc hoàn thành các bài tập trên bot. Khi đạt mốc điểm quy định, Bot Discord sẽ tự động trao tặng Rank Role danh dự (Đồng → Bạc → Vàng → Kim Cương → Thách Đấu) tương ứng ngay trong hồ sơ server của bạn.',
+    category: 'Hệ Thống Rank',
+  },
+  {
+    question: 'Phòng học Pomodoro và Chill Lounge có quy định gì không?',
+    answer: 'Phòng voice hoạt động 24/7, bạn có thể tự do mở cam, chia sẻ màn hình học tập hoặc chỉ nghe bot phát nhạc Lofi thư giãn. Quy định duy nhất là giữ thái độ lịch sự, tôn trọng không gian tập trung của các thành viên khác.',
+    category: 'Chill & Pomodoro',
+  },
+];
+
+export const FAQ: React.FC = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  return (
+    <section 
+      id="faq" 
+      className="relative py-24 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto z-10 w-full"
+    >
+      {/* Section Header */}
+      <ScrollReveal>
+        <div className="flex flex-col items-center text-center mb-12 sm:mb-16">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/20 bg-purple-950/20 text-xs font-mono tracking-widest text-purple-300 uppercase mb-3 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+            <HelpCircle className="w-3.5 h-3.5 text-pink-400" />
+            <span>Hỏi & Đáp • Frequently Asked Questions</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4 text-balance">
+            Câu Hỏi Thường Gặp
+          </h2>
+
+          <p className="text-sm sm:text-base text-white/70 max-w-xl text-balance leading-relaxed">
+            Những thắc mắc phổ biến nhất khi các bạn mới gia nhập mái nhà chung HyperHub.
+          </p>
+
+          <div className="h-1 w-20 bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 rounded-full mt-5"></div>
+        </div>
+      </ScrollReveal>
+
+      {/* Accordion List */}
+      <div className="space-y-4">
+        {FAQ_ITEMS.map((item, idx) => {
+          const isOpen = openIndex === idx;
+
+          return (
+            <ScrollReveal key={idx} delay={idx * 80}>
+              <div 
+                className={`rounded-2xl border transition-all duration-300 backdrop-blur-xl overflow-hidden ${
+                  isOpen
+                    ? 'border-purple-500/50 bg-gradient-to-r from-purple-950/30 to-slate-900/60 shadow-[0_0_25px_rgba(139,92,246,0.18)]'
+                    : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleFAQ(idx)}
+                  className="w-full px-6 py-5 flex items-center justify-between text-left gap-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500"
+                  aria-expanded={isOpen}
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageCircleQuestion className={`w-5 h-5 shrink-0 transition-colors ${isOpen ? 'text-pink-400' : 'text-purple-400'}`} />
+                    <span className="text-base sm:text-lg font-bold text-white leading-snug">
+                      {item.question}
+                    </span>
+                  </div>
+
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${
+                    isOpen ? 'rotate-180 bg-purple-600/30 text-pink-300' : 'bg-white/[0.04] text-white/60'
+                  }`}>
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="px-6 pb-5 pt-1 text-sm sm:text-base text-white/75 leading-relaxed font-sans border-t border-white/[0.06] animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="inline-block text-[11px] font-mono font-semibold uppercase tracking-wider text-purple-300 bg-purple-950/40 px-2 py-0.5 rounded mb-2 border border-purple-500/20">
+                      {item.category}
+                    </div>
+                    <p>{item.answer}</p>
+                  </div>
+                )}
+              </div>
+            </ScrollReveal>
+          );
+        })}
+      </div>
+
+      {/* Support Box */}
+      <div className="mt-10 p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-center flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-left">
+          <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
+          <div>
+            <div className="text-sm font-bold text-white">Bạn còn câu hỏi khác cần giải đáp?</div>
+            <div className="text-xs text-white/60">Đội ngũ Admin và Moderator luôn trực 24/7 trên kênh Ticket Discord.</div>
+          </div>
+        </div>
+        <a
+          href="https://discord.gg/D34HX87bGe"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-shimmer px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 transition-all shrink-0"
+        >
+          Hỏi Trực Tiếp Trên Discord
+        </a>
+      </div>
+    </section>
+  );
+};
