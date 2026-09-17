@@ -14,7 +14,7 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   className,
   delay = 0,
   direction = 'up',
-  threshold = 0.1,
+  threshold = 0.08,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -29,12 +29,13 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Tự động kích hoạt hiện khi cuộn tới và ẩn khi cuộn ra ngoài (áp dụng cả 2 chiều)
-        setIsVisible(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
       },
       {
         threshold,
-        rootMargin: '0px 0px -40px 0px',
+        rootMargin: '50px 0px -20px 0px',
       }
     );
 
@@ -49,8 +50,8 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
 
   const getTransformClass = () => {
     if (isVisible) return 'translate-y-0 opacity-100';
-    if (direction === 'up') return 'translate-y-6 opacity-0';
-    if (direction === 'down') return '-translate-y-6 opacity-0';
+    if (direction === 'up') return 'translate-y-5 opacity-0';
+    if (direction === 'down') return '-translate-y-5 opacity-0';
     return 'opacity-0';
   };
 
@@ -58,7 +59,7 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
     <div
       ref={ref}
       className={cn(
-        'transition-all duration-700 ease-out will-change-[transform,opacity]',
+        'transform-gpu transition-[transform,opacity] duration-600 cubic-bezier(0.16, 1, 0.3, 1) will-change-[transform,opacity]',
         getTransformClass(),
         className
       )}

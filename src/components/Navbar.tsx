@@ -6,7 +6,7 @@ import { Theme } from '../hooks/useTheme';
 
 interface NavbarProps {
   theme: Theme;
-  onToggleTheme: () => void;
+  onToggleTheme: (e?: React.MouseEvent) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {

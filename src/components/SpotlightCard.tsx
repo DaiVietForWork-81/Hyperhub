@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { cn } from '../utils/cn';
 
 interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -18,6 +18,15 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
   ...props
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -25,20 +34,31 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    cardRef.current.style.setProperty('--mouse-x', `${x}px`);
-    cardRef.current.style.setProperty('--mouse-y', `${y}px`);
-
-    if (enableTilt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const rotateX = ((y - centerY) / centerY) * -4;
-      const rotateY = ((x - centerX) / centerX) * 4;
-
-      cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
     }
+
+    rafRef.current = requestAnimationFrame(() => {
+      if (!cardRef.current) return;
+      cardRef.current.style.setProperty('--mouse-x', `${x}px`);
+      cardRef.current.style.setProperty('--mouse-y', `${y}px`);
+
+      if (enableTilt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = ((y - centerY) / centerY) * -3.5;
+        const rotateY = ((x - centerX) / centerX) * 3.5;
+
+        cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
+      }
+    });
   };
 
   const handleMouseLeave = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     if (!cardRef.current) return;
     cardRef.current.style.setProperty('--mouse-x', '-999px');
     cardRef.current.style.setProperty('--mouse-y', '-999px');
@@ -54,11 +74,12 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'group/spotlight relative rounded-3xl border border-white/[0.08] bg-gradient-to-b from-[#0e0e13] to-[#060608] overflow-hidden transition-[border-color,box-shadow,background-color] duration-200',
+        'group/spotlight relative rounded-3xl border border-white/[0.08] bg-gradient-to-b from-[#0e0e13] to-[#060608] overflow-hidden transition-[border-color,box-shadow,background-color] duration-200 transform-gpu',
         className
       )}
       style={{
         transformStyle: 'preserve-3d',
+        willChange: enableTilt ? 'transform' : 'auto',
       }}
       {...props}
     >

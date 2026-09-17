@@ -89,63 +89,94 @@ html.light .liquid-glass {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 15px 35px -10px rgba(100, 116, 139, 0.15);
 }
 
-/* Light Theme Global Text & Card Overrides */
-html.light .app-container {
-  background-color: #f8fafc;
-  color: #0f172a;
+/* View Transitions API circular ripple support */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Fallback smooth transition during theme toggle */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Light Theme: When light mode is active, text becomes dark and background bright */
+html.light,
+html.light body,
+html.light main {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
 html.light h1, 
 html.light h2, 
 html.light h3, 
-html.light h4 {
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a !important;
+}
+
+html.light p {
+  color: #334155;
+}
+
+html.light [class*="text-white"] {
   color: #0f172a;
 }
 
-html.light .text-white {
-  color: #0f172a;
-}
-
-html.light .text-white\/95,
-html.light .text-white\/90,
-html.light .text-white\/80 {
+html.light [class*="text-white/70"],
+html.light [class*="text-white/80"],
+html.light [class*="text-white/90"],
+html.light [class*="text-white/95"] {
   color: #1e293b;
 }
 
-html.light .text-white\/70,
-html.light .text-white\/60,
-html.light .text-white\/50 {
+html.light [class*="text-white/50"],
+html.light [class*="text-white/60"] {
   color: #475569;
 }
 
-html.light .text-white\/40,
-html.light .text-white\/30 {
-  color: #94a3b8;
+html.light [class*="text-white/40"],
+html.light [class*="text-white/30"],
+html.light [class*="text-white/20"] {
+  color: #64748b;
 }
 
-html.light .bg-white\/\[0\.03\],
-html.light .bg-white\/\[0\.02\],
-html.light .bg-white\/\[0\.04\],
-html.light .bg-white\/\[0\.05\] {
-  background-color: rgba(241, 245, 249, 0.85);
+html.light [class*="bg-white/"] {
+  background-color: rgba(241, 245, 249, 0.9);
 }
 
-html.light .border-white\/10,
-html.light .border-white\/\[0\.08\],
-html.light .border-white\/\[0\.06\],
-html.light .border-white\/\[0\.05\] {
-  border-color: rgba(148, 163, 184, 0.28);
+html.light [class*="border-white/"] {
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
-html.light .bg-purple-950\/20,
-html.light .bg-purple-950\/30,
-html.light .bg-purple-950\/40 {
-  background-color: rgba(243, 232, 255, 0.7);
+html.light [class*="bg-purple-950/"],
+html.light [class*="bg-pink-950/"],
+html.light [class*="bg-slate-950/"] {
+  background-color: rgba(243, 232, 255, 0.6);
 }
 
-html.light .bg-pink-950\/20,
-html.light .bg-pink-950\/30 {
-  background-color: rgba(252, 231, 243, 0.7);
+html.light .spotlight-card {
+  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+html.light header {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
 }
 
 /* Preserving dark code styling in CodeTerminal & Arena */
@@ -158,29 +189,30 @@ html.light .bg-pink-950\/30 {
   color-scheme: dark;
 }
 
-.terminal-preserve-dark .text-white {
+.terminal-preserve-dark [class*="text-white"] {
   color: #ffffff !important;
 }
 
-.terminal-preserve-dark .text-white\/70 {
+.terminal-preserve-dark [class*="text-white/70"] {
   color: rgba(255, 255, 255, 0.7) !important;
 }
 
-.terminal-preserve-dark .text-white\/50 {
+.terminal-preserve-dark [class*="text-white/50"] {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
-.terminal-preserve-dark .border-white\/10 {
+.terminal-preserve-dark [class*="border-white/"] {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-.terminal-preserve-dark .bg-white\/\[0\.03\] {
+.terminal-preserve-dark [class*="bg-white/"] {
   background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
-/* Buttons in light mode keep white text */
+/* Buttons and gradient badges keep white text */
 .btn-shimmer span,
-.btn-primary span {
+.btn-primary span,
+[class*="bg-gradient-to-r"] span {
   color: #ffffff !important;
 }
 
