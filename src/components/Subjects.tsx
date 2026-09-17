@@ -124,14 +124,14 @@ export const Subjects: React.FC = () => {
       {/* Section Header */}
       <ScrollReveal>
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/20 bg-purple-950/20 text-xs font-mono tracking-widest text-purple-300 uppercase mb-3 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
-            <GraduationCap className="w-3.5 h-3.5 text-pink-400" />
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-300 dark:border-purple-500/20 bg-purple-100/80 dark:bg-purple-950/20 text-xs font-mono tracking-widest text-purple-700 dark:text-purple-300 uppercase mb-3 shadow-sm dark:shadow-[0_0_15px_rgba(139,92,246,0.1)] font-semibold">
+            <GraduationCap className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
             <span>Học Tập Đa Môn • Toàn Diện & Tận Tâm</span>
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white mt-3 mb-4 text-balance">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-3 mb-4 text-balance">
             Không Gian Hỗ Trợ Đa Môn & Ngôn Ngữ
           </h2>
-          <p className="text-base text-white/60 leading-relaxed max-w-2xl mx-auto text-pretty font-sans">
+          <p className="text-base text-slate-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto text-pretty font-sans">
             Không chỉ giới hạn ở Lập trình Tin học — HyperHub đồng hành cùng bạn trong tất cả các môn học từ Tự nhiên, Xã hội cho đến Ngoại ngữ quốc tế và kỹ năng sống.
           </p>
         </div>
@@ -151,26 +151,26 @@ export const Subjects: React.FC = () => {
               >
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className={`p-2.5 rounded-xl bg-white/[0.03] border border-white/10 ${item.color}`}>
+                    <div className={`p-2.5 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 ${item.color}`}>
                       <Icon className="w-5 h-5" />
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] text-white/50 border border-white/[0.08]">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/50 border border-slate-200 dark:border-white/[0.08]">
                       {item.badge}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-bold text-white mb-2 group-hover/spotlight:text-purple-300 transition-colors">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2 group-hover/spotlight:text-purple-600 dark:group-hover/spotlight:text-purple-300 transition-colors">
                     {item.name}
                   </h3>
 
-                  <p className="text-xs text-white/55 leading-relaxed font-sans">
+                  <p className="text-xs text-slate-600 dark:text-white/55 leading-relaxed font-sans">
                     {item.description}
                   </p>
                 </div>
 
-                <div className="pt-3.5 border-t border-white/[0.06] mt-4 flex items-center justify-between text-[11px] text-white/40">
+                <div className="pt-3.5 border-t border-slate-200/80 dark:border-white/[0.06] mt-4 flex items-center justify-between text-[11px] text-slate-500 dark:text-white/40">
                   <span>Tài liệu & Hỏi đáp</span>
-                  <span className="text-green-400 font-mono">Sẵn sàng</span>
+                  <span className="text-green-600 dark:text-green-400 font-mono font-semibold">Sẵn sàng</span>
                 </div>
               </SpotlightCard>
             </ScrollReveal>

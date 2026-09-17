@@ -73,18 +73,18 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({ platform }) => {
       <div>
         {/* Header with Icon, Badge & Member Count */}
         <div className="flex items-center justify-between mb-6">
-          <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 group-hover/spotlight:scale-105 group-hover/spotlight:border-purple-500/40 transition-all duration-300">
+          <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 group-hover/spotlight:scale-105 group-hover/spotlight:border-purple-400 dark:group-hover/spotlight:border-purple-500/40 transition-all duration-300">
             {renderIcon()}
           </div>
           <div className="flex items-center gap-2">
             {platform.memberCount && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wide bg-green-500/10 text-green-400 border border-green-500/25">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wide bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-500/25">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 dark:bg-green-400 animate-pulse"></span>
                 <span>{platform.memberCount}</span>
               </span>
             )}
             {platform.badge && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium tracking-wide bg-purple-500/10 text-purple-300 border border-purple-500/20 group-hover/spotlight:border-purple-500/40 transition-colors">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-500/20 group-hover/spotlight:border-purple-400 dark:group-hover/spotlight:border-purple-500/40 transition-colors">
                 {platform.badge}
               </span>
             )}
@@ -92,16 +92,16 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({ platform }) => {
         </div>
 
         {/* Title and Description */}
-        <h3 className="text-xl font-bold text-white mb-2 group-hover/spotlight:text-purple-300 transition-colors">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover/spotlight:text-purple-600 dark:group-hover/spotlight:text-purple-300 transition-colors">
           {platform.name}
         </h3>
-        <p className="text-sm text-white/60 leading-relaxed mb-6 font-sans">
+        <p className="text-sm text-slate-600 dark:text-white/60 leading-relaxed mb-6 font-sans">
           {platform.description}
         </p>
       </div>
 
       {/* Action Button */}
-      <div className="pt-6 border-t border-white/[0.06]">
+      <div className="pt-6 border-t border-slate-200/80 dark:border-white/[0.06]">
         {isPlaceholder ? (
           <div className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-white/50">
             <span>Link kết nối:</span>

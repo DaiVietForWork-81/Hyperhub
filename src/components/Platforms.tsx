@@ -10,13 +10,13 @@ export const Platforms: React.FC = () => {
       {/* Section Header */}
       <ScrollReveal>
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-mono tracking-widest text-pink-400 uppercase">
+          <span className="text-xs font-mono tracking-widest text-pink-600 dark:text-pink-400 uppercase font-semibold">
             ✦ KẾT NỐI CỘNG ĐỒNG
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white mt-3 mb-4 text-balance">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-3 mb-4 text-balance">
             Tham Gia Cùng HyperHub
           </h2>
-          <p className="text-base text-white/60 leading-relaxed text-pretty">
+          <p className="text-base text-slate-600 dark:text-white/60 leading-relaxed text-pretty">
             Lựa chọn không gian phù hợp với bạn để bắt đầu học tập, giao lưu và nhận thông báo các giải đấu mới nhất.
           </p>
         </div>

@@ -14,7 +14,7 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   className,
   delay = 0,
   direction = 'up',
-  threshold = 0.08,
+  threshold = 0.02,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -27,21 +27,30 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
       return;
     }
 
+    const el = ref.current;
+    if (!el) return;
+
+    // If element is already in or above the viewport on initial render, show immediately
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) {
+      setIsVisible(true);
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
+          observer.disconnect(); // Unobserve once shown for zero re-render overhead when scrolling
         }
       },
       {
         threshold,
-        rootMargin: '50px 0px -20px 0px',
+        rootMargin: '120px 0px -20px 0px',
       }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
+    observer.observe(el);
 
     return () => {
       observer.disconnect();
@@ -50,8 +59,8 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
 
   const getTransformClass = () => {
     if (isVisible) return 'translate-y-0 opacity-100';
-    if (direction === 'up') return 'translate-y-5 opacity-0';
-    if (direction === 'down') return '-translate-y-5 opacity-0';
+    if (direction === 'up') return 'translate-y-4 opacity-0';
+    if (direction === 'down') return '-translate-y-4 opacity-0';
     return 'opacity-0';
   };
 
@@ -59,7 +68,7 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
     <div
       ref={ref}
       className={cn(
-        'transform-gpu transition-[transform,opacity] duration-600 cubic-bezier(0.16, 1, 0.3, 1) will-change-[transform,opacity]',
+        'transform-gpu transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,opacity]',
         getTransformClass(),
         className
       )}

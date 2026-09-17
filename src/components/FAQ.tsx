@@ -56,11 +56,11 @@ export const FAQ: React.FC = () => {
             <span>Hỏi & Đáp • Frequently Asked Questions</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4 text-balance">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-4 text-balance">
             Câu Hỏi Thường Gặp
           </h2>
 
-          <p className="text-sm sm:text-base text-white/70 max-w-xl text-balance leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-xl text-balance leading-relaxed">
             Những thắc mắc phổ biến nhất khi các bạn mới gia nhập mái nhà chung HyperHub.
           </p>
 
@@ -78,8 +78,8 @@ export const FAQ: React.FC = () => {
               <div 
                 className={`rounded-2xl border transition-all duration-300 backdrop-blur-xl overflow-hidden ${
                   isOpen
-                    ? 'border-purple-500/50 bg-gradient-to-r from-purple-950/30 to-slate-900/60 shadow-[0_0_25px_rgba(139,92,246,0.18)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                    ? 'border-purple-400/80 dark:border-purple-500/50 bg-purple-50/80 dark:bg-gradient-to-r dark:from-purple-950/30 dark:to-slate-900/60 shadow-md shadow-purple-200/50 dark:shadow-[0_0_25px_rgba(139,92,246,0.18)]'
+                    : 'border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-white/[0.02] hover:border-purple-300 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <button
@@ -89,22 +89,22 @@ export const FAQ: React.FC = () => {
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center gap-3">
-                    <MessageCircleQuestion className={`w-5 h-5 shrink-0 transition-colors ${isOpen ? 'text-pink-400' : 'text-purple-400'}`} />
-                    <span className="text-base sm:text-lg font-bold text-white leading-snug">
+                    <MessageCircleQuestion className={`w-5 h-5 shrink-0 transition-colors ${isOpen ? 'text-pink-600 dark:text-pink-400' : 'text-purple-600 dark:text-purple-400'}`} />
+                    <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug">
                       {item.question}
                     </span>
                   </div>
 
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${
-                    isOpen ? 'rotate-180 bg-purple-600/30 text-pink-300' : 'bg-white/[0.04] text-white/60'
+                    isOpen ? 'rotate-180 bg-purple-200 dark:bg-purple-600/30 text-purple-700 dark:text-pink-300' : 'bg-slate-100 dark:bg-white/[0.04] text-slate-500 dark:text-white/60'
                   }`}>
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="px-6 pb-5 pt-1 text-sm sm:text-base text-white/75 leading-relaxed font-sans border-t border-white/[0.06] animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="inline-block text-[11px] font-mono font-semibold uppercase tracking-wider text-purple-300 bg-purple-950/40 px-2 py-0.5 rounded mb-2 border border-purple-500/20">
+                  <div className="px-6 pb-5 pt-1 text-sm sm:text-base text-slate-600 dark:text-white/75 leading-relaxed font-sans border-t border-slate-200/80 dark:border-white/[0.06] animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="inline-block text-[11px] font-mono font-semibold uppercase tracking-wider text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/40 px-2 py-0.5 rounded mb-2 border border-purple-300 dark:border-purple-500/20">
                       {item.category}
                     </div>
                     <p>{item.answer}</p>
@@ -117,12 +117,12 @@ export const FAQ: React.FC = () => {
       </div>
 
       {/* Support Box */}
-      <div className="mt-10 p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-center flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="mt-10 p-6 rounded-2xl bg-white/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/10 text-center flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3 text-left">
-          <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
+          <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0" />
           <div>
-            <div className="text-sm font-bold text-white">Bạn còn câu hỏi khác cần giải đáp?</div>
-            <div className="text-xs text-white/60">Đội ngũ Admin và Moderator luôn trực 24/7 trên kênh Ticket Discord.</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white">Bạn còn câu hỏi khác cần giải đáp?</div>
+            <div className="text-xs text-slate-500 dark:text-white/60">Đội ngũ Admin và Moderator luôn trực 24/7 trên kênh Ticket Discord.</div>
           </div>
         </div>
         <a

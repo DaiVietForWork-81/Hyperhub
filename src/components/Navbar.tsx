@@ -126,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
             : '-translate-y-full opacity-0 pointer-events-none'
         } ${
           isScrolled
-            ? 'bg-black/80 dark:bg-black/80 light:bg-white/90 backdrop-blur-md border-b border-white/[0.08] py-2.5 shadow-2xl shadow-purple-950/20'
+            ? 'bg-white/90 dark:bg-black/80 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] py-2.5 shadow-md shadow-slate-200/40 dark:shadow-2xl dark:shadow-purple-950/20'
             : 'bg-transparent py-3 sm:py-4'
         }`}
       >
@@ -141,13 +141,13 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
             <img
               src="/logo.png"
               alt="HyperHub Logo"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
             <div className="flex items-center">
-              <span className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
+              <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
                 HyperHub
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse"></span>
@@ -155,13 +155,13 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
           </a>
 
           {/* Desktop & Tablet Horizontal Nav Dock (Nằm Ngang Rõ Ràng & Cuộn Ngang Mượt Mà) */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-1 px-2 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-md max-w-[65vw] xl:max-w-none shadow-inner">
+          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-1 px-2 rounded-full border border-slate-200/80 dark:border-white/[0.08] bg-slate-100/70 dark:bg-white/[0.03] backdrop-blur-md max-w-[65vw] xl:max-w-none shadow-sm dark:shadow-inner">
             {siteConfig.navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
                 onClick={(e) => scrollToSection(e, item.href)}
-                className="px-3 py-1.5 text-xs lg:text-sm font-medium whitespace-nowrap text-white/75 hover:text-white hover:bg-purple-500/20 hover:shadow-[0_0_15px_rgba(168,85,247,0.35)] rounded-full transition-all duration-150 active:scale-95"
+                className="px-3 py-1.5 text-xs lg:text-sm font-medium whitespace-nowrap text-slate-600 dark:text-white/75 hover:text-purple-600 dark:hover:text-white hover:bg-purple-100/80 dark:hover:bg-purple-500/20 rounded-full transition-all duration-150 active:scale-95"
               >
                 {item.label}
               </a>
@@ -191,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
               aria-label={mobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="p-2 rounded-lg text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -200,20 +200,20 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
 
         {/* Mobile Drawer Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-black/95 dark:bg-black/95 light:bg-white/95 backdrop-blur-xl border-b border-white/10 px-6 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-white/95 dark:bg-black/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 px-6 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
             <nav className="flex flex-col gap-2">
               {siteConfig.navItems.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
                   onClick={(e) => scrollToSection(e, item.href)}
-                  className="px-4 py-2.5 text-sm font-medium text-white/80 hover:text-white hover:bg-purple-500/20 rounded-xl transition-all"
+                  className="px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-white/80 hover:text-purple-600 dark:hover:text-white hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-xl transition-all"
                 >
                   {item.label}
                 </a>
               ))}
 
-              <div className="pt-3 mt-2 border-t border-white/10">
+              <div className="pt-3 mt-2 border-t border-slate-200 dark:border-white/10">
                 <a
                   href="#platforms"
                   onClick={(e) => scrollToSection(e, '#platforms')}

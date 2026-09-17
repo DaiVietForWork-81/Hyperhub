@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 
 export type Theme = 'dark' | 'light';
 
@@ -78,7 +79,17 @@ export const useTheme = () => {
           startViewTransition: (cb: () => void) => { ready: Promise<void> };
         }
       ).startViewTransition(() => {
-        setTheme(nextTheme);
+        flushSync(() => {
+          setTheme(nextTheme);
+          const root = document.documentElement;
+          if (nextTheme === 'light') {
+            root.classList.remove('dark');
+            root.classList.add('light');
+          } else {
+            root.classList.remove('light');
+            root.classList.add('dark');
+          }
+        });
       });
 
       transition.ready.then(() => {
@@ -91,8 +102,8 @@ export const useTheme = () => {
             clipPath: clipPath,
           },
           {
-            duration: 500,
-            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            duration: 450,
+            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
             pseudoElement: '::view-transition-new(root)',
           }
         );

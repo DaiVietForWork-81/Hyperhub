@@ -16,42 +16,12 @@ export const MouseAura: React.FC = () => {
     let mouseY = window.innerHeight / 2;
     let currentX = mouseX;
     let currentY = mouseY;
-    let animationFrameId: number | null = null;
-    let isLoopRunning = false;
-    let isScrolling = false;
-    let scrollTimeout: number | null = null;
-
-    const startLoop = () => {
-      if (isLoopRunning || document.hidden || isScrolling) return;
-      isLoopRunning = true;
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    const stopLoop = () => {
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-      }
-      isLoopRunning = false;
-    };
+    let animationFrameId: number;
 
     const animate = () => {
-      const dx = mouseX - currentX;
-      const dy = mouseY - currentY;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist < 0.2) {
-        currentX = mouseX;
-        currentY = mouseY;
-        if (auraRef.current) {
-          auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
-        }
-        stopLoop();
-        return;
-      }
-
-      currentX += dx * 0.1;
-      currentY += dy * 0.1;
+      // Smooth continuous lerp without abrupt scroll-stop hitching
+      currentX += (mouseX - currentX) * 0.08;
+      currentY += (mouseY - currentY) * 0.08;
 
       if (auraRef.current) {
         auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
@@ -63,26 +33,14 @@ export const MouseAura: React.FC = () => {
     const handleMouseMove = (e: MouseEvent) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
-      startLoop();
-    };
-
-    const handleScroll = () => {
-      isScrolling = true;
-      stopLoop();
-      if (scrollTimeout) window.clearTimeout(scrollTimeout);
-      scrollTimeout = window.setTimeout(() => {
-        isScrolling = false;
-      }, 150);
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    animationFrameId = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('scroll', handleScroll);
-      stopLoop();
-      if (scrollTimeout) window.clearTimeout(scrollTimeout);
+      cancelAnimationFrame(animationFrameId);
     };
   }, []);
 

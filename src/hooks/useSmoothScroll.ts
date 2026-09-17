@@ -14,12 +14,15 @@ export const useSmoothScroll = () => {
       return;
     }
 
+    // Lenis configuration for natural, buttery-smooth luxury feel
     const lenis = new Lenis({
-      lerp: 0.08,
-      duration: 1.2,
+      duration: 1.0,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // smooth exponential decay
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 1.0,
-      touchMultiplier: 1.8,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1.0, // preserve natural touch/trackpad response
       infinite: false,
     });
 
@@ -43,8 +46,9 @@ export const useSmoothScroll = () => {
           if (el) {
             e.preventDefault();
             lenis.scrollTo(el as HTMLElement, {
-              offset: -40,
-              duration: 1.2,
+              offset: -70,
+              duration: 1.1,
+              easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             });
           }
         }

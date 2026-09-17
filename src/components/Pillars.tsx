@@ -63,13 +63,13 @@ export const Pillars: React.FC = () => {
       {/* Section Header */}
       <ScrollReveal>
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-mono tracking-widest text-purple-400 uppercase">
+          <span className="text-xs font-mono tracking-widest text-purple-700 dark:text-purple-400 uppercase font-semibold">
             ✦ TÔN CHỈ HOẠT ĐỘNG
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white mt-3 mb-4 text-balance">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-3 mb-4 text-balance">
             Ba Trụ Cột Bản Sắc: LEARN • CHILL • CONNECT
           </h2>
-          <p className="text-base text-white/60 leading-relaxed">
+          <p className="text-base text-slate-600 dark:text-white/60 leading-relaxed">
             Định hình trải nghiệm học tập, thư giãn và gắn kết cộng đồng cho từng thành viên tại HyperHub.
           </p>
         </div>
@@ -90,30 +90,30 @@ export const Pillars: React.FC = () => {
                 {/* Card Content */}
                 <div>
                   <div className="flex items-center justify-between mb-6">
-                    <div className={`p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 ${pillar.iconColor} group-hover/spotlight:scale-105 group-hover/spotlight:border-white/20 transition-all duration-300`}>
+                    <div className={`p-3.5 rounded-2xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 ${pillar.iconColor} group-hover/spotlight:scale-105 transition-all duration-300`}>
                       <Icon className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-mono text-white/40 tracking-wider">
+                    <span className="text-xs font-mono text-slate-500 dark:text-white/40 tracking-wider">
                       {pillar.tag}
                     </span>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-white mb-1 group-hover/spotlight:text-purple-300 transition-colors">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1 group-hover/spotlight:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
                     {pillar.title}
                   </h3>
-                  <h4 className="text-sm font-medium text-white/50 mb-4">
+                  <h4 className="text-sm font-semibold text-purple-700 dark:text-white/50 mb-4">
                     {pillar.subtitle}
                   </h4>
 
-                  <p className="text-sm text-white/60 leading-relaxed mb-6 font-sans">
+                  <p className="text-sm text-slate-600 dark:text-white/60 leading-relaxed mb-6 font-sans">
                     {pillar.description}
                   </p>
                 </div>
 
                 {/* Bullet Points */}
-                <div className="pt-6 border-t border-white/[0.06] space-y-2.5">
+                <div className="pt-6 border-t border-slate-200/80 dark:border-white/[0.06] space-y-2.5">
                   {pillar.points.map((pt, i) => (
-                    <div key={i} className="flex items-center gap-2.5 text-xs text-white/70">
+                    <div key={i} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-white/70">
                       <span className={`h-1.5 w-1.5 rounded-full ${pillar.bulletColor}`}></span>
                       <span>{pt}</span>
                     </div>
