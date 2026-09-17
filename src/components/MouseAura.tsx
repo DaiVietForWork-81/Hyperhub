@@ -18,9 +18,11 @@ export const MouseAura: React.FC = () => {
     let currentY = mouseY;
     let animationFrameId: number | null = null;
     let isLoopRunning = false;
+    let isScrolling = false;
+    let scrollTimeout: number | null = null;
 
     const startLoop = () => {
-      if (isLoopRunning || document.hidden) return;
+      if (isLoopRunning || document.hidden || isScrolling) return;
       isLoopRunning = true;
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -33,14 +35,12 @@ export const MouseAura: React.FC = () => {
       isLoopRunning = false;
     };
 
-    // Smooth Lerp animation with Idle Stop Condition (Zero CPU when stationary)
     const animate = () => {
       const dx = mouseX - currentX;
       const dy = mouseY - currentY;
       const dist = Math.hypot(dx, dy);
 
-      // If moved very close to target, snap and pause the loop
-      if (dist < 0.15) {
+      if (dist < 0.2) {
         currentX = mouseX;
         currentY = mouseY;
         if (auraRef.current) {
@@ -50,9 +50,8 @@ export const MouseAura: React.FC = () => {
         return;
       }
 
-      // Ease factor 0.08 for smooth, luxury inertia
-      currentX += dx * 0.08;
-      currentY += dy * 0.08;
+      currentX += dx * 0.1;
+      currentY += dy * 0.1;
 
       if (auraRef.current) {
         auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
@@ -67,26 +66,23 @@ export const MouseAura: React.FC = () => {
       startLoop();
     };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopLoop();
-      } else {
-        startLoop();
-      }
+    const handleScroll = () => {
+      isScrolling = true;
+      stopLoop();
+      if (scrollTimeout) window.clearTimeout(scrollTimeout);
+      scrollTimeout = window.setTimeout(() => {
+        isScrolling = false;
+      }, 150);
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Initial positioning
-    if (auraRef.current) {
-      auraRef.current.style.transform = `translate3d(${currentX - 250}px, ${currentY - 250}px, 0)`;
-    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('scroll', handleScroll);
       stopLoop();
+      if (scrollTimeout) window.clearTimeout(scrollTimeout);
     };
   }, []);
 
@@ -94,10 +90,11 @@ export const MouseAura: React.FC = () => {
     <div
       ref={auraRef}
       aria-hidden="true"
-      className="pointer-events-none fixed top-0 left-0 z-0 h-[500px] w-[500px] rounded-full opacity-30 dark:opacity-30 light:opacity-15 dark:mix-blend-screen light:mix-blend-multiply blur-[110px] will-change-transform hidden md:block"
+      className="pointer-events-none fixed top-0 left-0 z-0 h-[500px] w-[500px] rounded-full opacity-35 dark:opacity-35 light:opacity-20 will-change-transform hidden md:block"
       style={{
-        background: 'radial-gradient(circle at 40% 40%, rgba(147, 51, 234, 0.45) 0%, rgba(236, 72, 153, 0.28) 42%, rgba(0, 0, 0, 0) 70%)',
+        background: 'radial-gradient(circle at center, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.15) 40%, transparent 70%)',
         transform: 'translate3d(-500px, -500px, 0)',
+        contain: 'paint',
       }}
     />
   );

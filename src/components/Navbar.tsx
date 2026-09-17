@@ -87,7 +87,11 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
     setMobileMenuOpen(false);
     const target = document.querySelector(href);
     if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
+      if (window.__lenis) {
+        window.__lenis.scrollTo(target as HTMLElement, { offset: -45, duration: 1.2 });
+      } else {
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 

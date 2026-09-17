@@ -4,12 +4,15 @@ import { ChevronDown } from 'lucide-react';
 interface ScrollIndicatorProps {
   targetId: string;
 }
-
 export const ScrollIndicator: React.FC<ScrollIndicatorProps> = ({ targetId }) => {
   const handleScroll = () => {
     const el = document.getElementById(targetId);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      if (window.__lenis) {
+        window.__lenis.scrollTo(el, { offset: -40, duration: 1.2 });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 

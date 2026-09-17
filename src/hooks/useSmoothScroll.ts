@@ -1,6 +1,12 @@
 import { useEffect } from 'react';
 import Lenis from 'lenis';
 
+declare global {
+  interface Window {
+    __lenis?: Lenis;
+  }
+}
+
 export const useSmoothScroll = () => {
   useEffect(() => {
     // Disable if user prefers reduced motion
@@ -9,15 +15,15 @@ export const useSmoothScroll = () => {
     }
 
     const lenis = new Lenis({
-      duration: 1.1,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // luxury easeOutExpo
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
+      lerp: 0.08,
+      duration: 1.2,
       smoothWheel: true,
-      wheelMultiplier: 0.95,
-      touchMultiplier: 1.5,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.8,
       infinite: false,
     });
+
+    window.__lenis = lenis;
 
     let rafId: number;
     function raf(time: number) {
@@ -27,7 +33,7 @@ export const useSmoothScroll = () => {
 
     rafId = requestAnimationFrame(raf);
 
-    // Intercept anchor clicks to provide butter-smooth acceleration & deceleration
+    // Global smooth scrollTo handler for any hash anchor click
     const handleAnchorClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('a[href^="#"]');
       if (target) {
@@ -38,7 +44,7 @@ export const useSmoothScroll = () => {
             e.preventDefault();
             lenis.scrollTo(el as HTMLElement, {
               offset: -40,
-              duration: 1.1,
+              duration: 1.2,
             });
           }
         }
@@ -51,6 +57,7 @@ export const useSmoothScroll = () => {
       cancelAnimationFrame(rafId);
       document.removeEventListener('click', handleAnchorClick);
       lenis.destroy();
+      delete window.__lenis;
     };
   }, []);
 };
