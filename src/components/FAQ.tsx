@@ -63,8 +63,6 @@ export const FAQ: React.FC = () => {
           <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-xl text-balance leading-relaxed">
             Những thắc mắc phổ biến nhất khi các bạn mới gia nhập mái nhà chung HyperHub.
           </p>
-
-          <div className="h-1 w-20 bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 rounded-full mt-5"></div>
         </div>
       </ScrollReveal>
 

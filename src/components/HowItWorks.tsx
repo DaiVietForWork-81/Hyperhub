@@ -98,11 +98,9 @@ export const HowItWorks: React.FC = () => {
             Cách Hoạt Động Của <span className="cosmic-text-flow">HyperHub</span>
           </h2>
 
-          <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-2xl text-balance leading-relaxed mb-6">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-2xl text-balance leading-relaxed">
             Từ lúc đặt chân vào máy chủ đến khi trở thành cao thủ đấu trường hoặc tìm được bạn cùng học lý tưởng, mọi thứ đều mượt mà và trực quan.
           </p>
-
-          <div className="h-1 w-20 bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 rounded-full"></div>
 
           {/* Quick Step Tabs / Tour Navigator */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-8 p-1.5 rounded-full bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 backdrop-blur-md max-w-2xl w-full shadow-sm">
@@ -160,13 +158,6 @@ export const HowItWorks: React.FC = () => {
                 <div 
                   className={`absolute inset-0 rounded-3xl pointer-events-none transition-opacity duration-500 ease-out bg-gradient-to-b from-purple-500/10 via-indigo-500/5 to-transparent dark:from-purple-950/50 dark:via-indigo-950/20 dark:to-transparent ${
                     isFocused ? 'opacity-100' : 'opacity-0'
-                  }`}
-                />
-
-                {/* Top Accent Gradient Line */}
-                <div 
-                  className={`absolute top-0 left-6 right-6 h-1 rounded-full bg-gradient-to-r ${step.accentColor} transition-all duration-500 ${
-                    isFocused ? 'opacity-100 scale-x-100' : 'opacity-30 scale-x-75'
                   }`}
                 />
 

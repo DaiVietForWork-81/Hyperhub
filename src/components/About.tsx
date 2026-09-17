@@ -17,7 +17,6 @@ export const About: React.FC = () => {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4 text-balance">
             Không Gian Học Tập Toàn Diện
           </h2>
-          <div className="h-1 w-20 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 rounded-full"></div>
         </div>
       </ScrollReveal>
 

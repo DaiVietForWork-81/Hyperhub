@@ -144,7 +144,6 @@ export const Subjects: React.FC = () => {
           return (
             <ScrollReveal key={item.id} delay={(idx % 5) * 100}>
               <SpotlightCard
-                enableTilt={true}
                 spotlightColor={item.spotlight}
                 borderColor={item.border}
                 className="liquid-glass p-5 rounded-2xl flex flex-col justify-between h-full hover:shadow-xl hover:shadow-purple-950/20 transition-all"

@@ -24,16 +24,8 @@ export const Hero: React.FC = () => {
         
         {/* Top Community Pill Badge */}
         <ScrollReveal delay={100}>
-          <div className="group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-300 dark:border-purple-500/30 bg-purple-100/80 dark:bg-purple-950/20 backdrop-blur-md mb-6 sm:mb-8 shadow-sm dark:shadow-[0_0_25px_rgba(139,92,246,0.2)] overflow-hidden">
-            <div 
-              className="absolute inset-0 opacity-40 group-hover:opacity-75 transition-opacity pointer-events-none"
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.25), rgba(168, 85, 247, 0.35), transparent)',
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 4s linear infinite',
-              }}
-            />
-            <Sparkles className="relative z-10 w-3.5 h-3.5 text-pink-600 dark:text-pink-400 animate-spin" style={{ animationDuration: '8s' }} />
+          <div className="group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-300 dark:border-purple-500/30 bg-purple-100/80 dark:bg-purple-950/20 backdrop-blur-md mb-6 sm:mb-8 shadow-sm dark:shadow-[0_0_25px_rgba(139,92,246,0.2)]">
+            <Sparkles className="relative z-10 w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
             <span className="relative z-10 text-xs font-medium tracking-wide text-purple-700 dark:text-purple-300 font-semibold">
               Cộng Đồng Học Tập & Công Nghệ
             </span>
