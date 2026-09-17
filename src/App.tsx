@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from './hooks/useTheme';
+import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { MouseAura } from './components/MouseAura';
@@ -18,6 +19,7 @@ import { LofiPlayer } from './components/LofiPlayer';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  useSmoothScroll();
 
   return (
     <div 
