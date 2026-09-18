@@ -9,7 +9,6 @@ import { CyberGrid } from './components/CyberGrid';
 import { About } from './components/About';
 import { HowItWorks } from './components/HowItWorks';
 import { Pillars } from './components/Pillars';
-import { ArenaPreview } from './components/ArenaPreview';
 import { Subjects } from './components/Subjects';
 import { FAQ } from './components/FAQ';
 import { Platforms } from './components/Platforms';
@@ -43,7 +42,6 @@ export const App: React.FC = () => {
         <About />
         <HowItWorks />
         <Pillars />
-        <ArenaPreview />
         <Subjects />
         <FAQ />
         <Platforms />

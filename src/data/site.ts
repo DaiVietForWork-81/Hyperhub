@@ -26,7 +26,6 @@ export const siteConfig: SiteConfig = {
     { label: "Về HyperHub", href: "#about" },
     { label: "Cách Hoạt Động", href: "#how-it-works" },
     { label: "Trụ Cột", href: "#pillars" },
-    { label: "Đấu Trường", href: "#arena" },
     { label: "Đa Môn Học", href: "#subjects" },
     { label: "Hỏi Đáp", href: "#faq" },
     { label: "Cộng Đồng", href: "#platforms" },
@@ -35,7 +34,7 @@ export const siteConfig: SiteConfig = {
   stats: [
     { label: "Thành Viên", value: "500+", subtext: "Cùng đam mê học tập" },
     { label: "Kho Tài Liệu", value: "1,200+", subtext: "Bài tập & Đề thi đa môn" },
-    { label: "Trận Đấu 1:1", value: "2,400+", subtext: "Đấu trường sinh tồn 2 ❤️" },
-    { label: "Hỗ Trợ Học Tập", value: "24/7", subtext: "Thân thiện & Tận tâm" }
+    { label: "Hỗ Trợ Học Tập", value: "24/7", subtext: "Thân thiện & Tận tâm" },
+    { label: "Học Tập Chủ Động", value: "100%", subtext: "Môi trường văn minh" }
   ]
 };
