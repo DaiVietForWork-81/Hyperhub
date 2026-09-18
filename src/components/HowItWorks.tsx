@@ -66,15 +66,15 @@ const STEPS: StepItem[] = [
   },
   {
     number: '04',
-    tag: 'RANK ROLE (BETA)',
+    tag: 'ĐANG PHÁT TRIỂN',
     title: 'Thăng Hạng & Cấp Rank Role',
     subtitle: 'Khẳng định thực lực & tỏa sáng',
-    description: 'Tích lũy điểm Elo qua từng trận thắng đối kháng. Hệ thống tự động đồng bộ và cấp Rank Role tương ứng trên Discord từ Đồng đến Thách Đấu (Đang giai đoạn Beta thử nghiệm nội bộ BQT & Owner).',
+    description: 'Tích lũy điểm Elo qua các trận đối kháng để thăng hạng và nhận Rank Role vinh danh trên Discord. Tính năng hiện đang trong quá trình phát triển, sẽ sớm mở chính thức.',
     icon: Trophy,
     accentColor: 'from-cyan-400 to-blue-500',
     borderGlow: 'hover:border-cyan-400/80 shadow-[0_0_35px_rgba(34,211,238,0.35)]',
     badgeGlow: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-    perks: ['Rank Role Discord (Beta)', 'Thử nghiệm nội bộ BQT & Owner', 'Đặc quyền phòng VIP'],
+    perks: ['Rank Role Discord tự động', 'Đang trong quá trình phát triển', 'Sắp ra mắt chính thức'],
   },
 ];
 
@@ -261,7 +261,7 @@ export const HowItWorks: React.FC = () => {
                   {idx === 3 && (
                     <div className="py-1.5 px-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-500/20 flex items-center justify-center gap-1.5 text-[11px] text-cyan-700 dark:text-cyan-300 transition-colors">
                       <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span className="font-mono font-bold">DISCORD BOT RANK ROLE (BETA)</span>
+                      <span className="font-mono font-bold">TÍNH NĂNG ĐANG PHÁT TRIỂN</span>
                     </div>
                   )}
                 </div>

@@ -62,12 +62,12 @@ export const ArenaPreview: React.FC = () => {
             </div>
             <div className="flex items-center justify-center gap-1.5 flex-wrap">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Cấp Rank Role Discord</h3>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30">
-                BETA
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30">
+                ĐANG PHÁT TRIỂN
               </span>
             </div>
             <p className="text-xs text-slate-600 dark:text-white/50 leading-relaxed font-sans">
-              Tự động thăng cấp bậc và cấp role vinh danh trên Discord (Đang trong Beta). Các chế độ Random/Ranked & Profile tạm thời khóa để nâng cấp thêm, hiện chỉ mở cho Owner & Quản trị viên thử nghiệm.
+              Tự động thăng cấp bậc và cấp role vinh danh trên Discord. Tính năng hiện đang trong quá trình phát triển và hoàn thiện, cách thức hoạt động chi tiết sẽ sớm được công bố khi ra mắt chính thức!
             </p>
           </div>
         </ScrollReveal>
