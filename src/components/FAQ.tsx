@@ -11,7 +11,7 @@ interface FAQItem {
 const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'HyperHub có thu bất kỳ khoản phí nào không?',
-    answer: 'Hoàn toàn Miễn Phí 100%! Toàn bộ tài liệu, đề thi, phòng học Pomodoro 24/7, đấu trường đối kháng 1:1 và hệ thống cấp Rank Role Discord đều mở tự do cho mọi học sinh, sinh viên Việt Nam giao lưu và cùng tiến bộ.',
+    answer: 'Hoàn toàn Miễn Phí 100%! Toàn bộ tài liệu, đề thi, phòng học Pomodoro 24/7, diễn đàn hỏi đáp bài tập đa môn và các hoạt động cộng đồng đều mở tự do cho mọi học sinh, sinh viên Việt Nam giao lưu và cùng tiến bộ.',
     category: 'Chi Phí & Quyền Lợi',
   },
   {
@@ -20,14 +20,14 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'Đối Tượng Tham Gia',
   },
   {
-    question: 'Đấu Trường Đối Kháng 1:1 Sinh Tồn 2 Mạng (❤️❤️) hoạt động ra sao?',
-    answer: 'Khi bạn tham gia thách đấu, bot sẽ tạo phòng thi đấu riêng biệt. Cả hai đấu thủ nhận cùng một bài toán thuật toán. Mỗi bên có 2 mạng sống (❤️❤️), mỗi lần nộp bài bị lỗi hoặc sai test (WA) sẽ bị trừ 1 mạng. Trình chấm Sandbox siêu tốc sẽ trả lời verdict ngay lập tức. Người giải đúng trước hoặc sống sót sau cùng sẽ giành chiến thắng!',
-    category: 'Đấu Trường 1:1',
+    question: 'Làm thế nào để đặt câu hỏi và nhận hỗ trợ bài tập trên Discord?',
+    answer: 'Tại Discord HyperHub, mỗi môn học đều có forum hỏi đáp riêng biệt (Tin học, Toán, Văn, Anh, Lý, Hóa...). Bạn chỉ cần tạo post đính kèm đề bài hoặc đoạn code gặp lỗi, các thành viên tích cực và ban học tập sẽ cùng giải đáp, phân tích chi tiết giúp bạn vượt qua bế tắc.',
+    category: 'Hỏi Đáp Bài Tập',
   },
   {
-    question: 'Làm thế nào để leo Rank và nhận Rank Role trên Discord?',
-    answer: 'Điểm Elo của bạn sẽ được tích lũy tự động sau mỗi chiến thắng trong Đấu Trường 1:1 hoặc hoàn thành các bài tập trên bot để nhận Rank Role tương ứng trên máy chủ Discord. Tính năng này hiện đang trong quá trình phát triển & hoàn thiện, các thông tin và cách thức hoạt động chi tiết sẽ sớm được ban quản trị công bố chính thức khi ra mắt!',
-    category: 'Đang Phát Triển',
+    question: 'Mình có thể tìm bạn cùng học (Study Buddy) ở đâu trong server?',
+    answer: 'Server có kênh kết nối bạn học và phòng voice Pomodoro hoạt động 24/7. Bạn có thể đăng bài tìm bạn cùng ôn thi HSG, thi tốt nghiệp THPT, hoặc cùng vào phòng voice mở cam, bật mic học tập để giữ vững động lực và kỷ luật mỗi ngày.',
+    category: 'Kết Nối & Bạn Cùng Tiến',
   },
   {
     question: 'Phòng học Pomodoro và Chill Lounge có quy định gì không?',

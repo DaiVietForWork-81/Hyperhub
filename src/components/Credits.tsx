@@ -27,7 +27,7 @@ export const Credits: React.FC = () => {
         {creditsData.map((member, idx) => (
           <ScrollReveal key={idx} delay={idx * 120}>
             <SpotlightCard
-              enableTilt={true}
+              enableTilt={false}
               spotlightColor="rgba(168, 85, 247, 0.16)"
               borderColor="rgba(236, 72, 153, 0.4)"
               className="p-6 text-center space-y-4 h-full flex flex-col justify-between hover:shadow-xl hover:shadow-purple-950/30"

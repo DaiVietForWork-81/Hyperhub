@@ -7,21 +7,21 @@ export const ComingSoon: React.FC = () => {
   const getIcon = (name: string) => {
     switch (name) {
       case 'github':
-        return <Github className="w-5 h-5 text-white/50 group-hover/spotlight:text-white transition-colors" />;
+        return <Github className="w-5 h-5 text-slate-600 dark:text-white/50 group-hover/spotlight:text-slate-900 dark:group-hover/spotlight:text-white transition-colors" />;
       case 'youtube':
-        return <Youtube className="w-5 h-5 text-white/50 group-hover/spotlight:text-red-400 transition-colors" />;
+        return <Youtube className="w-5 h-5 text-slate-600 dark:text-white/50 group-hover/spotlight:text-red-500 transition-colors" />;
       default:
-        return <Globe className="w-5 h-5 text-white/50 group-hover/spotlight:text-purple-300 transition-colors" />;
+        return <Globe className="w-5 h-5 text-slate-600 dark:text-white/50 group-hover/spotlight:text-purple-600 dark:group-hover/spotlight:text-purple-300 transition-colors" />;
     }
   };
 
   return (
-    <div className="pt-10 border-t border-white/[0.08]">
+    <div className="pt-10 border-t border-slate-200/80 dark:border-white/[0.08]">
       <div className="text-center mb-8">
-        <span className="text-xs font-mono tracking-widest text-white/40 uppercase">
+        <span className="text-xs font-mono tracking-widest text-slate-500 dark:text-white/40 uppercase font-semibold">
           NỀN TẢNG TIẾP THEO
         </span>
-        <h3 className="text-xl font-bold text-white/80 mt-1">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white/80 mt-1">
           Sắp Ra Mắt Trên Nhiều Nền Tảng
         </h3>
       </div>
@@ -30,20 +30,20 @@ export const ComingSoon: React.FC = () => {
         {comingSoonPlatforms.map((item) => (
           <SpotlightCard
             key={item.id}
-            spotlightColor="rgba(255, 255, 255, 0.06)"
-            borderColor="rgba(255, 255, 255, 0.15)"
-            className="p-6 text-center space-y-3 opacity-60 hover:opacity-100 transition-all duration-300"
+            spotlightColor="rgba(168, 85, 247, 0.12)"
+            borderColor="rgba(168, 85, 247, 0.25)"
+            className="p-6 text-center space-y-3 bg-white/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/10 opacity-75 hover:opacity-100 transition-all duration-300 shadow-sm"
           >
-            <div className="mx-auto h-11 w-11 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-center group-hover/spotlight:scale-105 group-hover/spotlight:border-white/20 transition-all duration-300">
+            <div className="mx-auto h-11 w-11 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] flex items-center justify-center group-hover/spotlight:scale-105 group-hover/spotlight:border-purple-400 dark:group-hover/spotlight:border-white/20 transition-all duration-300">
               {getIcon(item.iconName)}
             </div>
             <div>
-              <div className="text-sm font-semibold text-white/90 group-hover/spotlight:text-white transition-colors">
+              <div className="text-sm font-semibold text-slate-900 dark:text-white/90 group-hover/spotlight:text-purple-600 dark:group-hover/spotlight:text-white transition-colors">
                 {item.name}
               </div>
-              <div className="text-xs text-white/40 mt-1">{item.description}</div>
+              <div className="text-xs text-slate-500 dark:text-white/40 mt-1">{item.description}</div>
             </div>
-            <div className="inline-block px-3 py-0.5 rounded-full bg-white/[0.04] border border-white/10 text-[10px] font-mono tracking-wider text-purple-300/80">
+            <div className="inline-block px-3 py-0.5 rounded-full bg-purple-50 dark:bg-white/[0.04] border border-purple-200 dark:border-white/10 text-[10px] font-mono tracking-wider text-purple-700 dark:text-purple-300/80 font-semibold">
               COMING SOON
             </div>
           </SpotlightCard>

@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { 
   UserCheck, 
   BookOpenCheck, 
-  Swords, 
-  Trophy, 
+  MessageCircleQuestion, 
+  Users, 
   Sparkles, 
   ArrowRight, 
   CheckCircle2, 
   Compass,
-  Heart,
-  Zap,
   Headphones
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
@@ -54,27 +52,27 @@ const STEPS: StepItem[] = [
   },
   {
     number: '03',
-    tag: 'ĐẤU TRƯỜNG 1:1',
-    title: 'Đấu Trường Sinh Tồn 2 Mạng',
-    subtitle: 'Đối kháng thuật toán nghẹt thở',
-    description: 'Bước vào phòng riêng biệt 1:1 so tài code trực tiếp. Cơ chế sinh tồn 2 mạng sống (❤️❤️), nộp sai trừ 1 mạng, bot Sandbox chấm bài siêu tốc mili-giây bảo đảm công bằng tuyệt đối.',
-    icon: Swords,
+    tag: 'HỎI ĐÁP & HỖ TRỢ',
+    title: 'Hỏi Đáp & Gỡ Rối Bài Tập',
+    subtitle: 'Không còn bế tắc khi tự học',
+    description: 'Đặt câu hỏi bài tập hóc búa (Toán, Tin, Lý, Hóa, Văn, Anh...) tại các forum chuyên biệt. Được các bạn học giỏi và đội ngũ hỗ trợ gỡ rối chi tiết, giải thích tận tình 24/7.',
+    icon: MessageCircleQuestion,
     accentColor: 'from-amber-500 to-orange-500',
     borderGlow: 'hover:border-amber-500/80 shadow-[0_0_35px_rgba(245,158,11,0.35)]',
     badgeGlow: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    perks: ['Sinh Tồn 2 Mạng (❤️❤️)', 'Chấm Sandbox siêu tốc', 'Phân chia độ khó thông minh'],
+    perks: ['Forum hỏi đáp theo từng môn', 'Giải thích chi tiết, thân thiện', 'Hỗ trợ gỡ lỗi code & bài tập'],
   },
   {
     number: '04',
-    tag: 'ĐANG PHÁT TRIỂN',
-    title: 'Thăng Hạng & Cấp Rank Role',
-    subtitle: 'Khẳng định thực lực & tỏa sáng',
-    description: 'Tích lũy điểm Elo qua các trận đối kháng để thăng hạng và nhận Rank Role vinh danh trên Discord. Tính năng hiện đang trong quá trình phát triển, sẽ sớm mở chính thức.',
-    icon: Trophy,
+    tag: 'KẾT NỐI & TIẾN BỘ',
+    title: 'Kết Nối & Bạn Cùng Tiến',
+    subtitle: 'Cùng nhau bứt phá mục tiêu',
+    description: 'Tìm đồng đội ôn thi học sinh giỏi, bạn đồng hành chạy deadline hoặc lập nhóm học tập chung mục tiêu. Cùng chia sẻ kinh nghiệm, nhắc nhở kỷ luật và tiến bộ mỗi ngày.',
+    icon: Users,
     accentColor: 'from-cyan-400 to-blue-500',
     borderGlow: 'hover:border-cyan-400/80 shadow-[0_0_35px_rgba(34,211,238,0.35)]',
     badgeGlow: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-    perks: ['Rank Role Discord tự động', 'Đang trong quá trình phát triển', 'Sắp ra mắt chính thức'],
+    perks: ['Tìm Study Buddy dễ dàng', 'Nhóm học tập cùng mục tiêu', 'Cùng nhau giữ vững kỷ luật'],
   },
 ];
 
@@ -99,7 +97,7 @@ export const HowItWorks: React.FC = () => {
           </h2>
 
           <p className="text-sm sm:text-base text-slate-600 dark:text-white/70 max-w-2xl text-balance leading-relaxed">
-            Từ lúc đặt chân vào máy chủ đến khi trở thành cao thủ đấu trường hoặc tìm được bạn cùng học lý tưởng, mọi thứ đều mượt mà và trực quan.
+            Từ lúc đặt chân vào máy chủ đến khi tìm được bạn cùng tiến hoặc giải quyết xong các bài tập hóc búa, mọi thứ đều mượt mà và trực quan.
           </p>
 
           {/* Quick Step Tabs / Tour Navigator */}
@@ -224,8 +222,8 @@ export const HowItWorks: React.FC = () => {
                   <span className={`transition-colors duration-300 ${isFocused ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/50'}`}>
                     {idx === 0 && 'Role chọn tự do'}
                     {idx === 1 && 'Học 24/7'}
-                    {idx === 2 && 'Sinh tồn 2 ❤️❤️'}
-                    {idx === 3 && 'Lên Rank Discord'}
+                    {idx === 2 && 'Hỏi đáp 24/7'}
+                    {idx === 3 && 'Cùng nhau tiến bộ'}
                   </span>
                   <ArrowRight 
                     className={`w-4 h-4 transition-transform duration-300 ease-out ${
@@ -251,17 +249,16 @@ export const HowItWorks: React.FC = () => {
                   )}
 
                   {idx === 2 && (
-                    <div className="py-1.5 px-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-500/20 flex items-center justify-center gap-1.5 text-[11px] text-red-700 dark:text-red-300 transition-colors">
-                      <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
-                      <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
-                      <span className="font-mono font-bold ml-1">2 LIVES BATTLE</span>
+                    <div className="py-1.5 px-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 transition-colors">
+                      <MessageCircleQuestion className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                      <span className="font-mono font-bold">24/7 STUDY Q&A SUPPORT</span>
                     </div>
                   )}
 
                   {idx === 3 && (
                     <div className="py-1.5 px-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-500/20 flex items-center justify-center gap-1.5 text-[11px] text-cyan-700 dark:text-cyan-300 transition-colors">
-                      <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span className="font-mono font-bold">TÍNH NĂNG ĐANG PHÁT TRIỂN</span>
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span className="font-mono font-bold">STUDY BUDDY & COMMUNITY</span>
                     </div>
                   )}
                 </div>

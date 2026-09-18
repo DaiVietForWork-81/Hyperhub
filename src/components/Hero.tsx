@@ -69,7 +69,7 @@ export const Hero: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 max-w-2xl mx-auto mb-8 sm:mb-10 w-full px-2">
             <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-purple-400 dark:hover:border-purple-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-default">
               <BookOpen className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
-              <span><strong>Learn:</strong> Học hỏi & Thi đấu</span>
+              <span><strong>Learn:</strong> Học hỏi & Rèn luyện</span>
             </div>
             <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-pink-400 dark:hover:border-pink-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-default">
               <Coffee className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400 shrink-0" />

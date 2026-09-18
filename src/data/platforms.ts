@@ -15,7 +15,7 @@ export const activePlatforms: PlatformItem[] = [
     id: "discord",
     name: "HyperHub Discord Server",
     badge: "Máy Chủ Chính",
-    description: "Không gian học tập và kết nối trung tâm của HyperHub với kho tài liệu phong phú, hỗ trợ học Tin và các môn chuyên khác, phòng Pomodoro và đấu trường 1:1 kịch tính.",
+    description: "Không gian học tập và kết nối trung tâm của HyperHub với kho tài liệu phong phú, hỗ trợ học Tin và các môn chuyên khác, phòng Pomodoro và cộng đồng học tập sôi nổi.",
     url: "https://discord.gg/D34HX87bGe",
     status: "active",
     iconName: "discord",
@@ -58,7 +58,7 @@ export const comingSoonPlatforms: PlatformItem[] = [
   {
     id: "youtube",
     name: "YouTube Channel",
-    description: "Video bài giảng phân tích thuật toán, recap các trận đấu 1:1 và chia sẻ phương pháp học tập.",
+    description: "Video bài giảng phân tích thuật toán, hướng dẫn giải đề chuyên sâu và chia sẻ phương pháp học tập hiệu quả.",
     url: "#",
     status: "coming_soon",
     iconName: "youtube"

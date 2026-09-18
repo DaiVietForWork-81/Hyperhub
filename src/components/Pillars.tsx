@@ -9,7 +9,7 @@ export const Pillars: React.FC = () => {
       id: "learn",
       tag: "Trụ Cột 01",
       title: "LEARN",
-      subtitle: "Học Hỏi & Thi Đấu Thuật Toán",
+      subtitle: "Học Hỏi & Rèn Luyện Toàn Diện",
       description: "Thư viện bài tập và tài liệu phong phú phân chia theo cấp độ. Hỗ trợ phát triển học Tin từ nền tảng đến chuyên sâu, đồng thời cung cấp tài liệu cho các môn học khác.",
       icon: BookOpen,
       spotlightColor: "rgba(168, 85, 247, 0.22)",
@@ -18,7 +18,7 @@ export const Pillars: React.FC = () => {
       bulletColor: "bg-purple-400 shadow-[0_0_8px_#a855f7]",
       points: [
         "Kho bài tập & đề thi phong phú đa môn",
-        "Hệ thống phân cấp từ T8 đến HT1",
+        "Tài liệu ôn thi từ cơ bản đến nâng cao",
         "Hỗ trợ học Tin và giải đáp kiến thức"
       ]
     },
@@ -43,17 +43,17 @@ export const Pillars: React.FC = () => {
       id: "connect",
       tag: "Trụ Cột 03",
       title: "CONNECT",
-      subtitle: "Cộng Đồng, Trao Đổi & Đấu Trường 1:1",
-      description: "Gắn kết bạn bè cùng đam mê, trao đổi bài vở và cọ xát trong Đấu Trường Đối Kháng 1:1 với cơ chế sinh tồn 2 mạng sống (❤️❤️), chấm Sandbox siêu tốc và cấp Rank Role tự động.",
+      subtitle: "Giao Lưu, Kết Nối & Trao Đổi Đa Môn",
+      description: "Gắn kết bạn bè cùng đam mê học tập trên toàn quốc, trao đổi bài vở, thảo luận phương pháp giải bài và nhận sự hỗ trợ tận tình từ ban quản trị 24/7.",
       icon: Users,
       spotlightColor: "rgba(217, 70, 239, 0.22)",
       borderColor: "rgba(217, 70, 239, 0.55)",
       iconColor: "text-fuchsia-400",
       bulletColor: "bg-fuchsia-400 shadow-[0_0_8px_#d946ef]",
       points: [
-        "Đấu trường 1:1 cơ chế sinh tồn 2 mạng (❤️❤️)",
-        "Trình chấm Sandbox siêu tốc & Rank Role Discord",
-        "Kênh kết nối, trao đổi bài học đa chuyên ngành"
+        "Kênh kết nối, trao đổi bài học đa môn 24/7",
+        "Đội ngũ hỗ trợ giải đáp bài tập thân thiện",
+        "Giao lưu chia sẻ kinh nghiệm học tập & kỹ năng"
       ]
     }
   ];

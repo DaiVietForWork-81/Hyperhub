@@ -45,10 +45,10 @@ export const About: React.FC = () => {
                   <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] hover:border-purple-500/40 transition-all group">
                     <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-white mb-1">
                       <BookOpen className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      <span className="group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">LEARN • Học Hỏi & Thi Đấu</span>
+                      <span className="group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">LEARN • Học Hỏi & Phát Triển</span>
                     </div>
                     <p className="text-[11px] text-slate-600 dark:text-white/50 leading-relaxed font-sans">
-                      Kho tài liệu đồ sộ, rèn luyện tư duy thuật toán, luyện thi chuyên và các trận đấu trường cọ xát kiến thức.
+                      Kho tài liệu đồ sộ, rèn luyện tư duy thuật toán, ôn luyện thi học sinh giỏi và nâng cao kiến thức toàn diện.
                     </p>
                   </div>
 
