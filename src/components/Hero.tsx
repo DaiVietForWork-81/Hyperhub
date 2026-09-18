@@ -38,7 +38,7 @@ export const Hero: React.FC = () => {
         <ScrollReveal delay={200}>
           <div className="relative mb-4 sm:mb-6 select-none inline-block">
             <div className="text-aura-halo">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tight leading-none drop-shadow-sm dark:drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+              <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tight leading-none drop-shadow-sm dark:drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
                 <span className="cosmic-text-flow">
                   HyperHub
                 </span>
@@ -49,16 +49,16 @@ export const Hero: React.FC = () => {
 
         {/* Slogan: LEARN • CHILL • CONNECT with Animated Gradient Texture */}
         <ScrollReveal delay={300}>
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-lg sm:text-2xl md:text-3xl font-black tracking-[0.18em] uppercase mb-6 sm:mb-8">
-            <span className="inline-block transform-gpu transition-transform duration-200 hover:scale-110 active:scale-95 cursor-default">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 text-sm sm:text-xl md:text-2xl lg:text-3xl font-black tracking-[0.1em] sm:tracking-[0.18em] uppercase mb-6 sm:mb-8">
+            <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">LEARN</span>
             </span>
             <span className="text-pink-500 font-normal animate-pulse select-none">•</span>
-            <span className="inline-block transform-gpu transition-transform duration-200 hover:scale-110 active:scale-95 cursor-default">
+            <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">CHILL</span>
             </span>
             <span className="text-pink-500 font-normal animate-pulse select-none">•</span>
-            <span className="inline-block transform-gpu transition-transform duration-200 hover:scale-110 active:scale-95 cursor-default">
+            <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">CONNECT</span>
             </span>
           </div>
@@ -67,15 +67,15 @@ export const Hero: React.FC = () => {
         {/* 3 Core Meaning Pills (Learn - Chill - Connect) */}
         <ScrollReveal delay={400}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 max-w-2xl mx-auto mb-8 sm:mb-10 w-full px-2">
-            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-purple-400 dark:hover:border-purple-500/50 hover:shadow-md transition-all">
+            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-purple-400 dark:hover:border-purple-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-default">
               <BookOpen className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
               <span><strong>Learn:</strong> Học hỏi & Thi đấu</span>
             </div>
-            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-pink-400 dark:hover:border-pink-500/50 hover:shadow-md transition-all">
+            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-pink-400 dark:hover:border-pink-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-default">
               <Coffee className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400 shrink-0" />
               <span><strong>Chill:</strong> Thư giãn & Học 1 mình</span>
             </div>
-            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-fuchsia-400 dark:hover:border-fuchsia-500/50 hover:shadow-md transition-all">
+            <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] text-xs text-slate-700 dark:text-white/80 shadow-sm dark:shadow-none backdrop-blur-sm hover:border-fuchsia-400 dark:hover:border-fuchsia-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-default">
               <Users className="w-3.5 h-3.5 text-fuchsia-600 dark:text-fuchsia-400 shrink-0" />
               <span><strong>Connect:</strong> Tham gia cộng đồng</span>
             </div>
@@ -96,18 +96,18 @@ export const Hero: React.FC = () => {
               href="https://discord.gg/D34HX87bGe"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full font-semibold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/30 hover:shadow-[0_0_30px_rgba(236,72,153,0.4)] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+              className="btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-semibold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/30 hover:shadow-[0_0_30px_rgba(236,72,153,0.4)] hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <span>Tham Gia Discord Ngay</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
             </a>
 
             <button
               type="button"
               onClick={() => scrollTo('how-it-works')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-medium text-sm text-slate-800 dark:text-white/80 hover:text-purple-600 dark:hover:text-white bg-white/80 dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-300 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500/50 shadow-sm dark:shadow-none active:scale-[0.98] transition-all duration-200 cursor-pointer"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[50px] rounded-full font-medium text-sm text-slate-800 dark:text-white/80 hover:text-purple-600 dark:hover:text-white bg-white/80 dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-300 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500/50 shadow-sm dark:shadow-none hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
             >
-              <Compass className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <Compass className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:rotate-45 transition-transform duration-300" />
               <span>Cách Hoạt Động</span>
             </button>
           </div>

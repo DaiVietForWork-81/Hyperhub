@@ -83,7 +83,7 @@ export const FAQ: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => toggleFAQ(idx)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left gap-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500"
+                  className="w-full min-h-[56px] px-6 py-4 sm:py-5 flex items-center justify-between text-left gap-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 active:scale-[0.99] transition-transform duration-150"
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center gap-3">
@@ -127,7 +127,7 @@ export const FAQ: React.FC = () => {
           href="https://discord.gg/D34HX87bGe"
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-shimmer px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 transition-all shrink-0"
+          className="btn-shimmer btn-motion px-5 py-3 min-h-[44px] rounded-full text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 hover:-translate-y-0.5 active:scale-95 transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-purple-950/30 cursor-pointer"
         >
           Hỏi Trực Tiếp Trên Discord
         </a>

@@ -101,9 +101,9 @@ export const CodeTerminal: React.FC = () => {
             <button
               type="button"
               onClick={() => setLang('cpp')}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-mono transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all duration-150 active:scale-95 cursor-pointer ${
                 lang === 'cpp'
-                  ? 'bg-purple-600 text-white font-semibold'
+                  ? 'bg-purple-600 text-white font-semibold shadow-sm'
                   : 'text-white/60 hover:text-white'
               }`}
             >
@@ -112,9 +112,9 @@ export const CodeTerminal: React.FC = () => {
             <button
               type="button"
               onClick={() => setLang('python')}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-mono transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all duration-150 active:scale-95 cursor-pointer ${
                 lang === 'python'
-                  ? 'bg-purple-600 text-white font-semibold'
+                  ? 'bg-purple-600 text-white font-semibold shadow-sm'
                   : 'text-white/60 hover:text-white'
               }`}
             >
@@ -125,7 +125,7 @@ export const CodeTerminal: React.FC = () => {
           <button
             type="button"
             onClick={handleCopy}
-            className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/[0.08] active:scale-90 transition-all duration-150 min-w-[32px] min-h-[32px] flex items-center justify-center cursor-pointer"
             title="Sao chép code"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -165,7 +165,7 @@ export const CodeTerminal: React.FC = () => {
             type="button"
             onClick={handleRun}
             disabled={isRunning}
-            className="btn-shimmer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium text-xs shadow-md shadow-purple-950/40 active:scale-[0.97] transition-all cursor-pointer disabled:opacity-50"
+            className="btn-shimmer btn-motion inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium text-xs shadow-md shadow-purple-950/40 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 min-h-[36px]"
           >
             {isRunning ? (
               <TerminalIcon className="w-3.5 h-3.5 animate-spin" />

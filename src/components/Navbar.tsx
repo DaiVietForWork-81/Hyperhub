@@ -15,25 +15,33 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
   const [isNearTop, setIsNearTop] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
 
-  // Track scroll position
+  // Track scroll position & smart direction on mobile
   useEffect(() => {
+    let lastScrollY = window.scrollY;
     const handleScroll = () => {
-      const scrolled = window.scrollY > 35;
+      const currentScrollY = window.scrollY;
+      const scrolled = currentScrollY > 35;
       setIsScrolled(scrolled);
-      // When at the very top, always show navbar
-      if (window.scrollY < 40) {
+
+      if (currentScrollY <= 45) {
         setIsNearTop(true);
+      } else if (currentScrollY < lastScrollY - 6) {
+        // Scrolling UP - reveal navbar immediately
+        setIsNearTop(true);
+      } else if (currentScrollY > lastScrollY + 6 && currentScrollY > 80 && !mobileMenuOpen) {
+        // Scrolling DOWN - tuck navbar away to maximize mobile screen space
+        setIsNearTop(false);
       }
+      lastScrollY = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [mobileMenuOpen]);
 
-  // Track mouse proximity to top of the screen ("hiện khi con trỏ chuột đến gần")
+  // Track mouse proximity to top of the screen on desktop
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // If cursor is within 90px from the top, reveal navbar immediately
       if (e.clientY <= 90) {
         if (hideTimerRef.current) {
           window.clearTimeout(hideTimerRef.current);
@@ -41,13 +49,12 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
         }
         setIsNearTop(true);
       } else {
-        // Only auto-hide if user has scrolled down into the page
-        if (window.scrollY > 50 && !mobileMenuOpen) {
+        if (window.scrollY > 80 && !mobileMenuOpen) {
           if (!hideTimerRef.current) {
             hideTimerRef.current = window.setTimeout(() => {
               setIsNearTop(false);
               hideTimerRef.current = null;
-            }, 1200); // 1.2s smooth grace period before tucking away
+            }, 1200);
           }
         }
       }
@@ -136,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
           <a 
             href="#hero" 
             onClick={(e) => scrollToSection(e, '#hero')}
-            className="flex items-center gap-2.5 group cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 rounded-lg p-1 shrink-0"
+            className="flex items-center gap-2.5 group cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 rounded-lg p-1 shrink-0 hover:-translate-y-0.5 active:scale-95 transition-transform duration-200"
           >
             <img
               src="/logo.png"
@@ -161,7 +168,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => scrollToSection(e, item.href)}
-                className="px-3 py-1.5 text-xs lg:text-sm font-medium whitespace-nowrap text-slate-600 dark:text-white/75 hover:text-purple-600 dark:hover:text-white hover:bg-purple-100/80 dark:hover:bg-purple-500/20 rounded-full transition-all duration-150 active:scale-95"
+                className="px-3 py-1.5 text-xs lg:text-sm font-medium whitespace-nowrap text-slate-600 dark:text-white/75 hover:text-purple-600 dark:hover:text-white hover:bg-purple-100/80 dark:hover:bg-purple-500/20 rounded-full transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
               >
                 {item.label}
               </a>
@@ -175,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
             <a
               href="#platforms"
               onClick={(e) => scrollToSection(e, '#platforms')}
-              className="btn-shimmer inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600/90 to-pink-600/90 hover:from-purple-500 hover:to-pink-500 rounded-full shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 active:scale-[0.97] transition-all duration-150 whitespace-nowrap"
+              className="btn-shimmer inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600/90 to-pink-600/90 hover:from-purple-500 hover:to-pink-500 rounded-full shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-1 active:scale-95 transition-all duration-200 whitespace-nowrap"
             >
               <span>Tham Gia Ngay</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -191,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
               aria-label={mobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="p-2.5 rounded-xl text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-90"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -200,24 +207,24 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
 
         {/* Mobile Drawer Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-white/95 dark:bg-black/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 px-6 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
-            <nav className="flex flex-col gap-2">
+          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-white/95 dark:bg-black/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 px-5 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
+            <nav className="flex flex-col gap-1.5">
               {siteConfig.navItems.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
                   onClick={(e) => scrollToSection(e, item.href)}
-                  className="px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-white/80 hover:text-purple-600 dark:hover:text-white hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-xl transition-all"
+                  className="px-4 py-3 text-base font-semibold text-slate-700 dark:text-white/85 hover:text-purple-600 dark:hover:text-white hover:bg-purple-50 dark:hover:bg-purple-500/20 active:scale-[0.98] rounded-xl transition-all duration-150 min-h-[44px] flex items-center"
                 >
                   {item.label}
                 </a>
               ))}
 
-              <div className="pt-3 mt-2 border-t border-slate-200 dark:border-white/10">
+              <div className="pt-4 mt-2 border-t border-slate-200 dark:border-white/10">
                 <a
                   href="#platforms"
                   onClick={(e) => scrollToSection(e, '#platforms')}
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg shadow-purple-900/30"
+                  className="btn-shimmer w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 min-h-[48px]"
                 >
                   <span>Tham Gia Cộng Đồng Discord</span>
                   <ArrowUpRight className="w-4 h-4" />

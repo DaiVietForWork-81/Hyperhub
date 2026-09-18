@@ -103,7 +103,7 @@ export const HowItWorks: React.FC = () => {
           </p>
 
           {/* Quick Step Tabs / Tour Navigator */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-8 p-1.5 rounded-full bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 backdrop-blur-md max-w-2xl w-full shadow-sm">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 mt-8 p-1.5 rounded-2xl sm:rounded-full bg-slate-100/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 backdrop-blur-md max-w-2xl w-full shadow-sm">
             {STEPS.map((step, idx) => {
               const isSelected = activeStep === idx;
               return (
@@ -111,7 +111,7 @@ export const HowItWorks: React.FC = () => {
                   key={step.number}
                   type="button"
                   onClick={() => setActiveStep(idx)}
-                  className={`flex-1 min-w-[120px] sm:min-w-0 py-2 px-3 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ease-out cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 min-h-[44px] sm:min-h-[38px] py-2 px-3 rounded-xl sm:rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer flex items-center justify-center gap-1.5 btn-tap hover:-translate-y-0.5 active:scale-95 ${
                     isSelected
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02]'
                       : 'text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.06]'
@@ -148,7 +148,7 @@ export const HowItWorks: React.FC = () => {
 
               {/* Main Interactive Card */}
               <div
-                className={`zoom-card-transition transform-gpu relative h-full flex flex-col justify-between p-6 sm:p-7 rounded-3xl cursor-pointer select-none border-2 backdrop-blur-xl overflow-hidden ${
+                className={`zoom-card-transition transform-gpu relative h-full flex flex-col justify-between p-6 sm:p-7 rounded-3xl cursor-pointer select-none border-2 backdrop-blur-xl overflow-hidden active:scale-[0.98] ${
                   isFocused
                     ? '-translate-y-2.5 z-20 border-purple-500/80 bg-white/95 dark:bg-[#0d0e17]/95 shadow-xl shadow-purple-500/15 dark:shadow-[0_20px_40px_-15px_rgba(168,85,247,0.35)]'
                     : 'translate-y-0 z-10 bg-white/80 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] hover:border-purple-300 dark:hover:border-white/20 shadow-sm'
@@ -277,10 +277,10 @@ export const HowItWorks: React.FC = () => {
           href="https://discord.gg/D34HX87bGe"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-300 hover:text-pink-600 dark:hover:text-pink-300 transition-colors"
+          className="btn-motion group inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-300 hover:text-pink-600 dark:hover:text-pink-300 py-2 px-4 rounded-full border border-purple-500/20 hover:border-purple-500/40 bg-purple-50/50 dark:bg-white/[0.02] active:scale-95 transition-all"
         >
           <span>Sẵn sàng trải nghiệm quy trình cùng HyperHub?</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
         </a>
       </div>
     </section>

@@ -120,10 +120,10 @@ export const LofiPlayer: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 select-none">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 select-none pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)]">
       {/* Expanded Floating Player Card */}
       {isExpanded ? (
-        <div className="w-72 p-4 rounded-2xl bg-white/95 dark:bg-slate-950/90 border border-slate-200/90 dark:border-purple-500/40 shadow-2xl shadow-slate-300/50 dark:shadow-purple-950/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="w-72 max-w-[calc(100vw-2rem)] p-4 rounded-2xl bg-white/95 dark:bg-slate-950/90 border border-slate-200/90 dark:border-purple-500/40 shadow-2xl shadow-slate-300/50 dark:shadow-purple-950/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10 mb-3">
             <div className="flex items-center gap-2">
               <Headphones className="w-4 h-4 text-pink-600 dark:text-pink-400" />
@@ -132,7 +132,7 @@ export const LofiPlayer: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsExpanded(false)}
-              className="p-1 text-slate-500 dark:text-white/60 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center text-slate-500 dark:text-white/60 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
               aria-label="Thu nhỏ trình phát"
             >
               <X className="w-4 h-4" />
@@ -170,7 +170,7 @@ export const LofiPlayer: React.FC = () => {
             <button
               type="button"
               onClick={togglePlayback}
-              className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-purple-900/30 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="w-11 h-11 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-900/30 hover:-translate-y-0.5 hover:scale-105 active:scale-90 transition-all duration-200 cursor-pointer shrink-0"
               aria-label={isPlaying ? 'Tạm dừng nhạc' : 'Phát nhạc lofi'}
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
@@ -180,7 +180,7 @@ export const LofiPlayer: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMuted(!isMuted)}
-                className="text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white active:scale-90 transition-all cursor-pointer"
                 aria-label={isMuted ? 'Bật tiếng' : 'Tắt tiếng'}
               >
                 {isMuted || volume === 0 ? (
@@ -210,7 +210,7 @@ export const LofiPlayer: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-full border transition-all duration-300 shadow-xl cursor-pointer ${
+          className={`group btn-motion flex items-center gap-2.5 px-4 py-2.5 min-h-[44px] rounded-full border transition-all duration-200 shadow-xl cursor-pointer hover:-translate-y-1 active:scale-95 ${
             isPlaying
               ? 'bg-purple-100 dark:bg-purple-950/80 border-purple-400 dark:border-purple-500/60 text-purple-900 dark:text-white shadow-purple-500/20 dark:shadow-purple-900/30'
               : 'bg-white/95 dark:bg-slate-950/80 border-slate-300 dark:border-white/10 text-slate-800 dark:text-white/80 hover:text-slate-950 dark:hover:text-white hover:border-purple-400 dark:hover:border-purple-500/40'

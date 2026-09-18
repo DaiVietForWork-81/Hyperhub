@@ -113,10 +113,10 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({ platform }) => {
             href={platform.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-shimmer w-full inline-flex items-center justify-center gap-2 py-3 px-5 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-950/40 hover:shadow-purple-900/60 transition-all duration-200 active:scale-[0.98] group"
+            className="btn-shimmer btn-motion w-full inline-flex items-center justify-center gap-2 py-3 px-5 min-h-[48px] rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-950/40 hover:shadow-purple-900/60 hover:-translate-y-1 active:scale-95 transition-all duration-200 group cursor-pointer"
           >
             <span>Tham Gia Máy Chủ Ngay</span>
-            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
+            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-200" />
           </a>
         )}
       </div>

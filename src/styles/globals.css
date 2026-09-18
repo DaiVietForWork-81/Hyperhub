@@ -39,7 +39,10 @@ body {
   position: relative;
   min-height: 100dvh;
   margin: 0;
-  padding: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Theme color definitions */
@@ -435,14 +438,46 @@ html.light .text-aura-halo::before {
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Button Clean Hover Effect */
-.btn-shimmer {
+/* Button Dynamic Movement & Tap Physics */
+.btn-shimmer,
+.btn-motion {
   position: relative;
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              filter 0.2s ease;
 }
 
-.btn-shimmer:hover {
+.btn-shimmer:hover,
+.btn-motion:hover {
+  transform: translateY(-2.5px);
   filter: brightness(1.08);
+}
+
+.btn-shimmer:active,
+.btn-motion:active {
+  transform: translateY(1px) scale(0.96);
+  filter: brightness(0.96);
+  transition-duration: 0.1s;
+}
+
+.btn-tap {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-tap:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
+}
+
+.btn-shimmer svg,
+.btn-motion svg {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Only displace trailing icons on hover, keep leading/single icons intact */
+.btn-shimmer:hover svg:last-child:not(:first-child),
+.btn-motion:hover svg:last-child:not(:first-child) {
+  transform: translateX(3px);
 }
 
 /* Sound wave equalizer animation */

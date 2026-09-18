@@ -32,7 +32,7 @@ export const ArenaPreview: React.FC = () => {
       {/* 3 Arena Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
         <ScrollReveal delay={300}>
-          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-purple-400 dark:hover:border-purple-500/40 shadow-sm dark:shadow-none transition-colors">
+          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-purple-400 dark:hover:border-purple-500/40 hover:-translate-y-1.5 shadow-sm dark:shadow-none transition-all duration-300">
             <div className="h-10 w-10 mx-auto rounded-xl bg-purple-100 dark:bg-purple-500/10 border border-purple-300 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
               <Swords className="w-5 h-5" />
             </div>
@@ -44,7 +44,7 @@ export const ArenaPreview: React.FC = () => {
         </ScrollReveal>
 
         <ScrollReveal delay={400}>
-          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-pink-400 dark:hover:border-pink-500/40 shadow-sm dark:shadow-none transition-colors">
+          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-pink-400 dark:hover:border-pink-500/40 hover:-translate-y-1.5 shadow-sm dark:shadow-none transition-all duration-300">
             <div className="h-10 w-10 mx-auto rounded-xl bg-pink-100 dark:bg-pink-500/10 border border-pink-300 dark:border-pink-500/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
               <Zap className="w-5 h-5" />
             </div>
@@ -56,7 +56,7 @@ export const ArenaPreview: React.FC = () => {
         </ScrollReveal>
 
         <ScrollReveal delay={500}>
-          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-fuchsia-400 dark:hover:border-fuchsia-500/40 shadow-sm dark:shadow-none transition-colors">
+          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-fuchsia-400 dark:hover:border-fuchsia-500/40 hover:-translate-y-1.5 shadow-sm dark:shadow-none transition-all duration-300">
             <div className="h-10 w-10 mx-auto rounded-xl bg-fuchsia-100 dark:bg-fuchsia-500/10 border border-fuchsia-300 dark:border-fuchsia-500/20 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400">
               <Shield className="w-5 h-5" />
             </div>
