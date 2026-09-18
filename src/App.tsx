@@ -9,6 +9,7 @@ import { CyberGrid } from './components/CyberGrid';
 import { About } from './components/About';
 import { HowItWorks } from './components/HowItWorks';
 import { Pillars } from './components/Pillars';
+// import { ArenaPreview } from './components/ArenaPreview'; // [Lưu trữ sẵn sàng - mở lại khi hoàn tất nâng cấp]
 import { Subjects } from './components/Subjects';
 import { FAQ } from './components/FAQ';
 import { Platforms } from './components/Platforms';
@@ -42,6 +43,7 @@ export const App: React.FC = () => {
         <About />
         <HowItWorks />
         <Pillars />
+        {/* <ArenaPreview /> -- Lưu trữ sẵn sàng, bỏ chú thích để hiển thị lại bất kỳ lúc nào */}
         <Subjects />
         <FAQ />
         <Platforms />

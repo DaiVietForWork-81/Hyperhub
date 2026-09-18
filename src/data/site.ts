@@ -26,6 +26,7 @@ export const siteConfig: SiteConfig = {
     { label: "Về HyperHub", href: "#about" },
     { label: "Cách Hoạt Động", href: "#how-it-works" },
     { label: "Trụ Cột", href: "#pillars" },
+    // { label: "Đấu Trường", href: "#arena" }, // [Lưu trữ sẵn sàng - mở lại cùng module Arena]
     { label: "Đa Môn Học", href: "#subjects" },
     { label: "Hỏi Đáp", href: "#faq" },
     { label: "Cộng Đồng", href: "#platforms" },
