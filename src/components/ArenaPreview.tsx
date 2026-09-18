@@ -56,13 +56,18 @@ export const ArenaPreview: React.FC = () => {
         </ScrollReveal>
 
         <ScrollReveal delay={500}>
-          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-fuchsia-400 dark:hover:border-fuchsia-500/40 hover:-translate-y-1.5 shadow-sm dark:shadow-none transition-all duration-300">
+          <div className="liquid-glass p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-center space-y-2 hover:border-fuchsia-400 dark:hover:border-fuchsia-500/40 hover:-translate-y-1.5 shadow-sm dark:shadow-none transition-all duration-300 relative">
             <div className="h-10 w-10 mx-auto rounded-xl bg-fuchsia-100 dark:bg-fuchsia-500/10 border border-fuchsia-300 dark:border-fuchsia-500/20 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400">
               <Shield className="w-5 h-5" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Cấp Rank Role Discord</h3>
+            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Cấp Rank Role Discord</h3>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30">
+                BETA
+              </span>
+            </div>
             <p className="text-xs text-slate-600 dark:text-white/50 leading-relaxed font-sans">
-              Tự động thăng cấp bậc và cấp role vinh danh trên máy chủ Discord chính thức.
+              Tự động thăng cấp bậc và cấp role vinh danh trên Discord (Đang trong Beta). Các chế độ Random/Ranked & Profile tạm thời khóa để nâng cấp thêm, hiện chỉ mở cho Owner & Quản trị viên thử nghiệm.
             </p>
           </div>
         </ScrollReveal>

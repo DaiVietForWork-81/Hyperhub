@@ -26,8 +26,8 @@ const FAQ_ITEMS: FAQItem[] = [
   },
   {
     question: 'Làm thế nào để leo Rank và nhận Rank Role trên Discord?',
-    answer: 'Điểm Elo của bạn sẽ được tích lũy tự động sau mỗi chiến thắng trong Đấu Trường 1:1 hoặc hoàn thành các bài tập trên bot. Khi đạt mốc điểm quy định, Bot Discord sẽ tự động trao tặng Rank Role danh dự (Đồng → Bạc → Vàng → Kim Cương → Thách Đấu) tương ứng ngay trong hồ sơ server của bạn.',
-    category: 'Hệ Thống Rank',
+    answer: 'Điểm Elo của bạn sẽ được tích lũy tự động sau mỗi chiến thắng trong Đấu Trường 1:1 hoặc hoàn thành các bài tập trên bot. Khi đạt mốc điểm quy định, Bot Discord sẽ tự động trao tặng Rank Role danh dự (Đồng → Bạc → Vàng → Kim Cương → Thách Đấu) tương ứng ngay trong hồ sơ server của bạn. (Lưu ý: Tính năng Rank Role & các chế độ Random/Ranked, Profile hiện đang trong giai đoạn Beta thử nghiệm nội bộ dành cho Owner & Ban Quản Trị nâng cấp, sẽ sớm mở rộng cho toàn bộ thành viên!).',
+    category: 'Hệ Thống Rank (Beta)',
   },
   {
     question: 'Phòng học Pomodoro và Chill Lounge có quy định gì không?',
