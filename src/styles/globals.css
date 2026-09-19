@@ -507,9 +507,9 @@ html.light .text-aura-halo::before {
 .eq-bar-4 { animation: eq-bounce-4 0.9s ease-in-out infinite 0.45s; }
 
 /* ========================================= */
-/* INFINITE MARQUEE STREAM ANIMATION         */
+/* INFINITE DUAL MARQUEE STREAM ANIMATION    */
 /* ========================================= */
-@keyframes marquee-horizontal {
+@keyframes marquee-left {
   0% {
     transform: translateX(0%);
   }
@@ -518,15 +518,27 @@ html.light .text-aura-halo::before {
   }
 }
 
-.animate-marquee-infinite {
+@keyframes marquee-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-left {
   display: flex;
   width: max-content;
-  animation: marquee-horizontal 38s linear infinite;
+  animation: marquee-left 34s linear infinite;
   will-change: transform;
 }
 
-.animate-marquee-infinite:hover {
-  animation-play-state: paused;
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marquee-right 34s linear infinite;
+  will-change: transform;
 }
 
 /* Reduced motion */
