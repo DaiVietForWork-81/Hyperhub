@@ -506,6 +506,29 @@ html.light .text-aura-halo::before {
 .eq-bar-3 { animation: eq-bounce-3 1.2s ease-in-out infinite 0.3s; }
 .eq-bar-4 { animation: eq-bounce-4 0.9s ease-in-out infinite 0.45s; }
 
+/* ========================================= */
+/* INFINITE MARQUEE STREAM ANIMATION         */
+/* ========================================= */
+@keyframes marquee-horizontal {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-infinite {
+  display: flex;
+  width: max-content;
+  animation: marquee-horizontal 38s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-infinite:hover {
+  animation-play-state: paused;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
