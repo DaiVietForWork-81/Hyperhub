@@ -29,15 +29,19 @@
           if (isDark) {
             document.documentElement.classList.add('dark');
             document.documentElement.classList.remove('light');
+            document.documentElement.setAttribute('data-theme', 'dark');
           } else {
             document.documentElement.classList.add('light');
             document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#f8fafc');
           }
         } catch(e) {}
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-CMd4Gh20.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BMdfCxz8.css">
+    <script type="module" crossorigin src="./assets/index-BBH1Ytak.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index--SgFwOCx.css">
   </head>
   <body class="antialiased selection:bg-purple-500/30 selection:text-purple-200 min-h-dvh">
     <div id="root"></div>
