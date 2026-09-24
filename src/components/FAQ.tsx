@@ -51,8 +51,8 @@ export const FAQ: React.FC = () => {
       {/* Section Header */}
       <ScrollReveal>
         <div className="flex flex-col items-center text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/20 bg-purple-950/20 text-xs font-mono tracking-widest text-purple-300 uppercase mb-3 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
-            <HelpCircle className="w-3.5 h-3.5 text-pink-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-300 dark:border-purple-500/20 bg-purple-100/80 dark:bg-purple-950/20 text-xs font-mono tracking-widest text-purple-700 dark:text-purple-300 uppercase mb-3 shadow-sm dark:shadow-[0_0_15px_rgba(139,92,246,0.1)] font-semibold">
+            <HelpCircle className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
             <span>Hỏi & Đáp • Frequently Asked Questions</span>
           </div>
 

@@ -19,7 +19,6 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
 
   useEffect(() => {
     if (transition.stage === 'morphing') {
-      // Cho một tick animation frame để trình duyệt ghi nhận trạng thái khởi điểm (0%) trước khi kích hoạt transition 2s
       const raf = requestAnimationFrame(() => {
         setAnimating(true);
       });
@@ -36,6 +35,10 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
 
   const isDarkTarget = transition.targetTheme === 'dark';
   const isFadingOut = transition.stage === 'fading-out';
+
+  // Trạng thái nền hiện tại và đích
+  const isGoingDark = isDarkTarget; // Chuyển từ Sáng -> Tối
+  const isDarkNow = isGoingDark ? animating : !animating; // Nền đang nghiêng về Tối hay Sáng
 
   return (
     <div
@@ -65,10 +68,10 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
         }`}
       />
 
-      {/* Vầng hào quang trung tâm (Ambient Spotlight) */}
+      {/* Vầng hào quang trung tâm */}
       <div
         className={`pointer-events-none absolute inset-0 z-[1] will-change-[opacity] transition-opacity duration-[2000ms] ease-in-out ${
-          animating ? 'opacity-70' : 'opacity-20'
+          animating ? 'opacity-70' : 'opacity-30'
         }`}
         style={{
           background: isDarkTarget
@@ -77,31 +80,31 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
         }}
       />
 
-      {/* Góc trang trí Scifi */}
+      {/* Góc trang trí - Tương phản sắc nét tuyệt đối theo nền */}
       <div
-        className={`absolute top-6 left-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] ${
-          isDarkTarget && animating ? 'text-white/40' : 'text-slate-500/60'
+        className={`absolute top-6 left-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] font-medium ${
+          isDarkNow ? 'text-white/60' : 'text-slate-700'
         }`}
       >
         TRANSITION // 2.0S_GPU_COMPOSITE
       </div>
       <div
-        className={`absolute top-6 right-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] ${
-          isDarkTarget && animating ? 'text-white/40' : 'text-slate-500/60'
+        className={`absolute top-6 right-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] font-medium ${
+          isDarkNow ? 'text-white/60' : 'text-slate-700'
         }`}
       >
         {isDarkTarget ? 'TARGET: OBSIDIAN_DARK' : 'TARGET: SOLAR_LIGHT'}
       </div>
       <div
-        className={`absolute bottom-6 left-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] ${
-          isDarkTarget && animating ? 'text-white/40' : 'text-slate-500/60'
+        className={`absolute bottom-6 left-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] font-medium ${
+          isDarkNow ? 'text-white/60' : 'text-slate-700'
         }`}
       >
         HYPERHUB // ZERO_DROP_FRAMES
       </div>
       <div
-        className={`absolute bottom-6 right-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] ${
-          isDarkTarget && animating ? 'text-white/40' : 'text-slate-500/60'
+        className={`absolute bottom-6 right-6 font-mono text-[11px] tracking-widest uppercase z-10 transition-colors duration-[1500ms] font-medium ${
+          isDarkNow ? 'text-white/60' : 'text-slate-700'
         }`}
       >
         FPS // 120HZ_SYNC
@@ -114,11 +117,11 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
         {/* BIỂU TƯỢNG MẶT TRỜI / MẶT TRĂNG XOAY BIẾN HÌNH 2S         */}
         {/* ======================================================== */}
         <div className="relative mb-8">
-          {/* Hào quang rực rỡ */}
+          {/* Hào quang tỏa sáng */}
           <div
             className={`absolute -inset-6 rounded-full blur-2xl transition-all duration-[2000ms] ease-in-out ${
-              isDarkTarget
-                ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 opacity-70'
+              isDarkNow
+                ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 opacity-75'
                 : 'bg-gradient-to-r from-amber-400 via-orange-500 to-rose-400 opacity-60'
             }`}
           />
@@ -126,9 +129,9 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
           {/* Khung chứa đĩa biến hình */}
           <div
             className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-full p-2 shadow-2xl flex items-center justify-center transition-all duration-[2000ms] ease-in-out ${
-              isDarkTarget && animating
-                ? 'bg-[#0f101d] border border-purple-500/40 shadow-purple-900/40 text-purple-300'
-                : 'bg-white border border-amber-300 shadow-amber-500/20 text-amber-500'
+              isDarkNow
+                ? 'bg-[#0f101d] border-2 border-purple-500/50 shadow-purple-950/60 text-purple-300'
+                : 'bg-white border-2 border-amber-400 shadow-amber-500/20 text-amber-500'
             }`}
           >
             {/* Lõi xoay 180 độ mượt mà suốt 2 giây */}
@@ -137,10 +140,10 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
                 animating ? 'rotate-180' : 'rotate-0'
               }`}
             >
-              {/* Icon Mặt Trời (mờ dần khi sang Tối, hiện lên khi sang Sáng) */}
+              {/* Icon Mặt Trời */}
               <div
                 className={`absolute inset-0 flex items-center justify-center transition-all duration-[1200ms] ease-in-out ${
-                  isDarkTarget && animating
+                  isGoingDark && animating
                     ? 'opacity-0 scale-75 rotate-45'
                     : 'opacity-100 scale-100 rotate-0 text-amber-500'
                 }`}
@@ -148,10 +151,10 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
                 <Sun className="w-12 h-12" />
               </div>
 
-              {/* Icon Mặt Trăng (hiện lên khi sang Tối, mờ dần khi sang Sáng) */}
+              {/* Icon Mặt Trăng */}
               <div
                 className={`absolute inset-0 flex items-center justify-center transition-all duration-[1200ms] ease-in-out ${
-                  isDarkTarget && animating
+                  isGoingDark && animating
                     ? 'opacity-100 scale-100 rotate-0 text-purple-300'
                     : 'opacity-0 scale-75 -rotate-45'
                 }`}
@@ -163,7 +166,7 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
             {/* Ánh sao lấp lánh */}
             <Sparkles
               className={`absolute -top-1 -right-1 w-5 h-5 transition-colors duration-[2000ms] ${
-                isDarkTarget && animating ? 'text-pink-400' : 'text-amber-500'
+                isDarkNow ? 'text-pink-400' : 'text-amber-500'
               }`}
             />
           </div>
@@ -173,16 +176,17 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
         {/* TIÊU ĐỀ "ĐỢI..." & HUY HIỆU TRẠNG THÁI                    */}
         {/* ======================================================== */}
         <div className="space-y-3 mb-7">
+          {/* Badge trạng thái luôn đảm bảo độ tương phản cao */}
           <div
-            className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-[11px] font-mono font-semibold uppercase tracking-widest border transition-all duration-[1500ms] shadow-sm mb-1 ${
-              isDarkTarget && animating
-                ? 'bg-white/10 border-white/15 text-purple-300'
-                : 'bg-black/5 border-black/10 text-amber-600'
+            className={`inline-flex items-center gap-2 px-4 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border transition-all duration-[1500ms] shadow-sm mb-1 ${
+              isDarkNow
+                ? 'bg-purple-950/70 border-purple-500/50 text-purple-300'
+                : 'bg-amber-100 border-amber-400/80 text-amber-900'
             }`}
           >
             <span
-              className={`w-2 h-2 rounded-full animate-ping ${
-                isDarkTarget && animating ? 'bg-purple-400' : 'bg-amber-500'
+              className={`w-2.5 h-2.5 rounded-full animate-ping ${
+                isDarkNow ? 'bg-purple-400' : 'bg-amber-600'
               }`}
             />
             <span>
@@ -192,16 +196,23 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
             </span>
           </div>
 
-          {/* Dòng chữ lớn "Đợi..." */}
-          <h2 className="text-4xl sm:text-6xl font-black tracking-tight leading-none">
-            <span className="cosmic-text-flow font-extrabold">
+          {/* Dòng chữ lớn "Đợi..." - gradient luôn sáng rực trên nền đen, hoặc đậm nét trên nền trắng */}
+          <h2 className="text-4xl sm:text-6xl font-black tracking-tight leading-none drop-shadow-sm">
+            <span
+              className={`font-black transition-all duration-[1800ms] ${
+                isDarkNow
+                  ? 'text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-300 drop-shadow-[0_0_25px_rgba(168,85,247,0.5)]'
+                  : 'text-transparent bg-clip-text bg-gradient-to-r from-purple-800 via-pink-700 to-indigo-900 drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]'
+              }`}
+            >
               {transition.message || 'Đợi...'}
             </span>
           </h2>
 
+          {/* Dòng mô tả giải thích rõ ràng và có độ tương phản cao */}
           <p
-            className={`text-xs sm:text-sm font-sans tracking-wide font-medium transition-colors duration-[1500ms] ${
-              isDarkTarget && animating ? 'text-slate-300' : 'text-slate-600'
+            className={`text-xs sm:text-sm font-sans tracking-wide font-semibold transition-colors duration-[1500ms] ${
+              isDarkNow ? 'text-slate-200' : 'text-slate-800'
             }`}
           >
             {isDarkTarget
@@ -211,22 +222,22 @@ export const ThemeCurtain: React.FC<ThemeCurtainProps> = ({ transition }) => {
         </div>
 
         {/* ======================================================== */}
-        {/* THANH TIẾN TRÌNH GPU 2S (TRANSFORM SCALEX - 0 REF蔔W)     */}
+        {/* THANH TIẾN TRÌNH GPU 2S (TRANSFORM SCALEX - 0 REFLOW)     */}
         {/* ======================================================== */}
-        <div className="w-64 h-2 rounded-full overflow-hidden relative shadow-inner bg-slate-400/20 dark:bg-white/15">
+        <div className="w-64 h-2.5 rounded-full overflow-hidden relative shadow-inner bg-slate-300 dark:bg-white/20 border border-black/5 dark:border-white/10">
           <div
             className={`h-full w-full rounded-full origin-left will-change-transform transition-transform duration-[2000ms] ease-linear ${
               isDarkTarget
                 ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500'
-                : 'bg-gradient-to-r from-amber-400 via-rose-500 to-purple-600'
+                : 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600'
             } ${animating ? 'scale-x-100' : 'scale-x-0'}`}
           />
         </div>
 
         {/* Thông tin thời lượng */}
         <p
-          className={`mt-4 text-[11px] font-mono tracking-widest uppercase transition-colors duration-[1500ms] ${
-            isDarkTarget && animating ? 'text-white/40' : 'text-slate-400'
+          className={`mt-4 text-[11px] font-mono tracking-widest uppercase transition-colors duration-[1500ms] font-semibold ${
+            isDarkNow ? 'text-white/50' : 'text-slate-600'
           }`}
         >
           HYPERHUB // 2.0S CINEMATIC SHIFT

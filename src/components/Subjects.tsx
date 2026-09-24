@@ -113,7 +113,7 @@ export const Subjects: React.FC = () => {
       badge: 'Định Hướng 24/7',
       description: 'Góc tâm sự mùa thi, định hướng chọn trường đại học, phương pháp tự học Pomodoro, kỹ năng mềm và chia sẻ tài liệu học tập tổng hợp.',
       icon: Sparkles,
-      color: 'text-purple-300',
+      color: 'text-purple-600 dark:text-purple-300',
       spotlight: 'rgba(147, 51, 234, 0.22)',
       border: 'rgba(168, 85, 247, 0.55)'
     }

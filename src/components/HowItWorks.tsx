@@ -35,7 +35,7 @@ const STEPS: StepItem[] = [
     icon: UserCheck,
     accentColor: 'from-purple-500 to-indigo-500',
     borderGlow: 'hover:border-purple-500/80 shadow-[0_0_35px_rgba(168,85,247,0.35)]',
-    badgeGlow: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    badgeGlow: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border-purple-300 dark:border-purple-500/30',
     perks: ['Pick Role 1-Click', 'Hỗ trợ cả chuyên Tin & môn khác', 'Cộng đồng thân thiện'],
   },
   {
@@ -47,7 +47,7 @@ const STEPS: StepItem[] = [
     icon: BookOpenCheck,
     accentColor: 'from-pink-500 to-rose-500',
     borderGlow: 'hover:border-pink-500/80 shadow-[0_0_35px_rgba(236,72,153,0.35)]',
-    badgeGlow: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+    badgeGlow: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300 border-pink-300 dark:border-pink-500/30',
     perks: ['Thư viện đề thi HSG/Chuyên', 'Phòng học Pomodoro 24/7', 'Bot phát Lofi êm ái'],
   },
   {
@@ -59,7 +59,7 @@ const STEPS: StepItem[] = [
     icon: MessageCircleQuestion,
     accentColor: 'from-amber-500 to-orange-500',
     borderGlow: 'hover:border-amber-500/80 shadow-[0_0_35px_rgba(245,158,11,0.35)]',
-    badgeGlow: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    badgeGlow: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border-amber-300 dark:border-amber-500/30',
     perks: ['Forum hỏi đáp theo từng môn', 'Giải thích chi tiết, thân thiện', 'Hỗ trợ gỡ lỗi code & bài tập'],
   },
   {
@@ -71,7 +71,7 @@ const STEPS: StepItem[] = [
     icon: Users,
     accentColor: 'from-cyan-400 to-blue-500',
     borderGlow: 'hover:border-cyan-400/80 shadow-[0_0_35px_rgba(34,211,238,0.35)]',
-    badgeGlow: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    badgeGlow: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30',
     perks: ['Tìm Study Buddy dễ dàng', 'Nhóm học tập cùng mục tiêu', 'Cùng nhau giữ vững kỷ luật'],
   },
 ];
@@ -87,7 +87,7 @@ export const HowItWorks: React.FC = () => {
       {/* Section Header */}
       <ScrollReveal>
         <div className="flex flex-col items-center text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/20 bg-purple-950/20 text-xs font-mono tracking-widest text-purple-300 uppercase mb-3 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-300 dark:border-purple-500/20 bg-purple-100/80 dark:bg-purple-950/20 text-xs font-mono tracking-widest text-purple-700 dark:text-purple-300 uppercase mb-3 shadow-sm dark:shadow-[0_0_15px_rgba(139,92,246,0.1)] font-semibold">
             <Compass className="w-3.5 h-3.5 text-purple-400 animate-spin" style={{ animationDuration: '10s' }} />
             <span>Lộ Trình Trải Nghiệm • How It Works</span>
           </div>
