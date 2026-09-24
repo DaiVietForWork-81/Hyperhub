@@ -95,47 +95,42 @@ export const useTheme = () => {
     ];
     const pickedMsg = messages[Math.floor(Math.random() * messages.length)];
 
-    // Stage 1: Full-screen shutter curtain sweeps in (entering)
+    // Stage 1: Bắt đầu animation chuyển màu chậm tầm 2s (Trắng -> Đen dần -> Đen hoặc ngược lại)
     setTransitionState({
       isActive: true,
       currentTheme: theme,
       targetTheme: nextTheme,
-      stage: 'entering',
+      stage: 'morphing',
       message: pickedMsg,
     });
 
-    // Stage 2: Screen is 100% covered -> swap theme silently behind curtain
+    // Tại t = 1000ms: Nửa hành trình 2s, cập nhật DOM theme (dark/light, data-theme, state)
     window.setTimeout(() => {
       flushSync(() => {
         applyDOMTheme(nextTheme);
         setTheme(nextTheme);
       });
+    }, 1000);
 
+    // Tại t = 2000ms: Hoàn tất 2s chuyển đổi màu, chuyển sang fade-out để hé lộ trang web mới
+    window.setTimeout(() => {
       setTransitionState((prev) => ({
         ...prev,
-        stage: 'holding',
+        stage: 'fading-out',
       }));
 
-      // Stage 3: Hold so the user clearly sees the black-white duality animation and "Đợi..." text
+      // Tại t = 2450ms: Hoàn thành hoàn toàn, reset trạng thái
       window.setTimeout(() => {
-        setTransitionState((prev) => ({
-          ...prev,
-          stage: 'exiting',
-        }));
-
-        // Stage 4: Reset to idle
-        window.setTimeout(() => {
-          setTransitionState({
-            isActive: false,
-            currentTheme: nextTheme,
-            targetTheme: nextTheme,
-            stage: 'idle',
-            message: 'Đợi...',
-          });
-          isBusyRef.current = false;
-        }, 340);
-      }, 350);
-    }, 320);
+        setTransitionState({
+          isActive: false,
+          currentTheme: nextTheme,
+          targetTheme: nextTheme,
+          stage: 'idle',
+          message: 'Đợi...',
+        });
+        isBusyRef.current = false;
+      }, 450);
+    }, 2000);
   };
 
   return { theme, toggleTheme, setTheme, transitionState };

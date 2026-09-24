@@ -20,14 +20,16 @@ export const useSmoothScroll = () => {
       return;
     }
 
-    // Lenis configuration: snappy, direct, 1:1 responsive with zero rubber-banding lag
-    // smoothWheel: false allows the browser GPU compositor to handle wheel scrolling natively with 0ms latency
+    // Lenis configuration: velvety smooth, buttery inertia when scrolling up and down
     const lenis = new Lenis({
-      duration: 0.8,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Silky exponential settle
       orientation: 'vertical',
       gestureOrientation: 'vertical',
-      smoothWheel: false,
+      smoothWheel: true,
+      wheelMultiplier: 0.9, // Balanced 1:1 glide without jerky steps
+      touchMultiplier: 1.5,
+      infinite: false,
       syncTouch: false,
     });
 

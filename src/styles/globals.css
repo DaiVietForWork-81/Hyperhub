@@ -7,7 +7,27 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   width: 100%;
-  scroll-behavior: smooth;
+}
+
+/* Lenis smooth scrolling core styles - silky inertia without style recalcs */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
 }
 
 body {
@@ -501,6 +521,100 @@ html.light .text-aura-halo::before {
 
 .animate-pulse-ring {
   animation: pulse-ring 2.5s ease-in-out infinite;
+}
+
+/* ========================================= */
+/* 2S GRADUAL COLOR MORPHING ANIMATIONS      */
+/* ========================================= */
+@keyframes morph-to-dark {
+  0% {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+  20% {
+    background-color: #e2e8f0;
+    color: #1e293b;
+  }
+  45% {
+    background-color: #64748b;
+    color: #f8fafc;
+  }
+  70% {
+    background-color: #1e1b4b;
+    color: #ffffff;
+  }
+  90% {
+    background-color: #0f101d;
+    color: #ffffff;
+  }
+  100% {
+    background-color: #050508;
+    color: #ffffff;
+  }
+}
+
+@keyframes morph-to-light {
+  0% {
+    background-color: #050508;
+    color: #ffffff;
+  }
+  20% {
+    background-color: #111827;
+    color: #f8fafc;
+  }
+  45% {
+    background-color: #334155;
+    color: #f1f5f9;
+  }
+  70% {
+    background-color: #cbd5e1;
+    color: #0f172a;
+  }
+  90% {
+    background-color: #f1f5f9;
+    color: #0f172a;
+  }
+  100% {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+}
+
+@keyframes progress-fill-2s {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes slow-eclipse-spin {
+  0% {
+    transform: rotate(0deg) scale(0.92);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-morph-to-dark {
+  animation: morph-to-dark 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-morph-to-light {
+  animation: morph-to-light 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-progress-2s {
+  animation: progress-fill-2s 2s linear forwards;
+}
+
+.animate-eclipse-2s {
+  animation: slow-eclipse-spin 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Reduced motion */
