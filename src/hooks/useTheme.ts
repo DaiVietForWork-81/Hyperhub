@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import { ThemeTransitionState } from '../components/ThemeCurtain';
 
 export type Theme = 'dark' | 'light';
@@ -95,7 +94,7 @@ export const useTheme = () => {
     ];
     const pickedMsg = messages[Math.floor(Math.random() * messages.length)];
 
-    // Stage 1: Bắt đầu animation chuyển màu chậm tầm 2s (Trắng -> Đen dần -> Đen hoặc ngược lại)
+    // Stage 1: Bắt đầu animation chuyển màu chậm 2s hoàn toàn trên GPU Compositor (Trắng -> Đen dần -> Đen hoặc ngược lại)
     setTransitionState({
       isActive: true,
       currentTheme: theme,
@@ -104,32 +103,32 @@ export const useTheme = () => {
       message: pickedMsg,
     });
 
-    // Tại t = 1000ms: Nửa hành trình 2s, cập nhật DOM theme (dark/light, data-theme, state)
+    // Tại t = 2000ms: Đúng 2.0s, màn che đã đạt 100% màu đích (đen hoặc trắng hoàn toàn)
+    // Cập nhật DOM theme tĩnh lặng phía sau màn che kín mà KHÔNG gây khựng hình
     window.setTimeout(() => {
-      flushSync(() => {
-        applyDOMTheme(nextTheme);
-        setTheme(nextTheme);
-      });
-    }, 1000);
+      applyDOMTheme(nextTheme);
+      setTheme(nextTheme);
 
-    // Tại t = 2000ms: Hoàn tất 2s chuyển đổi màu, chuyển sang fade-out để hé lộ trang web mới
-    window.setTimeout(() => {
-      setTransitionState((prev) => ({
-        ...prev,
-        stage: 'fading-out',
-      }));
-
-      // Tại t = 2450ms: Hoàn thành hoàn toàn, reset trạng thái
+      // Chờ 100ms để trang web hoàn tất render theme mới dưới màn che
       window.setTimeout(() => {
-        setTransitionState({
-          isActive: false,
-          currentTheme: nextTheme,
-          targetTheme: nextTheme,
-          stage: 'idle',
-          message: 'Đợi...',
-        });
-        isBusyRef.current = false;
-      }, 450);
+        // Stage 2: Màn che tan mờ êm dịu (fade-out 500ms) để lộ giao diện mới
+        setTransitionState((prev) => ({
+          ...prev,
+          stage: 'fading-out',
+        }));
+
+        // Reset về idle khi hoàn tất
+        window.setTimeout(() => {
+          setTransitionState({
+            isActive: false,
+            currentTheme: nextTheme,
+            targetTheme: nextTheme,
+            stage: 'idle',
+            message: 'Đợi...',
+          });
+          isBusyRef.current = false;
+        }, 550);
+      }, 100);
     }, 2000);
   };
 
