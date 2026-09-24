@@ -4,7 +4,7 @@ export const AmbientGlow: React.FC = () => {
   return (
     <div 
       aria-hidden="true" 
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none opacity-40 dark:opacity-100 transition-opacity duration-300"
       style={{ 
         contain: 'strict',
         backgroundImage: [

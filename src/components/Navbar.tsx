@@ -15,58 +15,36 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, onToggleTheme }) => {
   const [isNearTop, setIsNearTop] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
 
-  // Track scroll position & smart direction on mobile
+  // Track scroll position & smart direction with RAF throttling
   useEffect(() => {
     let lastScrollY = window.scrollY;
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const scrolled = currentScrollY > 35;
-      setIsScrolled(scrolled);
+    let ticking = false;
 
-      if (currentScrollY <= 45) {
-        setIsNearTop(true);
-      } else if (currentScrollY < lastScrollY - 6) {
-        // Scrolling UP - reveal navbar immediately
-        setIsNearTop(true);
-      } else if (currentScrollY > lastScrollY + 6 && currentScrollY > 80 && !mobileMenuOpen) {
-        // Scrolling DOWN - tuck navbar away to maximize mobile screen space
-        setIsNearTop(false);
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const scrolled = currentScrollY > 35;
+          setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
+
+          if (currentScrollY <= 45) {
+            setIsNearTop((prev) => (!prev ? true : prev));
+          } else if (currentScrollY < lastScrollY - 8) {
+            // Scrolling UP - reveal navbar immediately
+            setIsNearTop((prev) => (!prev ? true : prev));
+          } else if (currentScrollY > lastScrollY + 8 && currentScrollY > 80 && !mobileMenuOpen) {
+            // Scrolling DOWN - tuck navbar away to maximize mobile screen space
+            setIsNearTop((prev) => (prev ? false : prev));
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
       }
-      lastScrollY = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [mobileMenuOpen]);
-
-  // Track mouse proximity to top of the screen on desktop
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= 90) {
-        if (hideTimerRef.current) {
-          window.clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        setIsNearTop(true);
-      } else {
-        if (window.scrollY > 80 && !mobileMenuOpen) {
-          if (!hideTimerRef.current) {
-            hideTimerRef.current = window.setTimeout(() => {
-              setIsNearTop(false);
-              hideTimerRef.current = null;
-            }, 1200);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (hideTimerRef.current) {
-        window.clearTimeout(hideTimerRef.current);
-      }
-    };
   }, [mobileMenuOpen]);
 
   useEffect(() => {

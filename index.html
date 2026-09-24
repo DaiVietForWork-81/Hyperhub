@@ -29,9 +29,13 @@
           if (isDark) {
             document.documentElement.classList.add('dark');
             document.documentElement.classList.remove('light');
+            document.documentElement.setAttribute('data-theme', 'dark');
           } else {
             document.documentElement.classList.add('light');
             document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#f8fafc');
           }
         } catch(e) {}
       })();

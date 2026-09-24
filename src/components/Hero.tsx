@@ -118,13 +118,13 @@ export const Hero: React.FC = () => {
           <div className="w-full max-w-4xl lg:max-w-5xl mx-auto mb-8 sm:mb-10 px-2 overflow-hidden select-none pointer-events-none">
             <div className="relative space-y-2 sm:space-y-2.5 py-1 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
               {/* Row 1: Leftward Stream (Các môn học phổ thông) */}
-              <div className="animate-marquee-left flex items-center gap-2 sm:gap-2.5">
+              <div className="animate-marquee-left flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
                 {[...ROW1_SUBJECTS, ...ROW1_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={`row1-${item.name}-${idx}`}
-                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-white/85 dark:bg-white/[0.04] border ${item.border} text-slate-800 dark:text-white/90 shadow-sm dark:shadow-none backdrop-blur-md`}
+                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-white/95 dark:bg-[#12131f]/95 border ${item.border} text-slate-800 dark:text-white/90 shadow-sm`}
                     >
                       <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.color} shrink-0`} />
                       <span>{item.name}</span>
@@ -134,13 +134,13 @@ export const Hero: React.FC = () => {
               </div>
 
               {/* Row 2: Rightward Stream (Lập trình, Ngôn ngữ & Chuyên đề) */}
-              <div className="animate-marquee-right flex items-center gap-2 sm:gap-2.5">
+              <div className="animate-marquee-right flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
                 {[...ROW2_SUBJECTS, ...ROW2_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={`row2-${item.name}-${idx}`}
-                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-white/85 dark:bg-white/[0.04] border ${item.border} text-slate-800 dark:text-white/90 shadow-sm dark:shadow-none backdrop-blur-md`}
+                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-white/95 dark:bg-[#12131f]/95 border ${item.border} text-slate-800 dark:text-white/90 shadow-sm`}
                     >
                       <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.color} shrink-0`} />
                       <span>{item.name}</span>

@@ -1,35 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   width: 100%;
-}
-
-/* Lenis smooth scrolling core styles */
-html.lenis, html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-
-.lenis.lenis-scrolling iframe {
-  pointer-events: none;
-}
-
-.lenis.lenis-scrolling * {
-  pointer-events: none !important;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -96,23 +74,22 @@ html.light {
   --border-hover: rgba(139, 92, 246, 0.5);
 }
 
-/* MiniMax Liquid Glass Technique */
+/* Modern Glassmorphism Technique (Liquid Glass) */
 .liquid-glass {
   background: rgba(14, 15, 24, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 25px -10px rgba(0, 0, 0, 0.5);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
-html.light .liquid-glass,
-html.light .spotlight-card,
-html.light .group\/spotlight {
-  background: rgba(255, 255, 255, 0.92) !important;
-  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.92)) !important;
-  border-color: rgba(226, 232, 240, 0.9) !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.02) !important;
+html.light .liquid-glass {
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
 }
 
 /* View Transitions API circular ripple support */
@@ -133,80 +110,15 @@ html.theme-transitioning,
 html.theme-transitioning *,
 html.theme-transitioning *::before,
 html.theme-transitioning *::after {
-  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* Light Theme: When light mode is active, text becomes dark and background bright */
-html.light,
-html.light body,
-html.light main {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-}
-
-html.light h1, 
-html.light h2, 
-html.light h3, 
-html.light h4,
-html.light h5,
-html.light h6 {
-  color: #0f172a;
-}
-
-html.light p {
-  color: #334155;
-}
-
-html.light [class*="text-white"] {
-  color: #0f172a;
-}
-
-html.light [class*="text-white/70"],
-html.light [class*="text-white/80"],
-html.light [class*="text-white/90"],
-html.light [class*="text-white/95"] {
-  color: #1e293b;
-}
-
-html.light [class*="text-white/50"],
-html.light [class*="text-white/60"] {
-  color: #475569;
-}
-
-html.light [class*="text-white/40"],
-html.light [class*="text-white/30"],
-html.light [class*="text-white/20"] {
-  color: #64748b;
-}
-
-html.light [class*="bg-white/"] {
-  background-color: rgba(241, 245, 249, 0.9);
-}
-
-html.light [class*="border-white/"] {
-  border-color: rgba(148, 163, 184, 0.3);
-}
-
-html.light [class*="bg-purple-950/"],
-html.light [class*="bg-pink-950/"],
-html.light [class*="bg-slate-950/"] {
-  background-color: rgba(243, 232, 255, 0.6);
-}
-
-html.light header {
-  background-color: rgba(255, 255, 255, 0.88) !important;
-  border-color: rgba(226, 232, 240, 0.8) !important;
-}
-
-/* Preserving dark code styling in CodeTerminal & Arena */
+/* Code Sandbox / Terminal Dedicated Dark Styling (always dark IDE) */
 .terminal-preserve-dark {
   background-color: #0a0b12 !important;
   color: #ffffff !important;
-}
-
-.terminal-preserve-dark * {
   color-scheme: dark;
 }
 
@@ -228,18 +140,6 @@ html.light header {
 
 .terminal-preserve-dark [class*="bg-white/"] {
   background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-/* Buttons and gradient badges keep white text & icons ALWAYS */
-.btn-shimmer,
-.btn-shimmer *,
-.btn-primary,
-.btn-primary *,
-[class*="from-purple-600"],
-[class*="from-purple-600"] *,
-[class*="bg-gradient-to-r"],
-[class*="bg-gradient-to-r"] * {
-  color: #ffffff !important;
 }
 
 /* Typography utilities */
@@ -357,30 +257,30 @@ html.light .cosmic-text-flow {
 .text-aura-halo::before {
   content: "";
   position: absolute;
-  inset: -15%;
+  inset: -20%;
   background: radial-gradient(
     ellipse at center,
     rgba(168, 85, 247, 0.45) 0%,
-    rgba(236, 72, 153, 0.3) 40%,
-    rgba(56, 189, 248, 0.15) 70%,
-    transparent 85%
+    rgba(236, 72, 153, 0.25) 35%,
+    rgba(56, 189, 248, 0.1) 60%,
+    transparent 80%
   );
   border-radius: 9999px;
-  filter: blur(35px);
   pointer-events: none;
   z-index: -1;
-  animation: aura-pulse-glow 5s ease-in-out infinite;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  animation: aura-pulse-glow 6s ease-in-out infinite;
 }
 
 html.light .text-aura-halo::before {
   background: radial-gradient(
     ellipse at center,
     rgba(168, 85, 247, 0.3) 0%,
-    rgba(236, 72, 153, 0.2) 40%,
-    rgba(56, 189, 248, 0.1) 70%,
-    transparent 85%
+    rgba(236, 72, 153, 0.18) 35%,
+    rgba(56, 189, 248, 0.08) 60%,
+    transparent 80%
   );
-  filter: blur(30px);
 }
 
 /* ========================================= */
@@ -541,6 +441,68 @@ html.light .text-aura-halo::before {
   will-change: transform;
 }
 
+/* ========================================= */
+/* THEME TRANSITION FULL-SCREEN CURTAIN      */
+/* ========================================= */
+@keyframes curtain-slide-down {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+@keyframes curtain-slide-exit {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes yin-yang-spin {
+  0% {
+    transform: rotate(0deg) scale(0.96);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.96);
+  }
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.85;
+  }
+}
+
+.animate-curtain-in {
+  animation: curtain-slide-down 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
+}
+
+.animate-curtain-out {
+  animation: curtain-slide-exit 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
+}
+
+.animate-yin-yang {
+  animation: yin-yang-spin 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.5s ease-in-out infinite;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
@@ -550,3 +512,4 @@ html.light .text-aura-halo::before {
     scroll-behavior: auto !important;
   }
 }
+

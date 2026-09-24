@@ -34,8 +34,8 @@ export const Credits: React.FC = () => {
             >
               <div>
                 {/* Avatar Placeholder / Graphic */}
-                <div className="relative mx-auto h-20 w-20 rounded-2xl bg-gradient-to-tr from-purple-900/60 to-pink-900/60 border border-slate-200 dark:border-white/10 flex items-center justify-center group-hover/spotlight:scale-105 group-hover/spotlight:border-purple-400 dark:group-hover/spotlight:border-purple-500/40 group-hover/spotlight:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all duration-300">
-                  <span className="text-2xl font-bold text-white/90">
+                <div className="relative mx-auto h-20 w-20 rounded-2xl bg-gradient-to-tr from-purple-100 to-pink-100 dark:from-purple-900/60 dark:to-pink-900/60 border border-purple-200 dark:border-white/10 flex items-center justify-center group-hover/spotlight:scale-105 group-hover/spotlight:border-purple-400 dark:group-hover/spotlight:border-purple-500/40 group-hover/spotlight:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all duration-300">
+                  <span className="text-2xl font-black text-purple-800 dark:text-white/90">
                     {member.name.charAt(0)}
                   </span>
                   <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-purple-600 border-2 border-white dark:border-black flex items-center justify-center shadow-sm">

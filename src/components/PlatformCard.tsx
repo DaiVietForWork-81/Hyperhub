@@ -102,9 +102,9 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({ platform }) => {
       {/* Action Button */}
       <div className="pt-6 border-t border-slate-200/80 dark:border-white/[0.06]">
         {isPlaceholder ? (
-          <div className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-white/50">
+          <div className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-white/50">
             <span>Link kết nối:</span>
-            <code className="text-purple-300 font-mono text-[11px] bg-purple-950/50 px-2 py-0.5 rounded">
+            <code className="text-purple-700 dark:text-purple-300 font-mono text-[11px] bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-500/20">
               {platform.url}
             </code>
           </div>

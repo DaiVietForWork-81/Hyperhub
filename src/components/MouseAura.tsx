@@ -70,7 +70,7 @@ export const MouseAura: React.FC = () => {
     <div
       ref={auraRef}
       aria-hidden="true"
-      className="pointer-events-none fixed top-0 left-0 z-0 h-[500px] w-[500px] rounded-full opacity-35 dark:opacity-35 light:opacity-20 will-change-transform hidden md:block"
+      className="pointer-events-none fixed top-0 left-0 z-0 h-[500px] w-[500px] rounded-full opacity-20 dark:opacity-35 will-change-transform hidden md:block"
       style={{
         background: 'radial-gradient(circle at center, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.15) 40%, transparent 70%)',
         transform: 'translate3d(-500px, -500px, 0)',

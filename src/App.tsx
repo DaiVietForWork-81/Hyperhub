@@ -16,18 +16,15 @@ import { Platforms } from './components/Platforms';
 import { Credits } from './components/Credits';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
+import { ThemeCurtain } from './components/ThemeCurtain';
 
 export const App: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, transitionState } = useTheme();
   useSmoothScroll();
 
   return (
     <div 
-      className={`relative min-h-dvh w-full overflow-x-hidden transition-colors duration-300 selection:bg-purple-500/30 selection:text-purple-200 ${
-        theme === 'light' 
-          ? 'bg-[#f8fafc] text-slate-900' 
-          : 'bg-[#050508] text-white'
-      }`}
+      className="relative min-h-dvh w-full overflow-x-hidden transition-colors duration-300 selection:bg-purple-500/30 selection:text-purple-700 dark:selection:text-purple-200 bg-[#f8fafc] dark:bg-[#050508] text-slate-900 dark:text-white"
     >
       {/* Background Ambience, Cyber Grid & Mouse Aura */}
       <AmbientGlow />
@@ -55,6 +52,9 @@ export const App: React.FC = () => {
 
       {/* Floating Lo-fi Study Lounge Player */}
       <LofiPlayer />
+
+      {/* Full-Screen Shutter Theme Transition Curtain */}
+      <ThemeCurtain transition={transitionState} />
     </div>
   );
 };

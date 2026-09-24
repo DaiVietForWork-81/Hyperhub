@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { ThemeTransitionState } from '../components/ThemeCurtain';
 
 export type Theme = 'dark' | 'light';
 
@@ -8,6 +9,24 @@ const getSystemTheme = (): Theme => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   return 'dark';
+};
+
+const applyDOMTheme = (theme: Theme) => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'light') {
+    root.classList.remove('dark');
+    root.classList.add('light');
+    root.setAttribute('data-theme', 'light');
+  } else {
+    root.classList.remove('light');
+    root.classList.add('dark');
+    root.setAttribute('data-theme', 'dark');
+  }
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.setAttribute('content', theme === 'light' ? '#f8fafc' : '#050508');
+  }
 };
 
 export const useTheme = () => {
@@ -22,16 +41,19 @@ export const useTheme = () => {
     return 'dark';
   });
 
-  // Apply theme to document root
+  const [transitionState, setTransitionState] = useState<ThemeTransitionState>({
+    isActive: false,
+    currentTheme: 'dark',
+    targetTheme: 'dark',
+    stage: 'idle',
+    message: 'Đợi...',
+  });
+
+  const isBusyRef = useRef(false);
+
+  // Apply theme to document root & meta tags whenever theme state changes
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'light') {
-      root.classList.remove('dark');
-      root.classList.add('light');
-    } else {
-      root.classList.remove('light');
-      root.classList.add('dark');
-    }
+    applyDOMTheme(theme);
   }, [theme]);
 
   // Listen to system theme changes if user hasn't explicitly set in localStorage
@@ -42,7 +64,9 @@ export const useTheme = () => {
     const handleChange = (e: MediaQueryListEvent) => {
       const savedTheme = localStorage.getItem('hyperhub-theme');
       if (!savedTheme) {
-        setTheme(e.matches ? 'dark' : 'light');
+        const sysTheme = e.matches ? 'dark' : 'light';
+        applyDOMTheme(sysTheme);
+        setTheme(sysTheme);
       }
     };
 
@@ -50,73 +74,69 @@ export const useTheme = () => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Animated Theme Toggle with View Transitions circular ripple or smooth crossfade
-  const toggleTheme = (event?: React.MouseEvent) => {
+  // Full-screen cinematic shutter transition (che full màn hình, hiện "Đợi một chút...")
+  const toggleTheme = (_event?: React.MouseEvent) => {
+    if (isBusyRef.current) return;
     const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
+    isBusyRef.current = true;
 
-    // Persist user's choice
+    // Persist choice immediately
     try {
       localStorage.setItem('hyperhub-theme', nextTheme);
     } catch {
       // ignore
     }
 
-    // Modern View Transitions API for luxury ripple animation
-    if (
-      typeof document !== 'undefined' &&
-      'startViewTransition' in document &&
-      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      const x = event ? event.clientX : window.innerWidth / 2;
-      const y = event ? event.clientY : 0;
-      const endRadius = Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y)
-      );
+    const messages = [
+      'Đợi...',
+      'Đợi một chút...',
+      'Đợi giây lát...',
+      'Chờ chút nhé...',
+    ];
+    const pickedMsg = messages[Math.floor(Math.random() * messages.length)];
 
-      const transition = (
-        document as unknown as {
-          startViewTransition: (cb: () => void) => { ready: Promise<void> };
-        }
-      ).startViewTransition(() => {
-        flushSync(() => {
-          setTheme(nextTheme);
-          const root = document.documentElement;
-          if (nextTheme === 'light') {
-            root.classList.remove('dark');
-            root.classList.add('light');
-          } else {
-            root.classList.remove('light');
-            root.classList.add('dark');
-          }
-        });
+    // Stage 1: Full-screen shutter curtain sweeps in (entering)
+    setTransitionState({
+      isActive: true,
+      currentTheme: theme,
+      targetTheme: nextTheme,
+      stage: 'entering',
+      message: pickedMsg,
+    });
+
+    // Stage 2: Screen is 100% covered -> swap theme silently behind curtain
+    window.setTimeout(() => {
+      flushSync(() => {
+        applyDOMTheme(nextTheme);
+        setTheme(nextTheme);
       });
 
-      transition.ready.then(() => {
-        const clipPath = [
-          `circle(0px at ${x}px ${y}px)`,
-          `circle(${endRadius}px at ${x}px ${y}px)`,
-        ];
-        document.documentElement.animate(
-          {
-            clipPath: clipPath,
-          },
-          {
-            duration: 450,
-            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-            pseudoElement: '::view-transition-new(root)',
-          }
-        );
-      });
-    } else {
-      // Fallback with smooth CSS transition class
-      document.documentElement.classList.add('theme-transitioning');
-      setTheme(nextTheme);
+      setTransitionState((prev) => ({
+        ...prev,
+        stage: 'holding',
+      }));
+
+      // Stage 3: Hold so the user clearly sees the black-white duality animation and "Đợi..." text
       window.setTimeout(() => {
-        document.documentElement.classList.remove('theme-transitioning');
-      }, 400);
-    }
+        setTransitionState((prev) => ({
+          ...prev,
+          stage: 'exiting',
+        }));
+
+        // Stage 4: Reset to idle
+        window.setTimeout(() => {
+          setTransitionState({
+            isActive: false,
+            currentTheme: nextTheme,
+            targetTheme: nextTheme,
+            stage: 'idle',
+            message: 'Đợi...',
+          });
+          isBusyRef.current = false;
+        }, 340);
+      }, 350);
+    }, 320);
   };
 
-  return { theme, toggleTheme, setTheme };
+  return { theme, toggleTheme, setTheme, transitionState };
 };
