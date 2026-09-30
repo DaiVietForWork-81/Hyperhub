@@ -23,6 +23,7 @@ import {
   Check,
   Server,
   CheckCheck,
+  Download,
 } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import {
@@ -59,6 +60,7 @@ interface ExamDocument {
   page_count: number;
   author_name: string;
   jump_url?: string;
+  download_url?: string;
   timestamp: string;
 }
 
@@ -1044,23 +1046,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                  {currentExam.jump_url ? (
+                  {/* Nút 1: Tải Đề Trực Tiếp Về Máy */}
+                  <a
+                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={currentExam.file_name || 'de_thi.pdf'}
+                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-emerald-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                    <span>Tải Đề Trực Tiếp Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})</span>
+                  </a>
+
+                  {/* Nút 2: Mở Trên Discord */}
+                  {currentExam.jump_url && (
                     <a
                       href={currentExam.jump_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs sm:text-sm shadow-lg shadow-[#5865F2]/30 hover:-translate-y-0.5 active:scale-95 transition-all"
+                      className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-[#5865F2]/20 hover:-translate-y-0.5 active:scale-95 transition-all"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>Mở & Tải Đề Trên Discord</span>
+                      <span>Xem Bài Đăng Discord</span>
                     </a>
-                  ) : (
-                    <span className="text-xs text-white/50">Đề thi lưu nội bộ hệ thống.</span>
                   )}
 
+                  {/* Nút 3: Bốc Đề Khác */}
                   <button
                     onClick={handleRequestExam}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                   >
                     <RefreshCw className="w-4 h-4" />
                     <span>Bốc Đề Khác</span>
