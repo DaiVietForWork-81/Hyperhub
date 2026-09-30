@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "https://tactics-alfred-introducing-complete.trycloudflare.com/api/:match*"
+      "destination": "https://survival-deals-hints-closer.trycloudflare.com/api/:match*"
     },
     {
       "source": "/(.*)",

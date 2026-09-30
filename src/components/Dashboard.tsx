@@ -24,6 +24,7 @@ import {
   Server,
   CheckCheck,
   Download,
+  Filter,
 } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import {
@@ -64,8 +65,9 @@ interface ExamDocument {
   timestamp: string;
 }
 
-// Danh mục Khối Lớp Hiện Đại (Modern Pill Selector)
+// Danh mục Khối Lớp
 const GRADE_OPTIONS = [
+  { id: 'ALL', label: 'Mọi Khối', subtitle: 'Tất cả lớp' },
   { id: '12', label: 'Lớp 12', subtitle: 'Ôn TN & ĐH' },
   { id: '11', label: 'Lớp 11', subtitle: 'THPT' },
   { id: '10', label: 'Lớp 10', subtitle: 'THPT' },
@@ -73,11 +75,11 @@ const GRADE_OPTIONS = [
   { id: '8', label: 'Lớp 8', subtitle: 'THCS' },
   { id: '7', label: 'Lớp 7', subtitle: 'THCS' },
   { id: '6', label: 'Lớp 6', subtitle: 'THCS' },
-  { id: 'ALL', label: 'Mọi Khối', subtitle: 'Tất cả lớp' },
 ];
 
-// Danh mục Loại Đề Thi Hiện Đại (Modern Card Selector)
+// Danh mục Loại Đề Thi
 const EXAM_TYPE_OPTIONS = [
+  { id: 'ALL', label: 'Mọi Loại Đề', badge: 'Tất cả ✨', icon: '✨' },
   { id: 'THI_THU_THPT', label: 'Thi Thử THPT Quốc Gia', badge: 'Hot 🔥', icon: '🎯' },
   { id: 'HSG', label: 'HSG & Trường Chuyên', badge: 'Nâng cao 🏆', icon: '🏆' },
   { id: 'TUYEN_SINH_10', label: 'Tuyển Sinh Lớp 10', badge: 'Cấp 2 🚀', icon: '🚀' },
@@ -86,10 +88,9 @@ const EXAM_TYPE_OPTIONS = [
   { id: '1_TIET', label: 'Kiểm Tra 1 Tiết', badge: '45 phút ⏱️', icon: '⏱️' },
   { id: '15_PHUT', label: 'Kiểm Tra 15 Phút', badge: 'Nhanh ⚡', icon: '⚡' },
   { id: 'ON_TAP', label: 'Ôn Tập & Bài Tập', badge: 'Luyện tập 📚', icon: '📚' },
-  { id: 'ALL', label: 'Mọi Loại Đề', badge: 'Tất cả ✨', icon: '✨' },
 ];
 
-// Danh mục Môn Học Hiện Đại (Modern Subject Chips)
+// Danh mục Môn Học
 const SUBJECT_OPTIONS = [
   { id: 'ALL', label: 'Tất Cả Các Môn', icon: '🌐' },
   { id: 'MATHEMATICS', label: 'Toán Học', icon: '📐' },
@@ -103,7 +104,7 @@ const SUBJECT_OPTIONS = [
   { id: 'GEOGRAPHY', label: 'Địa Lý', icon: '🗺️' },
 ];
 
-// Gợi ý từ khóa nhanh (1 chạm thêm vào ô mô tả)
+// Gợi ý từ khóa nhanh
 const QUICK_KEYWORD_TAGS = [
   'Đề thi thử 2025',
   'Có đáp án chi tiết',
@@ -126,24 +127,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
   const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
 
-  // Form Lấy Đề State
+  // Form Lọc & Tìm Kiếm Đề Thi (Mặc định ALL để hiển thị danh sách đầy đủ)
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
-  const [selectedGrade, setSelectedGrade] = useState<string>('12');
-  const [selectedExamType, setSelectedExamType] = useState<string>('THI_THU_THPT');
+  const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
+  const [selectedExamType, setSelectedExamType] = useState<string>('ALL');
   const [descriptionKeyword, setDescriptionKeyword] = useState<string>('');
 
-  // Trạng thái phát đề
+  // Danh Sách Đề Thi Trong Kho (Full Catalog List)
+  const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(28);
+
+  // Trạng thái đề ngẫu nhiên được chọn
   const [isLoadingExam, setIsLoadingExam] = useState<boolean>(false);
   const [currentExam, setCurrentExam] = useState<ExamDocument | null>(null);
   const [examError, setExamError] = useState<string>('');
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(28);
 
   // Endpoint Settings Modal State
   const [showApiSettings, setShowApiSettings] = useState<boolean>(false);
   const [customApiUrlInput, setCustomApiUrlInput] = useState<string>('');
   const [apiSaveMsg, setApiSaveMsg] = useState<string>('');
 
-  // 1. Kiểm tra trạng thái Discord Bot định kỳ
+  // 1. Kiểm tra trạng thái Discord Bot
   const checkBotStatus = useCallback(async () => {
     setIsCheckingBot(true);
     try {
@@ -170,7 +175,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, []);
 
-  // 2. Lấy thống kê số lượng tài liệu
+  // 2. Lấy danh sách tất cả đề thi từ Kho Discord (Full List)
+  const fetchDocuments = useCallback(
+    async (
+      gradeOverride?: string,
+      typeOverride?: string,
+      subjectOverride?: string,
+      searchOverride?: string
+    ) => {
+      setIsLoadingDocs(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const q = new URLSearchParams();
+        q.set('limit', '100');
+
+        const g = gradeOverride !== undefined ? gradeOverride : selectedGrade;
+        const t = typeOverride !== undefined ? typeOverride : selectedExamType;
+        const s = subjectOverride !== undefined ? subjectOverride : selectedSubject;
+        const search = searchOverride !== undefined ? searchOverride : descriptionKeyword;
+
+        if (g && g !== 'ALL') q.set('grade', g);
+        if (t && t !== 'ALL') q.set('exam_type', t);
+        if (s && s !== 'ALL') q.set('subject', s);
+        if (search && search.trim()) q.set('search', search.trim());
+
+        const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.documents) {
+            setDocumentsList(data.documents);
+            setTotalDocsCount(data.total ?? data.documents.length);
+          }
+        }
+      } catch (e) {
+        console.error('Lỗi lấy danh sách đề thi:', e);
+      } finally {
+        setIsLoadingDocs(false);
+      }
+    },
+    [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword]
+  );
+
+  // 3. Lấy thống kê số lượng tài liệu
   const fetchDocStats = useCallback(async () => {
     try {
       const apiBase = getApiBaseUrl();
@@ -191,15 +239,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     checkBotStatus();
     fetchDocStats();
+    fetchDocuments();
     const timer = setInterval(() => {
       checkBotStatus();
     }, 15000);
     return () => clearInterval(timer);
   }, [checkBotStatus, fetchDocStats]);
 
-  // 3. Xử lý yêu cầu Lấy Đề từ Bot
-  const handleRequestExam = async (e: React.FormEvent) => {
+  // Cập nhật danh sách khi đổi filter
+  const handleGradeChange = (gradeId: string) => {
+    setSelectedGrade(gradeId);
+    fetchDocuments(gradeId, selectedExamType, selectedSubject, descriptionKeyword);
+  };
+
+  const handleExamTypeChange = (typeId: string) => {
+    setSelectedExamType(typeId);
+    fetchDocuments(selectedGrade, typeId, selectedSubject, descriptionKeyword);
+  };
+
+  const handleSubjectChange = (subjectId: string) => {
+    setSelectedSubject(subjectId);
+    fetchDocuments(selectedGrade, selectedExamType, subjectId, descriptionKeyword);
+  };
+
+  // 4. Xử lý Lọc / Tìm kiếm form
+  const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword);
+  };
+
+  // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick)
+  const handlePickRandomExam = async () => {
     setExamError('');
     setCurrentExam(null);
 
@@ -211,9 +281,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
-    // Kiểm tra điều kiện tài khoản Discord & Email Verified
+    // Kiểm tra đăng nhập
     if (!user) {
-      setExamError('Bạn cần liên kết tài khoản Discord trước khi nhận đề thi.');
+      setExamError('Bạn cần liên kết tài khoản Discord trước khi bốc đề thi.');
       onOpenAuthModal();
       return;
     }
@@ -225,14 +295,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
-    // Bắt buộc nhập mô tả theo yêu cầu
-    if (!descriptionKeyword.trim()) {
-      setExamError('Vui lòng nhập phần mô tả / từ khóa đề thi bạn mong muốn.');
-      return;
-    }
-
     setIsLoadingExam(true);
     try {
+      // Nếu danh sách hiện tại đã có đề, bốc ngẫu nhiên 1 đề từ danh sách lọc
+      if (documentsList.length > 0) {
+        const randomIndex = Math.floor(Math.random() * documentsList.length);
+        setCurrentExam(documentsList[randomIndex]);
+        window.scrollTo({ top: 350, behavior: 'smooth' });
+        return;
+      }
+
+      // Fallback gọi API request_exam
       const queryParams = new URLSearchParams({
         grade: selectedGrade,
         exam_type: selectedExamType,
@@ -252,6 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const data = await res.json();
       if (data.success && data.document) {
         setCurrentExam(data.document);
+        window.scrollTo({ top: 350, behavior: 'smooth' });
       } else {
         setExamError(
           data.message ||
@@ -273,6 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setShowApiSettings(false);
       checkBotStatus();
       fetchDocStats();
+      fetchDocuments();
     }, 900);
   };
 
@@ -285,6 +360,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setShowApiSettings(false);
       checkBotStatus();
       fetchDocStats();
+      fetchDocuments();
     }, 900);
   };
 
@@ -426,9 +502,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <FileSpreadsheet className="w-4 h-4 shrink-0" />
-              <span>Lấy đề</span>
+              <span>Kho & Lấy Đề</span>
               <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
-                Hot
+                {totalDocsCount}+
               </span>
             </button>
 
@@ -631,14 +707,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="space-y-2 text-center sm:text-left">
                 <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-pink-500/20 text-pink-400 text-xs font-bold border border-pink-500/30">
                   <Flame className="w-3.5 h-3.5 text-pink-500" />
-                  <span>Tính Năng Trọng Tâm</span>
+                  <span>Kho Đề Thi Sẵn Sàng</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white">
-                  Lấy Đề Thi Tự Động Từ Kho Discord
+                  Danh Sách & Tải Đề Thi Trực Tiếp
                 </h3>
                 <p className="text-xs sm:text-sm text-white/70 max-w-xl">
-                  Chọn khối lớp, loại đề và từ khóa mô tả. Bot sẽ tự động chọn lọc ngẫu nhiên một đề
-                  thi chuẩn xác nhất từ hệ thống cho bạn.
+                  Xem toàn bộ kho đề thi được lưu trữ từ Discord. Tải file đề thi về máy tính trong 1
+                  chạm hoặc bốc ngẫu nhiên đề theo nhu cầu ôn tập của bạn.
                 </p>
               </div>
 
@@ -646,14 +722,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => setActiveTab('get_exam')}
                 className="btn-shimmer px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/40 hover:-translate-y-1 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
               >
-                Lấy Đề Ngay Bây Giờ
+                Mở Kho Đề Thi Ngay
               </button>
             </div>
           </div>
         )}
 
         {/* ===================================================================== */}
-        {/* TAB 2: LẤY ĐỀ (GET EXAM FEATURE)                                      */}
+        {/* TAB 2: LẤY ĐỀ & DANH SÁCH TẤT CẢ ĐỀ THI                              */}
         {/* ===================================================================== */}
         {activeTab === 'get_exam' && (
           <div className="space-y-8 animate-in fade-in duration-300">
@@ -661,13 +737,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-pink-500" />
-                <span>Trạm Phát Đề Tự Động</span>
+                <span>Kho Lưu Trữ & Trạm Tải Đề</span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-                Lấy Đề Thi
+                Kho Đề Thi & Tải Đề Về Máy
               </h1>
               <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1">
-                Yêu cầu Discord Bot hoạt động & tài khoản Discord có email đã xác minh.
+                Xem toàn bộ danh sách đề thi hoặc bốc ngẫu nhiên đề theo khối lớp, môn học và từ
+                khóa.
               </p>
             </div>
 
@@ -707,7 +784,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70">
                     {!user
-                      ? 'Bạn chưa liên kết tài khoản Discord. Vui lòng bấm liên kết ngay bên dưới để mở khóa chức năng nhận đề.'
+                      ? 'Bạn chưa liên kết tài khoản Discord. Vui lòng bấm liên kết ngay bên dưới để mở khóa chức năng nhận và tải đề thi.'
                       : 'Tài khoản Discord của bạn chưa xác thực Email. Vui lòng xác minh email trên Discord hoặc liên kết tài khoản đã verify.'}
                   </p>
                   <button
@@ -720,24 +797,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {/* 3. Form Yêu Cầu Đề Thi Hiện Đại (No Broken Native Selects) */}
+            {/* 3. BỘ LỌC ĐỀ THI HIỆN ĐẠI (CHIPS & BADGES) */}
             <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-7">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    <Search className="w-4 h-4" />
+                    <Filter className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base sm:text-lg">Tiêu Chí Bốc Đề Thi</h3>
+                    <h3 className="font-bold text-base sm:text-lg">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
                     <p className="text-xs text-slate-400 dark:text-white/40">
-                      Chọn trực tiếp bằng 1 chạm tiện lợi, không lo lỗi giao diện
+                      Bấm vào từng nút để lọc danh sách đề thi bên dưới ngay lập tức
                     </p>
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
-                  Chuẩn hóa UI 2026
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    {documentsList.length} đề thi phù hợp
+                  </span>
+                </div>
               </div>
 
               {examError && (
@@ -747,15 +826,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleRequestExam} className="space-y-6">
-                {/* ============================================================== */}
-                {/* 1. KHỐI LỚP (BẮT BUỘC) - Modern Interactive Pills              */}
-                {/* ============================================================== */}
+              <form onSubmit={handleFilterSubmit} className="space-y-6">
+                {/* 1. KHỐI LỚP */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
                       <GraduationCap className="w-4 h-4 text-purple-500" />
-                      <span>1. Khối Lớp Học Sinh *</span>
+                      <span>1. Khối Lớp Học Sinh</span>
                     </label>
                     <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
                       Đang chọn: {GRADE_OPTIONS.find((g) => g.id === selectedGrade)?.label}
@@ -769,7 +846,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <button
                           key={g.id}
                           type="button"
-                          onClick={() => setSelectedGrade(g.id)}
+                          onClick={() => handleGradeChange(g.id)}
                           className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all cursor-pointer relative overflow-hidden group ${
                             isSelected
                               ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white border-transparent shadow-lg shadow-purple-600/30 ring-2 ring-purple-400/50 scale-[1.02]'
@@ -797,14 +874,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* ============================================================== */}
-                {/* 2. LOẠI ĐỀ THI (BẮT BUỘC) - Modern Interactive Cards           */}
-                {/* ============================================================== */}
+                {/* 2. LOẠI ĐỀ THI */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
                       <FileText className="w-4 h-4 text-pink-500" />
-                      <span>2. Loại Đề Thi *</span>
+                      <span>2. Loại Đề Thi</span>
                     </label>
                     <span className="text-[11px] text-pink-600 dark:text-pink-400 font-semibold">
                       Đang chọn: {EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label}
@@ -818,7 +893,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => setSelectedExamType(t.id)}
+                          onClick={() => handleExamTypeChange(t.id)}
                           className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer group ${
                             isSelected
                               ? 'bg-gradient-to-r from-purple-900/40 via-fuchsia-900/30 to-pink-900/40 dark:from-purple-950/60 dark:to-pink-950/60 border-purple-500 text-purple-950 dark:text-white shadow-md shadow-purple-900/20 ring-2 ring-purple-500/40'
@@ -857,9 +932,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* ============================================================== */}
-                {/* 3. MÔN HỌC (TÙY CHỌN) - Modern Subject Chips                  */}
-                {/* ============================================================== */}
+                {/* 3. MÔN HỌC */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
@@ -878,7 +951,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <button
                           key={s.id}
                           type="button"
-                          onClick={() => setSelectedSubject(s.id)}
+                          onClick={() => handleSubjectChange(s.id)}
                           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/25 ring-2 ring-purple-400/40'
@@ -894,33 +967,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* ============================================================== */}
-                {/* 4. MÔ TẢ / TỪ KHÓA ĐỀ THI (BẮT BUỘC)                           */}
-                {/* ============================================================== */}
+                {/* 4. MÔ TẢ / TỪ KHÓA TÌM KIẾM */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
                       <Search className="w-4 h-4 text-pink-500" />
-                      <span>4. Mô Tả / Từ Khóa Đề Thi *</span>
+                      <span>4. Tìm Kiếm Theo Từ Khóa / Tên Đề</span>
                     </label>
                     <span className="text-[11px] text-slate-400 dark:text-white/40">
-                      Bắt buộc nhập từ khóa
+                      Tìm theo tên file, bài học, chủ đề...
                     </span>
                   </div>
 
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="VD: bài tập hàm số mũ, wordform, quy hoạch động, phân tích thơ, đề có lời giải..."
+                      placeholder="VD: hàm số, wordform, quy hoạch động, chuyên tin, học kỳ 1..."
                       value={descriptionKeyword}
-                      onChange={(e) => setDescriptionKeyword(e.target.value)}
+                      onChange={(e) => {
+                        setDescriptionKeyword(e.target.value);
+                        fetchDocuments(
+                          selectedGrade,
+                          selectedExamType,
+                          selectedSubject,
+                          e.target.value
+                        );
+                      }}
                       className="w-full pl-4 pr-10 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-white/30 text-slate-900 dark:text-white shadow-inner"
-                      required
                     />
                     {descriptionKeyword && (
                       <button
                         type="button"
-                        onClick={() => setDescriptionKeyword('')}
+                        onClick={() => {
+                          setDescriptionKeyword('');
+                          fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
+                        }}
                         className="absolute right-3.5 top-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
                         title="Xóa nội dung"
                       >
@@ -933,7 +1014,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="space-y-1.5 pt-1">
                     <div className="text-[11px] font-semibold text-slate-400 dark:text-white/40 flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-pink-400" />
-                      <span>Gợi ý từ khóa nhanh (bấm để thêm vào mô tả):</span>
+                      <span>Gợi ý từ khóa nhanh (bấm để lọc ngay):</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {QUICK_KEYWORD_TAGS.map((tag) => (
@@ -941,11 +1022,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           key={tag}
                           type="button"
                           onClick={() => {
-                            if (!descriptionKeyword.includes(tag)) {
-                              setDescriptionKeyword((prev) =>
-                                prev ? `${prev.trim()} ${tag}` : tag
-                              );
-                            }
+                            setDescriptionKeyword(tag);
+                            fetchDocuments(selectedGrade, selectedExamType, selectedSubject, tag);
                           }}
                           className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                         >
@@ -956,14 +1034,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* ============================================================== */}
-                {/* ACTION SUBMIT                                                  */}
-                {/* ============================================================== */}
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-4">
+                {/* NÚT THAO TÁC: LỌC & BỐC ĐỀ NGẪU NHIÊN */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handlePickRandomExam}
                     disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                   >
                     {isLoadingExam ? (
                       <>
@@ -972,29 +1049,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Lấy Đề Thi Ngẫu Nhiên</span>
+                        <Sparkles className="w-4 h-4 text-yellow-300" />
+                        <span>🎲 Bốc Ngẫu Nhiên 1 Đề Thi</span>
                       </>
                     )}
                   </button>
 
-                  <span className="text-xs text-slate-400 dark:text-white/40 text-center sm:text-left">
-                    Bot sẽ ngẫu nhiên chọn 1 đề thi thỏa mãn điều kiện từ kho dữ liệu Discord.
-                  </span>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Làm Mới Danh Sách Đề</span>
+                  </button>
                 </div>
               </form>
             </div>
 
-            {/* 4. Khu Vực Hiển Thị Kết Quả Đề Thi Nhận Được */}
+            {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
             {currentExam && (
-              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950/20 via-black/40 to-pink-950/20 border-2 border-purple-500/40 shadow-2xl shadow-purple-950/40 space-y-6 animate-in slide-in-from-bottom-6 duration-300">
+              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950/30 via-black/40 to-pink-950/30 border-2 border-purple-500/50 shadow-2xl shadow-purple-950/40 space-y-6 animate-in slide-in-from-bottom-6 duration-300">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
                       Môn: {currentExam.subject}
                     </span>
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">
-                      {currentExam.estimated_level || 'Lớp 12'}
+                      {currentExam.estimated_level || 'Chung'}
                     </span>
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/80 border border-white/10">
                       {currentExam.page_count} trang
@@ -1003,7 +1084,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Đã nhận đề thành công!</span>
+                    <span>Đã bốc đề ngẫu nhiên thành công!</span>
                   </span>
                 </div>
 
@@ -1026,7 +1107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </span>
                   </div>
                   <div>
-                    <span className="text-white/40 block">Số câu hỏi nhận diện:</span>
+                    <span className="text-white/40 block">Số câu hỏi:</span>
                     <span className="font-semibold text-white/90">
                       {currentExam.question_count || 'N/A'} câu
                     </span>
@@ -1055,7 +1136,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-emerald-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                   >
                     <Download className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>Tải Đề Trực Tiếp Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})</span>
+                    <span>
+                      Tải Đề Trực Tiếp Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})
+                    </span>
                   </a>
 
                   {/* Nút 2: Mở Trên Discord */}
@@ -1073,7 +1156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   {/* Nút 3: Bốc Đề Khác */}
                   <button
-                    onClick={handleRequestExam}
+                    onClick={handlePickRandomExam}
                     className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -1082,6 +1165,143 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
             )}
+
+            {/* ========================================================================= */}
+            {/* 5. DANH SÁCH TẤT CẢ CÁC ĐỀ THI TRONG KHO (FULL CATALOG LIST)              */}
+            {/* ========================================================================= */}
+            <div className="space-y-5 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base sm:text-lg">
+                      Danh Sách Tất Cả Các Đề Thi Trong Kho
+                    </h3>
+                    <p className="text-xs text-slate-400 dark:text-white/40">
+                      Hiển thị {documentsList.length} đề thi • Có thể tải trực tiếp file về máy
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reset bộ lọc */}
+                {(selectedGrade !== 'ALL' ||
+                  selectedExamType !== 'ALL' ||
+                  selectedSubject !== 'ALL' ||
+                  descriptionKeyword) && (
+                  <button
+                    onClick={() => {
+                      setSelectedGrade('ALL');
+                      setSelectedExamType('ALL');
+                      setSelectedSubject('ALL');
+                      setDescriptionKeyword('');
+                      fetchDocuments('ALL', 'ALL', 'ALL', '');
+                    }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Xem Tất Cả ({totalDocsCount} đề)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Grid các đề thi */}
+              {isLoadingDocs ? (
+                <div className="p-12 text-center text-slate-400 dark:text-white/40 space-y-3">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-500" />
+                  <p className="text-xs font-medium">Đang tải danh sách đề thi từ kho Discord...</p>
+                </div>
+              ) : documentsList.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documentsList.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="p-5 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all shadow-sm space-y-3.5 flex flex-col justify-between group"
+                    >
+                      {/* Top Badges */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                            {doc.subject}
+                          </span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80">
+                            {doc.estimated_level || 'Chung'}
+                          </span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
+                            {doc.file_type || 'PDF'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 dark:text-white/40 font-mono">
+                          {formatFileSize(doc.file_size_bytes)}
+                        </span>
+                      </div>
+
+                      {/* Tiêu đề & Thông tin đề */}
+                      <div>
+                        <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
+                          {doc.title || doc.file_name}
+                        </h4>
+                        <div className="text-[11px] text-slate-400 dark:text-white/40 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span>{doc.page_count} trang</span>
+                          {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
+                          <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
+                        </div>
+                      </div>
+
+                      {/* Nút thao tác trên từng đề */}
+                      <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                        <a
+                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={doc.file_name || 'de_thi.pdf'}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Tải Đề Về Máy</span>
+                        </a>
+
+                        {doc.jump_url && (
+                          <a
+                            href={doc.jump_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-600 dark:text-white/70 transition-all cursor-pointer"
+                            title="Mở bài đăng trên Discord"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-3">
+                  <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
+                  <div className="text-sm font-bold text-slate-800 dark:text-white">
+                    Không tìm thấy đề thi phù hợp với tiêu chí lọc
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm mx-auto">
+                    Hãy thử chọn "Mọi Khối", "Mọi Loại Đề" hoặc xóa từ khóa mô tả để xem toàn bộ
+                    danh sách đề thi.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedGrade('ALL');
+                      setSelectedExamType('ALL');
+                      setSelectedSubject('ALL');
+                      setDescriptionKeyword('');
+                      fetchDocuments('ALL', 'ALL', 'ALL', '');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Xem Toàn Bộ Kho Đề Thi
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
