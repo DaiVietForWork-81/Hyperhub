@@ -19,6 +19,7 @@ import {
   Brain,
   Award,
   GraduationCap,
+  ExternalLink,
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 
@@ -51,18 +52,11 @@ const ROW2_SUBJECTS = [
   { name: "Và Nhiều Chuyên Đề Khác...", icon: Sparkles, color: "text-purple-400 dark:text-purple-300", border: "border-purple-500/20" },
 ];
 
-export const Hero: React.FC = () => {
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      if (window.__lenis) {
-        window.__lenis.scrollTo(el, { offset: -40, duration: 1.2 });
-      } else {
-        el.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  };
+interface HeroProps {
+  onOpenDashboard?: () => void;
+}
 
+export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
   return (
     <section 
       id="hero" 
@@ -113,11 +107,11 @@ export const Hero: React.FC = () => {
           </div>
         </ScrollReveal>
 
-        {/* Dual Animated Moving Stream of Subjects & Programming (2 Rows: 1 Top, 1 Bottom) */}
+        {/* Dual Animated Moving Stream of Subjects & Programming */}
         <ScrollReveal delay={400}>
           <div className="w-full max-w-4xl lg:max-w-5xl mx-auto mb-8 sm:mb-10 px-2 overflow-hidden select-none pointer-events-none">
             <div className="relative space-y-2 sm:space-y-2.5 py-1 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-              {/* Row 1: Leftward Stream (Các môn học phổ thông) */}
+              {/* Row 1: Leftward Stream */}
               <div className="animate-marquee-left flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
                 {[...ROW1_SUBJECTS, ...ROW1_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
@@ -133,7 +127,7 @@ export const Hero: React.FC = () => {
                 })}
               </div>
 
-              {/* Row 2: Rightward Stream (Lập trình, Ngôn ngữ & Chuyên đề) */}
+              {/* Row 2: Rightward Stream */}
               <div className="animate-marquee-right flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
                 {[...ROW2_SUBJECTS, ...ROW2_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
@@ -155,31 +149,31 @@ export const Hero: React.FC = () => {
         {/* Welcome Description */}
         <ScrollReveal delay={500}>
           <p className="text-sm sm:text-base md:text-lg text-slate-600 dark:text-white/70 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed text-balance px-4">
-            Nơi học hỏi có rất nhiều tài liệu phong phú, là bệ phóng phát triển học Tin và hỗ trợ toàn diện các môn học khác dành cho bạn.
+            Nơi học hỏi có kho đề thi phong phú, hỗ trợ bốc đề tự động trực tiếp qua liên kết Discord và phát triển toàn diện mọi môn học.
           </p>
         </ScrollReveal>
 
         {/* Action Buttons - Centered */}
         <ScrollReveal delay={600}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto px-4">
+            <button
+              type="button"
+              onClick={onOpenDashboard}
+              className="btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-bold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/30 hover:shadow-[0_0_30px_rgba(236,72,153,0.4)] hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <span>Vào Bảng Điều Khiển & Lấy Đề</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
+            </button>
+
             <a
               href="https://discord.gg/D34HX87bGe"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-semibold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/30 hover:shadow-[0_0_30px_rgba(236,72,153,0.4)] hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
-            >
-              <span>Tham Gia Discord Ngay</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
-            </a>
-
-            <button
-              type="button"
-              onClick={() => scrollTo('how-it-works')}
               className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[50px] rounded-full font-medium text-sm text-slate-800 dark:text-white/80 hover:text-purple-600 dark:hover:text-white bg-white/80 dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-300 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500/50 shadow-sm dark:shadow-none hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
             >
-              <Compass className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:rotate-45 transition-transform duration-300" />
-              <span>Cách Hoạt Động</span>
-            </button>
+              <ExternalLink className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <span>Tham Gia Discord</span>
+            </a>
           </div>
         </ScrollReveal>
       </div>
