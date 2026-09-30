@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { SpotlightCard } from './SpotlightCard';
 import { ScrollReveal } from './ScrollReveal';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 export interface DocumentItem {
   id: number;
@@ -150,7 +151,8 @@ export const DocumentVault: React.FC = () => {
     let isMounted = true;
     const fetchApiDocs = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/documents?limit=50', {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/api/documents?limit=50`, {
           headers: { 'Accept': 'application/json' },
         });
         if (res.ok) {
