@@ -137,6 +137,47 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({ isOpen, onCl
               <ExternalLink className="w-4 h-4 ml-auto opacity-70" />
             </button>
 
+            {/* Hướng Dẫn Khi Bị Lỗi Invalid OAuth2 */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 text-amber-800 dark:text-amber-300">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+                <span>Gặp lỗi "Invalid OAuth2 redirect_uri"?</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-700 dark:text-white/80">
+                Do Discord yêu cầu bạn phải thêm tên miền web vào danh sách Redirects:
+              </p>
+              <div className="text-[11px] space-y-1 pl-2 text-slate-700 dark:text-white/80">
+                <div>
+                  1. Mở{' '}
+                  <a
+                    href="https://discord.com/developers/applications/1536298634990325871/oauth2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-bold text-[#5865F2] hover:text-[#4752c4]"
+                  >
+                    Discord Developer Portal (App 1536298634990325871)
+                  </a>
+                </div>
+                <div>2. Chọn menu <b>OAuth2</b> → mục <b>Redirects</b> → bấm <b>Add Redirect</b></div>
+                <div>
+                  3. Thêm:{' '}
+                  <code className="bg-black/20 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono text-purple-700 dark:text-purple-300 select-all font-bold">
+                    https://hyperhub-one.vercel.app
+                  </code>
+                </div>
+                <div>4. Bấm <b>Save Changes</b> ở thanh màu xanh lá dưới cùng.</div>
+              </div>
+              <div className="pt-1.5 border-t border-amber-500/20">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('manual')}
+                  className="text-xs font-bold text-purple-700 dark:text-purple-300 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <span>⚡ Hoặc bấm vào đây để Liên Kết Trực Tiếp (Không cần OAuth2)</span>
+                </button>
+              </div>
+            </div>
+
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 text-xs space-y-2 text-slate-600 dark:text-white/70">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -147,12 +188,12 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({ isOpen, onCl
               </p>
             </div>
 
-            <div className="pt-2 text-center">
-              <span className="text-xs text-slate-400 dark:text-white/40">Hoặc thử nghiệm nhanh với </span>
+            <div className="pt-1 text-center">
+              <span className="text-xs text-slate-400 dark:text-white/40">Thử nghiệm nhanh với </span>
               <button
                 type="button"
                 onClick={() => handleQuickDemo(true)}
-                className="text-xs text-purple-600 dark:text-purple-400 font-semibold hover:underline"
+                className="text-xs text-purple-600 dark:text-purple-400 font-semibold hover:underline cursor-pointer"
               >
                 Tài khoản mẫu (Đã xác minh)
               </button>

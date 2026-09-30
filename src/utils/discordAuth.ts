@@ -46,10 +46,11 @@ export function removeDiscordUser(): void {
 /**
  * Tạo URL ủy quyền Discord OAuth2 (Implicit Grant Flow lấy Access Token trực tiếp).
  */
-export function getDiscordOAuth2Url(): string {
-  const redirectUri = encodeURIComponent(window.location.origin);
+export function getDiscordOAuth2Url(trailingSlash: boolean = false): string {
+  const origin = window.location.origin.replace(/\/+$/, '') + (trailingSlash ? '/' : '');
+  const redirectUri = encodeURIComponent(origin);
   const scope = encodeURIComponent("identify email");
-  return `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
+  return `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
 }
 
 /**
