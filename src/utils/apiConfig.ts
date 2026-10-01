@@ -4,7 +4,7 @@
  * và Localhost (khi chạy offline dev), đồng thời cho phép người dùng tùy chỉnh endpoint qua localStorage.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://survival-deals-hints-closer.trycloudflare.com";
+export const DEFAULT_TUNNEL_URL = "https://clay-layout-warranty-tribe.trycloudflare.com";
 export const LOCAL_API_URL = "http://localhost:8080";
 
 const STORAGE_KEY = "hyperhub_api_base_url";
