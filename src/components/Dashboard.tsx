@@ -41,6 +41,7 @@ import { DocUploadZone } from './DocUploadZone';
 
 interface DashboardProps {
   user: DiscordUser | null;
+  initialTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc';
   onOpenAuthModal: () => void;
   onLogout: () => void;
   onBackToHome: () => void;
@@ -124,11 +125,20 @@ const QUICK_KEYWORD_TAGS = [
 
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
+  initialTab,
   onOpenAuthModal,
   onLogout,
   onBackToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>(
+    initialTab || 'overview'
+  );
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
   const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
   const [previewDoc, setPreviewDoc] = useState<PreviewableDocument | null>(null);
@@ -642,7 +652,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#f8fafc] dark:bg-[#070810] text-slate-900 dark:text-white transition-colors duration-200">
+    <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
       {/* ========================================================================= */}
       {/* SIDEBAR BÊN HÔNG TRÁI                                                     */}
       {/* ========================================================================= */}

@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home } from 'lucide-react';
-import { ThemeToggle } from './ThemeToggle';
-import { Theme } from '../hooks/useTheme';
 import { DiscordUser } from '../utils/discordAuth';
 
 interface NavbarProps {
-  theme: Theme;
-  onToggleTheme: (e?: React.MouseEvent) => void;
+  theme?: string;
+  onToggleTheme?: (e?: React.MouseEvent) => void;
   activeView: 'home' | 'dashboard';
   onSelectView: (view: 'home' | 'dashboard') => void;
   user: DiscordUser | null;
@@ -14,8 +12,6 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  theme,
-  onToggleTheme,
   activeView,
   onSelectView,
   user,
@@ -76,15 +72,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, [mobileMenuOpen]);
 
-  const handleNavClick = (href: string) => {
+  const handleNavClick = (view: 'home' | 'dashboard') => {
     setMobileMenuOpen(false);
-    if (href === '#dashboard') {
-      onSelectView('dashboard');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      onSelectView('home');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    onSelectView(view);
   };
 
   const isVisible = isNearTop || !isScrolled || mobileMenuOpen;
@@ -117,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             : '-translate-y-full opacity-0 pointer-events-none'
         } ${
           isScrolled || activeView === 'dashboard'
-            ? 'bg-white/90 dark:bg-black/80 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] py-2.5 shadow-md shadow-slate-200/40 dark:shadow-2xl dark:shadow-purple-950/20'
+            ? 'bg-black/85 backdrop-blur-md border-b border-white/[0.08] py-2.5 shadow-2xl shadow-purple-950/20'
             : 'bg-transparent py-3 sm:py-4'
         }`}
       >
@@ -126,19 +116,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand Logo */}
           <button 
             type="button"
-            onClick={() => handleNavClick('#hero')}
+            onClick={() => handleNavClick('home')}
             className="flex items-center gap-2.5 group cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 rounded-lg p-1 shrink-0 hover:-translate-y-0.5 active:scale-95 transition-transform duration-200"
           >
             <img
               src="/logo.png"
               alt="HyperHub Logo"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
             <div className="flex items-center">
-              <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+              <span className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
                 HyperHub
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse"></span>
@@ -146,14 +136,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Desktop Nav Dock */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-2 py-1 px-2.5 rounded-full border border-slate-200/80 dark:border-white/[0.08] bg-slate-100/70 dark:bg-white/[0.03] backdrop-blur-md shadow-sm dark:shadow-inner">
+          <nav className="hidden md:flex items-center gap-1 sm:gap-2 py-1 px-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-md shadow-inner">
             <button
               type="button"
-              onClick={() => handleNavClick('#hero')}
+              onClick={() => handleNavClick('home')}
               className={`px-4 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'home'
-                  ? 'bg-white dark:bg-white/15 text-purple-600 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-white/75 hover:text-purple-600 dark:hover:text-white'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-white/75 hover:text-white'
               }`}
             >
               <Home className="w-3.5 h-3.5" />
@@ -162,11 +152,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
-              onClick={() => handleNavClick('#dashboard')}
+              onClick={() => handleNavClick('dashboard')}
               className={`px-4 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'dashboard'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-white/75 hover:text-purple-600 dark:hover:text-white'
+                  : 'text-white/75 hover:text-white'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -174,15 +164,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Action Area: Theme Switcher & Discord User / Link CTA */}
+          {/* Action Area: Discord User / Link CTA */}
           <div className="hidden md:flex items-center gap-2.5 shrink-0">
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-
             {user ? (
               <button
                 type="button"
                 onClick={() => onSelectView('dashboard')}
-                className="flex items-center gap-2.5 py-1.5 px-3 rounded-full bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/10 hover:border-purple-500/40 transition-all cursor-pointer"
+                className="flex items-center gap-2.5 py-1.5 px-3 rounded-full bg-white/[0.05] border border-white/10 hover:border-purple-500/40 transition-all cursor-pointer"
                 title={`Đã liên kết với Discord: @${user.username}`}
               >
                 <img
@@ -193,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
                 />
-                <span className="text-xs font-semibold max-w-[120px] truncate text-slate-800 dark:text-white">
+                <span className="text-xs font-semibold max-w-[120px] truncate text-white">
                   {user.global_name || user.username}
                 </span>
                 {user.verified && (
@@ -216,14 +204,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Mobile Actions */}
           <div className="flex md:hidden items-center gap-2">
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-
             <button
               type="button"
               aria-label={mobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-xl text-slate-700 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-90"
+              className="p-2.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-90"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -232,15 +218,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Drawer Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-white/95 dark:bg-black/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 px-5 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-black/95 backdrop-blur-xl border-b border-white/10 px-5 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
             <nav className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => handleNavClick('#hero')}
+                onClick={() => handleNavClick('home')}
                 className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
                   activeView === 'home'
-                    ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-white'
-                    : 'text-slate-700 dark:text-white/85'
+                    ? 'bg-purple-500/20 text-white'
+                    : 'text-white/85'
                 }`}
               >
                 <Home className="w-4 h-4" />
@@ -249,20 +235,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 type="button"
-                onClick={() => handleNavClick('#dashboard')}
+                onClick={() => handleNavClick('dashboard')}
                 className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
                   activeView === 'dashboard'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'text-slate-700 dark:text-white/85'
+                    : 'text-white/85'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Bảng Điều Khiển</span>
               </button>
 
-              <div className="pt-4 border-t border-slate-200 dark:border-white/10 mt-2">
+              <div className="pt-4 border-t border-white/10 mt-2">
                 {user ? (
-                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
+                  <div className="p-3 rounded-xl bg-white/5 space-y-2">
                     <div className="flex items-center gap-2.5">
                       <img
                         src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
@@ -270,7 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-8 h-8 rounded-full"
                       />
                       <div className="overflow-hidden">
-                        <div className="text-sm font-bold truncate">{user.global_name || user.username}</div>
+                        <div className="text-sm font-bold truncate text-white">{user.global_name || user.username}</div>
                         <div className="text-xs text-slate-400">@{user.username}</div>
                       </div>
                     </div>
@@ -296,3 +282,5 @@ export const Navbar: React.FC<NavbarProps> = ({
     </>
   );
 };
+
+export default Navbar;
