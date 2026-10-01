@@ -32,6 +32,7 @@ import {
   setCustomApiUrl,
   DEFAULT_TUNNEL_URL,
   LOCAL_API_URL,
+  API_FETCH_HEADERS,
 } from '../utils/apiConfig';
 
 interface DashboardProps {
@@ -154,6 +155,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/status`, {
+        headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
@@ -200,6 +202,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (search && search.trim()) q.set('search', search.trim());
 
         const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
+          headers: API_FETCH_HEADERS,
           signal: AbortSignal.timeout(5000),
         });
         if (res.ok) {
@@ -223,6 +226,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/documents/stats`, {
+        headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
@@ -315,6 +319,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/documents/request_exam?${queryParams.toString()}`, {
+        headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(8000),
       });
 

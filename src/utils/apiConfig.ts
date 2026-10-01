@@ -4,8 +4,13 @@
  * và Localhost (khi chạy offline dev), đồng thời cho phép người dùng tùy chỉnh endpoint qua localStorage.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://trans-sherman-cables-mas.trycloudflare.com";
+export const DEFAULT_TUNNEL_URL = "https://phantasmagorically-occupative-gladys.ngrok-free.dev";
 export const LOCAL_API_URL = "http://localhost:8080";
+
+export const API_FETCH_HEADERS: HeadersInit = {
+  "ngrok-skip-browser-warning": "true",
+  "Accept": "application/json",
+};
 
 const STORAGE_KEY = "hyperhub_api_base_url";
 
