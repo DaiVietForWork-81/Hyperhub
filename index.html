@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>HyperHub | Learn • Code • Chill</title>
     <meta name="description" content="HyperHub — Cộng đồng học tập, lập trình thuật toán, kết nối và thư giãn cho các developer và học sinh, sinh viên yêu công nghệ tại Việt Nam." />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#050508" />
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="HyperHub | Learn • Code • Chill" />
@@ -24,24 +24,15 @@
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('hyperhub-theme');
-          var isDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (isDark) {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-            document.documentElement.setAttribute('data-theme', 'dark');
-          } else {
-            document.documentElement.classList.add('light');
-            document.documentElement.classList.remove('dark');
-            document.documentElement.setAttribute('data-theme', 'light');
-            var meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', '#f8fafc');
-          }
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('hyperhub-theme', 'dark');
         } catch(e) {}
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-DdUGrpAg.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-hZ-ywbQp.css">
+    <script type="module" crossorigin src="./assets/index-CNicucNg.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C7AyAhNv.css">
   </head>
   <body class="antialiased selection:bg-purple-500/30 selection:text-purple-200 min-h-dvh">
     <div id="root"></div>
