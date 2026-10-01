@@ -11,6 +11,7 @@ import {
 import { SpotlightCard } from './SpotlightCard';
 import { ScrollReveal } from './ScrollReveal';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { formatEstimatedLevel } from '../utils/formatters';
 
 export interface DocumentItem {
   id: number;
@@ -352,7 +353,7 @@ export const DocumentVault: React.FC = () => {
                   {/* Level & Question count */}
                   <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/[0.05] border border-slate-200/50 dark:border-white/5">
-                      🎓 {doc.estimated_level}
+                      🎓 {formatEstimatedLevel(doc.estimated_level)}
                     </span>
                     {doc.question_count > 0 && (
                       <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/[0.05] border border-slate-200/50 dark:border-white/5">

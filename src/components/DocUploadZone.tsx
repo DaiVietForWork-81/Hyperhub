@@ -12,6 +12,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
+import { formatEstimatedLevel } from '../utils/formatters';
 
 interface DocUploadZoneProps {
   apiBase: string;
@@ -345,7 +346,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
               <div className="text-[11px] text-slate-400">Khối Lớp</div>
               <div className="font-bold text-sm text-pink-300">
-                {uploadResult.estimated_level}
+                {formatEstimatedLevel(uploadResult.estimated_level)}
               </div>
             </div>
 
@@ -403,7 +404,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             )}
 
             <a
-              href={`${apiBase}${uploadResult.download_url}`}
+              href={`${apiBase}${uploadResult.download_url}${uploadResult.download_url.includes('?') ? '&' : '?'}ngrok-skip-browser-warning=true`}
               download={uploadResult.file_name}
               target="_blank"
               rel="noreferrer"

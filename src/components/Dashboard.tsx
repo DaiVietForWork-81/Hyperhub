@@ -38,6 +38,7 @@ import {
 import { ExamCountdown } from './ExamCountdown';
 import { DocPreviewModal, PreviewableDocument } from './DocPreviewModal';
 import { DocUploadZone } from './DocUploadZone';
+import { formatEstimatedLevel } from '../utils/formatters';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -1118,7 +1119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       Môn: {currentExam.subject}
                     </span>
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">
-                      {currentExam.estimated_level || 'Chung'}
+                      {formatEstimatedLevel(currentExam.estimated_level)}
                     </span>
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/80 border border-white/10">
                       {currentExam.page_count} trang
@@ -1181,7 +1182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   {/* Nút 1: Tải Đề Trực Tiếp Về Máy */}
                   <a
-                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download`}
+                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download?ngrok-skip-browser-warning=true`}
                     target="_blank"
                     rel="noopener noreferrer"
                     download={currentExam.file_name || 'de_thi.pdf'}
@@ -1316,7 +1317,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             {doc.subject}
                           </span>
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80">
-                            {doc.estimated_level || 'Chung'}
+                            {formatEstimatedLevel(doc.estimated_level)}
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
                             {doc.file_type || 'PDF'}
@@ -1351,7 +1352,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </button>
 
                         <a
-                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download`}
+                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
                           target="_blank"
                           rel="noopener noreferrer"
                           download={doc.file_name || 'de_thi.pdf'}
