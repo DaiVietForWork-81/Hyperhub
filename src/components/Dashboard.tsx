@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
-  FileSpreadsheet,
   ArrowLeft,
   Bot,
   CheckCircle2,
@@ -20,11 +19,13 @@ import {
   Flame,
   Settings,
   X,
-  Check,
   Server,
   CheckCheck,
   Download,
   Filter,
+  Eye,
+  UploadCloud,
+  Dices,
 } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import {
@@ -34,6 +35,9 @@ import {
   LOCAL_API_URL,
   API_FETCH_HEADERS,
 } from '../utils/apiConfig';
+import { ExamCountdown } from './ExamCountdown';
+import { DocPreviewModal, PreviewableDocument } from './DocPreviewModal';
+import { DocUploadZone } from './DocUploadZone';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -124,9 +128,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
   onBackToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'get_exam'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>('overview');
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
   const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
+  const [previewDoc, setPreviewDoc] = useState<PreviewableDocument | null>(null);
 
   // Form Lọc & Tìm Kiếm Đề Thi (Mặc định ALL để hiển thị danh sách đầy đủ)
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
@@ -376,6 +381,266 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const renderFilterControls = (showRollButton: boolean = true) => (
+    <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-7">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <Filter className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base sm:text-lg">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
+            <p className="text-xs text-slate-400 dark:text-white/40">
+              {showRollButton
+                ? 'Chọn tiêu chí để bot bốc ngẫu nhiên hoặc lọc đề thi bên dưới'
+                : 'Lọc danh sách đề thi theo khối lớp, thể loại, môn học và từ khóa'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            {documentsList.length} đề thi phù hợp
+          </span>
+        </div>
+      </div>
+
+      {examError && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in duration-200">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{examError}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleFilterSubmit} className="space-y-6">
+        {/* 1. KHỐI LỚP */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+              <GraduationCap className="w-4 h-4 text-purple-500" />
+              <span>1. Khối Lớp Học Sinh</span>
+            </label>
+            <span className="text-[11px] text-slate-400 dark:text-white/40">
+              Đang chọn:{' '}
+              <strong className="text-purple-600 dark:text-purple-400">
+                {GRADE_OPTIONS.find((g) => g.id === selectedGrade)?.label}
+              </strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
+            {GRADE_OPTIONS.map((g) => {
+              const isSelected = selectedGrade === g.id;
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => handleGradeChange(g.id)}
+                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    isSelected
+                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/30 scale-[1.02]'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/50 dark:hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span className="font-bold text-xs sm:text-sm">{g.label}</span>
+                  <span
+                    className={`text-[10px] ${
+                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/40'
+                    }`}
+                  >
+                    {g.subtitle}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. LOẠI ĐỀ THI */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-pink-500" />
+              <span>2. Thể Loại Đề Thi</span>
+            </label>
+            <span className="text-[11px] text-slate-400 dark:text-white/40">
+              Đang chọn:{' '}
+              <strong className="text-pink-600 dark:text-pink-400">
+                {EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label}
+              </strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
+            {EXAM_TYPE_OPTIONS.map((t) => {
+              const isSelected = selectedExamType === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleExamTypeChange(t.id)}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-pink-600 to-rose-600 border-pink-500 text-white shadow-lg shadow-pink-900/30 scale-[1.01]'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-pink-300 dark:hover:border-pink-500/30 hover:bg-pink-50/30 dark:hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-base shrink-0">{t.icon}</span>
+                    <span className="font-bold text-xs truncate">{t.label}</span>
+                  </div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 font-semibold ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-white/60'
+                    }`}
+                  >
+                    {t.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. MÔN HỌC */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-emerald-500" />
+              <span>3. Môn Học Ôn Tập</span>
+            </label>
+            <span className="text-[11px] text-slate-400 dark:text-white/40">
+              Đang chọn:{' '}
+              <strong className="text-emerald-600 dark:text-emerald-400">
+                {SUBJECT_OPTIONS.find((s) => s.id === selectedSubject)?.label}
+              </strong>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {SUBJECT_OPTIONS.map((s) => {
+              const isSelected = selectedSubject === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => handleSubjectChange(s.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-105'
+                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                  }`}
+                >
+                  <span>{s.icon}</span>
+                  <span>{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. TỪ KHÓA MÔ TẢ */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+              <Search className="w-4 h-4 text-purple-500" />
+              <span>4. Tìm Kiếm & Từ Khóa Nội Dung</span>
+            </label>
+            {descriptionKeyword && (
+              <span className="text-[11px] text-purple-500 dark:text-purple-400">
+                Đang tìm: "{descriptionKeyword}"
+              </span>
+            )}
+          </div>
+
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={descriptionKeyword}
+              onChange={(e) => {
+                setDescriptionKeyword(e.target.value);
+                fetchDocuments(selectedGrade, selectedExamType, selectedSubject, e.target.value);
+              }}
+              placeholder="VD: hàm số mũ, wordform, quy hoạch động, phân tích thơ, đề có lời giải, chuyên KHTN..."
+              className="w-full pl-11 pr-10 py-3 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-white/30"
+            />
+            {descriptionKeyword && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDescriptionKeyword('');
+                  fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
+                }}
+                className="absolute right-3.5 top-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Xóa nội dung"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Gợi Ý Nhanh 1 Chạm */}
+          <div className="space-y-1.5 pt-1">
+            <div className="text-[11px] font-semibold text-slate-400 dark:text-white/40 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-pink-400" />
+              <span>Gợi ý từ khóa nhanh (bấm để lọc ngay):</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_KEYWORD_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    setDescriptionKeyword(tag);
+                    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, tag);
+                  }}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                >
+                  <span>+ {tag}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* NÚT THAO TÁC */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+          {showRollButton && (
+            <button
+              type="button"
+              onClick={handlePickRandomExam}
+              disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
+              className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            >
+              {isLoadingExam ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Bot Đang Bốc Đề...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                  <span>🎲 Bốc Ngẫu Nhiên 1 Đề Thi</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="submit"
+            className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Search className="w-4 h-4" />
+            <span>Lọc Danh Sách Đề</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#f8fafc] dark:bg-[#070810] text-slate-900 dark:text-white transition-colors duration-200">
       {/* ========================================================================= */}
@@ -499,6 +764,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveTab('vault')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'vault'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 shrink-0" />
+              <span>Kho Đề</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
+                {totalDocsCount}+
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('get_exam')}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 activeTab === 'get_exam'
@@ -506,10 +786,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
               }`}
             >
-              <FileSpreadsheet className="w-4 h-4 shrink-0" />
-              <span>Kho & Lấy Đề</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
-                {totalDocsCount}+
+              <Dices className="w-4 h-4 shrink-0" />
+              <span>Lấy Đề</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('submit_doc')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'submit_doc'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+              }`}
+            >
+              <UploadCloud className="w-4 h-4 shrink-0" />
+              <span>Kho Nộp Đề</span>
+              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+                Bot AI
               </span>
             </button>
 
@@ -611,6 +903,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 động.
               </p>
             </div>
+
+            {/* Đồng Hồ Đếm Ngược Ngày Thi & Động Lực Học Tập */}
+            <ExamCountdown onNavigateTab={(tab) => setActiveTab(tab)} />
 
             {/* Status Grid Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -740,16 +1035,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-pink-500" />
-                <span>Kho Lưu Trữ & Trạm Tải Đề</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 mb-3">
+                <Dices className="w-3.5 h-3.5 text-purple-500" />
+                <span>Trạm Phát Đề Tự Động</span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-                Kho Đề Thi & Tải Đề Về Máy
+                Lấy Đề Thi Ngẫu Nhiên
               </h1>
               <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1">
-                Xem toàn bộ danh sách đề thi hoặc bốc ngẫu nhiên đề theo khối lớp, môn học và từ
-                khóa.
+                Chọn khối lớp, môn học và nhấn nút "🎲 Bốc Ngẫu Nhiên 1 Đề Thi" để Bot bốc đề thi thích hợp nhất cho bạn từ kho dữ liệu.
               </p>
             </div>
 
@@ -802,274 +1096,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {/* 3. BỘ LỌC ĐỀ THI HIỆN ĐẠI (CHIPS & BADGES) */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-7">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    <Filter className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
-                    <p className="text-xs text-slate-400 dark:text-white/40">
-                      Bấm vào từng nút để lọc danh sách đề thi bên dưới ngay lập tức
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    {documentsList.length} đề thi phù hợp
-                  </span>
-                </div>
-              </div>
-
-              {examError && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in duration-200">
-                  <AlertTriangle className="w-5 h-5 shrink-0" />
-                  <span>{examError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleFilterSubmit} className="space-y-6">
-                {/* 1. KHỐI LỚP */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-                      <GraduationCap className="w-4 h-4 text-purple-500" />
-                      <span>1. Khối Lớp Học Sinh</span>
-                    </label>
-                    <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
-                      Đang chọn: {GRADE_OPTIONS.find((g) => g.id === selectedGrade)?.label}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-                    {GRADE_OPTIONS.map((g) => {
-                      const isSelected = selectedGrade === g.id;
-                      return (
-                        <button
-                          key={g.id}
-                          type="button"
-                          onClick={() => handleGradeChange(g.id)}
-                          className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all cursor-pointer relative overflow-hidden group ${
-                            isSelected
-                              ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white border-transparent shadow-lg shadow-purple-600/30 ring-2 ring-purple-400/50 scale-[1.02]'
-                              : 'bg-slate-50 dark:bg-white/[0.03] text-slate-700 dark:text-white/70 border-slate-200 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500/40 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <span className="text-xs sm:text-sm font-bold tracking-tight">
-                            {g.label}
-                          </span>
-                          <span
-                            className={`text-[10px] truncate max-w-full ${
-                              isSelected ? 'text-white/80' : 'text-slate-400 dark:text-white/40'
-                            }`}
-                          >
-                            {g.subtitle}
-                          </span>
-                          {isSelected && (
-                            <div className="absolute top-1.5 right-1.5">
-                              <Check className="w-3 h-3 text-white stroke-[3]" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 2. LOẠI ĐỀ THI */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-pink-500" />
-                      <span>2. Loại Đề Thi</span>
-                    </label>
-                    <span className="text-[11px] text-pink-600 dark:text-pink-400 font-semibold">
-                      Đang chọn: {EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                    {EXAM_TYPE_OPTIONS.map((t) => {
-                      const isSelected = selectedExamType === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => handleExamTypeChange(t.id)}
-                          className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer group ${
-                            isSelected
-                              ? 'bg-gradient-to-r from-purple-900/40 via-fuchsia-900/30 to-pink-900/40 dark:from-purple-950/60 dark:to-pink-950/60 border-purple-500 text-purple-950 dark:text-white shadow-md shadow-purple-900/20 ring-2 ring-purple-500/40'
-                              : 'bg-slate-50 dark:bg-white/[0.03] text-slate-700 dark:text-white/70 border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xl shrink-0">{t.icon}</span>
-                            <div>
-                              <div className="text-xs sm:text-sm font-bold leading-tight">
-                                {t.label}
-                              </div>
-                              <span
-                                className={`text-[10px] inline-block font-semibold mt-0.5 ${
-                                  isSelected
-                                    ? 'text-purple-600 dark:text-purple-300'
-                                    : 'text-slate-400 dark:text-white/40'
-                                }`}
-                              >
-                                {t.badge}
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 transition-colors ${
-                              isSelected
-                                ? 'bg-purple-600 border-purple-500 text-white shadow-sm'
-                                : 'border-slate-300 dark:border-white/20'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 3. MÔN HỌC */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-purple-500" />
-                      <span>3. Môn Học</span>
-                    </label>
-                    <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
-                      Đang chọn: {SUBJECT_OPTIONS.find((s) => s.id === selectedSubject)?.label}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {SUBJECT_OPTIONS.map((s) => {
-                      const isSelected = selectedSubject === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => handleSubjectChange(s.id)}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/25 ring-2 ring-purple-400/40'
-                              : 'bg-slate-50 dark:bg-white/[0.03] text-slate-700 dark:text-white/70 border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <span className="text-base">{s.icon}</span>
-                          <span>{s.label}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 4. MÔ TẢ / TỪ KHÓA TÌM KIẾM */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-                      <Search className="w-4 h-4 text-pink-500" />
-                      <span>4. Tìm Kiếm Theo Từ Khóa / Tên Đề</span>
-                    </label>
-                    <span className="text-[11px] text-slate-400 dark:text-white/40">
-                      Tìm theo tên file, bài học, chủ đề...
-                    </span>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="VD: hàm số, wordform, quy hoạch động, chuyên tin, học kỳ 1..."
-                      value={descriptionKeyword}
-                      onChange={(e) => {
-                        setDescriptionKeyword(e.target.value);
-                        fetchDocuments(
-                          selectedGrade,
-                          selectedExamType,
-                          selectedSubject,
-                          e.target.value
-                        );
-                      }}
-                      className="w-full pl-4 pr-10 py-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-white/30 text-slate-900 dark:text-white shadow-inner"
-                    />
-                    {descriptionKeyword && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDescriptionKeyword('');
-                          fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
-                        }}
-                        className="absolute right-3.5 top-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                        title="Xóa nội dung"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Gợi Ý Nhanh 1 Chạm */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[11px] font-semibold text-slate-400 dark:text-white/40 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-pink-400" />
-                      <span>Gợi ý từ khóa nhanh (bấm để lọc ngay):</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_KEYWORD_TAGS.map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            setDescriptionKeyword(tag);
-                            fetchDocuments(selectedGrade, selectedExamType, selectedSubject, tag);
-                          }}
-                          className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                        >
-                          <span>+ {tag}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* NÚT THAO TÁC: LỌC & BỐC ĐỀ NGẪU NHIÊN */}
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handlePickRandomExam}
-                    disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
-                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {isLoadingExam ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Bot Đang Bốc Đề...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 text-yellow-300" />
-                        <span>🎲 Bốc Ngẫu Nhiên 1 Đề Thi</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Làm Mới Danh Sách Đề</span>
-                  </button>
-                </div>
-              </form>
-            </div>
+            {/* 3. BỘ LỌC ĐỀ THI VỚI NÚT BỐC ĐỀ NGẪU NHIÊN */}
+            {renderFilterControls(true)}
 
             {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
             {currentExam && (
@@ -1132,6 +1160,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                  {/* Nút Xem Nhanh Đề Thi Trực Tiếp (PDF/Word) */}
+                  <button
+                    onClick={() => setPreviewDoc(currentExam)}
+                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                    <span>Xem Nhanh (PDF / Word)</span>
+                  </button>
+
                   {/* Nút 1: Tải Đề Trực Tiếp Về Máy */}
                   <a
                     href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download`}
@@ -1170,9 +1207,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ===================================================================== */}
+        {/* TAB 2: KHO ĐỀ (TÁCH RIÊNG 28+ ĐỀ ĐANG CÓ)                             */}
+        {/* ===================================================================== */}
+        {activeTab === 'vault' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Header */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
+                <BookOpen className="w-3.5 h-3.5 text-pink-500" />
+                <span>Kho Lưu Trữ Đề Thi Đã Thẩm Định</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
+                    <span>Kho Đề Thi</span>
+                    <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
+                      {totalDocsCount}+ Đề Đã Thẩm Định
+                    </span>
+                  </h1>
+                  <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định từ Bot DocInspector. Xem trực tiếp trên web bằng PDF/Word viewer hoặc tải file về máy.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('submit_doc')}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>+ Nộp Đề Mới Vào Kho</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Bộ Lọc Danh Sách Đề (Không hiển thị nút Bốc Đề Ngẫu Nhiên) */}
+            {renderFilterControls(false)}
 
             {/* ========================================================================= */}
-            {/* 5. DANH SÁCH TẤT CẢ CÁC ĐỀ THI TRONG KHO (FULL CATALOG LIST)              */}
+            {/* DANH SÁCH TẤT CẢ CÁC ĐỀ THI TRONG KHO (FULL CATALOG LIST)                 */}
             {/* ========================================================================= */}
             <div className="space-y-5 pt-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
@@ -1256,6 +1331,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                       {/* Nút thao tác trên từng đề */}
                       <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                        <button
+                          onClick={() => setPreviewDoc(doc)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
+                          title="Xem trước đề thi trực tiếp trên web"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem Nhanh</span>
+                        </button>
+
                         <a
                           href={`${getApiBaseUrl()}/api/documents/${doc.id}/download`}
                           target="_blank"
@@ -1264,7 +1348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 active:scale-95 transition-all cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Tải Đề Về Máy</span>
+                          <span>Tải Về</span>
                         </a>
 
                         {doc.jump_url && (
@@ -1309,7 +1393,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* ===================================================================== */}
+        {/* TAB 4: KHO NỘP ĐỀ (DOC UPLOAD & AUTO-INSPECT)                         */}
+        {/* ===================================================================== */}
+        {activeTab === 'submit_doc' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Header */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 mb-3">
+                <UploadCloud className="w-3.5 h-3.5 text-blue-500" />
+                <span>Trạm Nộp Đề & Thẩm Định Tài Liệu</span>
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+                Kho Nộp Đề Thi
+              </h1>
+              <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                Kéo thả hoặc tải lên tài liệu / đề thi (PDF, DOCX). Bot DocInspector sẽ tự động phân tích môn học, khối lớp, loại đề, số câu hỏi và kiểm tra chống trùng lặp SHA-256.
+              </p>
+            </div>
+
+            {/* Upload Zone Component */}
+            <DocUploadZone
+              apiBase={getApiBaseUrl()}
+              user={user}
+              onOpenAuthModal={onOpenAuthModal}
+              onPreviewDoc={(doc) => setPreviewDoc(doc)}
+              onUploadSuccess={() => {
+                fetchDocuments();
+                fetchDocStats();
+              }}
+            />
+          </div>
+        )}
       </main>
+
+      {/* ========================================================================= */}
+      {/* MODAL XEM TRƯỚC ĐỀ THI TRỰC TIẾP (PDF.JS & OFFICE VIEWER)                 */}
+      {/* ========================================================================= */}
+      <DocPreviewModal
+        document={previewDoc}
+        apiBase={getApiBaseUrl()}
+        onClose={() => setPreviewDoc(null)}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL CÀI ĐẶT SERVER API (ENDPOINT CONFIGURATION)                         */}
