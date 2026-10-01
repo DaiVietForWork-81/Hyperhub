@@ -14,6 +14,9 @@ import {
   Percent,
 } from 'lucide-react';
 
+export type ExamMode = 'thpt' | 'grade10';
+export type ExamCohort = '2027-2028' | '2028-2029' | '2026-2027';
+
 export interface ExamSession {
   id: string;
   icon: string;
@@ -26,8 +29,11 @@ export interface ExamSession {
 }
 
 interface ExamTarget {
-  id: '12-2027' | '12-2026' | '9';
-  gradeName: string;
+  id: string;
+  mode: ExamMode;
+  cohort: ExamCohort;
+  modeLabel: string;
+  cohortLabel: string;
   examTitle: string;
   targetDate: Date;
   badge: string;
@@ -94,18 +100,134 @@ const CHECKLIST_ITEMS = [
 ];
 
 const EXAM_TARGETS: ExamTarget[] = [
+  // =========================================================================
+  // 1. CHẾ ĐỘ: TỐT NGHIỆP THPT QUỐC GIA
+  // =========================================================================
   {
-    id: '12-2027',
-    gradeName: 'THPT 2027',
-    examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia 2027',
-    targetDate: new Date('2027-06-11T07:30:00+07:00'),
-    startOfYear: new Date('2026-09-05T00:00:00+07:00'),
-    badge: 'Khóa 2009 • Đổi mới 🔥',
+    id: 'thpt-2027-2028',
+    mode: 'thpt',
+    cohort: '2027-2028',
+    modeLabel: 'Tốt Nghiệp THPT',
+    cohortLabel: 'Khóa 2027 - 2028',
+    examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia (Khóa 2027 - 2028)',
+    targetDate: new Date('2028-06-11T07:30:00+07:00'),
+    startOfYear: new Date('2027-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2010 • GDPT 2018 🔥',
     themeColor: 'from-purple-600 via-pink-600 to-rose-600',
-    description: 'Chương trình GDPT mới với các bài thi bắt buộc và tự chọn. Ôn luyện chiến lược từng môn!',
+    description: 'Chương trình GDPT mới dành cho niên khóa 2027 - 2028 với 2 môn bắt buộc (Toán, Văn) và 2 môn tự chọn.',
     sessions: [
       {
-        id: 'van-2027',
+        id: 'van-thpt-2728',
+        icon: '📝',
+        subject: 'Ngữ văn',
+        date: '11/6/2028',
+        time: '07:30',
+        duration: '120 phút',
+        datetime: new Date('2028-06-11T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
+      },
+      {
+        id: 'toan-thpt-2728',
+        icon: '🔢',
+        subject: 'Toán',
+        date: '11/6/2028',
+        time: '14:20',
+        duration: '90 phút',
+        datetime: new Date('2028-06-11T14:20:00+07:00'),
+        description: 'Thi trắc nghiệm bắt buộc (90 phút)',
+      },
+      {
+        id: 'tc1-thpt-2728',
+        icon: '1️⃣',
+        subject: 'Bài thi Tự chọn môn thứ nhất',
+        date: '12/6/2028',
+        time: '07:30',
+        duration: '50 phút',
+        datetime: new Date('2028-06-12T07:30:00+07:00'),
+        description: 'Vật lý / Hóa học / Sinh học / Lịch sử / Địa lý...',
+      },
+      {
+        id: 'tc2-thpt-2728',
+        icon: '2️⃣',
+        subject: 'Bài thi Tự chọn môn thứ hai',
+        date: '12/6/2028',
+        time: '08:35',
+        duration: '50 phút',
+        datetime: new Date('2028-06-12T08:35:00+07:00'),
+        description: 'Ngoại ngữ / Tin học / Công nghệ...',
+      },
+    ],
+  },
+  {
+    id: 'thpt-2028-2029',
+    mode: 'thpt',
+    cohort: '2028-2029',
+    modeLabel: 'Tốt Nghiệp THPT',
+    cohortLabel: 'Khóa 2028 - 2029',
+    examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia (Khóa 2028 - 2029)',
+    targetDate: new Date('2029-06-11T07:30:00+07:00'),
+    startOfYear: new Date('2028-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2011 • Vững Vàng Tương Lai 🌟',
+    themeColor: 'from-purple-600 via-indigo-600 to-cyan-600',
+    description: 'Chương trình GDPT mới dành cho niên khóa 2028 - 2029. Xây dựng mục tiêu trường Đại học mơ ước từ sớm!',
+    sessions: [
+      {
+        id: 'van-thpt-2829',
+        icon: '📝',
+        subject: 'Ngữ văn',
+        date: '11/6/2029',
+        time: '07:30',
+        duration: '120 phút',
+        datetime: new Date('2029-06-11T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
+      },
+      {
+        id: 'toan-thpt-2829',
+        icon: '🔢',
+        subject: 'Toán',
+        date: '11/6/2029',
+        time: '14:20',
+        duration: '90 phút',
+        datetime: new Date('2029-06-11T14:20:00+07:00'),
+        description: 'Thi trắc nghiệm bắt buộc (90 phút)',
+      },
+      {
+        id: 'tc1-thpt-2829',
+        icon: '1️⃣',
+        subject: 'Bài thi Tự chọn môn thứ nhất',
+        date: '12/6/2029',
+        time: '07:30',
+        duration: '50 phút',
+        datetime: new Date('2029-06-12T07:30:00+07:00'),
+        description: 'Vật lý / Hóa học / Sinh học / Lịch sử / Địa lý...',
+      },
+      {
+        id: 'tc2-thpt-2829',
+        icon: '2️⃣',
+        subject: 'Bài thi Tự chọn môn thứ hai',
+        date: '12/6/2029',
+        time: '08:35',
+        duration: '50 phút',
+        datetime: new Date('2029-06-12T08:35:00+07:00'),
+        description: 'Ngoại ngữ / Tin học / Công nghệ...',
+      },
+    ],
+  },
+  {
+    id: 'thpt-2026-2027',
+    mode: 'thpt',
+    cohort: '2026-2027',
+    modeLabel: 'Tốt Nghiệp THPT',
+    cohortLabel: 'Khóa 2026 - 2027',
+    examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia (Khóa 2026 - 2027)',
+    targetDate: new Date('2027-06-11T07:30:00+07:00'),
+    startOfYear: new Date('2026-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2009 • Đang Đếm Ngược 🔥',
+    themeColor: 'from-rose-600 via-pink-600 to-amber-600',
+    description: 'Kỳ thi Tốt nghiệp THPT Quốc Gia năm 2027 theo chuẩn GDPT mới. Đang đếm ngược từng giây!',
+    sessions: [
+      {
+        id: 'van-thpt-2627',
         icon: '📝',
         subject: 'Ngữ văn',
         date: '11/6/2027',
@@ -115,7 +237,7 @@ const EXAM_TARGETS: ExamTarget[] = [
         description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
-        id: 'toan-2027',
+        id: 'toan-thpt-2627',
         icon: '🔢',
         subject: 'Toán',
         date: '11/6/2027',
@@ -125,7 +247,7 @@ const EXAM_TARGETS: ExamTarget[] = [
         description: 'Thi trắc nghiệm bắt buộc (90 phút)',
       },
       {
-        id: 'tc1-2027',
+        id: 'tc1-thpt-2627',
         icon: '1️⃣',
         subject: 'Bài thi Tự chọn môn thứ nhất',
         date: '12/6/2027',
@@ -135,7 +257,7 @@ const EXAM_TARGETS: ExamTarget[] = [
         description: 'Vật lý / Hóa học / Sinh học / Lịch sử / Địa lý...',
       },
       {
-        id: 'tc2-2027',
+        id: 'tc2-thpt-2627',
         icon: '2️⃣',
         subject: 'Bài thi Tự chọn môn thứ hai',
         date: '12/6/2027',
@@ -146,97 +268,172 @@ const EXAM_TARGETS: ExamTarget[] = [
       },
     ],
   },
+
+  // =========================================================================
+  // 2. CHẾ ĐỘ: TUYỂN SINH VÀO LỚP 10 THPT
+  // =========================================================================
   {
-    id: '12-2026',
-    gradeName: 'THPT 2026',
-    examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia 2026',
-    targetDate: new Date('2026-06-25T07:30:00+07:00'),
-    startOfYear: new Date('2025-09-05T00:00:00+07:00'),
-    badge: 'Chặng Đua 2008 🔥',
-    themeColor: 'from-amber-600 via-rose-600 to-pink-600',
-    description: 'Kỳ thi Tốt nghiệp THPT và xét tuyển Đại học - Cao đẳng toàn quốc năm 2026.',
+    id: 'grade10-2027-2028',
+    mode: 'grade10',
+    cohort: '2027-2028',
+    modeLabel: 'Vào Lớp 10',
+    cohortLabel: 'Khóa 2027 - 2028',
+    examTitle: 'Kỳ Thi Tuyển Sinh Vào Lớp 10 THPT (Khóa 2027 - 2028)',
+    targetDate: new Date('2027-06-06T07:30:00+07:00'),
+    startOfYear: new Date('2026-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2012 • Cánh Cổng Cấp 3 🚀',
+    themeColor: 'from-blue-600 via-indigo-600 to-cyan-600',
+    description: 'Chinh phục ngôi trường cấp 3 công lập và các trường THPT Chuyên mơ ước (Năm học 2027 - 2028).',
     sessions: [
       {
-        id: 'van-2026',
+        id: 'van-10-2728',
         icon: '📝',
         subject: 'Ngữ văn',
-        date: '25/6/2026',
+        date: '06/6/2027',
         time: '07:30',
         duration: '120 phút',
-        datetime: new Date('2026-06-25T07:30:00+07:00'),
+        datetime: new Date('2027-06-06T07:30:00+07:00'),
         description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
-        id: 'toan-2026',
+        id: 'anh-10-2728',
+        icon: '🌐',
+        subject: 'Tiếng Anh (Ngoại ngữ)',
+        date: '06/6/2027',
+        time: '14:00',
+        duration: '60 phút',
+        datetime: new Date('2027-06-06T14:00:00+07:00'),
+        description: 'Thi trắc nghiệm (60 phút)',
+      },
+      {
+        id: 'toan-10-2728',
         icon: '🔢',
         subject: 'Toán',
-        date: '25/6/2026',
-        time: '14:20',
-        duration: '90 phút',
-        datetime: new Date('2026-06-25T14:20:00+07:00'),
-        description: 'Thi trắc nghiệm bắt buộc (90 phút)',
-      },
-      {
-        id: 'tc1-2026',
-        icon: '1️⃣',
-        subject: 'Bài thi Tự chọn môn thứ nhất',
-        date: '26/6/2026',
+        date: '07/6/2027',
         time: '07:30',
-        duration: '50 phút',
-        datetime: new Date('2026-06-26T07:30:00+07:00'),
-        description: 'Tự chọn theo tổ hợp đăng ký',
+        duration: '120 phút',
+        datetime: new Date('2027-06-07T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
-        id: 'tc2-2026',
-        icon: '2️⃣',
-        subject: 'Bài thi Tự chọn môn thứ hai',
-        date: '26/6/2026',
-        time: '08:35',
-        duration: '50 phút',
-        datetime: new Date('2026-06-26T08:35:00+07:00'),
-        description: 'Ngoại ngữ / Tin học...',
+        id: 'chuyen-10-2728',
+        icon: '🎯',
+        subject: 'Môn Chuyên / Bài thi thứ tư',
+        date: '07/6/2027',
+        time: '14:00',
+        duration: '150 phút',
+        datetime: new Date('2027-06-07T14:00:00+07:00'),
+        description: 'Dành cho thí sinh thi THPT Chuyên',
       },
     ],
   },
   {
-    id: '9',
-    gradeName: 'Vào Lớp 10',
-    examTitle: 'Kỳ Thi Tuyển Sinh Vào Lớp 10 THPT (2026 - 2027)',
-    targetDate: new Date('2026-06-06T07:30:00+07:00'),
-    startOfYear: new Date('2025-09-05T00:00:00+07:00'),
-    badge: 'Cánh Cổng Cấp 3 🚀',
-    themeColor: 'from-blue-600 via-indigo-600 to-cyan-600',
-    description: 'Chinh phục ngôi trường cấp 3 công lập và các trường THPT Chuyên mơ ước.',
+    id: 'grade10-2028-2029',
+    mode: 'grade10',
+    cohort: '2028-2029',
+    modeLabel: 'Vào Lớp 10',
+    cohortLabel: 'Khóa 2028 - 2029',
+    examTitle: 'Kỳ Thi Tuyển Sinh Vào Lớp 10 THPT (Khóa 2028 - 2029)',
+    targetDate: new Date('2028-06-06T07:30:00+07:00'),
+    startOfYear: new Date('2027-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2013 • Tự Hào Cấp 3 🌟',
+    themeColor: 'from-cyan-600 via-sky-600 to-blue-600',
+    description: 'Chinh phục ngôi trường cấp 3 công lập và các trường THPT Chuyên mơ ước (Năm học 2028 - 2029).',
     sessions: [
       {
-        id: 'van-10',
+        id: 'van-10-2829',
+        icon: '📝',
+        subject: 'Ngữ văn',
+        date: '06/6/2028',
+        time: '07:30',
+        duration: '120 phút',
+        datetime: new Date('2028-06-06T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
+      },
+      {
+        id: 'anh-10-2829',
+        icon: '🌐',
+        subject: 'Tiếng Anh (Ngoại ngữ)',
+        date: '06/6/2028',
+        time: '14:00',
+        duration: '60 phút',
+        datetime: new Date('2028-06-06T14:00:00+07:00'),
+        description: 'Thi trắc nghiệm (60 phút)',
+      },
+      {
+        id: 'toan-10-2829',
+        icon: '🔢',
+        subject: 'Toán',
+        date: '07/6/2028',
+        time: '07:30',
+        duration: '120 phút',
+        datetime: new Date('2028-06-07T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
+      },
+      {
+        id: 'chuyen-10-2829',
+        icon: '🎯',
+        subject: 'Môn Chuyên / Bài thi thứ tư',
+        date: '07/6/2028',
+        time: '14:00',
+        duration: '150 phút',
+        datetime: new Date('2028-06-07T14:00:00+07:00'),
+        description: 'Dành cho thí sinh thi THPT Chuyên',
+      },
+    ],
+  },
+  {
+    id: 'grade10-2026-2027',
+    mode: 'grade10',
+    cohort: '2026-2027',
+    modeLabel: 'Vào Lớp 10',
+    cohortLabel: 'Khóa 2026 - 2027',
+    examTitle: 'Kỳ Thi Tuyển Sinh Vào Lớp 10 THPT (Khóa 2026 - 2027)',
+    targetDate: new Date('2026-06-06T07:30:00+07:00'),
+    startOfYear: new Date('2025-09-05T00:00:00+07:00'),
+    badge: 'Chặng Đua Cấp 3 🎯',
+    themeColor: 'from-emerald-600 via-teal-600 to-cyan-600',
+    description: 'Kỳ thi tuyển sinh vào lớp 10 năm học 2026 - 2027.',
+    sessions: [
+      {
+        id: 'van-10-2627',
         icon: '📝',
         subject: 'Ngữ văn',
         date: '06/6/2026',
         time: '07:30',
         duration: '120 phút',
         datetime: new Date('2026-06-06T07:30:00+07:00'),
-        description: 'Thi tự luận',
+        description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
-        id: 'anh-10',
+        id: 'anh-10-2627',
         icon: '🌐',
         subject: 'Tiếng Anh (Ngoại ngữ)',
         date: '06/6/2026',
         time: '14:00',
         duration: '60 phút',
         datetime: new Date('2026-06-06T14:00:00+07:00'),
-        description: 'Thi trắc nghiệm',
+        description: 'Thi trắc nghiệm (60 phút)',
       },
       {
-        id: 'toan-10',
+        id: 'toan-10-2627',
         icon: '🔢',
         subject: 'Toán',
         date: '07/6/2026',
         time: '07:30',
         duration: '120 phút',
-        datetime: new Date('2026-07-07T07:30:00+07:00'),
-        description: 'Thi tự luận',
+        datetime: new Date('2026-06-07T07:30:00+07:00'),
+        description: 'Thi tự luận bắt buộc (120 phút)',
+      },
+      {
+        id: 'chuyen-10-2627',
+        icon: '🎯',
+        subject: 'Môn Chuyên',
+        date: '07/6/2026',
+        time: '14:00',
+        duration: '150 phút',
+        datetime: new Date('2026-06-07T14:00:00+07:00'),
+        description: 'Dành cho thí sinh thi THPT Chuyên',
       },
     ],
   },
@@ -247,7 +444,24 @@ interface ExamCountdownProps {
 }
 
 export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) => {
-  const [selectedTargetId, setSelectedTargetId] = useState<'12-2027' | '12-2026' | '9'>('12-2027');
+  // 1. Chế độ kỳ thi: Tốt nghiệp THPT hoặc Tuyển sinh Vào 10
+  const [selectedMode, setSelectedMode] = useState<ExamMode>(() => {
+    try {
+      const saved = localStorage.getItem('hyperhub-exam-mode');
+      if (saved === 'thpt' || saved === 'grade10') return saved;
+    } catch {}
+    return 'thpt';
+  });
+
+  // 2. Khóa học / Niên khóa: Khóa 2027 - 2028 hoặc Khóa 2028 - 2029 (kèm Khóa 2026 - 2027)
+  const [selectedCohort, setSelectedCohort] = useState<ExamCohort>(() => {
+    try {
+      const saved = localStorage.getItem('hyperhub-exam-cohort');
+      if (saved === '2027-2028' || saved === '2028-2029' || saved === '2026-2027') return saved;
+    } catch {}
+    return '2027-2028';
+  });
+
   const [quoteIndex, setQuoteIndex] = useState<number>(() =>
     Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)
   );
@@ -274,10 +488,28 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
     return () => clearInterval(timer);
   }, []);
 
-  const currentTarget = useMemo(
-    () => EXAM_TARGETS.find((t) => t.id === selectedTargetId) || EXAM_TARGETS[0],
-    [selectedTargetId]
-  );
+  const handleModeChange = (mode: ExamMode) => {
+    setSelectedMode(mode);
+    try {
+      localStorage.setItem('hyperhub-exam-mode', mode);
+    } catch {}
+  };
+
+  const handleCohortChange = (cohort: ExamCohort) => {
+    setSelectedCohort(cohort);
+    try {
+      localStorage.setItem('hyperhub-exam-cohort', cohort);
+    } catch {}
+  };
+
+  // Xác định mục tiêu kỳ thi đang chọn
+  const currentTarget = useMemo(() => {
+    return (
+      EXAM_TARGETS.find((t) => t.mode === selectedMode && t.cohort === selectedCohort) ||
+      EXAM_TARGETS.find((t) => t.mode === selectedMode) ||
+      EXAM_TARGETS[0]
+    );
+  }, [selectedMode, selectedCohort]);
 
   // Tìm môn thi tiếp theo hoặc môn thi gần nhất
   const nextSession = useMemo(() => {
@@ -371,12 +603,13 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
 
   return (
     <div className="space-y-6">
-      {/* 1. Header Banner & Selector Khối Lớp */}
+      {/* 1. Header Banner & Selector Chế Độ Kỳ Thi & Khóa Học */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#0c0d1b] via-[#120f26] to-[#070814] border border-purple-500/20 backdrop-blur-xl shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          {/* Thông tin Kỳ thi & Huy hiệu */}
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
@@ -397,43 +630,79 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
             </p>
           </div>
 
-          {/* Switcher Kỳ Thi: THPT 2027 / THPT 2026 / Vào 10 */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 shrink-0">
-            <button
-              onClick={() => setSelectedTargetId('12-2027')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-                selectedTargetId === '12-2027'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/40'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>THPT 2027</span>
-            </button>
+          {/* 2 Chế Độ Kỳ Thi & Khóa Học Switcher */}
+          <div className="flex flex-col sm:flex-row xl:flex-col gap-2.5 shrink-0">
+            {/* Hàng 1: 2 Chế Độ (Tốt Nghiệp THPT vs Vào Lớp 10) */}
+            <div className="flex items-center p-1 rounded-2xl bg-black/60 border border-white/10 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleModeChange('thpt')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                  selectedMode === 'thpt'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/40'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Tốt Nghiệp THPT</span>
+              </button>
 
-            <button
-              onClick={() => setSelectedTargetId('12-2026')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-                selectedTargetId === '12-2026'
-                  ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white shadow-lg shadow-amber-900/40'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>THPT 2026</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange('grade10')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                  selectedMode === 'grade10'
+                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-lg shadow-blue-900/40'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Vào Lớp 10</span>
+              </button>
+            </div>
 
-            <button
-              onClick={() => setSelectedTargetId('9')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-                selectedTargetId === '9'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/40'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-              <span>Vào Lớp 10</span>
-            </button>
+            {/* Hàng 2: Chọn Khóa (Khóa 2027-2028, Khóa 2028-2029, Khóa 2026-2027) */}
+            <div className="flex items-center p-1 rounded-2xl bg-black/40 border border-white/10">
+              <button
+                type="button"
+                onClick={() => handleCohortChange('2027-2028')}
+                className={`flex-1 px-3 py-1.5 rounded-xl font-bold text-[11px] sm:text-xs transition-all cursor-pointer text-center ${
+                  selectedCohort === '2027-2028'
+                    ? selectedMode === 'thpt'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                Khóa 2027 - 2028
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCohortChange('2028-2029')}
+                className={`flex-1 px-3 py-1.5 rounded-xl font-bold text-[11px] sm:text-xs transition-all cursor-pointer text-center ${
+                  selectedCohort === '2028-2029'
+                    ? selectedMode === 'thpt'
+                      ? 'bg-pink-600 text-white shadow-md'
+                      : 'bg-cyan-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                Khóa 2028 - 2029
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCohortChange('2026-2027')}
+                className={`flex-1 px-3 py-1.5 rounded-xl font-bold text-[11px] sm:text-xs transition-all cursor-pointer text-center ${
+                  selectedCohort === '2026-2027'
+                    ? 'bg-white/20 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                Khóa 2026 - 2027
+              </button>
+            </div>
           </div>
         </div>
 
@@ -458,23 +727,25 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
               <span className="font-extrabold text-cyan-400 font-mono">
                 {timeBreakdown.seconds.toString().padStart(2, '0')}
               </span>{' '}
-              giây là bước vào phòng thi!
+              giây nữa là bắt đầu môn thi đầu tiên!
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowChecklistModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-all cursor-pointer"
-            >
-              <ListChecks className="w-3.5 h-3.5 text-pink-400" />
-              <span>Checklist phòng thi ({completedChecklistCount}/{CHECKLIST_ITEMS.length})</span>
-            </button>
-          </div>
+          {/* Nút Mở Checklist Phòng Thi */}
+          <button
+            onClick={() => setShowChecklistModal(true)}
+            className="self-start md:self-auto flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+          >
+            <ListChecks className="w-4 h-4 text-emerald-400" />
+            <span>Hành trang phòng thi</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
+              {completedChecklistCount}/{CHECKLIST_ITEMS.length}
+            </span>
+          </button>
         </div>
 
-        {/* 3. Animation Từng Giây, Phút, Giờ, Ngày, Tuần, Tháng */}
-        <div className="relative z-10 grid grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-4 mt-6">
+        {/* 3. Ô Đếm Ngược Chi Tiết (Tháng, Tuần, Ngày, Giờ, Phút, Giây) */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6">
           {/* Card: Tháng */}
           <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-purple-500/40 hover:bg-white/[0.04]">
             <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-purple-200">
@@ -487,14 +758,14 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Card: Tuần */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-pink-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-pink-200">
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-blue-500/40 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">
               {timeBreakdown.weeks}
             </div>
             <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
               Tuần
             </div>
-            <div className="h-0.5 w-6 bg-pink-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-blue-500/50 mx-auto mt-2 rounded-full" />
           </div>
 
           {/* Card: Ngày */}
@@ -566,7 +837,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
         </div>
       </div>
 
-      {/* 2. Lịch Thi Chi Tiết Từng Môn (Exact Sessions: Ngữ văn, Toán, Tự chọn 1 & 2) */}
+      {/* 2. Lịch Thi Chi Tiết Từng Môn Theo Ca */}
       <div className="rounded-3xl p-6 sm:p-7 bg-[#0b0c16] border border-white/10 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div className="flex items-center gap-2.5">
@@ -575,7 +846,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
             </div>
             <div>
               <h3 className="font-bold text-base sm:text-lg text-white">
-                Lịch Thi Chi Tiết Từng Môn ({currentTarget.gradeName})
+                Lịch Thi Chi Tiết ({currentTarget.modeLabel} - {currentTarget.cohortLabel})
               </h3>
               <p className="text-xs text-slate-400">
                 Theo dõi chính xác ngày giờ phát đề, thời gian làm bài của từng môn thi
@@ -588,7 +859,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
           </span>
         </div>
 
-        {/* Danh sách 4 buổi thi */}
+        {/* Danh sách các buổi thi */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {currentTarget.sessions.map((session) => {
             const isNext = session.id === nextSession.id;
@@ -738,14 +1009,14 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
       {/* 5. Modal Checklist Phòng Thi (Hành Trang Sĩ Tử) */}
       {showChecklistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-[#0e101f] border border-purple-500/30 p-6 space-y-5 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="relative w-full max-w-lg rounded-3xl bg-[#0e101f] border border-white/10 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
-                  <ListChecks className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
+                  🎒
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">
+                  <h3 className="font-bold text-base text-white">
                     Checklist Hành Trang Phòng Thi
                   </h3>
                   <p className="text-xs text-slate-400">
@@ -814,3 +1085,5 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
     </div>
   );
 };
+
+export default ExamCountdown;
