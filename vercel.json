@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "https://clay-layout-warranty-tribe.trycloudflare.com/api/:match*"
+      "destination": "https://trans-sherman-cables-mas.trycloudflare.com/api/:match*"
     },
     {
       "source": "/(.*)",
