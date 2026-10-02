@@ -11,12 +11,10 @@ import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
-import {
-  DiscordUser,
-  getStoredDiscordUser,
-  removeDiscordUser,
-  handleDiscordOAuthCallback,
-} from './utils/discordAuth';
+import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback } from './utils/discordAuth';
+import { HomeStudyPortal } from './components/HomeStudyPortal';
+import { DocPreviewModal, PreviewableDocument } from './components/DocPreviewModal';
+import { getApiBaseUrl } from './utils/apiConfig';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -36,6 +34,7 @@ export const App: React.FC = () => {
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>('overview');
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [previewDoc, setPreviewDoc] = useState<PreviewableDocument | null>(null);
 
   // Điều hướng SPA chuẩn với URL /hub và /
   const navigateTo = useCallback(
@@ -109,12 +108,12 @@ export const App: React.FC = () => {
         theme={theme}
         onToggleTheme={toggleTheme}
         activeView={activeView}
-        onSelectView={(view) => navigateTo(view)}
+        onSelectView={(view, tab) => navigateTo(view, tab)}
         user={discordUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
-      {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ (kèm Bộ Đếm THPT) và Bảng Điều Khiển (/hub) */}
+      {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ (kèm Bộ Đếm THPT, Kho Đề, Nộp Đề) và Bảng Điều Khiển (/hub) */}
       <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
         {activeView === 'home' ? (
           <>
@@ -123,9 +122,22 @@ export const App: React.FC = () => {
             {/* Đồng Hồ Đếm Ngược Ngày Thi THPT & Tuyển Sinh Vào 10 Trực Tiếp Tại Trang Chủ */}
             <section
               id="countdown-section"
-              className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24"
+              className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16"
             >
               <ExamCountdown onNavigateTab={(tab) => navigateTo('dashboard', tab)} />
+            </section>
+
+            {/* Cổng Học Liệu & Đề Thi (Kho 28+, Bốc Đề, Nộp Đề Hàng Loạt) Trực Tiếp Tại Trang Chủ */}
+            <section
+              id="study-portal-section"
+              className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24"
+            >
+              <HomeStudyPortal
+                user={discordUser}
+                onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                onPreviewDoc={(doc) => setPreviewDoc(doc)}
+                onNavigateToTab={(tab) => navigateTo('dashboard', tab)}
+              />
             </section>
           </>
         ) : (
@@ -141,6 +153,13 @@ export const App: React.FC = () => {
 
       {/* Footer (Hiển thị ở Trang Chủ) */}
       {activeView === 'home' && <Footer />}
+
+      {/* Modal Xem Nhanh PDF / Word Trực Tiếp Trên Web */}
+      <DocPreviewModal
+        document={previewDoc}
+        apiBase={getApiBaseUrl()}
+        onClose={() => setPreviewDoc(null)}
+      />
 
       {/* Floating Lo-fi Study Lounge Player */}
       <LofiPlayer />

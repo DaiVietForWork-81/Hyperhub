@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home } from 'lucide-react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 
 interface NavbarProps {
   theme?: string;
   onToggleTheme?: (e?: React.MouseEvent) => void;
   activeView: 'home' | 'dashboard';
-  onSelectView: (view: 'home' | 'dashboard') => void;
+  onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc') => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
 }
@@ -72,9 +72,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, [mobileMenuOpen]);
 
-  const handleNavClick = (view: 'home' | 'dashboard') => {
+  const handleNavClick = (
+    view: 'home' | 'dashboard',
+    tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc'
+  ) => {
     setMobileMenuOpen(false);
-    onSelectView(view);
+    onSelectView(view, tab);
   };
 
   const isVisible = isNearTop || !isScrolled || mobileMenuOpen;
@@ -136,11 +139,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Desktop Nav Dock */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-2 py-1 px-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-md shadow-inner">
+          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-md shadow-inner">
             <button
               type="button"
               onClick={() => handleNavClick('home')}
-              className={`px-4 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'home'
                   ? 'bg-white/15 text-white shadow-sm'
                   : 'text-white/75 hover:text-white'
@@ -152,11 +155,38 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
-              onClick={() => handleNavClick('dashboard')}
-              className={`px-4 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+              onClick={() => handleNavClick('dashboard', 'vault')}
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+              <span>Kho Đề</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'get_exam')}
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+            >
+              <Dices className="w-3.5 h-3.5 text-pink-400" />
+              <span>Lấy Đề</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'submit_doc')}
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Kho Nộp Đề</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'overview')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'dashboard'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm'
-                  : 'text-white/75 hover:text-white'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -235,7 +265,34 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 type="button"
-                onClick={() => handleNavClick('dashboard')}
+                onClick={() => handleNavClick('dashboard', 'vault')}
+                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+              >
+                <BookOpen className="w-4 h-4 text-purple-400" />
+                <span>Kho Đề Thi</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavClick('dashboard', 'get_exam')}
+                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+              >
+                <Dices className="w-4 h-4 text-pink-400" />
+                <span>Lấy Đề Nhanh</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavClick('dashboard', 'submit_doc')}
+                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+              >
+                <UploadCloud className="w-4 h-4 text-emerald-400" />
+                <span>Kho Nộp Đề</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavClick('dashboard', 'overview')}
                 className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
                   activeView === 'dashboard'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'

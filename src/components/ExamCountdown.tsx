@@ -110,50 +110,50 @@ const EXAM_TARGETS: ExamTarget[] = [
     modeLabel: 'Tốt Nghiệp THPT',
     cohortLabel: 'Khóa 2027 - 2028',
     examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia (Khóa 2027 - 2028)',
-    targetDate: new Date('2028-06-11T07:30:00+07:00'),
-    startOfYear: new Date('2027-09-05T00:00:00+07:00'),
-    badge: 'Khóa 2010 • GDPT 2018 🔥',
+    targetDate: new Date('2027-06-11T07:30:00+07:00'),
+    startOfYear: new Date('2026-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2009 - 2010 • GDPT 2018 🔥',
     themeColor: 'from-purple-600 via-pink-600 to-rose-600',
-    description: 'Chương trình GDPT mới dành cho niên khóa 2027 - 2028 với 2 môn bắt buộc (Toán, Văn) và 2 môn tự chọn.',
+    description: 'Kỳ thi Tốt nghiệp THPT dự kiến diễn ra vào các ngày 11 và 12 tháng 6 hằng năm với 2 môn bắt buộc (Toán, Văn) và 2 môn tự chọn.',
     sessions: [
       {
         id: 'van-thpt-2728',
         icon: '📝',
         subject: 'Ngữ văn',
-        date: '11/6/2028',
+        date: '11/6/2027',
         time: '07:30',
         duration: '120 phút',
-        datetime: new Date('2028-06-11T07:30:00+07:00'),
+        datetime: new Date('2027-06-11T07:30:00+07:00'),
         description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
         id: 'toan-thpt-2728',
         icon: '🔢',
         subject: 'Toán',
-        date: '11/6/2028',
+        date: '11/6/2027',
         time: '14:20',
         duration: '90 phút',
-        datetime: new Date('2028-06-11T14:20:00+07:00'),
+        datetime: new Date('2027-06-11T14:20:00+07:00'),
         description: 'Thi trắc nghiệm bắt buộc (90 phút)',
       },
       {
         id: 'tc1-thpt-2728',
         icon: '1️⃣',
         subject: 'Bài thi Tự chọn môn thứ nhất',
-        date: '12/6/2028',
+        date: '12/6/2027',
         time: '07:30',
         duration: '50 phút',
-        datetime: new Date('2028-06-12T07:30:00+07:00'),
+        datetime: new Date('2027-06-12T07:30:00+07:00'),
         description: 'Vật lý / Hóa học / Sinh học / Lịch sử / Địa lý...',
       },
       {
         id: 'tc2-thpt-2728',
         icon: '2️⃣',
         subject: 'Bài thi Tự chọn môn thứ hai',
-        date: '12/6/2028',
+        date: '12/6/2027',
         time: '08:35',
         duration: '50 phút',
-        datetime: new Date('2028-06-12T08:35:00+07:00'),
+        datetime: new Date('2027-06-12T08:35:00+07:00'),
         description: 'Ngoại ngữ / Tin học / Công nghệ...',
       },
     ],
@@ -165,50 +165,50 @@ const EXAM_TARGETS: ExamTarget[] = [
     modeLabel: 'Tốt Nghiệp THPT',
     cohortLabel: 'Khóa 2028 - 2029',
     examTitle: 'Kỳ Thi Tốt Nghiệp THPT Quốc Gia (Khóa 2028 - 2029)',
-    targetDate: new Date('2029-06-11T07:30:00+07:00'),
-    startOfYear: new Date('2028-09-05T00:00:00+07:00'),
-    badge: 'Khóa 2011 • Vững Vàng Tương Lai 🌟',
+    targetDate: new Date('2028-06-11T07:30:00+07:00'),
+    startOfYear: new Date('2027-09-05T00:00:00+07:00'),
+    badge: 'Khóa 2010 - 2011 • Vững Vàng Tương Lai 🌟',
     themeColor: 'from-purple-600 via-indigo-600 to-cyan-600',
-    description: 'Chương trình GDPT mới dành cho niên khóa 2028 - 2029. Xây dựng mục tiêu trường Đại học mơ ước từ sớm!',
+    description: 'Kỳ thi Tốt nghiệp THPT diễn ra vào các ngày 11 và 12 tháng 6 hằng năm. Xây dựng mục tiêu trường Đại học mơ ước từ sớm!',
     sessions: [
       {
         id: 'van-thpt-2829',
         icon: '📝',
         subject: 'Ngữ văn',
-        date: '11/6/2029',
+        date: '11/6/2028',
         time: '07:30',
         duration: '120 phút',
-        datetime: new Date('2029-06-11T07:30:00+07:00'),
+        datetime: new Date('2028-06-11T07:30:00+07:00'),
         description: 'Thi tự luận bắt buộc (120 phút)',
       },
       {
         id: 'toan-thpt-2829',
         icon: '🔢',
         subject: 'Toán',
-        date: '11/6/2029',
+        date: '11/6/2028',
         time: '14:20',
         duration: '90 phút',
-        datetime: new Date('2029-06-11T14:20:00+07:00'),
+        datetime: new Date('2028-06-11T14:20:00+07:00'),
         description: 'Thi trắc nghiệm bắt buộc (90 phút)',
       },
       {
         id: 'tc1-thpt-2829',
         icon: '1️⃣',
         subject: 'Bài thi Tự chọn môn thứ nhất',
-        date: '12/6/2029',
+        date: '12/6/2028',
         time: '07:30',
         duration: '50 phút',
-        datetime: new Date('2029-06-12T07:30:00+07:00'),
+        datetime: new Date('2028-06-12T07:30:00+07:00'),
         description: 'Vật lý / Hóa học / Sinh học / Lịch sử / Địa lý...',
       },
       {
         id: 'tc2-thpt-2829',
         icon: '2️⃣',
         subject: 'Bài thi Tự chọn môn thứ hai',
-        date: '12/6/2029',
+        date: '12/6/2028',
         time: '08:35',
         duration: '50 phút',
-        datetime: new Date('2029-06-12T08:35:00+07:00'),
+        datetime: new Date('2028-06-12T08:35:00+07:00'),
         description: 'Ngoại ngữ / Tin học / Công nghệ...',
       },
     ],
@@ -412,12 +412,13 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
     return currentTarget.sessions[0];
   }, [currentTarget, now]);
 
-  // Tính toán thời gian đếm ngược chính
+  // Tính toán thời gian đếm ngược chính (Năm, Tháng, Tuần, Ngày, Giờ, Phút, Giây)
   const timeBreakdown = useMemo(() => {
     const diffMs = currentTarget.targetDate.getTime() - now.getTime();
     if (diffMs <= 0) {
       return {
         isFinished: true,
+        years: 0,
         months: 0,
         weeks: 0,
         days: 0,
@@ -428,15 +429,18 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
       };
     }
 
-    const totalSeconds = Math.floor(diffMs / 1000);
+    const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
     const totalMinutes = Math.floor(totalSeconds / 60);
     const totalHours = Math.floor(totalMinutes / 60);
     const totalDays = Math.floor(totalHours / 24);
 
-    const months = Math.floor(totalDays / 30.4375);
-    const daysAfterMonths = totalDays % 30;
+    const years = Math.floor(totalDays / 365.25);
+    const daysAfterYears = Math.floor(totalDays % 365.25);
+
+    const months = Math.floor(daysAfterYears / 30.4375);
+    const daysAfterMonths = Math.floor(daysAfterYears % 30.4375);
     const weeks = Math.floor(daysAfterMonths / 7);
-    const days = daysAfterMonths % 7;
+    const days = Math.floor(daysAfterMonths % 7);
 
     const hours = totalHours % 24;
     const minutes = totalMinutes % 60;
@@ -444,6 +448,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
 
     return {
       isFinished: false,
+      years,
       months,
       weeks,
       days,
@@ -590,6 +595,14 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
             <span className="text-xl">⏳</span>
             <span>
               Chỉ còn{' '}
+              {timeBreakdown.years > 0 && (
+                <>
+                  <span className="font-extrabold text-amber-300 font-mono text-lg sm:text-xl">
+                    {timeBreakdown.years}
+                  </span>{' '}
+                  năm{' '}
+                </>
+              )}
               <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-pink-400 text-lg sm:text-xl font-mono">
                 {timeBreakdown.totalDays}
               </span>{' '}
@@ -622,72 +635,94 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
           </button>
         </div>
 
-        {/* 3. Ô Đếm Ngược Chi Tiết (Tháng, Tuần, Ngày, Giờ, Phút, Giây) */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6">
-          {/* Card: Tháng */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-purple-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-purple-200">
+        {/* 3. Ô Đếm Ngược Chi Tiết: Animation hiện Năm, Tháng, Tuần, Ngày, Giờ, Phút, Giây, Khối */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-3.5 mt-6">
+          {/* Card 1: Năm */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-amber-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-amber-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-amber-200">
+              {timeBreakdown.years}
+            </div>
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-300/80 mt-1">
+              Năm
+            </div>
+            <div className="h-0.5 w-6 bg-amber-500/60 mx-auto mt-2 rounded-full" />
+          </div>
+
+          {/* Card 2: Tháng */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-purple-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-purple-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-purple-200">
               {timeBreakdown.months}
             </div>
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-purple-300/80 mt-1">
               Tháng
             </div>
-            <div className="h-0.5 w-6 bg-purple-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-purple-500/60 mx-auto mt-2 rounded-full" />
           </div>
 
-          {/* Card: Tuần */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-blue-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">
+          {/* Card 3: Tuần */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-blue-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-blue-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">
               {timeBreakdown.weeks}
             </div>
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-blue-300/80 mt-1">
               Tuần
             </div>
-            <div className="h-0.5 w-6 bg-blue-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-blue-500/60 mx-auto mt-2 rounded-full" />
           </div>
 
-          {/* Card: Ngày */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-rose-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-rose-200">
+          {/* Card 4: Ngày */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-rose-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-rose-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-rose-200">
               {timeBreakdown.days}
             </div>
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-300/80 mt-1">
               Ngày
             </div>
-            <div className="h-0.5 w-6 bg-rose-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-rose-500/60 mx-auto mt-2 rounded-full" />
           </div>
 
-          {/* Card: Giờ */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-amber-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-amber-300">
+          {/* Card 5: Giờ */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-amber-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-amber-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-amber-300">
               {timeBreakdown.hours.toString().padStart(2, '0')}
             </div>
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-300/80 mt-1">
               Giờ
             </div>
-            <div className="h-0.5 w-6 bg-amber-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-amber-500/60 mx-auto mt-2 rounded-full" />
           </div>
 
-          {/* Card: Phút */}
-          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 p-3 sm:p-4 text-center backdrop-blur-md transition-all duration-300 hover:border-emerald-500/40 hover:bg-white/[0.04]">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-emerald-300">
+          {/* Card 6: Phút */}
+          <div className="group relative overflow-hidden rounded-2xl bg-black/40 border border-emerald-500/30 p-3 sm:p-3.5 text-center backdrop-blur-md transition-all duration-300 hover:border-emerald-400 hover:bg-white/[0.04]">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-300">
               {timeBreakdown.minutes.toString().padStart(2, '0')}
             </div>
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-300/80 mt-1">
               Phút
             </div>
-            <div className="h-0.5 w-6 bg-emerald-500/50 mx-auto mt-2 rounded-full" />
+            <div className="h-0.5 w-6 bg-emerald-500/60 mx-auto mt-2 rounded-full" />
           </div>
 
-          {/* Card: Giây (Animation nhịp đập) */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-purple-900/40 to-pink-950/40 border border-pink-500/30 p-3 sm:p-4 text-center backdrop-blur-md shadow-lg shadow-pink-950/20">
-            <div className="text-2xl sm:text-4xl font-black font-mono text-pink-400 animate-pulse">
+          {/* Card 7: Giây (Animation nhịp đập liên tục) */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-purple-900/40 to-pink-950/40 border border-pink-500/40 p-3 sm:p-3.5 text-center backdrop-blur-md shadow-lg shadow-pink-950/20">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-pink-400 animate-pulse">
               {timeBreakdown.seconds.toString().padStart(2, '0')}
             </div>
             <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-pink-300 mt-1">
               Giây
             </div>
             <div className="h-0.5 w-6 bg-pink-400 mx-auto mt-2 rounded-full animate-ping" />
+          </div>
+
+          {/* Card 8: Khối (Hiển thị Khối & Niên khóa mục tiêu) */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-indigo-950/50 via-purple-950/40 to-pink-950/30 border border-purple-500/40 p-3 sm:p-3.5 text-center backdrop-blur-md hover:border-purple-300 transition-all duration-300 shadow-lg shadow-purple-950/30">
+            <div className="text-base sm:text-lg font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-pink-300 to-amber-200">
+              {selectedMode === 'thpt' ? 'Khối 12' : 'Khối 9'}
+            </div>
+            <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-purple-300/90 mt-1 truncate">
+              {selectedCohort}
+            </div>
+            <div className="h-0.5 w-6 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mt-2 rounded-full" />
           </div>
         </div>
 
