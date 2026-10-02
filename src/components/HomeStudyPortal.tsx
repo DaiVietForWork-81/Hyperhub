@@ -116,7 +116,7 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
         params.append('subject', selectedSubject);
       }
 
-      const res = await fetch(`${apiBase}/api/documents/random?${params.toString()}`, {
+      const res = await fetch(`${apiBase}/api/documents/request_exam?${params.toString()}`, {
         headers: API_FETCH_HEADERS,
       });
 
