@@ -70,6 +70,11 @@ interface ExamDocument {
   jump_url?: string;
   download_url?: string;
   timestamp: string;
+  file_hash?: string;
+  is_duplicate?: boolean;
+  is_duplicate_copy?: boolean;
+  original_id?: number | null;
+  duplicate_count?: number;
 }
 
 // Danh mục Khối Lớp
@@ -153,7 +158,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Danh Sách Đề Thi Trong Kho (Full Catalog List)
   const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(28);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(29);
+  const [stats, setStats] = useState<{
+    total_real: number;
+    unique_items: number;
+    duplicate_items: number;
+  }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
+  const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
 
   // Trạng thái đề ngẫu nhiên được chọn
   const [isLoadingExam, setIsLoadingExam] = useState<boolean>(false);
@@ -199,7 +210,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       gradeOverride?: string,
       typeOverride?: string,
       subjectOverride?: string,
-      searchOverride?: string
+      searchOverride?: string,
+      dupOverride?: 'all' | 'unique' | 'duplicate'
     ) => {
       setIsLoadingDocs(true);
       try {
@@ -211,11 +223,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const t = typeOverride !== undefined ? typeOverride : selectedExamType;
         const s = subjectOverride !== undefined ? subjectOverride : selectedSubject;
         const search = searchOverride !== undefined ? searchOverride : descriptionKeyword;
+        const dup = dupOverride !== undefined ? dupOverride : filterDup;
 
         if (g && g !== 'ALL') q.set('grade', g);
         if (t && t !== 'ALL') q.set('exam_type', t);
         if (s && s !== 'ALL') q.set('subject', s);
         if (search && search.trim()) q.set('search', search.trim());
+        if (dup) q.set('filter_dup', dup);
 
         const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
           headers: API_FETCH_HEADERS,
@@ -234,7 +248,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setIsLoadingDocs(false);
       }
     },
-    [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword]
+    [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, filterDup]
   );
 
   // 3. Lấy thống kê số lượng tài liệu
@@ -247,8 +261,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.total_items) {
-          setTotalDocsCount(data.total_items);
+        if (data.success) {
+          setStats({
+            total_real: data.total_real || data.total_items || 29,
+            unique_items: data.unique_items || 28,
+            duplicate_items: data.duplicate_items || 0,
+          });
+          setTotalDocsCount(data.total_real || data.total_items || 29);
         }
       }
     } catch {
@@ -1237,11 +1256,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
                     <span>Kho Đề Thi</span>
                     <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
-                      {totalDocsCount}+ Đề Đã Thẩm Định
+                      {stats.total_real} Đề Thật Trong Bot
                     </span>
                   </h1>
                   <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định từ Bot DocInspector. Xem trực tiếp trên web bằng PDF/Word viewer hoặc tải file về máy.
+                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định từ Bot DocInspector. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản bằng mã băm SHA-256.
                   </p>
                 </div>
                 <button
@@ -1271,9 +1290,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       Danh Sách Tất Cả Các Đề Thi Trong Kho
                     </h3>
                     <p className="text-xs text-slate-400 dark:text-white/40">
-                      Hiển thị {documentsList.length} đề thi • Có thể tải trực tiếp file về máy
+                      Hiển thị {documentsList.length} đề thi • {stats.unique_items} đề độc bản • {stats.duplicate_items} đề trùng lặp
                     </p>
                   </div>
+                </div>
+
+                {/* Bộ Lọc Trùng Lặp (Tất cả, Đề độc bản, Đề trùng lặp) */}
+                <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterDup('all');
+                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'all');
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      filterDup === 'all'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Tất Cả ({stats.total_real})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterDup('unique');
+                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'unique');
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      filterDup === 'unique'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-300'
+                    }`}
+                  >
+                    <span>Đề Độc Bản</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300">
+                      {stats.unique_items}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterDup('duplicate');
+                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'duplicate');
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      filterDup === 'duplicate'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-300'
+                    }`}
+                  >
+                    <span>Đề Trùng Lặp</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300">
+                      {stats.duplicate_items}
+                    </span>
+                  </button>
                 </div>
 
                 {/* Reset bộ lọc */}
@@ -1287,12 +1358,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       setSelectedExamType('ALL');
                       setSelectedSubject('ALL');
                       setDescriptionKeyword('');
-                      fetchDocuments('ALL', 'ALL', 'ALL', '');
+                      fetchDocuments('ALL', 'ALL', 'ALL', '', filterDup);
                     }}
                     className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5 w-fit"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Xem Tất Cả ({totalDocsCount} đề)</span>
+                    <span>Xem Tất Cả ({stats.total_real} đề)</span>
                   </button>
                 )}
               </div>
@@ -1308,7 +1379,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   {documentsList.map((doc) => (
                     <div
                       key={doc.id}
-                      className="p-5 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all shadow-sm space-y-3.5 flex flex-col justify-between group"
+                      className={`p-5 rounded-3xl backdrop-blur-xl border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group ${
+                        doc.is_duplicate_copy
+                          ? 'border-amber-500/40 bg-amber-950/10 dark:bg-amber-950/20 hover:border-amber-500/70'
+                          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-purple-400/50 dark:hover:border-purple-500/40'
+                      }`}
                     >
                       {/* Top Badges */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1319,6 +1394,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80">
                             {formatEstimatedLevel(doc.estimated_level)}
                           </span>
+                          {/* Duplicate badge */}
+                          {doc.is_duplicate_copy ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              ⚠️ Bản Trùng (#{doc.id})
+                            </span>
+                          ) : doc.is_duplicate ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                              📌 Bản Gốc
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                              ✨ Độc Bản
+                            </span>
+                          )}
                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
                             {doc.file_type || 'PDF'}
                           </span>

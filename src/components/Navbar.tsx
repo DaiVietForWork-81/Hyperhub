@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
+import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 
 interface NavbarProps {
   theme?: string;
@@ -20,7 +21,29 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNearTop, setIsNearTop] = useState(true);
+  const [docCount, setDocCount] = useState<number>(29);
   const hideTimerRef = useRef<number | null>(null);
+
+  // Lấy số lượng đề thật từ Bot
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/api/documents/stats`, {
+          headers: API_FETCH_HEADERS,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.total_real || data.total_items)) {
+            setDocCount(data.total_real || data.total_items);
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    };
+    fetchCount();
+  }, []);
 
   // Track scroll position & smart direction with RAF throttling
   useEffect(() => {
@@ -160,6 +183,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5 text-purple-400" />
               <span>Kho Đề</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300">
+                {docCount}
+              </span>
             </button>
 
             <button
@@ -266,10 +292,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'vault')}
-                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center justify-between text-white/85 hover:bg-white/10"
               >
-                <BookOpen className="w-4 h-4 text-purple-400" />
-                <span>Kho Đề Thi</span>
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-4 h-4 text-purple-400" />
+                  <span>Kho Đề Thi</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
+                  {docCount} đề
+                </span>
               </button>
 
               <button

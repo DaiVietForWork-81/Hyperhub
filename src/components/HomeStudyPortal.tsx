@@ -37,6 +37,11 @@ interface ExamDocument {
   jump_url?: string;
   download_url?: string;
   timestamp: string;
+  file_hash?: string;
+  is_duplicate?: boolean;
+  is_duplicate_copy?: boolean;
+  original_id?: number | null;
+  duplicate_count?: number;
 }
 
 const SUBJECT_FILTERS = [
@@ -56,7 +61,13 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
   onNavigateToTab,
 }) => {
   const [activeSection, setActiveSection] = useState<'vault' | 'get_exam' | 'submit_doc'>('vault');
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(28);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(29);
+  const [stats, setStats] = useState<{
+    total_real: number;
+    unique_items: number;
+    duplicate_items: number;
+  }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
+  const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [featuredDocs, setFeaturedDocs] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
@@ -66,13 +77,37 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
   const [pickedExam, setPickedExam] = useState<ExamDocument | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
 
+  // Lấy thống kê số đề thật từ bot
+  const fetchDocStats = async () => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/documents/stats`, {
+        headers: API_FETCH_HEADERS,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setStats({
+            total_real: data.total_real || data.total_items || 29,
+            unique_items: data.unique_items || 28,
+            duplicate_items: data.duplicate_items || 0,
+          });
+          setTotalDocsCount(data.total_real || data.total_items || 29);
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
   // Tải danh sách đề thi mẫu & tổng số lượng đề từ database
-  const fetchPortalDocs = async (subject: string = 'ALL') => {
+  const fetchPortalDocs = async (subject: string = 'ALL', dupFilter: 'all' | 'unique' | 'duplicate' = 'all') => {
     setIsLoadingDocs(true);
     try {
       const apiBase = getApiBaseUrl();
       const params = new URLSearchParams({
         limit: '6',
+        filter_dup: dupFilter,
         ngrok_skip_browser_warning: 'true',
       });
       if (subject !== 'ALL') {
@@ -100,8 +135,12 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
   };
 
   useEffect(() => {
-    fetchPortalDocs(selectedSubject);
-  }, [selectedSubject]);
+    fetchDocStats();
+  }, []);
+
+  useEffect(() => {
+    fetchPortalDocs(selectedSubject, filterDup);
+  }, [selectedSubject, filterDup]);
 
   // Xử lý Bốc Đề Ngẫu Nhiên Ngay Tại Trang Chủ
   const handleRandomPick = async () => {
@@ -221,8 +260,62 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
       {/* ========================================================================= */}
       {activeSection === 'vault' && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Thanh Lọc Môn Học Nhanh */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Thanh Lọc Trùng Đề & Môn Học */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-wrap">
+              {/* Lọc Trùng Lặp (Tất Cả, Đề Độc Bản, Đề Trùng Lặp) */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setFilterDup('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterDup === 'all'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tất Cả ({stats.total_real})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterDup('unique')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    filterDup === 'unique'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-emerald-300'
+                  }`}
+                >
+                  <span>Đề Độc Bản</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300">
+                    {stats.unique_items}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterDup('duplicate')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    filterDup === 'duplicate'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-amber-300'
+                  }`}
+                >
+                  <span>Đề Trùng Lặp</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300">
+                    {stats.duplicate_items}
+                  </span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => onNavigateToTab('vault')}
+                className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer ml-auto"
+              >
+                <span>Xem toàn bộ kho trên Bảng điều khiển ({stats.total_real} đề thật)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Bộ Lọc Môn Học Nhanh */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
               {SUBJECT_FILTERS.map((s) => (
                 <button
@@ -238,14 +331,6 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                 </button>
               ))}
             </div>
-
-            <button
-              onClick={() => onNavigateToTab('vault')}
-              className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer ml-auto"
-            >
-              <span>Xem toàn bộ kho trên Bảng điều khiển ({totalDocsCount}+)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
           </div>
 
           {/* Lưới Thẻ Đề Thi Tiêu Biểu */}
@@ -259,7 +344,11 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
               {featuredDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-5 rounded-3xl bg-black/40 border border-white/10 hover:border-purple-500/40 transition-all flex flex-col justify-between group shadow-lg"
+                  className={`p-5 rounded-3xl backdrop-blur-xl border transition-all flex flex-col justify-between group shadow-lg ${
+                    doc.is_duplicate_copy
+                      ? 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/60'
+                      : 'bg-black/40 border-white/10 hover:border-purple-500/40'
+                  }`}
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -270,6 +359,20 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                         <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/80">
                           {formatEstimatedLevel(doc.estimated_level)}
                         </span>
+                        {/* Duplicate badge */}
+                        {doc.is_duplicate_copy ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            ⚠️ Bản Trùng (#{doc.id})
+                          </span>
+                        ) : doc.is_duplicate ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            📌 Bản Gốc
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                            ✨ Độc Bản
+                          </span>
+                        )}
                       </div>
                       <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-bold">
                         {doc.file_type || 'PDF'}
