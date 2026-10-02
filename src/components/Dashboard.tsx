@@ -23,9 +23,9 @@ import {
   CheckCheck,
   Download,
   Filter,
-  Eye,
   UploadCloud,
   Dices,
+  Star,
 } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import {
@@ -36,9 +36,9 @@ import {
   API_FETCH_HEADERS,
 } from '../utils/apiConfig';
 import { ExamCountdown } from './ExamCountdown';
-import { DocPreviewModal, PreviewableDocument } from './DocPreviewModal';
 import { DocUploadZone } from './DocUploadZone';
 import { formatEstimatedLevel } from '../utils/formatters';
+import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -98,7 +98,7 @@ const EXAM_TYPE_OPTIONS = [
   { id: 'GIUA_KY', label: 'Thi Giữa Học Kỳ', badge: 'Định kỳ 📝', icon: '📝' },
   { id: 'CUOI_KY', label: 'Thi Cuối Học Kỳ', badge: 'Học kỳ 📑', icon: '📑' },
   { id: '1_TIET', label: 'Kiểm Tra 1 Tiết', badge: '45 phút ⏱️', icon: '⏱️' },
-  { id: '15_PHUT', label: 'Kiểm Tra 15 Phút', badge: 'Nhanh ⚡', icon: '⚡' },
+  { id: '15_PHUT', label: 'Kiểm Tra Nhanh', badge: 'Nhanh ⚡', icon: '⚡' },
   { id: 'ON_TAP', label: 'Ôn Tập & Bài Tập', badge: 'Luyện tập 📚', icon: '📚' },
 ];
 
@@ -147,7 +147,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [initialTab]);
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
   const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
-  const [previewDoc, setPreviewDoc] = useState<PreviewableDocument | null>(null);
+
+  // Tính năng Bookmark / Lưu tài liệu yêu thích
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
+
+  useEffect(() => {
+    const handleBookmarkChange = () => {
+      setBookmarkedIds(new Set(getBookmarkedExamIds()));
+    };
+    window.addEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+    return () => window.removeEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+  }, []);
 
   // Form Lọc & Tìm Kiếm Đề Thi (Mặc định ALL để hiển thị danh sách đầy đủ)
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
@@ -1190,14 +1200,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                  {/* Nút Xem Nhanh Đề Thi Trực Tiếp (PDF/Word) */}
+                  {/* Nút ⭐ Lưu Vào Tủ Sách */}
                   <button
-                    onClick={() => setPreviewDoc(currentExam)}
+                    type="button"
+                    onClick={() => {
+                      toggleBookmarkExam(currentExam.id);
+                      setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                    }}
+                    className={`inline-flex items-center gap-2.5 px-5 py-3.5 rounded-2xl border font-bold text-xs sm:text-sm shadow-xl transition-all cursor-pointer ${
+                      bookmarkedIds.has(currentExam.id)
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                    }`}
+                  >
+                    <Star className={`w-4 h-4 shrink-0 ${bookmarkedIds.has(currentExam.id) ? 'fill-current text-amber-400' : ''}`} />
+                    <span>{bookmarkedIds.has(currentExam.id) ? 'Đã Lưu Vào Tủ Sách' : '⭐ Lưu Vào Tủ Sách'}</span>
+                  </button>
+
+                  {/* Nút Mở Tệp Trực Tiếp */}
+                  <a
+                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download?ngrok-skip-browser-warning=true`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                   >
-                    <Eye className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>Xem Nhanh (PDF / Word)</span>
-                  </button>
+                    <ExternalLink className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                    <span>Mở Tệp Trực Tiếp</span>
+                  </a>
 
                   {/* Nút 1: Tải Đề Trực Tiếp Về Máy */}
                   <a
@@ -1256,7 +1285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
                     <span>Kho Đề Thi</span>
                     <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
-                      {stats.total_real} Đề Thật Trong Bot
+                      {stats.total_real} Đề
                     </span>
                   </h1>
                   <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
@@ -1431,14 +1460,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                       {/* Nút thao tác trên từng đề */}
                       <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                        {/* Nút ⭐ Bookmark / Lưu vào tủ sách */}
                         <button
-                          onClick={() => setPreviewDoc(doc)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
-                          title="Xem trước đề thi trực tiếp trên web"
+                          type="button"
+                          onClick={() => {
+                            toggleBookmarkExam(doc.id);
+                            setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                          }}
+                          className={`p-2.5 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
+                            bookmarkedIds.has(doc.id)
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                              : 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
+                          }`}
+                          title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
                         >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Xem Nhanh</span>
+                          <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
                         </button>
+
+                        {/* Mở xem trực tiếp trong tab mới */}
+                        <a
+                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
+                          title="Mở xem trực tiếp tệp trong tab mới"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Mở Tệp</span>
+                        </a>
 
                         <a
                           href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
@@ -1518,7 +1567,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               apiBase={getApiBaseUrl()}
               user={user}
               onOpenAuthModal={onOpenAuthModal}
-              onPreviewDoc={(doc) => setPreviewDoc(doc)}
               onUploadSuccess={() => {
                 fetchDocuments();
                 fetchDocStats();
@@ -1528,14 +1576,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </main>
 
-      {/* ========================================================================= */}
-      {/* MODAL XEM TRƯỚC ĐỀ THI TRỰC TIẾP (PDF.JS & OFFICE VIEWER)                 */}
-      {/* ========================================================================= */}
-      <DocPreviewModal
-        document={previewDoc}
-        apiBase={getApiBaseUrl()}
-        onClose={() => setPreviewDoc(null)}
-      />
+      {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
 
       {/* ========================================================================= */}
       {/* MODAL CÀI ĐẶT SERVER API (ENDPOINT CONFIGURATION)                         */}

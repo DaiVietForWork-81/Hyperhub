@@ -13,8 +13,6 @@ import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
 import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback } from './utils/discordAuth';
 import { HomeStudyPortal } from './components/HomeStudyPortal';
-import { DocPreviewModal, PreviewableDocument } from './components/DocPreviewModal';
-import { getApiBaseUrl } from './utils/apiConfig';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -34,7 +32,6 @@ export const App: React.FC = () => {
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>('overview');
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [previewDoc, setPreviewDoc] = useState<PreviewableDocument | null>(null);
 
   // Điều hướng SPA chuẩn với URL /hub và /
   const navigateTo = useCallback(
@@ -135,7 +132,6 @@ export const App: React.FC = () => {
               <HomeStudyPortal
                 user={discordUser}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                onPreviewDoc={(doc) => setPreviewDoc(doc)}
                 onNavigateToTab={(tab) => navigateTo('dashboard', tab)}
               />
             </section>
@@ -154,12 +150,7 @@ export const App: React.FC = () => {
       {/* Footer (Hiển thị ở Trang Chủ) */}
       {activeView === 'home' && <Footer />}
 
-      {/* Modal Xem Nhanh PDF / Word Trực Tiếp Trên Web */}
-      <DocPreviewModal
-        document={previewDoc}
-        apiBase={getApiBaseUrl()}
-        onClose={() => setPreviewDoc(null)}
-      />
+      {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx, các nút thẻ đề hiện mở tệp/tải về trực tiếp */}
 
       {/* Floating Lo-fi Study Lounge Player */}
       <LofiPlayer />

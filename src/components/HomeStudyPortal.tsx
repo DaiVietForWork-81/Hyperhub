@@ -3,23 +3,25 @@ import {
   BookOpen,
   Dices,
   UploadCloud,
-  Eye,
   Download,
   CheckCircle2,
   Sparkles,
   ArrowRight,
   RefreshCw,
+  Star,
+  ExternalLink,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { formatEstimatedLevel, formatFileSize } from '../utils/formatters';
 import { DocUploadZone } from './DocUploadZone';
 import { PreviewableDocument } from './DocPreviewModal';
 import { DiscordUser } from '../utils/discordAuth';
+import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 interface HomeStudyPortalProps {
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
-  onPreviewDoc: (doc: PreviewableDocument) => void;
+  onPreviewDoc?: (doc: PreviewableDocument) => void;
   onNavigateToTab: (tab: 'vault' | 'get_exam' | 'submit_doc') => void;
 }
 
@@ -71,6 +73,17 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
   const [featuredDocs, setFeaturedDocs] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
+
+  // Tính năng Bookmark / Lưu tài liệu yêu thích
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
+
+  useEffect(() => {
+    const handleBookmarkChange = () => {
+      setBookmarkedIds(new Set(getBookmarkedExamIds()));
+    };
+    window.addEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+    return () => window.removeEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+  }, []);
 
   // Trạng thái Bốc Đề Nhanh
   const [isPickingRandom, setIsPickingRandom] = useState<boolean>(false);
@@ -310,7 +323,7 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                 onClick={() => onNavigateToTab('vault')}
                 className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer ml-auto"
               >
-                <span>Xem toàn bộ kho trên Bảng điều khiển ({stats.total_real} đề thật)</span>
+                <span>Xem toàn bộ kho trên Bảng điều khiển ({stats.total_real} Đề)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -391,15 +404,34 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                   </div>
 
                   <div className="pt-4 mt-3 border-t border-white/5 flex items-center gap-2">
-                    {/* Nút Xem Nhanh Trực Tiếp */}
+                    {/* Nút ⭐ Lưu Vào Tủ Sách */}
                     <button
                       type="button"
-                      onClick={() => onPreviewDoc(doc)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs transition-all cursor-pointer"
+                      onClick={() => {
+                        toggleBookmarkExam(doc.id);
+                        setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                      }}
+                      className={`p-2 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
+                        bookmarkedIds.has(doc.id)
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                          : 'bg-white/5 text-slate-400 border-white/10 hover:text-amber-300 hover:bg-amber-500/10'
+                      }`}
+                      title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách của tôi' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Xem Nhanh</span>
+                      <Star className={`w-4 h-4 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
                     </button>
+
+                    {/* Mở xem trực tiếp trong tab mới */}
+                    <a
+                      href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs transition-all cursor-pointer"
+                      title="Mở xem trực tiếp tài liệu trong tab mới"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Mở Tệp</span>
+                    </a>
 
                     {/* Nút Tải Về Trực Tiếp Bỏ Qua Cảnh Báo Ngrok */}
                     <a
@@ -537,16 +569,34 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                   </div>
                 </div>
 
-                {/* 2 Nút Thao Tác Sau Khi Bốc */}
+                {/* Các Nút Thao Tác Sau Khi Bốc */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
+                  {/* Nút ⭐ Lưu Vào Tủ Sách */}
                   <button
                     type="button"
-                    onClick={() => onPreviewDoc(pickedExam)}
+                    onClick={() => {
+                      toggleBookmarkExam(pickedExam.id);
+                      setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                    }}
+                    className={`inline-flex items-center gap-2 px-5 py-3 rounded-2xl border font-bold text-xs sm:text-sm shadow-xl transition-all cursor-pointer ${
+                      bookmarkedIds.has(pickedExam.id)
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                    }`}
+                  >
+                    <Star className={`w-4 h-4 ${bookmarkedIds.has(pickedExam.id) ? 'fill-current text-amber-400' : ''}`} />
+                    <span>{bookmarkedIds.has(pickedExam.id) ? 'Đã Lưu Vào Tủ Sách' : '⭐ Lưu Vào Tủ Sách'}</span>
+                  </button>
+
+                  <a
+                    href={`${getApiBaseUrl()}/api/documents/${pickedExam.id}/download?ngrok-skip-browser-warning=true`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                   >
-                    <Eye className="w-4 h-4" />
-                    <span>Xem Nhanh (PDF / Word)</span>
-                  </button>
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Mở Tệp Trực Tiếp</span>
+                  </a>
 
                   <a
                     href={`${getApiBaseUrl()}/api/documents/${pickedExam.id}/download?ngrok-skip-browser-warning=true`}

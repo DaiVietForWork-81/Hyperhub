@@ -11,11 +11,13 @@ import {
   Download,
   AlertTriangle,
   RefreshCw,
+  Star,
 } from 'lucide-react';
 import { SpotlightCard } from './SpotlightCard';
 import { ScrollReveal } from './ScrollReveal';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { formatEstimatedLevel } from '../utils/formatters';
+import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 export interface DocumentItem {
   id: number;
@@ -166,6 +168,18 @@ export const DocumentVault: React.FC = () => {
   // Bộ lọc xem trùng đề hay không (all | unique | duplicate)
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
 
+  // Tính năng Bookmark / Lưu tài liệu yêu thích
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleBookmarkChange = () => {
+      setBookmarkedIds(new Set(getBookmarkedExamIds()));
+    };
+    window.addEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+    return () => window.removeEventListener('hyperhub_bookmark_changed', handleBookmarkChange);
+  }, []);
+
   // Thống kê số lượng đề thực tế trong Bot
   const [stats, setStats] = useState<{
     total_real: number;
@@ -242,6 +256,9 @@ export const DocumentVault: React.FC = () => {
 
   const filteredDocs = useMemo(() => {
     return documents.filter((doc) => {
+      if (showBookmarksOnly && !bookmarkedIds.has(doc.id)) {
+        return false;
+      }
       const matchSubject = selectedSubject === 'ALL' || doc.subject.toUpperCase() === selectedSubject;
       const q = searchQuery.toLowerCase().trim();
       const matchQuery = !q || 
@@ -251,7 +268,7 @@ export const DocumentVault: React.FC = () => {
         doc.author_name.toLowerCase().includes(q);
       return matchSubject && matchQuery;
     });
-  }, [documents, selectedSubject, searchQuery]);
+  }, [documents, selectedSubject, searchQuery, showBookmarksOnly, bookmarkedIds]);
 
   const totalBytes = useMemo(() => {
     return stats.total_bytes > 0 
@@ -295,10 +312,10 @@ export const DocumentVault: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-black text-slate-900 dark:text-white">
-                    {stats.total_real} Đề Thật
+                    {stats.total_real} Đề
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Có Trong Kho Bot
+                    Trong Kho Đề Bot
                   </div>
                 </div>
               </div>
@@ -376,7 +393,7 @@ export const DocumentVault: React.FC = () => {
               {/* Status Badge */}
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 self-end md:self-auto">
                 <span className={`w-2 h-2 rounded-full ${isLiveApi ? 'bg-emerald-500 animate-pulse' : 'bg-purple-500'}`} />
-                {isLiveApi ? `Đã kết nối Live Bot API (${stats.total_real} đề thật)` : 'Kho Đề Sẵn Sàng'}
+                {isLiveApi ? `Đã kết nối Live Bot API (${stats.total_real} Đề)` : 'Kho Đề Sẵn Sàng'}
               </div>
             </div>
 
@@ -430,19 +447,36 @@ export const DocumentVault: React.FC = () => {
                 </div>
               </div>
 
-              {/* Refresh button */}
-              <button
-                type="button"
-                onClick={() => {
-                  fetchStats();
-                  fetchDocuments(filterDup);
-                }}
-                disabled={isLoading}
-                className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>Làm Mới</span>
-              </button>
+              {/* Nút lọc Tủ Sách Yêu Thích & Làm Mới */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBookmarksOnly((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                    showBookmarksOnly
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20 font-black'
+                      : 'bg-amber-500/10 text-amber-500 dark:text-amber-300 border-amber-500/20 hover:bg-amber-500/20'
+                  }`}
+                  title="Xem các đề thi bạn đã bấm ⭐ lưu vào tủ sách cá nhân"
+                >
+                  <Star className={`w-3.5 h-3.5 ${showBookmarksOnly ? 'fill-current' : ''}`} />
+                  <span>⭐ Tủ Sách Của Tôi ({bookmarkedIds.size})</span>
+                </button>
+
+                {/* Refresh button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchStats();
+                    fetchDocuments(filterDup);
+                  }}
+                  disabled={isLoading}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Làm Mới</span>
+                </button>
+              </div>
             </div>
 
             {/* Subject Tabs */}
@@ -549,6 +583,24 @@ export const DocumentVault: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {/* Nút ⭐ Lưu vào tủ sách */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleBookmarkExam(doc.id);
+                        setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                      }}
+                      className={`p-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                        bookmarkedIds.has(doc.id)
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
+                          : 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                      }`}
+                      title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách của tôi'}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current' : ''}`} />
+                    </button>
+
                     {/* Tải về */}
                     <a
                       href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
