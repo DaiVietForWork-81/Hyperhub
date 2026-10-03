@@ -12,7 +12,10 @@ import { CyberGrid } from './components/CyberGrid';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
 import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback } from './utils/discordAuth';
-import { HomeStudyPortal } from './components/HomeStudyPortal';
+import { DreamAspirations } from './components/DreamAspirations';
+import { CommunityIntro } from './components/CommunityIntro';
+import { CommunityChannels } from './components/CommunityChannels';
+import { CoFounders } from './components/CoFounders';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -116,7 +119,7 @@ export const App: React.FC = () => {
           <>
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />
 
-            {/* Đồng Hồ Đếm Ngược Ngày Thi THPT & Tuyển Sinh Vào 10 Trực Tiếp Tại Trang Chủ */}
+            {/* 1. Thời Gian Tuyển Sinh & Kỳ Thi (Đếm ngược THPT & Tuyển sinh vào 10) */}
             <section
               id="countdown-section"
               className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16"
@@ -124,17 +127,17 @@ export const App: React.FC = () => {
               <ExamCountdown onNavigateTab={(tab) => navigateTo('dashboard', tab)} />
             </section>
 
-            {/* Cổng Học Liệu & Đề Thi (Kho 28+, Bốc Đề, Nộp Đề Hàng Loạt) Trực Tiếp Tại Trang Chủ */}
-            <section
-              id="study-portal-section"
-              className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24"
-            >
-              <HomeStudyPortal
-                user={discordUser}
-                onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                onNavigateToTab={(tab) => navigateTo('dashboard', tab)}
-              />
-            </section>
+            {/* 2. Ước Mơ (Nuôi Dưỡng Khát Vọng & Nguyện Vọng 1) */}
+            <DreamAspirations />
+
+            {/* 3. Giới Thiệu Cộng Đồng (Hệ sinh thái HyperHub) */}
+            <CommunityIntro />
+
+            {/* 4. Cộng Đồng (Kênh Messenger & Discord - Tạm thời chưa thêm Facebook) */}
+            <CommunityChannels />
+
+            {/* 5. Đồng Sáng Lập (Dai Viet, GithuZ, Nguyễn Duy, Lê Minh) */}
+            <CoFounders />
           </>
         ) : (
           <Dashboard

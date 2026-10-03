@@ -10,42 +10,34 @@ export interface CreditMember {
 export const creditsData: CreditMember[] = [
   {
     name: "Dai Viet",
-    role: "Chủ HyperHub & Sáng Lập",
-    bio: "Định hướng phát triển cộng đồng HyperHub, dẫn dắt hệ sinh thái và quản trị tổng thể máy chủ.",
+    role: "Đồng Sáng Lập",
+    bio: "Khởi xướng và thiết kế toàn bộ kiến trúc HyperHub, xây dựng hệ thống Bot kiểm định đề tự động, cầu nối API và trải nghiệm Web Portal.",
     avatarUrl: null,
-    tag: "👑 Server Owner",
-    discordTag: "Chủ HyperHub"
+    tag: "👑 Co-Founder • System Architect",
+    discordTag: "Dai Viet"
   },
   {
-    name: "Lê Minh",
+    name: "GithuZ",
     role: "Đồng Sáng Lập",
-    bio: "Đồng hành xây dựng kiến trúc nền tảng, thiết kế trải nghiệm người dùng và điều hành dự án.",
+    bio: "Đồng phát triển lõi xử lý C++ Native Engine, tối ưu hóa các thuật toán tìm kiếm FTS5, chống trùng đề SHA-256 và hạ tầng kỹ thuật máy chủ.",
     avatarUrl: null,
-    tag: "⚡ Co-Founder",
-    discordTag: "Đồng Sáng Lập"
-  },
-  {
-    name: "GithubZ",
-    role: "Đồng Sáng Lập",
-    bio: "Phát triển công nghệ cốt lõi, quản lý kho lưu trữ mã nguồn mở và hệ thống bot thi đấu.",
-    avatarUrl: null,
-    tag: "🚀 Co-Founder",
-    discordTag: "Đồng Sáng Lập"
+    tag: "⚡ Co-Founder • Core Engine",
+    discordTag: "GithuZ"
   },
   {
     name: "Nguyễn Duy",
     role: "Đồng Sáng Lập",
-    bio: "Điều phối các hoạt động học thuật, phát triển nội dung kiến thức và xây dựng cộng đồng gắn kết.",
+    bio: "Quản trị và phát triển cộng đồng học sinh, kết nối các thế hệ sĩ tử, duy trì môi trường trao đổi học tập tích cực và văn minh.",
     avatarUrl: null,
-    tag: "💡 Co-Founder",
-    discordTag: "Đồng Sáng Lập"
+    tag: "🌐 Co-Founder • Community Lead",
+    discordTag: "Nguyễn Duy"
   },
   {
-    name: "Nguyễn Khải",
-    role: "Admin Quản Trị",
-    bio: "Quản lý điều hành máy chủ, hỗ trợ thành viên giải đáp thắc mắc và duy trì văn hóa tích cực.",
+    name: "Lê Minh",
+    role: "Đồng Sáng Lập",
+    bio: "Định hướng học liệu, chọn lọc và kiểm định ngân hàng đề thi bám sát cấu trúc Bộ GD&ĐT, đồng hành xây dựng ngân hàng tri thức cho sĩ tử.",
     avatarUrl: null,
-    tag: "🛡️ Administrator",
-    discordTag: "Admin"
+    tag: "📚 Co-Founder • Academic Lead",
+    discordTag: "Lê Minh"
   }
 ];
