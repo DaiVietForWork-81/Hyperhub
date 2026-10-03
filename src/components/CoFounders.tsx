@@ -2,80 +2,61 @@ import React from 'react';
 import {
   Sparkles,
   Crown,
-  Zap,
-  Globe2,
-  BookOpenCheck,
   Star,
+  Users,
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { SpotlightCard } from './SpotlightCard';
 
-export interface CoFounder {
+export interface MainFounder {
   name: string;
   role: string;
-  title: string;
-  bio: string;
+  badge: string;
   quote: string;
-  tag: string;
+  avatarChar: string;
+}
+
+export interface AssociateFounder {
+  name: string;
+  role: string;
+  quote: string;
   avatarChar: string;
   color: string;
   borderColor: string;
-  bgColor: string;
-  icon: React.ElementType;
 }
 
-const CO_FOUNDERS: CoFounder[] = [
-  {
-    name: 'Dai Viet',
-    role: 'Đồng Sáng Lập',
-    title: 'Lead System Architect & Developer',
-    bio: 'Khởi xướng và thiết kế toàn bộ kiến trúc HyperHub, xây dựng hệ thống Bot kiểm định đề tự động, cầu nối API và trải nghiệm Web Portal.',
-    quote: 'Công nghệ sinh ra là để phụng sự việc học, mở ra cơ hội bình đẳng cho mọi sĩ tử.',
-    tag: '👑 Co-Founder • System Architect',
-    avatarChar: 'DV',
-    color: 'text-purple-400',
-    borderColor: 'border-purple-500/40',
-    bgColor: 'bg-purple-500/10',
-    icon: Crown,
-  },
+const MAIN_FOUNDER: MainFounder = {
+  name: 'Dai Viet',
+  role: 'Sáng Lập Viên',
+  badge: '👑 Sáng Lập Chính • Founder',
+  quote: 'Công nghệ sinh ra là để phụng sự việc học, mở ra cơ hội bình đẳng cho mọi sĩ tử.',
+  avatarChar: 'DV',
+};
+
+const ASSOCIATE_FOUNDERS: AssociateFounder[] = [
   {
     name: 'GithuZ',
     role: 'Đồng Sáng Lập',
-    title: 'Core Engine & Infrastructure',
-    bio: 'Đồng phát triển lõi xử lý C++ Native Engine, tối ưu hóa các thuật toán tìm kiếm FTS5, chống trùng đề SHA-256 và hạ tầng kỹ thuật máy chủ.',
     quote: 'Tối ưu từng dòng mã để mang lại cho học sinh trải nghiệm học tập mượt mà nhất.',
-    tag: '⚡ Co-Founder • Core Engine',
     avatarChar: 'GZ',
     color: 'text-cyan-400',
-    borderColor: 'border-cyan-500/40',
-    bgColor: 'bg-cyan-500/10',
-    icon: Zap,
+    borderColor: 'border-cyan-500/30 hover:border-cyan-500/60',
   },
   {
     name: 'Nguyễn Duy',
     role: 'Đồng Sáng Lập',
-    title: 'Community & Operations Lead',
-    bio: 'Quản trị và phát triển cộng đồng học sinh, kết nối các thế hệ sĩ tử, duy trì môi trường trao đổi học tập tích cực và văn minh.',
     quote: 'Cùng nhau, chúng ta đi xa hơn. Một cộng đồng gắn kết là nguồn động lực lớn nhất.',
-    tag: '🌐 Co-Founder • Community Lead',
     avatarChar: 'ND',
     color: 'text-pink-400',
-    borderColor: 'border-pink-500/40',
-    bgColor: 'bg-pink-500/10',
-    icon: Globe2,
+    borderColor: 'border-pink-500/30 hover:border-pink-500/60',
   },
   {
     name: 'Lê Minh',
     role: 'Đồng Sáng Lập',
-    title: 'Academic & Content Lead',
-    bio: 'Định hướng học liệu, chọn lọc và kiểm định ngân hàng đề thi bám sát cấu trúc Bộ GD&ĐT, đồng hành xây dựng ngân hàng tri thức cho sĩ tử.',
     quote: 'Chất lượng kiến thức là nền móng vững chắc nhất để hiện thực hóa mọi ước mơ.',
-    tag: '📚 Co-Founder • Academic Lead',
     avatarChar: 'LM',
     color: 'text-emerald-400',
-    borderColor: 'border-emerald-500/40',
-    bgColor: 'bg-emerald-500/10',
-    icon: BookOpenCheck,
+    borderColor: 'border-emerald-500/30 hover:border-emerald-500/60',
   },
 ];
 
@@ -90,85 +71,135 @@ export const CoFounders: React.FC = () => {
 
       {/* Header */}
       <ScrollReveal>
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+        <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-semibold tracking-wide uppercase shadow-[0_0_20px_rgba(168,85,247,0.15)]">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>Đội Ngũ Sáng Lập • Co-Founders</span>
+            <span>Đội Ngũ Sáng Lập • Leadership</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-            Đồng Sáng Lập{' '}
+            Đội Ngũ Sáng Lập{' '}
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
               HyperHub
             </span>
           </h2>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Những người đặt viên gạch đầu tiên, cùng chung khát vọng xây dựng một nền tảng học tập, 
-            thi thử và trao đổi công nghệ phi lợi nhuận cho thế hệ học sinh Việt Nam.
+            Những người đặt viên gạch đầu tiên, cùng chung khát vọng kiến tạo không gian học tập, 
+            thi thử và trao đổi công nghệ phi lợi nhuận cho thế hệ sĩ tử Việt Nam.
           </p>
         </div>
       </ScrollReveal>
 
-      {/* 4 Co-Founders Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {CO_FOUNDERS.map((founder, idx) => {
-          const Icon = founder.icon;
-          return (
-            <ScrollReveal key={founder.name} delay={idx * 100}>
-              <SpotlightCard
-                className={`p-6 sm:p-7 rounded-3xl border ${founder.borderColor} bg-white/[0.02] backdrop-blur-xl h-full flex flex-col justify-between hover:border-purple-400/60 transition-all duration-300 group`}
-                spotlightColor="rgba(168, 85, 247, 0.16)"
-              >
-                <div className="space-y-5 text-center sm:text-left">
-                  {/* Avatar & Icon Badge */}
-                  <div className="relative mx-auto sm:mx-0 w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-900/40 via-black to-pink-900/40 border border-white/10 flex items-center justify-center shadow-lg group-hover:scale-105 group-hover:border-purple-400/50 transition-all duration-300">
-                    <span className="text-2xl font-black text-white tracking-wider">
-                      {founder.avatarChar}
+      <div className="space-y-8 max-w-5xl mx-auto">
+        {/* 1. SÁNG LẬP CHÍNH (DAI VIET - FEATURED PROMINENT HERO CARD) */}
+        <ScrollReveal>
+          <SpotlightCard
+            className="p-8 sm:p-10 rounded-3xl border border-purple-500/50 bg-gradient-to-br from-purple-950/20 via-black/40 to-pink-950/20 backdrop-blur-xl shadow-2xl shadow-purple-950/40 relative overflow-hidden group hover:border-purple-400/80 transition-all duration-300"
+            spotlightColor="rgba(168, 85, 247, 0.25)"
+          >
+            {/* Ambient Aura Top Right */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/10 via-pink-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-7 text-center md:text-left relative z-10">
+              {/* Avatar Dai Viet */}
+              <div className="relative shrink-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-purple-600 via-fuchsia-600 to-pink-500 p-[2px] shadow-xl shadow-purple-950/50 group-hover:scale-105 transition-transform duration-300">
+                  <div className="w-full h-full bg-[#0a0a14] rounded-3xl flex items-center justify-center">
+                    <span className="text-3xl sm:text-4xl font-black text-transparent bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text tracking-wider">
+                      {MAIN_FOUNDER.avatarChar}
                     </span>
-                    <div className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-black border border-white/15 shadow-md">
-                      <Icon className={`w-3.5 h-3.5 ${founder.color}`} />
-                    </div>
                   </div>
+                </div>
+                <div className="absolute -bottom-2 -right-2 p-2 rounded-2xl bg-purple-600 text-white shadow-lg shadow-purple-900/50 border border-purple-300/40">
+                  <Crown className="w-4 h-4" />
+                </div>
+              </div>
 
-                  {/* Name & Role */}
+              {/* Founder Info */}
+              <div className="space-y-3.5 flex-1">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-xl font-black text-white group-hover:text-purple-300 transition-colors">
-                      {founder.name}
+                    <h3 className="text-2xl sm:text-3xl font-black text-white group-hover:text-purple-300 transition-colors">
+                      {MAIN_FOUNDER.name}
                     </h3>
-                    <div className={`text-xs font-bold ${founder.color} mt-0.5`}>
-                      {founder.role}
-                    </div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                      {founder.title}
+                    <div className="text-xs sm:text-sm font-bold text-purple-400 mt-0.5">
+                      {MAIN_FOUNDER.role}
                     </div>
                   </div>
 
-                  {/* Bio */}
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {founder.bio}
-                  </p>
-
-                  {/* Quote */}
-                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 text-[11px] text-slate-400 italic leading-relaxed">
-                    "{founder.quote}"
-                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 self-center md:self-start">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Sáng Lập Chính</span>
+                  </span>
                 </div>
 
-                {/* Bottom Tag */}
-                <div className="pt-4 mt-5 border-t border-white/5 flex items-center justify-between text-[11px]">
-                  <span className="font-mono text-slate-400">
-                    HyperHub Team
-                  </span>
+                {/* Quote */}
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 text-xs sm:text-sm text-slate-300 italic leading-relaxed">
+                  "{MAIN_FOUNDER.quote}"
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+                  <span className="font-mono text-slate-400">HyperHub Foundation</span>
                   <span className="inline-flex items-center gap-1 font-bold text-purple-400">
-                    <Star className="w-3 h-3 fill-current" />
-                    <span>Co-Founder</span>
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>Founder</span>
                   </span>
                 </div>
-              </SpotlightCard>
-            </ScrollReveal>
-          );
-        })}
+              </div>
+            </div>
+          </SpotlightCard>
+        </ScrollReveal>
+
+        {/* 2. ĐỒNG SÁNG LẬP (GITHUZ, NGUYỄN DUY, LÊ MINH) */}
+        <div>
+          <div className="flex items-center gap-3 mb-5 px-1">
+            <Users className="w-4 h-4 text-slate-400" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Đồng Sáng Lập • Co-Founders
+            </h4>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {ASSOCIATE_FOUNDERS.map((founder, idx) => (
+              <ScrollReveal key={founder.name} delay={(idx + 1) * 100}>
+                <SpotlightCard
+                  className={`p-6 rounded-3xl border ${founder.borderColor} bg-white/[0.02] backdrop-blur-xl h-full flex flex-col justify-between transition-all duration-300 group`}
+                  spotlightColor="rgba(255, 255, 255, 0.08)"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-13 h-13 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300">
+                        <span className="text-lg font-black text-white tracking-wider">
+                          {founder.avatarChar}
+                        </span>
+                      </div>
+                      <div className="overflow-hidden">
+                        <h4 className="text-base sm:text-lg font-black text-white truncate group-hover:text-purple-300 transition-colors">
+                          {founder.name}
+                        </h4>
+                        <div className={`text-xs font-bold ${founder.color}`}>
+                          {founder.role}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quote */}
+                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] sm:text-xs text-slate-400 italic leading-relaxed">
+                      "{founder.quote}"
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
+                    <span className="font-mono text-slate-400">HyperHub Team</span>
+                    <span className="text-slate-400 font-semibold">Co-Founder</span>
+                  </div>
+                </SpotlightCard>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

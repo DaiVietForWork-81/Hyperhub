@@ -16,8 +16,17 @@ import {
 import { SpotlightCard } from './SpotlightCard';
 import { ScrollReveal } from './ScrollReveal';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
-import { formatEstimatedLevel } from '../utils/formatters';
+import { formatEstimatedLevel, getExamTrackInfo } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
+
+const EXAM_TRACK_FILTERS = [
+  { id: 'ALL', name: 'Mọi Thể Loại', icon: '✨' },
+  { id: 'THUONG', name: 'Đề Thường', icon: '📘', note: 'Thường < HSG < Chuyên' },
+  { id: 'HSG', name: 'Đề HSG', icon: '🏅', note: 'Học sinh giỏi' },
+  { id: 'CHUYEN', name: 'Đề Chuyên', icon: '👑', note: 'Vào 10 Chuyên & Olympic' },
+  { id: 'QUOC_TE', name: 'Đề Quốc Tế', icon: '🌍', note: 'Kỳ thi Quốc tế (Việt & Anh)' },
+  { id: 'CHUNG', name: 'Đề Chung', icon: '📚', note: 'Tổng hợp & Lý thuyết' },
+];
 
 export interface DocumentItem {
   id: number;
@@ -161,6 +170,7 @@ function formatBytes(bytes: number): string {
 export const DocumentVault: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>(FALLBACK_DOCUMENTS);
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
+  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLiveApi, setIsLiveApi] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -260,15 +270,22 @@ export const DocumentVault: React.FC = () => {
         return false;
       }
       const matchSubject = selectedSubject === 'ALL' || doc.subject.toUpperCase() === selectedSubject;
+      if (!matchSubject) return false;
+
+      if (selectedTrack !== 'ALL') {
+        const tr = getExamTrackInfo(doc);
+        if (tr.tier !== selectedTrack) return false;
+      }
+
       const q = searchQuery.toLowerCase().trim();
       const matchQuery = !q || 
         doc.title.toLowerCase().includes(q) || 
         doc.file_name.toLowerCase().includes(q) ||
         doc.estimated_level.toLowerCase().includes(q) ||
         doc.author_name.toLowerCase().includes(q);
-      return matchSubject && matchQuery;
+      return matchQuery;
     });
-  }, [documents, selectedSubject, searchQuery, showBookmarksOnly, bookmarkedIds]);
+  }, [documents, selectedSubject, selectedTrack, searchQuery, showBookmarksOnly, bookmarkedIds]);
 
   const totalBytes = useMemo(() => {
     return stats.total_bytes > 0 
@@ -496,6 +513,39 @@ export const DocumentVault: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {/* 5 Thể Loại Đề Thi: Đề thường, Đề HSG, Đề chuyên, Đề quốc tế, Đề chung */}
+            <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-white/80">
+                  <span>🎯 Thể Loại Đề Thi:</span>
+                  <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
+                    ({EXAM_TRACK_FILTERS.find((f) => f.id === selectedTrack)?.name})
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-white/40 italic">
+                  ⚖️ Thang độ khó: <strong>Đề thường &lt; Đề HSG &lt; Đề chuyên</strong>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {EXAM_TRACK_FILTERS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setSelectedTrack(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedTrack === tab.id
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 font-bold'
+                        : 'bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200/50 dark:border-white/5'
+                    }`}
+                    title={tab.note || tab.name}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </ScrollReveal>
 
@@ -518,6 +568,20 @@ export const DocumentVault: React.FC = () => {
                       <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
                         {doc.subject}
                       </span>
+
+                      {/* BADGE 5 THỂ LOẠI ĐỀ THI */}
+                      {(() => {
+                        const tr = getExamTrackInfo(doc);
+                        return (
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 ${tr.badgeClass}`}
+                            title={`${tr.description} (${tr.difficultyNote})`}
+                          >
+                            <span>{tr.icon}</span>
+                            <span>{tr.label}</span>
+                          </span>
+                        );
+                      })()}
 
                       {/* BADGE TRÙNG LẶP / ĐỘC BẢN */}
                       {doc.is_duplicate_copy ? (

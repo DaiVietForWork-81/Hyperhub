@@ -37,7 +37,7 @@ import {
 } from '../utils/apiConfig';
 import { ExamCountdown } from './ExamCountdown';
 import { DocUploadZone } from './DocUploadZone';
-import { formatEstimatedLevel } from '../utils/formatters';
+import { formatEstimatedLevel, getExamTrackInfo } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 interface DashboardProps {
@@ -89,17 +89,15 @@ const GRADE_OPTIONS = [
   { id: '6', label: 'Lớp 6', subtitle: 'THCS' },
 ];
 
-// Danh mục Loại Đề Thi
+// Danh mục 5 Thể Loại Đề Thi Chuẩn Theo Yêu Cầu (Đề thường, Đề HSG, Đề chuyên, Đề quốc tế, Đề chung)
+// Quy tắc độ khó: Đề thường < Đề HSG < Đề chuyên
 const EXAM_TYPE_OPTIONS = [
-  { id: 'ALL', label: 'Mọi Loại Đề', badge: 'Tất cả ✨', icon: '✨' },
-  { id: 'THI_THU_THPT', label: 'Thi Thử THPT Quốc Gia', badge: 'Hot 🔥', icon: '🎯' },
-  { id: 'HSG', label: 'HSG & Trường Chuyên', badge: 'Nâng cao 🏆', icon: '🏆' },
-  { id: 'TUYEN_SINH_10', label: 'Tuyển Sinh Lớp 10', badge: 'Cấp 2 🚀', icon: '🚀' },
-  { id: 'GIUA_KY', label: 'Thi Giữa Học Kỳ', badge: 'Định kỳ 📝', icon: '📝' },
-  { id: 'CUOI_KY', label: 'Thi Cuối Học Kỳ', badge: 'Học kỳ 📑', icon: '📑' },
-  { id: '1_TIET', label: 'Kiểm Tra 1 Tiết', badge: '45 phút ⏱️', icon: '⏱️' },
-  { id: '15_PHUT', label: 'Kiểm Tra Nhanh', badge: 'Nhanh ⚡', icon: '⚡' },
-  { id: 'ON_TAP', label: 'Ôn Tập & Bài Tập', badge: 'Luyện tập 📚', icon: '📚' },
+  { id: 'ALL', label: 'Mọi Thể Loại', badge: 'Tất cả ✨', icon: '✨', desc: 'Toàn bộ kho đề' },
+  { id: 'THUONG', label: 'Đề Thường', badge: 'Cơ bản 📘', icon: '📘', desc: 'Đại trà, định kỳ, thi thử (thường < hsg < chuyên)' },
+  { id: 'HSG', label: 'Đề HSG', badge: 'Nâng cao 🏅', icon: '🏅', desc: 'Học sinh giỏi cấp trường/tỉnh (thường < hsg < chuyên)' },
+  { id: 'CHUYEN', label: 'Đề Chuyên', badge: 'Chuyên sâu 👑', icon: '👑', desc: 'Tuyển sinh 10 Chuyên, THPT Chuyên (cao nhất)' },
+  { id: 'QUOC_TE', label: 'Đề Quốc Tế', badge: 'Quốc tế 🌍', icon: '🌍', desc: 'IMO, AMC, Kangaroo/IKMC, SASMO... (tiếng Việt & Anh)' },
+  { id: 'CHUNG', label: 'Đề Chung', badge: 'Tổng hợp 📚', icon: '📚', desc: 'Đề cương, lý thuyết tổng hợp (dễ gây hiểu lầm)' },
 ];
 
 // Danh mục Môn Học
@@ -550,6 +548,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               );
             })}
+          </div>
+
+          {/* Ghi chú độ khó và 5 thể loại */}
+          <div className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 text-xs text-slate-600 dark:text-white/70 space-y-1">
+            <div className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5 flex-wrap">
+              <span>⚖️ Thang độ khó học thuật:</span>
+              <span className="font-mono text-[11px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-lg border border-purple-500/20">
+                Đề thường &lt; Đề HSG &lt; Đề chuyên
+              </span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-white/50">
+              • <strong>Đề quốc tế:</strong> Kỳ thi quốc tế (IMO, AMC, Kangaroo/IKMC, SASMO, TIMO, SAT...) cả bản dịch tiếng Việt & quốc tế.<br />
+              • <strong>Đề chung:</strong> Đề cương, lý thuyết tổng hợp chung (dễ gây hiểu lầm nếu coi là một đề thi cụ thể).
+            </p>
           </div>
         </div>
 
@@ -1180,6 +1192,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">
                       {formatEstimatedLevel(currentExam.estimated_level)}
                     </span>
+                    {(() => {
+                      const tr = getExamTrackInfo(currentExam);
+                      return (
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${tr.badgeClass}`}
+                          title={`${tr.description} (${tr.difficultyNote})`}
+                        >
+                          <span>{tr.icon}</span>
+                          <span>{tr.label}</span>
+                        </span>
+                      );
+                    })()}
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/80 border border-white/10">
                       {currentExam.page_count} trang
                     </span>
@@ -1494,6 +1518,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
                             {doc.subject}
                           </span>
+                          {(() => {
+                            const tr = getExamTrackInfo(doc);
+                            return (
+                              <span
+                                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${tr.badgeClass}`}
+                                title={`${tr.description} (${tr.difficultyNote})`}
+                              >
+                                <span>{tr.icon}</span>
+                                <span>{tr.label}</span>
+                              </span>
+                            );
+                          })()}
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80">
                             {formatEstimatedLevel(doc.estimated_level)}
                           </span>
