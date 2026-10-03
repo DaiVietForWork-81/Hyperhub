@@ -184,7 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <BookOpen className="w-3.5 h-3.5 text-purple-400" />
               <span>Kho Đề</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300">
-                {docCount}
+                {docCount} Đề
               </span>
             </button>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   LayoutDashboard,
   ArrowLeft,
@@ -175,6 +175,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
     duplicate_items: number;
   }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
+
+  // Danh sách đề thi được hiển thị (có lọc theo Tủ Sách Yêu Thích nếu được kích hoạt)
+  const displayedDocuments = useMemo(() => {
+    if (showBookmarksOnly) {
+      return documentsList.filter((doc) => bookmarkedIds.has(doc.id));
+    }
+    return documentsList;
+  }, [documentsList, showBookmarksOnly, bookmarkedIds]);
 
   // Trạng thái đề ngẫu nhiên được chọn
   const [isLoadingExam, setIsLoadingExam] = useState<boolean>(false);
@@ -804,9 +813,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('vault')}
+              onClick={() => {
+                setActiveTab('vault');
+                setShowBookmarksOnly(false);
+              }}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                activeTab === 'vault'
+                activeTab === 'vault' && !showBookmarksOnly
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
                   : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
               }`}
@@ -814,7 +826,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <BookOpen className="w-4 h-4 shrink-0" />
               <span>Kho Đề</span>
               <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
-                {totalDocsCount}+
+                {totalDocsCount} Đề
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('vault');
+                setShowBookmarksOnly(true);
+              }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'vault' && showBookmarksOnly
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-lg shadow-amber-500/20'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+              }`}
+            >
+              <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+              <span>Tủ Sách</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-300 font-bold border border-amber-500/30">
+                {bookmarkedIds.size}
               </span>
             </button>
 
@@ -998,7 +1028,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <h3 className="font-bold text-base mb-1">Kho Đề Thi Sẵn Sàng</h3>
                 <div className="text-3xl font-black text-slate-900 dark:text-white mb-2">
-                  {totalDocsCount}+
+                  {totalDocsCount} Đề
                 </div>
                 <p className="text-xs text-slate-500 dark:text-white/50">
                   Bộ đề thi đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách tự động.
@@ -1316,24 +1346,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div>
                     <h3 className="font-bold text-base sm:text-lg">
-                      Danh Sách Tất Cả Các Đề Thi Trong Kho
+                      {showBookmarksOnly ? '⭐ Tủ Sách Ôn Luyện Của Tôi' : 'Danh Sách Tất Cả Các Đề Thi Trong Kho'}
                     </h3>
                     <p className="text-xs text-slate-400 dark:text-white/40">
-                      Hiển thị {documentsList.length} đề thi • {stats.unique_items} đề độc bản • {stats.duplicate_items} đề trùng lặp
+                      {showBookmarksOnly
+                        ? `Hiển thị ${displayedDocuments.length} đề thi bạn đã đánh dấu ⭐ yêu thích`
+                        : `Hiển thị ${displayedDocuments.length} đề thi • ${stats.unique_items} đề độc bản • ${stats.duplicate_items} đề trùng lặp`}
                     </p>
                   </div>
                 </div>
 
-                {/* Bộ Lọc Trùng Lặp (Tất cả, Đề độc bản, Đề trùng lặp) */}
+                {/* Bộ Lọc Trùng Lặp & Tủ Sách (Tất cả, Đề độc bản, Đề trùng lặp, ⭐ Tủ Sách) */}
                 <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 self-start sm:self-auto">
                   <button
                     type="button"
                     onClick={() => {
+                      setShowBookmarksOnly(false);
                       setFilterDup('all');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'all');
                     }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      filterDup === 'all'
+                      !showBookmarksOnly && filterDup === 'all'
                         ? 'bg-purple-600 text-white shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
@@ -1343,11 +1376,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setShowBookmarksOnly(false);
                       setFilterDup('unique');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'unique');
                     }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      filterDup === 'unique'
+                      !showBookmarksOnly && filterDup === 'unique'
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-300'
                     }`}
@@ -1360,11 +1394,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setShowBookmarksOnly(false);
                       setFilterDup('duplicate');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'duplicate');
                     }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      filterDup === 'duplicate'
+                      !showBookmarksOnly && filterDup === 'duplicate'
                         ? 'bg-amber-600 text-white shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-300'
                     }`}
@@ -1374,15 +1409,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {stats.duplicate_items}
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBookmarksOnly((prev) => !prev)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      showBookmarksOnly
+                        ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-300'
+                    }`}
+                    title="Xem các đề thi bạn đã bấm ⭐ lưu vào tủ sách cá nhân"
+                  >
+                    <Star className={`w-3.5 h-3.5 ${showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+                    <span>Tủ Sách</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      showBookmarksOnly ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-500 dark:text-amber-300'
+                    }`}>
+                      {bookmarkedIds.size}
+                    </span>
+                  </button>
                 </div>
 
                 {/* Reset bộ lọc */}
                 {(selectedGrade !== 'ALL' ||
                   selectedExamType !== 'ALL' ||
                   selectedSubject !== 'ALL' ||
-                  descriptionKeyword) && (
+                  descriptionKeyword ||
+                  showBookmarksOnly) && (
                   <button
                     onClick={() => {
+                      setShowBookmarksOnly(false);
                       setSelectedGrade('ALL');
                       setSelectedExamType('ALL');
                       setSelectedSubject('ALL');
@@ -1403,9 +1458,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-500" />
                   <p className="text-xs font-medium">Đang tải danh sách đề thi từ kho Discord...</p>
                 </div>
-              ) : documentsList.length > 0 ? (
+              ) : showBookmarksOnly && displayedDocuments.length === 0 ? (
+                <div className="p-12 rounded-3xl bg-amber-500/5 dark:bg-amber-500/[0.03] border border-dashed border-amber-500/30 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+                    <Star className="w-6 h-6" />
+                  </div>
+                  <div className="text-base font-bold text-slate-800 dark:text-white">
+                    Tủ sách ôn luyện của bạn đang trống!
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-white/60 max-w-md mx-auto">
+                    Hãy bấm biểu tượng ngôi sao ⭐ trên các đề thi bạn quan tâm để lưu vào tủ sách cá nhân và ôn luyện lại bất kỳ lúc nào.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowBookmarksOnly(false)}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Xem Tất Cả {stats.total_real} Đề Thi
+                  </button>
+                </div>
+              ) : displayedDocuments.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {documentsList.map((doc) => (
+                  {displayedDocuments.map((doc) => (
                     <div
                       key={doc.id}
                       className={`p-5 rounded-3xl backdrop-blur-xl border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group ${
