@@ -98,7 +98,21 @@ export const DocPreviewModal: React.FC<DocPreviewModalProps> = ({
   if (!document) return null;
 
   const fallbackDownloadUrl = `${apiBase}/api/documents/${document.id}/download?ngrok-skip-browser-warning=true`;
-  const activeFileUrl = directFileUrl || fallbackDownloadUrl;
+  const rawActiveUrl = directFileUrl || fallbackDownloadUrl;
+
+  // Kiểm tra giao thức URL an toàn (chống javascript:, data:, vbscript:)
+  const isSafeProtocol = (url: string): boolean => {
+    if (!url) return false;
+    if (url.startsWith('/')) return true;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch {
+      return false;
+    }
+  };
+
+  const activeFileUrl = isSafeProtocol(rawActiveUrl) ? rawActiveUrl : fallbackDownloadUrl;
 
   const isPdf =
     (document.file_type && document.file_type.toUpperCase() === 'PDF') ||
@@ -112,15 +126,17 @@ export const DocPreviewModal: React.FC<DocPreviewModalProps> = ({
 
   // URL xem trước trực tiếp trên Web
   let previewIframeSrc = '';
-  if (isPdf) {
-    // Trực tiếp mở PDF trong iframe (trình duyệt có native PDF reader tích hợp)
-    previewIframeSrc = activeFileUrl;
-  } else if (isDocx) {
-    // Dùng Microsoft Office Online Viewer
-    previewIframeSrc = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(activeFileUrl)}`;
-  } else {
-    // Dùng Google Docs Viewer
-    previewIframeSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(activeFileUrl)}&embedded=true`;
+  if (activeFileUrl) {
+    if (isPdf) {
+      // Trực tiếp mở PDF trong iframe (trình duyệt có native PDF reader tích hợp)
+      previewIframeSrc = activeFileUrl;
+    } else if (isDocx) {
+      // Dùng Microsoft Office Online Viewer
+      previewIframeSrc = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(activeFileUrl)}`;
+    } else {
+      // Dùng Google Docs Viewer
+      previewIframeSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(activeFileUrl)}&embedded=true`;
+    }
   }
 
   return (
@@ -238,6 +254,8 @@ export const DocPreviewModal: React.FC<DocPreviewModalProps> = ({
             src={previewIframeSrc}
             title={document.title}
             className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            loading="lazy"
             onLoad={() => setIsLoadingIframe(false)}
             onError={() => {
               setIsLoadingIframe(false);

@@ -127,6 +127,16 @@ const QUICK_KEYWORD_TAGS = [
   'Chuyên Tin C++',
 ];
 
+// Hàm làm sạch URL bên ngoài, chống JavaScript URI scheme (javascript: / data:)
+const getSafeExternalUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+    return trimmed;
+  }
+  return '';
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
   initialTab,
@@ -1324,9 +1334,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </a>
 
                   {/* Nút 2: Mở Trên Discord */}
-                  {currentExam.jump_url && (
+                  {getSafeExternalUrl(currentExam.jump_url) && (
                     <a
-                      href={currentExam.jump_url}
+                      href={getSafeExternalUrl(currentExam.jump_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-[#5865F2]/20 hover:-translate-y-0.5 active:scale-95 transition-all"
@@ -1637,9 +1647,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <span>Tải Về</span>
                         </a>
 
-                        {doc.jump_url && (
+                        {getSafeExternalUrl(doc.jump_url) && (
                           <a
-                            href={doc.jump_url}
+                            href={getSafeExternalUrl(doc.jump_url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-600 dark:text-white/70 transition-all cursor-pointer"
