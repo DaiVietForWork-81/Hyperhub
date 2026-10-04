@@ -20,6 +20,8 @@ import {
   Send,
   ScrollText,
   Hash,
+  Settings2,
+  ClipboardList,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
@@ -53,7 +55,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
-  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce' | 'logs'>('moderation');
+  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce' | 'logs' | 'config' | 'audit'>('moderation');
 
   // Headers kèm token xác thực
   const getAuthHeaders = useCallback((): Record<string, string> => {
@@ -401,6 +403,90 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   }, [adminTab, logAutoRefresh, fetchBotLogs]);
 
   // =========================================================================
+  // TAB 5: CẤU HÌNH BOT (BOT CONFIG VIEWER)
+  // =========================================================================
+  interface BotConfigData {
+    bot?: Record<string, any>;
+    runtime?: Record<string, any>;
+    config?: Record<string, any>;
+  }
+  const [botConfig, setBotConfig] = useState<BotConfigData | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(false);
+  const [configError, setConfigError] = useState<string>('');
+
+  const fetchBotConfig = useCallback(async () => {
+    setIsLoadingConfig(true);
+    setConfigError('');
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/config`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || `Lỗi tải cấu hình (${res.status})`);
+      }
+      const data = await res.json();
+      setBotConfig(data);
+    } catch (e: any) {
+      setConfigError(e.message || 'Không thể tải cấu hình bot.');
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    if (adminTab === 'config' && !botConfig) {
+      fetchBotConfig();
+    }
+  }, [adminTab, fetchBotConfig, botConfig]);
+
+  // =========================================================================
+  // TAB 6: LOG SERVER (DISCORD AUDIT LOG)
+  // =========================================================================
+  interface AuditEntry {
+    id: string;
+    action: string;
+    actor: string;
+    target: string;
+    reason: string;
+    created_at: string;
+  }
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditLimit, setAuditLimit] = useState<number>(50);
+  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(false);
+  const [auditError, setAuditError] = useState<string>('');
+
+  const fetchAuditLogs = useCallback(async () => {
+    setIsLoadingAudit(true);
+    setAuditError('');
+    try {
+      const apiBase = getApiBaseUrl();
+      const q = new URLSearchParams();
+      q.set('limit', String(auditLimit));
+      const res = await fetch(`${apiBase}/api/admin/audit-logs?${q.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || `Lỗi tải log server (${res.status})`);
+      }
+      const data = await res.json();
+      setAuditEntries(data.entries || []);
+    } catch (e: any) {
+      setAuditError(e.message || 'Không thể tải nhật ký server.');
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  }, [getAuthHeaders, auditLimit]);
+
+  useEffect(() => {
+    if (adminTab === 'audit') {
+      fetchAuditLogs();
+    }
+  }, [adminTab, fetchAuditLogs]);
+
+  // =========================================================================
   // TAB 2: QUẢN LÝ KHO ĐỀ (DOCUMENTS MANAGEMENT & EDIT/DELETE)
   // =========================================================================
   const [docSearchKeyword, setDocSearchKeyword] = useState<string>('');
@@ -569,7 +655,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-2">
         <button
           onClick={() => setAdminTab('moderation')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
@@ -622,6 +708,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         >
           <ScrollText className="w-4 h-4" />
           <span>Nhật Ký Bot</span>
+        </button>
+
+        <button
+          onClick={() => setAdminTab('config')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            adminTab === 'config'
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-900/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Settings2 className="w-4 h-4" />
+          <span>Cấu Hình Bot</span>
+        </button>
+
+        <button
+          onClick={() => setAdminTab('audit')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            adminTab === 'audit'
+              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-lg shadow-orange-900/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          <span>Log Server</span>
         </button>
       </div>
 
@@ -1225,6 +1335,147 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   ? 'Không có dòng log nào.'
                   : logLines.join('\n')}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 5: CẤU HÌNH BOT */}
+      {/* =================================================================== */}
+      {adminTab === 'config' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-cyan-400" />
+              <span>Cấu Hình & Trạng Thái Bot (đã ẩn secrets)</span>
+            </h3>
+            <button
+              onClick={fetchBotConfig}
+              disabled={isLoadingConfig}
+              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingConfig ? 'animate-spin' : ''}`} />
+              <span>Làm mới</span>
+            </button>
+          </div>
+
+          {configError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+              {configError}
+            </div>
+          )}
+
+          {!botConfig && !configError && (
+            <div className="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/5 text-slate-400 text-xs">
+              {isLoadingConfig ? 'Đang tải cấu hình...' : 'Nhấn Làm mới để tải cấu hình.'}
+            </div>
+          )}
+
+          {botConfig && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { title: '🤖 Bot', data: botConfig.bot, color: 'cyan' },
+                { title: '⚙️ Runtime', data: botConfig.runtime, color: 'purple' },
+              ].map((section) => (
+                <div key={section.title} className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
+                  <h4 className="text-xs font-bold text-white">{section.title}</h4>
+                  {section.data && Object.entries(section.data).map(([k, v]) => (
+                    <div key={k} className="flex items-start justify-between gap-3 text-[11px]">
+                      <span className="text-slate-400 font-mono shrink-0">{k}</span>
+                      <span className="text-slate-200 font-mono text-right break-all">
+                        {Array.isArray(v) ? `${v.length} mục` : String(v)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2 md:col-span-2">
+                <h4 className="text-xs font-bold text-white">🔧 Config (không chứa token/secret)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                  {botConfig.config && Object.entries(botConfig.config).map(([k, v]) => (
+                    <div key={k} className="flex items-start justify-between gap-3 text-[11px] py-0.5">
+                      <span className="text-slate-400 font-mono shrink-0">{k}</span>
+                      <span className="text-slate-200 font-mono text-right break-all">{String(v)}</span>
+                    </div>
+                  ))}
+                </div>
+                {botConfig.runtime && Array.isArray((botConfig.runtime as any).slash_commands) && (
+                  <div className="pt-2 border-t border-white/5 text-[11px]">
+                    <span className="text-slate-400">Slash giữ lại ({((botConfig.runtime as any).slash_commands as string[]).length}): </span>
+                    <span className="text-slate-200 font-mono">
+                      {((botConfig.runtime as any).slash_commands as string[]).map((n) => `/${n}`).join(' ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 6: LOG SERVER (DISCORD AUDIT LOG) */}
+      {/* =================================================================== */}
+      {adminTab === 'audit' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <select
+              value={auditLimit}
+              onChange={(e) => setAuditLimit(Number(e.target.value))}
+              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-orange-500"
+            >
+              <option value={20}>20 sự kiện</option>
+              <option value={50}>50 sự kiện</option>
+              <option value={100}>100 sự kiện</option>
+            </select>
+            <button
+              onClick={fetchAuditLogs}
+              disabled={isLoadingAudit}
+              className="px-4 py-2 rounded-xl bg-orange-600/30 hover:bg-orange-600/50 text-orange-200 border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer sm:ml-auto"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAudit ? 'animate-spin' : ''}`} />
+              <span>Tải log server</span>
+            </button>
+          </div>
+
+          {auditError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+              {auditError}
+            </div>
+          )}
+
+          <div className="max-h-[450px] overflow-y-auto rounded-2xl border border-white/10 bg-black/30">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-white/5 border-b border-white/10 text-[11px] uppercase text-slate-400 sticky top-0 backdrop-blur-md">
+                <tr>
+                  <th className="py-2.5 px-3">Hành Động</th>
+                  <th className="py-2.5 px-3">Người Thực Hiện</th>
+                  <th className="py-2.5 px-3">Đối Tượng</th>
+                  <th className="py-2.5 px-3">Lý Do / Thời Gian</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {auditEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-500 text-xs">
+                      {isLoadingAudit ? 'Đang tải nhật ký server...' : 'Không có sự kiện nào.'}
+                    </td>
+                  </tr>
+                ) : (
+                  auditEntries.map((en) => (
+                    <tr key={en.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-orange-300">{en.action}</td>
+                      <td className="py-2.5 px-3 text-[11px] whitespace-nowrap">{en.actor}</td>
+                      <td className="py-2.5 px-3 text-[11px] max-w-[220px] truncate" title={en.target}>{en.target}</td>
+                      <td className="py-2.5 px-3 text-[11px] text-slate-400">
+                        {en.reason && <div className="italic truncate max-w-[220px]" title={en.reason}>{en.reason}</div>}
+                        <div className="font-mono text-[10px]">{en.created_at.replace('T', ' ').slice(0, 19)}</div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
