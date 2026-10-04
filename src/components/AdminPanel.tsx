@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShieldAlert,
   UserX,
@@ -22,6 +22,10 @@ import {
   Hash,
   Settings2,
   ClipboardList,
+  Users,
+  Check,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
@@ -128,37 +132,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   }, [adminTab, fetchBans]);
 
-  // Tìm thành viên theo tên (debounce 400ms) trực tiếp qua Bot
+  // Tìm thành viên theo tên (debounce 400ms) trực tiếp qua Bot.
+  // Mở field khi trống sẽ liệt kê sẵn thành viên (search rỗng = list đầu).
+  const [highlightIndex, setHighlightIndex] = useState<number>(-1);
+
+  const fetchMembers = useCallback(async (keyword: string) => {
+    setIsSearchingMembers(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const q = new URLSearchParams();
+      q.set('search', keyword.trim());
+      q.set('limit', '25');
+      const res = await fetch(`${apiBase}/api/admin/members?${q.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('');
+      const data = await res.json();
+      setMemberResults(data.members || []);
+      setHighlightIndex(-1);
+      setShowMemberDropdown(true);
+    } catch {
+      setMemberResults([]);
+      setShowMemberDropdown(false);
+    } finally {
+      setIsSearchingMembers(false);
+    }
+  }, [getAuthHeaders]);
+
   useEffect(() => {
-    const kw = memberQuery.trim();
-    if (selectedMember || kw.length < 1) {
+    if (selectedMember) {
       setMemberResults([]);
       setShowMemberDropdown(false);
       return;
     }
-    const timer = setTimeout(async () => {
-      setIsSearchingMembers(true);
-      try {
-        const apiBase = getApiBaseUrl();
-        const q = new URLSearchParams();
-        q.set('search', kw);
-        q.set('limit', '25');
-        const res = await fetch(`${apiBase}/api/admin/members?${q.toString()}`, {
-          headers: getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error('');
-        const data = await res.json();
-        setMemberResults(data.members || []);
-        setShowMemberDropdown(true);
-      } catch {
-        setMemberResults([]);
-        setShowMemberDropdown(false);
-      } finally {
-        setIsSearchingMembers(false);
-      }
+    // Chỉ auto-tìm khi đang gõ (focus + trống do onFocus lo)
+    if (memberQuery.trim().length < 1) return;
+    const timer = setTimeout(() => {
+      fetchMembers(memberQuery);
     }, 400);
     return () => clearTimeout(timer);
-  }, [memberQuery, selectedMember, getAuthHeaders]);
+  }, [memberQuery, selectedMember, fetchMembers]);
+
+  const chooseMember = useCallback((m: FoundMember) => {
+    setSelectedMember(m);
+    setTargetUserId(m.user_id);
+    setShowMemberDropdown(false);
+    setHighlightIndex(-1);
+  }, []);
+
+  // Ref khung danh sách + tự cuộn tới dòng đang highlight (phím ↑↓)
+  const memberListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showMemberDropdown || highlightIndex < 0) return;
+    const el = memberListRef.current?.querySelector<HTMLElement>(`[data-idx="${highlightIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [highlightIndex, showMemberDropdown]);
+
+  const scrollMemberList = useCallback((dir: 1 | -1) => {
+    memberListRef.current?.scrollBy({ top: dir * 140, behavior: 'smooth' });
+  }, []);
 
   // Thực hiện hành động kỷ luật
   const handleExecuteModAction = async (e: React.FormEvent) => {
@@ -219,6 +251,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       setSelectedMember(null);
       setMemberResults([]);
       setShowMemberDropdown(false);
+      setHighlightIndex(-1);
       setModReason('');
 
       // Refresh ban list nếu hành động là ban
@@ -797,18 +830,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <>
                     <input
                       type="text"
-                      placeholder="Gõ tên (vd: e) hoặc dán User ID..."
+                      placeholder="Bấm để xem danh sách, gõ tên để tìm, hoặc dán User ID..."
                       value={memberQuery}
                       onChange={(e) => {
                         setMemberQuery(e.target.value);
                         setTargetUserId(e.target.value);
+                        setHighlightIndex(-1);
                       }}
                       onFocus={() => {
-                        if (memberResults.length > 0) setShowMemberDropdown(true);
+                        // Mở field là list sẵn thành viên (không cần gõ trước)
+                        if (memberResults.length > 0) {
+                          setShowMemberDropdown(true);
+                        } else {
+                          fetchMembers(memberQuery);
+                        }
                       }}
                       onBlur={() => {
                         // Delay để click chọn trong dropdown kịp chạy trước
                         setTimeout(() => setShowMemberDropdown(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!showMemberDropdown || memberResults.length === 0) {
+                          if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                            e.preventDefault();
+                            fetchMembers(memberQuery);
+                          }
+                          return;
+                        }
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setHighlightIndex((i) => (i + 1) % memberResults.length);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setHighlightIndex((i) => (i - 1 + memberResults.length) % memberResults.length);
+                        } else if (e.key === 'Enter' && highlightIndex >= 0) {
+                          e.preventDefault();
+                          const m = memberResults[highlightIndex];
+                          if (m) chooseMember(m);
+                        } else if (e.key === 'Escape') {
+                          setShowMemberDropdown(false);
+                        }
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
                       required
@@ -817,43 +878,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       <RefreshCw className="w-3.5 h-3.5 animate-spin absolute right-3 top-8 text-slate-400" />
                     )}
                     {showMemberDropdown && (
-                      <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-slate-900 border border-white/10 shadow-2xl overflow-hidden max-h-[220px] overflow-y-auto">
-                        {memberResults.length === 0 ? (
-                          <div className="px-3 py-2.5 text-[11px] text-slate-400">
-                            Không tìm thấy — có thể dán trực tiếp User ID rồi Xác Nhận.
-                          </div>
-                        ) : (
-                          memberResults.map((m) => (
+                      <div className="absolute z-20 left-0 right-0 mt-1.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden">
+                        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10 bg-white/[0.03] text-[11px] font-semibold text-slate-300">
+                          <Users className="w-3.5 h-3.5 text-rose-400" />
+                          <span>
+                            {memberQuery.trim()
+                              ? `${memberResults.length} kết quả cho "${memberQuery.trim()}"`
+                              : `Danh sách thành viên (${memberResults.length})`}
+                          </span>
+                        </div>
+                        <div
+                          ref={memberListRef}
+                          className="max-h-[240px] overflow-y-auto overscroll-contain touch-pan-y divide-y divide-white/5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]"
+                        >
+                          {memberResults.length === 0 && !isSearchingMembers ? (
+                            <div className="px-3 py-3 text-[11px] text-slate-400">
+                              Không tìm thấy — có thể dán trực tiếp User ID rồi Xác Nhận.
+                            </div>
+                          ) : (
+                            memberResults.map((m, idx) => {
+                              const active = idx === highlightIndex;
+                              return (
+                                <button
+                                  key={m.user_id}
+                                  type="button"
+                                  data-idx={idx}
+                                  onMouseDown={(ev) => ev.preventDefault()}
+                                  onClick={() => chooseMember(m)}
+                                  onMouseEnter={() => setHighlightIndex(idx)}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer ${
+                                    active ? 'bg-gradient-to-r from-rose-600/30 to-amber-600/20' : 'hover:bg-white/5'
+                                  }`}
+                                >
+                                  {m.avatar_url ? (
+                                    <img
+                                      src={m.avatar_url}
+                                      alt=""
+                                      className={`w-8 h-8 rounded-full shrink-0 ring-2 ${active ? 'ring-rose-400' : 'ring-white/10'}`}
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500/40 to-amber-500/30 flex items-center justify-center text-rose-200 text-[10px] font-bold shrink-0 ring-2 ring-white/10">
+                                      {m.display_name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-bold text-white truncate">
+                                      {m.display_name}
+                                      {m.is_bot && (
+                                        <span className="ml-1.5 text-[9px] px-1.5 py-px rounded bg-slate-500/30 text-slate-300 font-mono">BOT</span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 truncate font-mono">
+                                      @{m.username} • {m.user_id}
+                                    </div>
+                                  </div>
+                                  {active && <Check className="w-4 h-4 text-rose-300 shrink-0" />}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                        <div className="px-3 py-1.5 border-t border-white/10 bg-white/[0.02] text-[10px] text-slate-500 flex items-center justify-between">
+                          <span>↑↓ di chuyển • Enter chọn • Esc đóng</span>
+                          <span className="flex items-center gap-1">
                             <button
-                              key={m.user_id}
                               type="button"
                               onMouseDown={(ev) => ev.preventDefault()}
-                              onClick={() => {
-                                setSelectedMember(m);
-                                setTargetUserId(m.user_id);
-                                setShowMemberDropdown(false);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 text-left transition-colors cursor-pointer"
+                              onClick={() => scrollMemberList(-1)}
+                              className="p-1 rounded-md hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+                              title="Cuộn lên"
                             >
-                              {m.avatar_url ? (
-                                <img src={m.avatar_url} alt="" className="w-7 h-7 rounded-full shrink-0" />
-                              ) : (
-                                <div className="w-7 h-7 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-300 text-[10px] font-bold shrink-0">
-                                  {m.display_name.slice(0, 2).toUpperCase()}
-                                </div>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs font-bold text-white truncate">
-                                  {m.display_name}
-                                  {m.is_bot && <span className="ml-1 text-[9px] text-slate-400 font-mono">BOT</span>}
-                                </div>
-                                <div className="text-[10px] text-slate-400 truncate">
-                                  @{m.username} • ID: {m.user_id}
-                                </div>
-                              </div>
+                              <ChevronUp className="w-3.5 h-3.5" />
                             </button>
-                          ))
-                        )}
+                            <button
+                              type="button"
+                              onMouseDown={(ev) => ev.preventDefault()}
+                              onClick={() => scrollMemberList(1)}
+                              className="p-1 rounded-md hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+                              title="Cuộn xuống"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        </div>
                       </div>
                     )}
                   </>
