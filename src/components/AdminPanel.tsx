@@ -899,6 +899,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         </div>
                         <div
                           ref={memberListRef}
+                          data-lenis-prevent
+                          onWheel={(e) => e.stopPropagation()}
                           className="max-h-[240px] overflow-y-auto overscroll-contain touch-pan-y divide-y divide-white/5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]"
                         >
                           {memberResults.length === 0 && !isSearchingMembers ? (
@@ -1111,7 +1113,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 Hiện tại không có thành viên nào bị cấm trên máy chủ.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+              <div data-lenis-prevent className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto overscroll-contain pr-1">
                 {bansList.map((ban) => (
                   <div
                     key={ban.user_id}
@@ -1220,7 +1222,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           )}
 
           {/* Table / List of documents */}
-          <div className="max-h-[450px] overflow-y-auto rounded-2xl border border-white/10 bg-black/30">
+          <div data-lenis-prevent className="max-h-[450px] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/30">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-white/5 border-b border-white/10 text-[11px] uppercase text-slate-400 sticky top-0 backdrop-blur-md">
                 <tr>
@@ -1463,7 +1465,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <Hash className="w-3.5 h-3.5" />
               <span>bot.log — {logLines.length} dòng mới nhất {logLevel !== 'ALL' && `(lọc ${logLevel})`}</span>
             </div>
-            <pre className="max-h-[450px] overflow-auto p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words">
+            <pre data-lenis-prevent className="max-h-[450px] overflow-auto overscroll-contain p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words">
               {isLoadingLogs && logLines.length === 0
                 ? 'Đang tải nhật ký...'
                 : logLines.length === 0
@@ -1579,7 +1581,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             </div>
           )}
 
-          <div className="max-h-[450px] overflow-y-auto rounded-2xl border border-white/10 bg-black/30">
+          <div data-lenis-prevent className="max-h-[450px] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/30">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-white/5 border-b border-white/10 text-[11px] uppercase text-slate-400 sticky top-0 backdrop-blur-md">
                 <tr>
