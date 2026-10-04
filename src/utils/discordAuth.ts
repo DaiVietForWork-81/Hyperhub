@@ -82,6 +82,27 @@ export function removeDiscordUser(): void {
 }
 
 /**
+ * Kiểm tra token đang lưu còn hiệu lực không bằng cách gọi trực tiếp Discord API.
+ * Trả về true nếu token sống, false nếu đã hết hạn/không hợp lệ.
+ * Dùng để tự phát hiện phiên đăng nhập chết (token hết hạn sau 1 thời gian)
+ * thay vì im lặng mất quyền Admin.
+ */
+export async function isStoredTokenAlive(): Promise<boolean> {
+  const token = getDiscordAccessToken();
+  if (!token) return false;
+  try {
+    const res = await fetch("https://discord.com/api/users/@me", {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok;
+  } catch {
+    // Lỗi mạng/timeout: không kết luận token chết để tránh logout oan
+    return true;
+  }
+}
+
+/**
  * Tạo URL ủy quyền Discord OAuth2 kèm CSRF State Parameter chống tấn công giả mạo.
  */
 export function getDiscordOAuth2Url(trailingSlash: boolean = false): string {

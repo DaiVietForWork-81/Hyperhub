@@ -11,7 +11,7 @@ import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
-import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback } from './utils/discordAuth';
+import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive } from './utils/discordAuth';
 import { DreamAspirations } from './components/DreamAspirations';
 import { CommunityIntro } from './components/CommunityIntro';
 import { CommunityChannels } from './components/CommunityChannels';
@@ -76,10 +76,18 @@ export const App: React.FC = () => {
         navigateTo('dashboard');
         return;
       }
-      // 2. Nạp từ localStorage
+      // 2. Nạp từ localStorage + xác minh token còn sống (phát hiện phiên chết)
       const stored = getStoredDiscordUser();
       if (stored) {
         setDiscordUser(stored);
+        isStoredTokenAlive().then((alive) => {
+          if (!alive) {
+            // Token hết hạn: đăng xuất để người dùng đăng nhập lại,
+            // tránh tình trạng "đã đăng nhập" nhưng mất quyền Admin
+            removeDiscordUser();
+            setDiscordUser(null);
+          }
+        });
       }
     });
 

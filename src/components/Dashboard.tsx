@@ -165,28 +165,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   } | null>(null);
 
   const checkAdminStatus = useCallback(async () => {
-    try {
-      const apiBase = getApiBaseUrl();
-      const token = getDiscordAccessToken();
-      const headers: Record<string, string> = { ...API_FETCH_HEADERS };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const res = await fetch(`${apiBase}/api/admin/check`, {
-        headers,
-        signal: AbortSignal.timeout(4000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.is_admin) {
-          setIsAdmin(true);
-          setAdminInfo(data.admin || null);
-          return;
+    // Gọi tối đa 2 lần khi timeout/lỗi 5xx (ngrok lạnh) để không mất oan quyền Admin
+    let confirmed = false;
+    for (let attempt = 0; attempt < 2 && !confirmed; attempt++) {
+      try {
+        const apiBase = getApiBaseUrl();
+        const token = getDiscordAccessToken();
+        const headers: Record<string, string> = { ...API_FETCH_HEADERS };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
         }
+        const res = await fetch(`${apiBase}/api/admin/check`, {
+          headers,
+          signal: AbortSignal.timeout(12000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.is_admin) {
+            setIsAdmin(true);
+            setAdminInfo(data.admin || null);
+            confirmed = true;
+          }
+          break; // server đã trả lời → không thử lại
+        }
+        if (res.status < 500) break; // lỗi 4xx thật → không thử lại
+      } catch {
+        // timeout/lỗi mạng → vòng lặp tự thử lại 1 lần
       }
-      setIsAdmin(false);
-      setAdminInfo(null);
-    } catch {
+    }
+    if (!confirmed) {
       setIsAdmin(false);
       setAdminInfo(null);
     }
