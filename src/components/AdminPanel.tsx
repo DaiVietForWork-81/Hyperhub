@@ -15,10 +15,7 @@ import {
   Save,
   FileText,
   X,
-  Calendar,
   Lock,
-  Layers,
-  Sparkles,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
