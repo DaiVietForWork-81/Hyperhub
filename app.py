@@ -41,6 +41,62 @@ logger = logging.getLogger("web_server")
 bot_client = BotBridgeClient()
 discord_client = DiscordDirectClient()
 
+# Rate-limit đơn giản theo IP (120 req/phút, chống spam/DoS cơ bản)
+_RATE_BUCKETS: dict[str, list[float]] = {}
+_RATE_MAX = 120
+_RATE_WINDOW = 60.0
+
+
+def _get_client_ip(request: web.Request) -> str:
+    return request.headers.get("X-Forwarded-For", request.remote or "unknown").split(",")[0].strip()
+
+
+def _check_rate_limit(ip: str) -> bool:
+    import time as _t
+    now = _t.time()
+    hist = [t for t in _RATE_BUCKETS.get(ip, []) if now - t < _RATE_WINDOW]
+    if len(hist) >= _RATE_MAX:
+        _RATE_BUCKETS[ip] = hist
+        return False
+    hist.append(now)
+    _RATE_BUCKETS[ip] = hist
+    return True
+
+
+def _is_authorized_send(request: web.Request) -> bool:
+    """Yêu cầu X-Bot-Secret hoặc Bearer BOT_API_SECRET cho endpoint gửi tin nhắn."""
+    secret = config.BOT_API_SECRET or ""
+    if not secret:
+        return False
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        return auth[7:].strip() == secret
+    return request.headers.get("X-Bot-Secret", "").strip() == secret
+
+
+@web.middleware
+async def _security_middleware(request: web.Request, handler) -> web.Response:
+    # Rate limit
+    if not _check_rate_limit(_get_client_ip(request)):
+        return web.json_response(
+            {"error": "Too Many Requests", "message": "Quá nhiều yêu cầu, thử lại sau 1 phút."},
+            status=429,
+            headers={"Retry-After": "60"},
+        )
+    try:
+        resp = await handler(request)
+    except web.HTTPException as ex:
+        resp = ex
+    except Exception:
+        logger.exception("Web API internal error")
+        resp = web.json_response({"error": "Internal Server Error"}, status=500)
+    # Security headers (chống clickjacking/MIME-sniffing, giảm lộ referrer)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Permissions-Policy"] = "microphone=(), camera=(), geolocation=()"
+    return resp
+
 
 async def handle_index(request: web.Request) -> web.Response:
     """Trả về trang Landing Page chính của HyperHub (React SPA hoặc Template)."""
@@ -111,30 +167,44 @@ async def handle_api_discord_roles(request: web.Request) -> web.Response:
 
 
 async def handle_api_discord_send(request: web.Request) -> web.Response:
-    """POST /api/discord/send: Gửi tin nhắn trực tiếp qua DISCORD_TOKEN."""
+    """POST /api/discord/send: Gửi tin nhắn trực tiếp qua DISCORD_TOKEN (yêu cầu secret)."""
+    if not _is_authorized_send(request):
+        return web.json_response({"error": "Unauthorized"}, status=401)
     try:
         body = await request.json()
         channel_id = int(body.get("channel_id", 0))
-        message = body.get("message", "")
+        message = str(body.get("message", ""))
         if not channel_id or not message:
             return web.json_response({"error": "Thiếu channel_id hoặc message"}, status=400)
+        if len(message) > 2000:
+            return web.json_response({"error": "message quá dài (tối đa 2000 ký tự)"}, status=400)
+        if channel_id <= 0:
+            return web.json_response({"error": "channel_id không hợp lệ"}, status=400)
 
         success = await discord_client.send_channel_message(channel_id, message)
         return web.json_response({"success": success})
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
+        logger.warning("discord/send error: %s", e)
+        return web.json_response({"error": "Lỗi xử lý nội bộ"}, status=500)
 
 
 async def handle_api_notify(request: web.Request) -> web.Response:
-    """POST /api/notify: Gửi thông báo tới kênh Discord qua Bot Bridge."""
+    """POST /api/notify: Gửi thông báo tới kênh Discord qua Bot Bridge (yêu cầu secret)."""
+    if not _is_authorized_send(request):
+        return web.json_response({"error": "Unauthorized"}, status=401)
     try:
         body = await request.json()
         channel_id = int(body.get("channel_id", 0))
-        message = body.get("message", "")
+        message = str(body.get("message", ""))
+        if not channel_id or not message:
+            return web.json_response({"error": "Thiếu channel_id hoặc message"}, status=400)
+        if len(message) > 2000:
+            return web.json_response({"error": "message quá dài (tối đa 2000 ký tự)"}, status=400)
         success = await bot_client.send_discord_notification(channel_id, message)
         return web.json_response({"success": success})
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
+        logger.warning("notify error: %s", e)
+        return web.json_response({"error": "Lỗi xử lý nội bộ"}, status=500)
 
 
 async def on_cleanup(app: web.Application) -> None:
@@ -145,7 +215,7 @@ async def on_cleanup(app: web.Application) -> None:
 
 def create_app() -> web.Application:
     """Khởi tạo ứng dụng aiohttp web."""
-    app = web.Application()
+    app = web.Application(middlewares=[_security_middleware], client_max_size=2 * 1024 * 1024)
     app.router.add_get("/", handle_index)
     app.router.add_get("/logo.png", handle_logo)
 
