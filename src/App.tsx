@@ -21,18 +21,22 @@ export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   useSmoothScroll();
 
-  // Khởi tạo activeView dựa theo pathname (/hub) hoặc hash (#hub, #dashboard)
+  // Khởi tạo activeView dựa theo pathname (/hub, /admin) hoặc hash (#hub, #dashboard)
   const [activeView, setActiveView] = useState<'home' | 'dashboard'>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    if (path.startsWith('/hub') || hash === '#hub' || hash === '#dashboard') {
+    if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
       return 'dashboard';
     }
     return 'home';
   });
 
-  const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>('overview');
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    if (window.location.pathname.toLowerCase().startsWith('/admin')) return 'admin';
+    return 'overview';
+  });
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
@@ -57,8 +61,11 @@ export const App: React.FC = () => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
-      if (path.startsWith('/hub') || hash === '#hub' || hash === '#dashboard') {
+      if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
         setActiveView('dashboard');
+        if (path.startsWith('/admin')) {
+          setDashboardTab('admin');
+        }
       } else {
         setActiveView('home');
       }

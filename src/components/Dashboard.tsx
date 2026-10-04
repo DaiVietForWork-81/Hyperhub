@@ -156,6 +156,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [initialTab]);
 
+  // Đồng bộ URL với tab Admin để có link trực tiếp /admin chia sẻ được
+  useEffect(() => {
+    try {
+      const path = window.location.pathname.toLowerCase();
+      if (activeTab === 'admin' && path !== '/admin') {
+        window.history.replaceState(null, '', '/admin');
+      } else if (activeTab !== 'admin' && path === '/admin') {
+        window.history.replaceState(null, '', '/hub');
+      }
+    } catch {
+      /* bỏ qua khi không có window */
+    }
+  }, [activeTab]);
+
   // Quyền Quản trị viên (Admin)
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [adminInfo, setAdminInfo] = useState<{
