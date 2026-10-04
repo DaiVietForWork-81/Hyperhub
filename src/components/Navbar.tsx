@@ -7,7 +7,7 @@ interface NavbarProps {
   theme?: string;
   onToggleTheme?: (e?: React.MouseEvent) => void;
   activeView: 'home' | 'dashboard';
-  onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc') => void;
+  onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
 }
@@ -97,7 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleNavClick = (
     view: 'home' | 'dashboard',
-    tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc'
+    tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'
   ) => {
     setMobileMenuOpen(false);
     onSelectView(view, tab);

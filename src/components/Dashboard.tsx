@@ -37,12 +37,13 @@ import {
 } from '../utils/apiConfig';
 import { ExamCountdown } from './ExamCountdown';
 import { DocUploadZone } from './DocUploadZone';
+import { AdminPanel } from './AdminPanel';
 import { formatEstimatedLevel, getExamTrackInfo } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 interface DashboardProps {
   user: DiscordUser | null;
-  initialTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc';
+  initialTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
   onOpenAuthModal: () => void;
   onLogout: () => void;
   onBackToHome: () => void;
@@ -71,6 +72,7 @@ interface ExamDocument {
   download_url?: string;
   timestamp: string;
   file_hash?: string;
+  notes?: string;
   is_duplicate?: boolean;
   is_duplicate_copy?: boolean;
   original_id?: number | null;
@@ -144,7 +146,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
   onBackToHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>(
+  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
     initialTab || 'overview'
   );
 
@@ -153,6 +155,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  // Quyền Quản trị viên (Admin)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [adminInfo, setAdminInfo] = useState<{
+    role_name?: string;
+    username?: string;
+    user_id?: number | string;
+  } | null>(null);
+
+  const checkAdminStatus = useCallback(async () => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const token = getDiscordAccessToken();
+      const headers: Record<string, string> = { ...API_FETCH_HEADERS };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${apiBase}/api/admin/check`, {
+        headers,
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.is_admin) {
+          setIsAdmin(true);
+          setAdminInfo(data.admin || null);
+          return;
+        }
+      }
+      setIsAdmin(false);
+      setAdminInfo(null);
+    } catch {
+      setIsAdmin(false);
+      setAdminInfo(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, [checkAdminStatus, user]);
+
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
   const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
 
@@ -784,68 +827,70 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {/* Bot Status & API Server Mini Indicator */}
-          <div className="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  {botStatus.online ? (
-                    <>
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </>
-                  ) : (
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                  )}
-                </span>
-                <span className="font-semibold text-slate-700 dark:text-white/80">
-                  Discord Bot:
-                </span>
+          {/* Bot Status & API Server Mini Indicator - CHỈ HIỂN THỊ ĐỐI VỚI ADMIN */}
+          {isAdmin && (
+            <div className="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    {botStatus.online ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </>
+                    ) : (
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    )}
+                  </span>
+                  <span className="font-semibold text-slate-700 dark:text-white/80">
+                    Discord Bot:
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                      botStatus.online
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                    }`}
+                  >
+                    {botStatus.online ? 'Online' : 'Offline'}
+                  </span>
+                  <button
+                    onClick={checkBotStatus}
+                    disabled={isCheckingBot}
+                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                    title="Làm mới trạng thái bot"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isCheckingBot ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
-                    botStatus.online
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                  }`}
+
+              {/* Endpoint Connection Line */}
+              <div className="pt-2 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-500 dark:text-white/50">
+                <div
+                  className="flex items-center gap-1.5 truncate max-w-[170px]"
+                  title={getApiBaseUrl()}
                 >
-                  {botStatus.online ? 'Online' : 'Offline'}
-                </span>
+                  <Server className="w-3 h-3 text-purple-400 shrink-0" />
+                  <span className="truncate font-mono">
+                    {getApiBaseUrl().replace(/^https?:\/\//, '').slice(0, 18)}...
+                  </span>
+                </div>
                 <button
-                  onClick={checkBotStatus}
-                  disabled={isCheckingBot}
-                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                  title="Làm mới trạng thái bot"
+                  onClick={() => {
+                    setCustomApiUrlInput(getApiBaseUrl());
+                    setShowApiSettings(true);
+                  }}
+                  className="text-purple-600 dark:text-purple-400 hover:underline font-semibold shrink-0 cursor-pointer flex items-center gap-0.5"
                 >
-                  <RefreshCw className={`w-3 h-3 ${isCheckingBot ? 'animate-spin' : ''}`} />
+                  <Settings className="w-3 h-3" />
+                  <span>Cài đặt</span>
                 </button>
               </div>
             </div>
-
-            {/* Endpoint Connection Line */}
-            <div className="pt-2 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-500 dark:text-white/50">
-              <div
-                className="flex items-center gap-1.5 truncate max-w-[170px]"
-                title={getApiBaseUrl()}
-              >
-                <Server className="w-3 h-3 text-purple-400 shrink-0" />
-                <span className="truncate font-mono">
-                  {getApiBaseUrl().replace(/^https?:\/\//, '').slice(0, 18)}...
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setCustomApiUrlInput(getApiBaseUrl());
-                  setShowApiSettings(true);
-                }}
-                className="text-purple-600 dark:text-purple-400 hover:underline font-semibold shrink-0 cursor-pointer flex items-center gap-0.5"
-              >
-                <Settings className="w-3 h-3" />
-                <span>Cài đặt</span>
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Navigation Sidebar Buttons */}
           <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
@@ -923,6 +968,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Bot AI
               </span>
             </button>
+
+            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN */}
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                  activeTab === 'admin'
+                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30'
+                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Quản Trị</span>
+                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/30">
+                  {adminInfo?.role_name || 'ADMIN'}
+                </span>
+              </button>
+            )}
 
             <button
               onClick={onBackToHome}
@@ -1603,6 +1666,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
                           <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
                         </div>
+                        {doc.notes && (
+                          <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-300 flex items-start gap-1.5">
+                            <span className="font-bold shrink-0">📝 Ghi chú:</span>
+                            <span className="line-clamp-2">{doc.notes}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Nút thao tác trên từng đề */}
@@ -1721,14 +1790,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </div>
         )}
+
+        {/* ===================================================================== */}
+        {/* TAB 5: QUẢN TRỊ VIÊN DISCORD & KHO ĐỀ (ADMIN PORTAL)                  */}
+        {/* ===================================================================== */}
+        {activeTab === 'admin' && isAdmin && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <AdminPanel
+              onClose={() => setActiveTab('overview')}
+              onRefreshParentDocs={() => {
+                fetchDocuments();
+                fetchDocStats();
+              }}
+            />
+          </div>
+        )}
       </main>
 
       {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
 
       {/* ========================================================================= */}
-      {/* MODAL CÀI ĐẶT SERVER API (ENDPOINT CONFIGURATION)                         */}
+      {/* MODAL CÀI ĐẶT SERVER API (ENDPOINT CONFIGURATION - CHỈ DÀNH CHO ADMIN)   */}
       {/* ========================================================================= */}
-      {showApiSettings && (
+      {showApiSettings && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl bg-[#0e101f] border border-purple-500/30 p-6 space-y-5 shadow-2xl relative">
             <button

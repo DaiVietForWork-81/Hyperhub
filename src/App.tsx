@@ -32,13 +32,13 @@ export const App: React.FC = () => {
     return 'home';
   });
 
-  const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc'>('overview');
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>('overview');
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Điều hướng SPA chuẩn với URL /hub và /
   const navigateTo = useCallback(
-    (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc') => {
+    (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
       setActiveView(view);
       if (tab) {
         setDashboardTab(tab);
