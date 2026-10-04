@@ -18,6 +18,8 @@ import {
   Lock,
   Megaphone,
   Send,
+  ScrollText,
+  Hash,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
@@ -51,7 +53,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
-  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce'>('moderation');
+  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce' | 'logs'>('moderation');
 
   // Headers kèm token xác thực
   const getAuthHeaders = useCallback((): Record<string, string> => {
@@ -75,6 +77,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
   // Form Kỷ luật
   const [targetUserId, setTargetUserId] = useState<string>('');
+  interface FoundMember {
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url?: string;
+    is_bot?: boolean;
+  }
+  const [memberQuery, setMemberQuery] = useState<string>('');
+  const [memberResults, setMemberResults] = useState<FoundMember[]>([]);
+  const [isSearchingMembers, setIsSearchingMembers] = useState<boolean>(false);
+  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
+  const [selectedMember, setSelectedMember] = useState<FoundMember | null>(null);
   const [modAction, setModAction] = useState<'ban' | 'kick' | 'mute' | 'unmute'>('mute');
   const [modDuration, setModDuration] = useState<number>(600); // Mặc định 10 phút
   const [modDeleteDays, setModDeleteDays] = useState<number>(0);
@@ -112,11 +126,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   }, [adminTab, fetchBans]);
 
+  // Tìm thành viên theo tên (debounce 400ms) trực tiếp qua Bot
+  useEffect(() => {
+    const kw = memberQuery.trim();
+    if (selectedMember || kw.length < 1) {
+      setMemberResults([]);
+      setShowMemberDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearchingMembers(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const q = new URLSearchParams();
+        q.set('search', kw);
+        q.set('limit', '25');
+        const res = await fetch(`${apiBase}/api/admin/members?${q.toString()}`, {
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error('');
+        const data = await res.json();
+        setMemberResults(data.members || []);
+        setShowMemberDropdown(true);
+      } catch {
+        setMemberResults([]);
+        setShowMemberDropdown(false);
+      } finally {
+        setIsSearchingMembers(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [memberQuery, selectedMember, getAuthHeaders]);
+
   // Thực hiện hành động kỷ luật
   const handleExecuteModAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetUserId.trim()) {
-      setModMessage({ type: 'error', text: 'Vui lòng nhập Discord User ID của thành viên.' });
+    // Ưu tiên member đã chọn trong dropdown, fallback nhập ID tay
+    const finalUserId = (selectedMember?.user_id || memberQuery || targetUserId).trim();
+    if (!finalUserId) {
+      setModMessage({ type: 'error', text: 'Vui lòng tìm và chọn thành viên, hoặc nhập Discord User ID.' });
       return;
     }
 
@@ -128,7 +176,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
     try {
       let endpoint = '';
-      let bodyData: any = { user_id: targetUserId.trim() };
+      let bodyData: any = { user_id: finalUserId };
 
       if (modAction === 'ban') {
         endpoint = `${apiBase}/api/admin/ban`;
@@ -165,6 +213,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         text: data.message || `Đã thực hiện thao tác ${modAction.toUpperCase()} thành công!`,
       });
       setTargetUserId('');
+      setMemberQuery('');
+      setSelectedMember(null);
+      setMemberResults([]);
+      setShowMemberDropdown(false);
       setModReason('');
 
       // Refresh ban list nếu hành động là ban
@@ -211,12 +263,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   // =========================================================================
   // TAB 3: THÔNG BÁO DISCORD (WEB -> DISCORD ANNOUNCEMENT)
   // =========================================================================
+  interface DiscordChannel {
+    channel_id: string;
+    name: string;
+    category: string;
+  }
+  const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState<boolean>(false);
   const [announceChannelId, setAnnounceChannelId] = useState<string>('');
   const [announceMessage, setAnnounceMessage] = useState<string>('');
   const [isSendingAnnounce, setIsSendingAnnounce] = useState<boolean>(false);
   const [announceMsg, setAnnounceMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
+
+  // Nạp danh sách kênh Discord để chọn thay vì nhập ID tay (tránh nhầm ID server)
+  const fetchDiscordChannels = useCallback(async () => {
+    setIsLoadingChannels(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/channels`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Không thể tải danh sách kênh Discord');
+      const data = await res.json();
+      const list: DiscordChannel[] = data.channels || [];
+      setDiscordChannels(list);
+      // Tự chọn kênh đầu tiên nếu chưa chọn
+      if (!announceChannelId && list.length > 0) {
+        setAnnounceChannelId((prev) => prev || list[0].channel_id);
+      }
+    } catch {
+      setDiscordChannels([]);
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  }, [getAuthHeaders, announceChannelId]);
+
+  useEffect(() => {
+    if (adminTab === 'announce' && discordChannels.length === 0) {
+      fetchDiscordChannels();
+    }
+  }, [adminTab, fetchDiscordChannels, discordChannels.length]);
 
   // Gửi thông báo từ Web tới kênh Discord (xác thực bằng tài khoản Admin Discord)
   const handleSendAnnounce = async (e: React.FormEvent) => {
@@ -242,7 +330,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          channel_id: Number(announceChannelId.trim()),
+          // Giữ nguyên chuỗi ID (snowflake 19 chữ số vượt quá Number an toàn của JS)
+          channel_id: announceChannelId.trim(),
           message: announceMessage.trim(),
         }),
       });
@@ -261,6 +350,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       setIsSendingAnnounce(false);
     }
   };
+
+  // =========================================================================
+  // TAB 4: NHẬT KÝ BOT (BOT LOGS VIEWER)
+  // =========================================================================
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [logLevel, setLogLevel] = useState<string>('ALL');
+  const [logCount, setLogCount] = useState<number>(200);
+  const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
+  const [logError, setLogError] = useState<string>('');
+  const [logAutoRefresh, setLogAutoRefresh] = useState<boolean>(false);
+
+  const fetchBotLogs = useCallback(async () => {
+    setIsLoadingLogs(true);
+    setLogError('');
+    try {
+      const apiBase = getApiBaseUrl();
+      const q = new URLSearchParams();
+      q.set('lines', String(logCount));
+      q.set('level', logLevel);
+      const res = await fetch(`${apiBase}/api/admin/logs?${q.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || `Lỗi tải log (${res.status})`);
+      }
+      const data = await res.json();
+      setLogLines(data.lines || []);
+    } catch (e: any) {
+      setLogError(e.message || 'Không thể tải nhật ký bot.');
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, [getAuthHeaders, logCount, logLevel]);
+
+  useEffect(() => {
+    if (adminTab === 'logs') {
+      fetchBotLogs();
+    }
+  }, [adminTab, fetchBotLogs]);
+
+  // Tự động làm mới log mỗi 10 giây khi bật
+  useEffect(() => {
+    if (adminTab !== 'logs' || !logAutoRefresh) return;
+    const timer = setInterval(() => {
+      fetchBotLogs();
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [adminTab, logAutoRefresh, fetchBotLogs]);
 
   // =========================================================================
   // TAB 2: QUẢN LÝ KHO ĐỀ (DOCUMENTS MANAGEMENT & EDIT/DELETE)
@@ -473,6 +611,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <Megaphone className="w-4 h-4" />
           <span>Thông Báo Discord</span>
         </button>
+
+        <button
+          onClick={() => setAdminTab('logs')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            adminTab === 'logs'
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-lg shadow-emerald-900/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <ScrollText className="w-4 h-4" />
+          <span>Nhật Ký Bot</span>
+        </button>
       </div>
 
       {/* =================================================================== */}
@@ -505,17 +655,99 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             )}
 
             <form onSubmit={handleExecuteModAction} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Discord User ID */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400">Discord User ID</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: 1529864608813416449"
-                  value={targetUserId}
-                  onChange={(e) => setTargetUserId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-rose-500"
-                  required
-                />
+              {/* Tìm thành viên (chọn từ danh sách hoặc dán ID tay) */}
+              <div className="space-y-1 relative">
+                <label className="text-[11px] font-semibold text-slate-400">Thành Viên (gõ tên để tìm)</label>
+                {selectedMember ? (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    {selectedMember.avatar_url ? (
+                      <img src={selectedMember.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-[10px] font-bold shrink-0">
+                        {selectedMember.display_name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-white truncate">{selectedMember.display_name}</div>
+                      <div className="text-[10px] font-mono text-slate-400 truncate">ID: {selectedMember.user_id}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedMember(null);
+                        setMemberQuery('');
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                      title="Chọn người khác"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Gõ tên (vd: e) hoặc dán User ID..."
+                      value={memberQuery}
+                      onChange={(e) => {
+                        setMemberQuery(e.target.value);
+                        setTargetUserId(e.target.value);
+                      }}
+                      onFocus={() => {
+                        if (memberResults.length > 0) setShowMemberDropdown(true);
+                      }}
+                      onBlur={() => {
+                        // Delay để click chọn trong dropdown kịp chạy trước
+                        setTimeout(() => setShowMemberDropdown(false), 200);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
+                      required
+                    />
+                    {isSearchingMembers && (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin absolute right-3 top-8 text-slate-400" />
+                    )}
+                    {showMemberDropdown && (
+                      <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-slate-900 border border-white/10 shadow-2xl overflow-hidden max-h-[220px] overflow-y-auto">
+                        {memberResults.length === 0 ? (
+                          <div className="px-3 py-2.5 text-[11px] text-slate-400">
+                            Không tìm thấy — có thể dán trực tiếp User ID rồi Xác Nhận.
+                          </div>
+                        ) : (
+                          memberResults.map((m) => (
+                            <button
+                              key={m.user_id}
+                              type="button"
+                              onMouseDown={(ev) => ev.preventDefault()}
+                              onClick={() => {
+                                setSelectedMember(m);
+                                setTargetUserId(m.user_id);
+                                setShowMemberDropdown(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 text-left transition-colors cursor-pointer"
+                            >
+                              {m.avatar_url ? (
+                                <img src={m.avatar_url} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-300 text-[10px] font-bold shrink-0">
+                                  {m.display_name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-bold text-white truncate">
+                                  {m.display_name}
+                                  {m.is_bot && <span className="ml-1 text-[9px] text-slate-400 font-mono">BOT</span>}
+                                </div>
+                                <div className="text-[10px] text-slate-400 truncate">
+                                  @{m.username} • ID: {m.user_id}
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Action Type */}
@@ -852,17 +1084,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
             <form onSubmit={handleSendAnnounce} className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400">
-                  Channel ID (kênh Discord nhận thông báo)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: 1534147129197723749"
-                  value={announceChannelId}
-                  onChange={(e) => setAnnounceChannelId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-sky-500"
-                  required
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-slate-400">
+                    Kênh Discord nhận thông báo
+                  </label>
+                  <button
+                    type="button"
+                    onClick={fetchDiscordChannels}
+                    disabled={isLoadingChannels}
+                    className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingChannels ? 'animate-spin' : ''}`} />
+                    <span>Tải lại kênh</span>
+                  </button>
+                </div>
+                {discordChannels.length > 0 ? (
+                  <select
+                    value={announceChannelId}
+                    onChange={(e) => setAnnounceChannelId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-sky-500"
+                    required
+                  >
+                    {discordChannels.map((ch) => (
+                      <option key={ch.channel_id} value={ch.channel_id}>
+                        {ch.name} — {ch.category}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Nhập Channel ID (chuột phải vào KÊNH → Sao chép ID kênh)"
+                    value={announceChannelId}
+                    onChange={(e) => setAnnounceChannelId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-sky-500"
+                    required
+                  />
+                )}
+                <p className="text-[10px] text-slate-500">
+                  ⚠️ Phải là ID của <b>KÊNH</b> (chuột phải vào tên kênh → Sao chép ID kênh), không phải ID Server.
+                </p>
               </div>
 
               <div className="space-y-1">
@@ -895,6 +1156,75 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 4: NHẬT KÝ BOT (LOGS VIEWER) */}
+      {/* =================================================================== */}
+      {adminTab === 'logs' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <select
+              value={logLevel}
+              onChange={(e) => setLogLevel(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-emerald-500"
+            >
+              <option value="ALL">Mọi mức (ALL)</option>
+              <option value="INFO">INFO</option>
+              <option value="WARNING">WARNING</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+
+            <select
+              value={logCount}
+              onChange={(e) => setLogCount(Number(e.target.value))}
+              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-emerald-500"
+            >
+              <option value={100}>100 dòng cuối</option>
+              <option value={200}>200 dòng cuối</option>
+              <option value={500}>500 dòng cuối</option>
+            </select>
+
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={logAutoRefresh}
+                onChange={(e) => setLogAutoRefresh(e.target.checked)}
+                className="w-3.5 h-3.5 accent-emerald-500"
+              />
+              <span>Tự làm mới 10s</span>
+            </label>
+
+            <button
+              onClick={fetchBotLogs}
+              disabled={isLoadingLogs}
+              className="px-4 py-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer sm:ml-auto"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+              <span>Tải log</span>
+            </button>
+          </div>
+
+          {logError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+              {logError}
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-white/10 bg-black/60 overflow-hidden">
+            <div className="px-3 py-2 border-b border-white/10 text-[11px] text-slate-400 flex items-center gap-2">
+              <Hash className="w-3.5 h-3.5" />
+              <span>bot.log — {logLines.length} dòng mới nhất {logLevel !== 'ALL' && `(lọc ${logLevel})`}</span>
+            </div>
+            <pre className="max-h-[450px] overflow-auto p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words">
+              {isLoadingLogs && logLines.length === 0
+                ? 'Đang tải nhật ký...'
+                : logLines.length === 0
+                  ? 'Không có dòng log nào.'
+                  : logLines.join('\n')}
+            </pre>
           </div>
         </div>
       )}
