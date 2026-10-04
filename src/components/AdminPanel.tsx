@@ -97,6 +97,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [selectedMember, setSelectedMember] = useState<FoundMember | null>(null);
   const [modAction, setModAction] = useState<'ban' | 'kick' | 'mute' | 'unmute'>('mute');
   const [modDuration, setModDuration] = useState<number>(600); // Mặc định 10 phút
+  const [customMinutes, setCustomMinutes] = useState<string>('');
   const [modDeleteDays, setModDeleteDays] = useState<number>(0);
   const [modReason, setModReason] = useState<string>('');
   const [isSubmittingMod, setIsSubmittingMod] = useState<boolean>(false);
@@ -222,7 +223,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       } else if (modAction === 'mute') {
         endpoint = `${apiBase}/api/admin/timeout`;
         bodyData.action = 'mute';
-        bodyData.duration_seconds = modDuration;
+        // -1 = tùy chỉnh số phút (giới hạn 1 phút → 28 ngày theo Discord)
+        if (modDuration === -1) {
+          const mins = Math.round(Number(customMinutes));
+          if (!mins || mins < 1) {
+            throw new Error('Vui lòng nhập số phút tùy chỉnh (tối thiểu 1 phút).');
+          }
+          bodyData.duration_seconds = Math.min(mins * 60, 28 * 86400);
+        } else {
+          bodyData.duration_seconds = modDuration;
+        }
         bodyData.reason = modReason.trim() || 'Mute từ Web Admin Portal';
       } else if (modAction === 'unmute') {
         endpoint = `${apiBase}/api/admin/timeout`;
@@ -991,14 +1001,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     onChange={(e) => setModDuration(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
                   >
+                    <option value={60}>1 phút</option>
                     <option value={300}>5 phút</option>
                     <option value={600}>10 phút</option>
+                    <option value={900}>15 phút</option>
                     <option value={1800}>30 phút</option>
                     <option value={3600}>1 giờ</option>
+                    <option value={21600}>6 giờ</option>
+                    <option value={43200}>12 giờ</option>
                     <option value={86400}>24 giờ (1 ngày)</option>
+                    <option value={259200}>3 ngày</option>
                     <option value={604800}>7 ngày</option>
+                    <option value={1209600}>14 ngày</option>
                     <option value={2419200}>28 ngày (Tối đa)</option>
+                    <option value={-1}>✏️ Tùy chỉnh số phút...</option>
                   </select>
+                  {modDuration === -1 && (
+                    <input
+                      type="number"
+                      min={1}
+                      max={40320}
+                      placeholder="Nhập số phút (1 - 40320)"
+                      value={customMinutes}
+                      onChange={(e) => setCustomMinutes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  )}
                 </div>
               )}
 

@@ -808,7 +808,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* SIDEBAR BÊN HÔNG TRÁI                                                     */}
       {/* ========================================================================= */}
-      <aside className="w-full lg:w-72 lg:min-h-screen bg-white/90 dark:bg-[#0c0d18]/90 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-white/[0.08] flex flex-col justify-between shrink-0 p-4 sm:p-6 z-20 shadow-md lg:shadow-none">
+      <aside className="w-full lg:w-72 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto bg-white/90 dark:bg-[#0c0d18]/90 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-white/[0.08] flex flex-col justify-between shrink-0 p-4 sm:p-6 z-20 shadow-md lg:shadow-none">
         {/* Top: Logo & Nav items */}
         <div className="space-y-6">
           {/* Logo Brand */}
@@ -1086,7 +1086,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto max-w-6xl mx-auto w-full">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full">
         {/* ===================================================================== */}
         {/* TAB 1: TRANG CHÍNH (OVERVIEW)                                         */}
         {/* ===================================================================== */}
