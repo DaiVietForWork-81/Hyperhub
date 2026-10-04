@@ -27,7 +27,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
-import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
+import { getApiBaseUrl, API_FETCH_HEADERS, setCustomApiUrl, DEFAULT_TUNNEL_URL, LOCAL_API_URL } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
 
 interface BannedUser {
@@ -446,7 +446,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   }, [adminTab, logAutoRefresh, fetchBotLogs]);
 
   // =========================================================================
-  // TAB 5: CẤU HÌNH BOT (BOT CONFIG VIEWER)
+  // TAB 5: CẤU HÌNH BOT (BOT CONFIG VIEWER) + ENDPOINT API
   // =========================================================================
   interface BotConfigData {
     bot?: Record<string, any>;
@@ -456,6 +456,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [botConfig, setBotConfig] = useState<BotConfigData | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(false);
   const [configError, setConfigError] = useState<string>('');
+
+  // Endpoint API (chuyển từ sidebar Dashboard vào Hub — chỉ Admin thấy)
+  const [endpointInput, setEndpointInput] = useState<string>('');
+  const [endpointMsg, setEndpointMsg] = useState<string>('');
+  const [endpointInit, setEndpointInit] = useState<boolean>(false);
+
+  const handleSaveEndpoint = () => {
+    const input = endpointInput.trim();
+    if (input) {
+      try {
+        const parsed = new URL(input);
+        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'hyperhub-one.vercel.app'];
+        const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
+        if (!isAllowed) {
+          setEndpointMsg('⚠️ Chỉ chấp nhận máy chủ chính thức của HyperHub hoặc Localhost.');
+          return;
+        }
+      } catch {
+        setEndpointMsg('⚠️ Địa chỉ URL không hợp lệ.');
+        return;
+      }
+    }
+    setCustomApiUrl(input || null);
+    setEndpointMsg('Đã lưu! Đang tải lại dữ liệu với endpoint mới...');
+    setTimeout(() => {
+      setEndpointMsg('');
+      window.dispatchEvent(new Event('hyperhub_api_changed'));
+      if (onRefreshParentDocs) onRefreshParentDocs();
+    }, 900);
+  };
+
+  const handleResetEndpoint = () => {
+    setCustomApiUrl(null);
+    setEndpointInput(getApiBaseUrl());
+    setEndpointMsg('Đã khôi phục endpoint mặc định!');
+    setTimeout(() => {
+      setEndpointMsg('');
+      window.dispatchEvent(new Event('hyperhub_api_changed'));
+      if (onRefreshParentDocs) onRefreshParentDocs();
+    }, 900);
+  };
 
   const fetchBotConfig = useCallback(async () => {
     setIsLoadingConfig(true);
@@ -479,10 +520,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   }, [getAuthHeaders]);
 
   useEffect(() => {
-    if (adminTab === 'config' && !botConfig) {
-      fetchBotConfig();
+    if (adminTab === 'config') {
+      if (!botConfig) fetchBotConfig();
+      // Nạp endpoint hiện tại vào ô nhập lần đầu mở tab
+      if (!endpointInit) {
+        setEndpointInput(getApiBaseUrl());
+        setEndpointInit(true);
+      }
     }
-  }, [adminTab, fetchBotConfig, botConfig]);
+  }, [adminTab, fetchBotConfig, botConfig, endpointInit]);
 
   // =========================================================================
   // TAB 6: LOG SERVER (DISCORD AUDIT LOG)
@@ -1481,6 +1527,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* =================================================================== */}
       {adminTab === 'config' && (
         <div className="space-y-4">
+          {/* Endpoint API — dời từ sidebar vào Hub */}
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-purple-400" />
+              <span>Cài Đặt Endpoint API (Máy Chủ Bot)</span>
+            </h3>
+            <div className="text-[11px] text-slate-400">
+              Đang dùng: <span className="font-mono text-purple-300 break-all">{getApiBaseUrl() || '(cùng origin /api)'}</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={endpointInput}
+                onChange={(e) => setEndpointInput(e.target.value)}
+                placeholder={DEFAULT_TUNNEL_URL}
+                className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveEndpoint}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs cursor-pointer"
+                >
+                  Lưu
+                </button>
+                <button
+                  onClick={handleResetEndpoint}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Mặc Định
+                </button>
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              💡 Vercel HTTPS: dùng tunnel <span className="font-mono text-purple-300 break-all">{DEFAULT_TUNNEL_URL}</span> • Dev: <span className="font-mono">{LOCAL_API_URL}</span>
+            </div>
+            {endpointMsg && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">
+                {endpointMsg}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-cyan-400" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   ArrowLeft,
@@ -17,10 +17,7 @@ import {
   UserCheck,
   LogOut,
   Flame,
-  Settings,
   X,
-  Server,
-  CheckCheck,
   Download,
   Filter,
   UploadCloud,
@@ -30,14 +27,14 @@ import {
 import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import {
   getApiBaseUrl,
-  setCustomApiUrl,
-  DEFAULT_TUNNEL_URL,
-  LOCAL_API_URL,
   API_FETCH_HEADERS,
 } from '../utils/apiConfig';
 import { ExamCountdown } from './ExamCountdown';
 import { DocUploadZone } from './DocUploadZone';
-import { AdminPanel } from './AdminPanel';
+// AdminPanel tải lười (lazy): người thường không bao giờ tải code admin
+const AdminPanel = lazy(() =>
+  import('./AdminPanel').then((m) => ({ default: m.AdminPanel }))
+);
 import { formatEstimatedLevel, getExamTrackInfo } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
@@ -218,7 +215,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [checkAdminStatus, user]);
 
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
-  const [isCheckingBot, setIsCheckingBot] = useState<boolean>(true);
 
   // Tính năng Bookmark / Lưu tài liệu yêu thích
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
@@ -262,14 +258,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [currentExam, setCurrentExam] = useState<ExamDocument | null>(null);
   const [examError, setExamError] = useState<string>('');
 
-  // Endpoint Settings Modal State
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(false);
-  const [customApiUrlInput, setCustomApiUrlInput] = useState<string>('');
-  const [apiSaveMsg, setApiSaveMsg] = useState<string>('');
+  // (Cài đặt endpoint API đã chuyển hẳn vào Admin Hub → tab Cấu Hình Bot)
 
   // 1. Kiểm tra trạng thái Discord Bot
   const checkBotStatus = useCallback(async () => {
-    setIsCheckingBot(true);
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/status`, {
@@ -290,8 +282,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
     } catch {
       setBotStatus({ online: false });
-    } finally {
-      setIsCheckingBot(false);
     }
   }, []);
 
@@ -482,45 +472,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const handleSaveApiUrl = () => {
-    const input = customApiUrlInput.trim();
-    if (input) {
-      try {
-        const parsed = new URL(input);
-        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'hyperhub-one.vercel.app'];
-        const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
-        if (!isAllowed) {
-          setApiSaveMsg('⚠️ Cảnh báo bảo mật: Chỉ chấp nhận máy chủ chính thức của HyperHub hoặc Localhost.');
-          return;
-        }
-      } catch {
-        setApiSaveMsg('⚠️ Địa chỉ URL không hợp lệ.');
-        return;
-      }
-    }
-    setCustomApiUrl(input || null);
-    setApiSaveMsg('Đã lưu địa chỉ máy chủ API thành công!');
-    setTimeout(() => {
-      setApiSaveMsg('');
-      setShowApiSettings(false);
+  // Lắng nghe thay đổi endpoint API từ Admin Hub → tải lại trạng thái + dữ liệu
+  useEffect(() => {
+    const onApiChanged = () => {
       checkBotStatus();
       fetchDocStats();
       fetchDocuments();
-    }, 900);
-  };
-
-  const handleResetApiUrl = () => {
-    setCustomApiUrl(null);
-    setCustomApiUrlInput(getApiBaseUrl());
-    setApiSaveMsg('Đã khôi phục cài đặt máy chủ mặc định!');
-    setTimeout(() => {
-      setApiSaveMsg('');
-      setShowApiSettings(false);
-      checkBotStatus();
-      fetchDocStats();
-      fetchDocuments();
-    }, 900);
-  };
+    };
+    window.addEventListener('hyperhub_api_changed', onApiChanged);
+    return () => window.removeEventListener('hyperhub_api_changed', onApiChanged);
+  }, [checkBotStatus, fetchDocStats, fetchDocuments]);
 
   const formatFileSize = (bytes: number): string => {
     if (!bytes) return 'N/A';
@@ -848,72 +809,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {/* Bot Status & API Server Mini Indicator - CHỈ HIỂN THỊ ĐỐI VỚI ADMIN */}
-          {isAdmin && (
-            <div className="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    {botStatus.online ? (
-                      <>
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                      </>
-                    ) : (
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                    )}
-                  </span>
-                  <span className="font-semibold text-slate-700 dark:text-white/80">
-                    Discord Bot:
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
-                      botStatus.online
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                    }`}
-                  >
-                    {botStatus.online ? 'Online' : 'Offline'}
-                  </span>
-                  <button
-                    onClick={checkBotStatus}
-                    disabled={isCheckingBot}
-                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                    title="Làm mới trạng thái bot"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isCheckingBot ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Endpoint Connection Line */}
-              <div className="pt-2 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-500 dark:text-white/50">
-                <div
-                  className="flex items-center gap-1.5 truncate max-w-[170px]"
-                  title={getApiBaseUrl()}
-                >
-                  <Server className="w-3 h-3 text-purple-400 shrink-0" />
-                  <span className="truncate font-mono">
-                    {getApiBaseUrl().replace(/^https?:\/\//, '').slice(0, 18)}...
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setCustomApiUrlInput(getApiBaseUrl());
-                    setShowApiSettings(true);
-                  }}
-                  className="text-purple-600 dark:text-purple-400 hover:underline font-semibold shrink-0 cursor-pointer flex items-center gap-0.5"
-                >
-                  <Settings className="w-3 h-3" />
-                  <span>Cài đặt</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Sidebar Buttons */}
+          {/* Navigation Sidebar Buttons (trạng thái Bot + Cài đặt đã chuyển vào Admin Hub) */}
           <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
             <button
               onClick={() => setActiveTab('overview')}
@@ -1817,90 +1713,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <AdminPanel
-              onClose={() => setActiveTab('overview')}
-              onRefreshParentDocs={() => {
-                fetchDocuments();
-                fetchDocStats();
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="p-8 text-center text-xs text-slate-400">Đang tải Admin Hub...</div>
+              }
+            >
+              <AdminPanel
+                onClose={() => setActiveTab('overview')}
+                onRefreshParentDocs={() => {
+                  fetchDocuments();
+                  fetchDocStats();
+                }}
+              />
+            </Suspense>
           </div>
         )}
       </main>
 
       {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
 
-      {/* ========================================================================= */}
-      {/* MODAL CÀI ĐẶT SERVER API (ENDPOINT CONFIGURATION - CHỈ DÀNH CHO ADMIN)   */}
-      {/* ========================================================================= */}
-      {showApiSettings && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[#0e101f] border border-purple-500/30 p-6 space-y-5 shadow-2xl relative">
-            <button
-              onClick={() => setShowApiSettings(false)}
-              className="absolute top-5 right-5 p-1.5 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                <Server className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Cấu Hình Máy Chủ Bot</h3>
-                <p className="text-xs text-white/50">Kết nối Discord Bot & Cầu Nối Dữ Liệu</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-white/80 block mb-1.5">
-                  Địa Chỉ API Endpoint (URL)
-                </label>
-                <input
-                  type="text"
-                  value={customApiUrlInput}
-                  onChange={(e) => setCustomApiUrlInput(e.target.value)}
-                  placeholder={DEFAULT_TUNNEL_URL}
-                  className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white text-xs font-mono focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/20 text-[11px] text-white/70 space-y-1">
-                <div className="font-semibold text-purple-300">💡 Gợi ý cấu hình:</div>
-                <div>• Web Vercel (HTTPS): Sử dụng Cloudflare Tunnel HTTPS bên dưới:</div>
-                <div className="font-mono text-purple-300 text-[10px] break-all select-all">
-                  {DEFAULT_TUNNEL_URL}
-                </div>
-                <div>• Localhost Dev: Dùng `{LOCAL_API_URL}`</div>
-              </div>
-
-              {apiSaveMsg && (
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
-                  <CheckCheck className="w-4 h-4" />
-                  <span>{apiSaveMsg}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                onClick={handleSaveApiUrl}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-xs transition-all cursor-pointer shadow-lg shadow-purple-900/30"
-              >
-                Lưu Cấu Hình
-              </button>
-              <button
-                onClick={handleResetApiUrl}
-                className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer"
-              >
-                Mặc Định
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* [ĐÃ CHUYỂN] Modal Cài đặt endpoint API giờ nằm trong Admin Hub → tab Cấu Hình Bot */}
     </div>
   );
 };

@@ -15,5 +15,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-  }
+    // Tách vendor để cache lâu dài + trang đầu tải nhẹ hơn
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
+  },
 })
