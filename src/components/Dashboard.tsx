@@ -969,7 +969,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </button>
 
-            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN */}
+            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN, người thường không thấy gì */}
             {isAdmin && (
               <button
                 onClick={() => setActiveTab('admin')}
