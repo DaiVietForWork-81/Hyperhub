@@ -16,6 +16,8 @@ import {
   FileText,
   X,
   Lock,
+  Megaphone,
+  Send,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
@@ -49,7 +51,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
-  const [adminTab, setAdminTab] = useState<'moderation' | 'documents'>('moderation');
+  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce'>('moderation');
 
   // Headers kèm token xác thực
   const getAuthHeaders = useCallback((): Record<string, string> => {
@@ -203,6 +205,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       setModMessage({ type: 'success', text: `Đã gỡ cấm thành công cho ${username}!` });
     } catch (e: any) {
       alert(`Lỗi gỡ cấm: ${e.message}`);
+    }
+  };
+
+  // =========================================================================
+  // TAB 3: THÔNG BÁO DISCORD (WEB -> DISCORD ANNOUNCEMENT)
+  // =========================================================================
+  const [announceChannelId, setAnnounceChannelId] = useState<string>('');
+  const [announceMessage, setAnnounceMessage] = useState<string>('');
+  const [isSendingAnnounce, setIsSendingAnnounce] = useState<boolean>(false);
+  const [announceMsg, setAnnounceMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
+
+  // Gửi thông báo từ Web tới kênh Discord (xác thực bằng tài khoản Admin Discord)
+  const handleSendAnnounce = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announceChannelId.trim()) {
+      setAnnounceMsg({ type: 'error', text: 'Vui lòng nhập Channel ID của kênh Discord.' });
+      return;
+    }
+    if (!announceMessage.trim()) {
+      setAnnounceMsg({ type: 'error', text: 'Vui lòng nhập nội dung thông báo.' });
+      return;
+    }
+    if (announceMessage.length > 2000) {
+      setAnnounceMsg({ type: 'error', text: 'Nội dung tối đa 2000 ký tự (giới hạn Discord).' });
+      return;
+    }
+
+    setIsSendingAnnounce(true);
+    setAnnounceMsg(null);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/notify`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          channel_id: Number(announceChannelId.trim()),
+          message: announceMessage.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || `Gửi thông báo thất bại (${res.status}).`);
+      }
+      setAnnounceMsg({
+        type: 'success',
+        text: `Đã gửi thông báo tới kênh ${announceChannelId.trim()} thành công!`,
+      });
+      setAnnounceMessage('');
+    } catch (err: any) {
+      setAnnounceMsg({ type: 'error', text: err.message || 'Lỗi kết nối máy chủ.' });
+    } finally {
+      setIsSendingAnnounce(false);
     }
   };
 
@@ -404,6 +460,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
             {adminDocs.length} Đề
           </span>
+        </button>
+
+        <button
+          onClick={() => setAdminTab('announce')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            adminTab === 'announce'
+              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-lg shadow-sky-900/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Megaphone className="w-4 h-4" />
+          <span>Thông Báo Discord</span>
         </button>
       </div>
 
@@ -746,6 +814,87 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 3: THÔNG BÁO DISCORD (WEB -> DISCORD) */}
+      {/* =================================================================== */}
+      {adminTab === 'announce' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-sky-400" />
+              <span>Gửi Thông Báo Từ Web Tới Kênh Discord</span>
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Tin nhắn được gửi bởi Bot với tư cách quản trị viên đã đăng nhập. Hệ thống tự chặn
+              mention hàng loạt (@everyone, @here) để chống spam ping.
+            </p>
+
+            {announceMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  announceMsg.type === 'success'
+                    ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/20 border border-rose-500/30 text-rose-300'
+                }`}
+              >
+                {announceMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{announceMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSendAnnounce} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400">
+                  Channel ID (kênh Discord nhận thông báo)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: 1534147129197723749"
+                  value={announceChannelId}
+                  onChange={(e) => setAnnounceChannelId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-sky-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400">
+                  Nội dung thông báo ({announceMessage.length}/2000)
+                </label>
+                <textarea
+                  rows={4}
+                  value={announceMessage}
+                  onChange={(e) => setAnnounceMessage(e.target.value)}
+                  placeholder="Nhập thông báo gửi tới máy chủ Discord..."
+                  maxLength={2000}
+                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-sky-500 resize-none"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={isSendingAnnounce}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-sky-900/30 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isSendingAnnounce ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isSendingAnnounce ? 'Đang gửi...' : 'Gửi Thông Báo'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
