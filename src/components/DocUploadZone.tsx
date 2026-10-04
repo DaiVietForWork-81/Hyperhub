@@ -12,7 +12,7 @@ import {
   Check,
   Plus,
 } from 'lucide-react';
-import { DiscordUser } from '../utils/discordAuth';
+import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import { formatEstimatedLevel, formatFileSize } from '../utils/formatters';
 
 interface DocUploadZoneProps {
@@ -182,11 +182,17 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         formData.append('uploader_name', user.global_name || user.username);
         formData.append('uploader_id', user.id);
 
+        const uploadHeaders: Record<string, string> = {
+          'ngrok-skip-browser-warning': 'true',
+        };
+        const token = user?.accessToken || getDiscordAccessToken();
+        if (token) {
+          uploadHeaders['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: 'POST',
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-          },
+          headers: uploadHeaders,
           body: formData,
         });
 

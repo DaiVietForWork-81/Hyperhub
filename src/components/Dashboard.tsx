@@ -27,7 +27,7 @@ import {
   Dices,
   Star,
 } from 'lucide-react';
-import { DiscordUser } from '../utils/discordAuth';
+import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import {
   getApiBaseUrl,
   setCustomApiUrl,
@@ -370,12 +370,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
 
       const apiBase = getApiBaseUrl();
+      const examHeaders: Record<string, string> = {
+        ...API_FETCH_HEADERS,
+      };
+      const token = user?.accessToken || getDiscordAccessToken();
+      if (token) {
+        examHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${apiBase}/api/documents/request_exam?${queryParams.toString()}`, {
-        headers: API_FETCH_HEADERS,
+        headers: examHeaders,
         signal: AbortSignal.timeout(8000),
       });
 
       if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        if (res.status === 403 && errorData?.message) {
+          throw new Error(errorData.message);
+        }
         throw new Error(`Bot phản hồi mã lỗi HTTP ${res.status}`);
       }
 
@@ -397,7 +409,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleSaveApiUrl = () => {
-    setCustomApiUrl(customApiUrlInput.trim() || null);
+    const input = customApiUrlInput.trim();
+    if (input) {
+      try {
+        const parsed = new URL(input);
+        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'hyperhub-one.vercel.app'];
+        const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
+        if (!isAllowed) {
+          setApiSaveMsg('⚠️ Cảnh báo bảo mật: Chỉ chấp nhận máy chủ chính thức của HyperHub hoặc Localhost.');
+          return;
+        }
+      } catch {
+        setApiSaveMsg('⚠️ Địa chỉ URL không hợp lệ.');
+        return;
+      }
+    }
+    setCustomApiUrl(input || null);
     setApiSaveMsg('Đã lưu địa chỉ máy chủ API thành công!');
     setTimeout(() => {
       setApiSaveMsg('');
