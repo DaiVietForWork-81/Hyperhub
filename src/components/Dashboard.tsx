@@ -70,6 +70,9 @@ interface ExamDocument {
   timestamp: string;
   file_hash?: string;
   notes?: string;
+  verdict?: string | null;
+  exam_track?: string | null;
+  confidence?: number | null;
   is_duplicate?: boolean;
   is_duplicate_copy?: boolean;
   original_id?: number | null;
@@ -1221,6 +1224,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </span>
                       );
                     })()}
+                    {currentExam.verdict && (
+                      <span
+                        className="px-3 py-1 rounded-full text-xs font-bold border border-white/10 bg-white/10 text-white/80"
+                        title="Kết quả thẩm định quét kỹ của Bot"
+                      >
+                        {currentExam.verdict === 'XAC_MINH'
+                          ? '✅ Xác minh'
+                          : currentExam.verdict === 'CHUA_RO_RANG'
+                            ? '⚠️ Chưa rõ ràng'
+                            : currentExam.verdict === 'KO_RO_RANG'
+                              ? '❓ Không rõ ràng'
+                              : currentExam.verdict === 'KO_XAC_MINH'
+                                ? '⛔ Không xác minh'
+                                : `🛡️ ${currentExam.verdict}`}
+                        {currentExam.confidence != null && ` • ${Math.round(Number(currentExam.confidence) * 100)}%`}
+                      </span>
+                    )}
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/80 border border-white/10">
                       {currentExam.page_count} trang
                     </span>
@@ -1587,6 +1607,56 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-300 flex items-start gap-1.5">
                             <span className="font-bold shrink-0">📝 Ghi chú:</span>
                             <span className="line-clamp-2">{doc.notes}</span>
+                          </div>
+                        )}
+                        {(doc.verdict || doc.exam_track || doc.confidence != null) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                            {doc.verdict && (
+                              <span
+                                title="Kết quả thẩm định quét kỹ của Bot"
+                                className={`font-bold px-1.5 py-0.5 rounded-md border ${
+                                  doc.verdict === 'XAC_MINH'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                    : doc.verdict === 'KO_XAC_MINH'
+                                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                }`}
+                              >
+                                {doc.verdict === 'XAC_MINH'
+                                  ? '✅ Xác minh'
+                                  : doc.verdict === 'CHUA_RO_RANG'
+                                    ? '⚠️ Chưa rõ ràng'
+                                    : doc.verdict === 'KO_RO_RANG'
+                                      ? '❓ Không rõ ràng'
+                                      : doc.verdict === 'KO_XAC_MINH'
+                                        ? '⛔ Không xác minh'
+                                        : `🛡️ ${doc.verdict}`}
+                              </span>
+                            )}
+                            {doc.exam_track && (
+                              <span
+                                title="Thể loại đề (thường < hsg < chuyên)"
+                                className="font-bold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 uppercase"
+                              >
+                                {doc.exam_track === 'thuong'
+                                  ? '📚 Thường'
+                                  : doc.exam_track === 'hsg'
+                                    ? '🏅 HSG'
+                                    : doc.exam_track === 'chuyen'
+                                      ? '🏆 Chuyên'
+                                      : doc.exam_track === 'quoc_te'
+                                        ? '🌍 Quốc tế'
+                                        : `🏷️ ${doc.exam_track}`}
+                              </span>
+                            )}
+                            {doc.confidence != null && (
+                              <span
+                                title="Độ tin cậy phân loại của Bot"
+                                className="font-mono px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+                              >
+                                {Math.round(Number(doc.confidence) * 100)}%
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
