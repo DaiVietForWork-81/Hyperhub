@@ -514,7 +514,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                   Chọn nhiều tệp (Tối đa 15 tệp/lần)
                 </span>
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                  Chống trùng SHA-256
+                  Tự động chống trùng lặp
                 </span>
               </div>
             </div>

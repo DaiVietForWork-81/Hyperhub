@@ -72,7 +72,7 @@ export const CommunityChannels: React.FC = () => {
                   Máy Chủ Discord HyperHub
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  Trung tâm học tập sôi động với Bot thẩm định DocInspector, phòng học Lo-fi voice 24/7, 
+                  Trung tâm học tập sôi động với bot thẩm định tự động, phòng học Lo-fi voice 24/7, 
                   phân chia chuyên mục theo từng môn và tổ chức các buổi thi thử định kỳ.
                 </p>
               </div>

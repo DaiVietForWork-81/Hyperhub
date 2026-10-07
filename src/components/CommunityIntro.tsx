@@ -15,7 +15,7 @@ const CORE_VALUES = [
     icon: BookOpen,
     badge: 'LEARN',
     title: 'Học Hỏi & Khám Phá',
-    desc: 'Kho ngân hàng đề thi thật phong phú, được phân loại chính xác theo khối lớp, môn học và thẩm định tự động bằng hệ thống DocInspector AI kết hợp lõi C++ Native.',
+    desc: 'Kho ngân hàng đề thi thật phong phú, được phân loại chính xác theo khối lớp, môn học và thẩm định tự động trước khi đăng.',
     color: 'text-purple-400',
     border: 'border-purple-500/30',
     bg: 'bg-purple-500/10',

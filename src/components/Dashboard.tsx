@@ -1832,7 +1832,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Kho Nộp Đề Thi
               </h1>
               <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                Kéo thả hoặc tải lên tài liệu / đề thi (PDF, DOCX). Bot DocInspector sẽ tự động phân tích môn học, khối lớp, loại đề, số câu hỏi và kiểm tra chống trùng lặp SHA-256.
+                Kéo thả hoặc tải lên tài liệu / đề thi (PDF, DOCX). Bot sẽ tự động phân tích môn học, khối lớp, loại đề, số câu hỏi và kiểm tra chống trùng lặp.
               </p>
             </div>
 

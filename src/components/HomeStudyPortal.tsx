@@ -633,7 +633,7 @@ export const HomeStudyPortal: React.FC<HomeStudyPortalProps> = ({
                 Ô Nộp Đề Thi & Trợ Lý Bot AI Nhận Dạng
               </h3>
               <p className="text-xs sm:text-sm text-slate-400">
-                Thả tệp PDF, Word hoặc Ảnh đề thi vào khung bên dưới. Hệ thống C++ Native & DocInspector AI sẽ bóc tách môn, khối lớp và số câu hỏi ngay lập tức.
+                Thả tệp PDF, Word hoặc Ảnh đề thi vào khung bên dưới. Bot sẽ tự động bóc tách môn, khối lớp và số câu hỏi ngay lập tức.
               </p>
             </div>
 
