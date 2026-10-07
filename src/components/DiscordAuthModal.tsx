@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CheckCircle2, AlertTriangle, ShieldCheck, LogIn, ExternalLink, Lock } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, LogIn, ExternalLink, Lock } from 'lucide-react';
 import { DiscordUser, getDiscordOAuth2Url } from '../utils/discordAuth';
 
 interface DiscordAuthModalProps {

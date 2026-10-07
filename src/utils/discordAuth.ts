@@ -82,6 +82,31 @@ export function removeDiscordUser(): void {
 }
 
 /**
+ * Đồng bộ tài khoản đã liên kết lên database server (POST /api/account/link).
+ * Chỉ gửi Bearer token để server verify 1 lần với Discord — không lưu token ở server.
+ * Chạy nền, thất bại im lặng (dùng web bình thường).
+ */
+export async function syncLinkedAccount(apiBaseUrl: string): Promise<boolean> {
+  const token = getDiscordAccessToken();
+  if (!token) return false;
+  try {
+    const base = (apiBaseUrl || '').replace(/\/+$/, '');
+    const res = await fetch(`${base}/api/account/link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return Boolean(data && data.success);
+  } catch {
+    return false;
+  }
+}
+/**
  * Kiểm tra token đang lưu còn hiệu lực không bằng cách gọi trực tiếp Discord API.
  * Trả về true nếu token sống, false nếu đã hết hạn/không hợp lệ.
  * Dùng để tự phát hiện phiên đăng nhập chết (token hết hạn sau 1 thời gian)

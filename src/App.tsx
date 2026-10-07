@@ -11,7 +11,8 @@ import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
-import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive } from './utils/discordAuth';
+import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
+import { getApiBaseUrl } from './utils/apiConfig';
 import { DreamAspirations } from './components/DreamAspirations';
 import { CommunityIntro } from './components/CommunityIntro';
 import { CommunityChannels } from './components/CommunityChannels';
@@ -80,6 +81,8 @@ export const App: React.FC = () => {
     handleDiscordOAuthCallback().then((user) => {
       if (user) {
         setDiscordUser(user);
+        // Đồng bộ tài khoản lên database server (nền, im lặng)
+        syncLinkedAccount(getApiBaseUrl());
         navigateTo('dashboard');
         return;
       }
@@ -87,6 +90,8 @@ export const App: React.FC = () => {
       const stored = getStoredDiscordUser();
       if (stored) {
         setDiscordUser(stored);
+        // Đồng bộ lại hồ sơ lên server (cập nhật last_seen)
+        syncLinkedAccount(getApiBaseUrl());
         isStoredTokenAlive().then((alive) => {
           if (!alive) {
             // Token hết hạn: đăng xuất để người dùng đăng nhập lại,
