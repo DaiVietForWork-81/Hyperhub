@@ -24,7 +24,7 @@ import {
   Dices,
   Star,
 } from 'lucide-react';
-import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
+import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import {
   getApiBaseUrl,
   API_FETCH_HEADERS,
@@ -178,8 +178,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
     user_id?: number | string;
   } | null>(null);
 
-  const checkAdminStatus = useCallback(async () => {
-    // Gọi tối đa 2 lần khi timeout/lỗi 5xx (ngrok lạnh) để không mất oan quyền Admin
+  // Cache quyền admin theo user (dùng khi backend chết vẫn nhận diện admin để mở Hub)
+  const readCachedAdmin = useCallback((): boolean => {
+    try {
+      const raw = localStorage.getItem('hyperhub_admin_cache');
+      if (!raw) return false;
+      const cached = JSON.parse(raw) as { userId?: string; isAdmin?: boolean; at?: number };
+      const stored = getStoredDiscordUser();
+      if (!stored || !cached.isAdmin || cached.userId !== stored.id) return false;
+      if (Date.now() - (cached.at || 0) > 7 * 24 * 3600 * 1000) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const writeCachedAdmin = useCallback((isAdminValue: boolean) => {
+    try {
+      const stored = getStoredDiscordUser();
+      if (!stored) {
+        localStorage.removeItem('hyperhub_admin_cache');
+        return;
+      }
+      localStorage.setItem(
+        'hyperhub_admin_cache',
+        JSON.stringify({ userId: stored.id, isAdmin: isAdminValue, at: Date.now() })
+      );
+    } catch {
+      /* bỏ qua */
+    }
+  }, []);
+
+  const checkAdminStatus = useCallback(async () => {    // Gọi tối đa 2 lần khi timeout/lỗi 5xx (ngrok lạnh) để không mất oan quyền Admin
     let confirmed = false;
     for (let attempt = 0; attempt < 2 && !confirmed; attempt++) {
       try {
@@ -198,7 +228,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           if (data.is_admin) {
             setIsAdmin(true);
             setAdminInfo(data.admin || null);
+            writeCachedAdmin(true);
             confirmed = true;
+          } else {
+            writeCachedAdmin(false);
           }
           break; // server đã trả lời → không thử lại
         }
@@ -211,13 +244,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setIsAdmin(false);
       setAdminInfo(null);
     }
-  }, []);
+  }, [writeCachedAdmin]);
 
   useEffect(() => {
     checkAdminStatus();
   }, [checkAdminStatus, user]);
 
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
+  const [botChecked, setBotChecked] = useState<boolean>(false);
 
   // Tính năng Bookmark / Lưu tài liệu yêu thích
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
@@ -285,6 +319,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
     } catch {
       setBotStatus({ online: false });
+    } finally {
+      setBotChecked(true);
     }
   }, []);
 
@@ -767,6 +803,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     </div>
   );
 
+  // Khóa Hub khi bot offline: chỉ admin (kể cả cache khi backend chết) được vào
+  const hubLocked =
+    botChecked && !botStatus.online && !isAdmin && !readCachedAdmin();
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
       {/* ========================================================================= */}
@@ -890,7 +930,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN, người thường không thấy gì */}
-            {isAdmin && (
+            {(isAdmin || readCachedAdmin()) && (
               <button
                 onClick={() => setActiveTab('admin')}
                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
@@ -986,10 +1026,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full">
+        {hubLocked && (
+          <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in duration-300">
+            <div className="w-full max-w-md p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center space-y-4">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center">
+                <Bot className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  Bot chưa chạy
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-white/50 mt-1 leading-relaxed">
+                  Discord Bot HyperHub hiện không trực tuyến nên Bảng điều khiển tạm thời
+                  không truy cập được. Vui lòng quay lại sau khi Bot đã bật.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    checkBotStatus();
+                    checkAdminStatus();
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs cursor-pointer"
+                >
+                  Thử lại
+                </button>
+                {!user && (
+                  <button
+                    onClick={onOpenAuthModal}
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs cursor-pointer"
+                  >
+                    Liên Kết Discord
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* ===================================================================== */}
         {/* TAB 1: TRANG CHÍNH (OVERVIEW)                                         */}
         {/* ===================================================================== */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && !hubLocked && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header Greeting */}
             <div>
@@ -1133,7 +1210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         {/* TAB 2: LẤY ĐỀ & DANH SÁCH TẤT CẢ ĐỀ THI                              */}
         {/* ===================================================================== */}
-        {activeTab === 'get_exam' && (
+        {activeTab === 'get_exam' && !hubLocked && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
@@ -1363,7 +1440,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         {/* TAB 2: KHO ĐỀ (TÁCH RIÊNG 28+ ĐỀ ĐANG CÓ)                             */}
         {/* ===================================================================== */}
-        {activeTab === 'vault' && (
+        {activeTab === 'vault' && !hubLocked && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
@@ -1557,7 +1634,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </span>
                           {(() => {
                             const tr = getExamTrackInfo(doc);
-                            return (
+  return (
                               <span
                                 className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${tr.badgeClass}`}
                                 title={`${tr.description} (${tr.difficultyNote})`}
@@ -1749,7 +1826,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         {/* TAB 4: KHO NỘP ĐỀ (DOC UPLOAD & AUTO-INSPECT)                         */}
         {/* ===================================================================== */}
-        {activeTab === 'submit_doc' && (
+        {activeTab === 'submit_doc' && !hubLocked && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
@@ -1781,7 +1858,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* ===================================================================== */}
         {/* TAB 5: QUẢN TRỊ VIÊN DISCORD & KHO ĐỀ (ADMIN PORTAL)                  */}
         {/* ===================================================================== */}
-        {activeTab === 'admin' && isAdmin && (
+        {activeTab === 'admin' && (isAdmin || readCachedAdmin()) && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <Suspense
               fallback={
