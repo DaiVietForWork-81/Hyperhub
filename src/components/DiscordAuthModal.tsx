@@ -59,42 +59,11 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({ isOpen, onCl
           <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs space-y-2 text-slate-700 dark:text-white/80">
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Xác thực chuẩn Discord OAuth 2.0 (CSRF Protected)</span>
+              <span>Đăng nhập an toàn qua Discord</span>
             </div>
             <p className="text-[11px] leading-relaxed text-slate-600 dark:text-white/70">
-              Hệ thống sử dụng mã định danh một lần (State Parameter) và kiểm tra email đã xác thực trực tiếp từ máy chủ Discord. Mật khẩu của bạn hoàn toàn bảo mật.
+              Bạn luôn đăng nhập trực tiếp trên trang của Discord. Mật khẩu của bạn hoàn toàn bảo mật.
             </p>
-          </div>
-
-          {/* Hướng Dẫn Khi Bị Lỗi Invalid OAuth2 Redirect */}
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 text-amber-800 dark:text-amber-300">
-            <div className="flex items-center gap-1.5 font-bold">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-              <span>Gặp lỗi "Invalid OAuth2 redirect_uri"?</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-slate-700 dark:text-white/80">
-              Đảm bảo tên miền đã được thêm vào Redirects trên Discord Developer Portal:
-            </p>
-            <div className="text-[11px] space-y-1 pl-2 text-slate-700 dark:text-white/80">
-              <div>
-                1. Mở{' '}
-                <a
-                  href="https://discord.com/developers/applications/1536298634990325871/oauth2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline font-bold text-[#5865F2] hover:text-[#4752c4]"
-                >
-                  Discord Developer Portal (App 1536298634990325871)
-                </a>
-              </div>
-              <div>2. Chọn menu <b>OAuth2</b> → mục <b>Redirects</b> → thêm:</div>
-              <div>
-                <code className="bg-black/20 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono text-purple-700 dark:text-purple-300 select-all font-bold">
-                  https://hyperhub-one.vercel.app
-                </code>
-              </div>
-              <div>3. Bấm <b>Save Changes</b> ở thanh màu xanh lá dưới cùng.</div>
-            </div>
           </div>
 
           <div className="pt-2 text-center flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-white/40">

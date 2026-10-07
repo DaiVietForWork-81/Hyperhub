@@ -1451,7 +1451,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </span>
                   </h1>
                   <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định từ Bot DocInspector. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản bằng mã băm SHA-256.
+                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
                   </p>
                 </div>
                 <button
