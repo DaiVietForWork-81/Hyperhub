@@ -456,14 +456,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     setIsLoadingExam(true);
     try {
-      // Nếu danh sách hiện tại đã có đề, bốc ngẫu nhiên 1 đề từ danh sách lọc
-      if (documentsList.length > 0) {
-        const randomIndex = Math.floor(Math.random() * documentsList.length);
-        setCurrentExam(documentsList[randomIndex]);
-        window.scrollTo({ top: 350, behavior: 'smooth' });
-        return;
-      }
-
+      // Luôn bốc qua server để Bot kiểm tra: đã vào server + verify email
+      // (không bốc client-side để tránh lách gate thành viên)
       // Fallback gọi API request_exam
       const queryParams = new URLSearchParams({
         grade: selectedGrade,
