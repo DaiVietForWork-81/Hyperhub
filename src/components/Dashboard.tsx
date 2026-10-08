@@ -251,7 +251,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [checkAdminStatus, user]);
 
   const [botStatus, setBotStatus] = useState<BotStatus>({ online: false });
-  const [botChecked, setBotChecked] = useState<boolean>(false);
 
   // Tính năng Bookmark / Lưu tài liệu yêu thích
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(() => new Set(getBookmarkedExamIds()));
@@ -319,8 +318,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
     } catch {
       setBotStatus({ online: false });
-    } finally {
-      setBotChecked(true);
     }
   }, []);
 
@@ -797,9 +794,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     </div>
   );
 
-  // Khóa Hub khi bot offline: chỉ admin (kể cả cache khi backend chết) được vào
-  const hubLocked =
-    botChecked && !botStatus.online && !isAdmin && !readCachedAdmin();
+  // Hub mở cho mọi người (kể cả khi bot offline): xem + nộp đề tự do.
+  // Bốc đề và Admin vẫn giữ cổng riêng. Biến giữ lại để khỏi sửa nhiều chỗ.
+  const hubLocked = false;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
@@ -1020,47 +1017,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full">
-        {hubLocked && (
-          <div className="flex items-center justify-center min-h-[60vh] animate-in fade-in duration-300">
-            <div className="w-full max-w-md p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center">
-                <Bot className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  Bot chưa chạy
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-white/50 mt-1 leading-relaxed">
-                  Discord Bot HyperHub hiện không trực tuyến nên Bảng điều khiển tạm thời
-                  không truy cập được. Vui lòng quay lại sau khi Bot đã bật.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    checkBotStatus();
-                    checkAdminStatus();
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs cursor-pointer"
-                >
-                  Thử lại
-                </button>
-                {!user && (
-                  <button
-                    onClick={onOpenAuthModal}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs cursor-pointer"
-                  >
-                    Liên Kết Discord
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        {/* ===================================================================== */}
-        {/* TAB 1: TRANG CHÍNH (OVERVIEW)                                         */}
-        {/* ===================================================================== */}
-        {activeTab === 'overview' && !hubLocked && (
+        {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header Greeting */}
             <div>
@@ -1229,9 +1186,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     DISCORD BOT HIỆN ĐANG KHÔNG HOẠT ĐỘNG (OFFLINE)
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70">
-                    Theo yêu cầu hệ thống, Discord Bot bắt buộc phải đang chạy trực tuyến để xác thực
-                    và phát đề. Khi Bot offline, tính năng lấy đề sẽ tạm khóa. Vui lòng bật lại Bot
-                    Discord!
+                    Bot đang ngoại tuyến nên tính năng bốc đề tạm dừng. Bạn vẫn xem kho đề
+                    và nộp đề mới bình thường — đề nộp lúc này được lưu tạm và tự gửi khi
+                    bot hoạt động trở lại.
                   </p>
                   <div className="pt-2">
                     <button
@@ -1252,12 +1209,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
                 <div className="space-y-2">
                   <h4 className="font-bold text-sm sm:text-base">
-                    YÊU CẦU LIÊN KẾT TÀI KHOẢN DISCORD ĐÃ XÁC MINH EMAIL
+                    BỐC ĐỀ CẦN TÀI KHOẢN DISCORD ĐÃ XÁC MINH EMAIL
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60">
                     {!user
-                      ? 'Bạn chưa liên kết tài khoản Discord. Vui lòng bấm liên kết ngay bên dưới để mở khóa chức năng nhận và tải đề thi.'
-                      : 'Tài khoản Discord của bạn chưa xác thực Email. Vui lòng xác minh email trên Discord hoặc liên kết tài khoản đã verify.'}
+                      ? 'Xem kho đề và nộp đề mới thì không cần đăng nhập. Chỉ khi bốc đề làm bài mới cần liên kết Discord đã verify email.'
+                      : 'Xem và nộp đề không cần verify. Chỉ khi bốc đề làm bài mới cần email Discord đã xác minh.'}
                   </p>
                   <button
                     onClick={onOpenAuthModal}
@@ -1840,6 +1797,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <DocUploadZone
               apiBase={getApiBaseUrl()}
               user={user}
+              botOnline={botStatus.online}
               onOpenAuthModal={onOpenAuthModal}
               onUploadSuccess={() => {
                 fetchDocuments();

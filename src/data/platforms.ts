@@ -38,7 +38,7 @@ export const activePlatforms: PlatformItem[] = [
     name: "Messenger Group",
     badge: "Tương Tác Nhanh",
     description: "Nhóm chat trao đổi nhanh về bài tập, hỏi đáp kiến thức, chia sẻ tài liệu và trò chuyện thân mật cùng ban quản trị và bạn bè.",
-    url: "YOUR_MESSENGER_URL",
+    url: "https://m.me/j/AbZngp-x0Ny92IWH/",
     status: "active",
     iconName: "messenger",
     accentColor: "#EC4899",

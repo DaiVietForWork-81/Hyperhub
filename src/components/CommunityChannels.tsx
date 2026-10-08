@@ -161,7 +161,7 @@ export const CommunityChannels: React.FC = () => {
             {/* CTA Button */}
             <div className="pt-8">
               <a
-                href="https://m.me/j/AbY_HyperHub"
+                href="https://m.me/j/AbZngp-x0Ny92IWH/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-[#00B2FF] via-[#006AFF] to-[#9B51E0] hover:opacity-90 shadow-xl shadow-sky-900/30 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"

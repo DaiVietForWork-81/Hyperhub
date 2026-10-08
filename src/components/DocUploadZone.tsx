@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud,
   CheckCircle2,
@@ -21,10 +21,19 @@ import {
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import { formatEstimatedLevel, formatFileSize } from '../utils/formatters';
+import {
+  OutboxItem,
+  savePendingDoc,
+  listPendingDocs,
+  removePendingDoc,
+  touchPendingDoc,
+} from '../utils/outbox';
 
 interface DocUploadZoneProps {
   apiBase: string;
   user: DiscordUser | null;
+  /** true = bot online (thử gửi ngay). Không truyền = mặc định thử gửi, rớt mạng thì lưu kho đệm. */
+  botOnline?: boolean;
   onOpenAuthModal: () => void;
   onPreviewDoc?: (doc: any) => void;
   onUploadSuccess?: () => void;
@@ -59,7 +68,7 @@ export interface InspectionResult {
 interface QueuedFile {
   id: string;
   file: File;
-  status: 'pending' | 'uploading' | 'success' | 'duplicate' | 'error';
+  status: 'pending' | 'uploading' | 'success' | 'duplicate' | 'error' | 'queued';
   result?: InspectionResult;
   errorMessage?: string;
 }
@@ -74,6 +83,7 @@ interface GDriveBlockedDetail {
 export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   apiBase,
   user,
+  botOnline = true,
   onOpenAuthModal,
   onPreviewDoc,
   onUploadSuccess,
@@ -89,6 +99,18 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   const [generalError, setGeneralError] = useState<string>('');
   const [hasCompletedBatch, setHasCompletedBatch] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- KHO ĐỆM OFFLINE (bot offline → lưu tạm, online → tự gửi) ---
+  const [outboxItems, setOutboxItems] = useState<OutboxItem[]>([]);
+  const [isFlushing, setIsFlushing] = useState<boolean>(false);
+
+  const refreshOutbox = async () => {
+    try {
+      setOutboxItems(await listPendingDocs());
+    } catch {
+      // IndexedDB không khả dụng: bỏ qua kho đệm
+    }
+  };
 
   // --- TRẠNG THÁI TAB GOOGLE DRIVE 5 LỚP BẢO MẬT ---
   const [gdriveUrl, setGdriveUrl] = useState<string>('');
@@ -161,9 +183,10 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       });
     });
 
-    if (errors.length > 0 && newItems.length === 0) {
+    if (errors.length > 0) {
+      // Hiện tất cả tệp bị loại (kể cả khi vẫn còn tệp hợp lệ được giữ lại)
       setGeneralError(errors.join('. '));
-      return;
+      if (newItems.length === 0) return;
     }
 
     setFileQueue((prev) => [...prev, ...newItems].slice(0, 15));
@@ -181,19 +204,70 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     setGeneralError('');
   };
 
+  // Tên hiển thị: thành viên Discord hoặc "Khách" (mở cho mọi người, không cần đăng nhập)
+  const displayUploaderName = user?.global_name || user?.username || 'Khách';
+
+  const uploadSingleFile = async (file: File): Promise<InspectionResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploader_name', displayUploaderName);
+    if (user?.id) {
+      formData.append('uploader_id', user.id);
+    }
+
+    const uploadHeaders: Record<string, string> = {
+      'ngrok-skip-browser-warning': 'true',
+    };
+    const token = user?.accessToken || getDiscordAccessToken();
+    if (token) {
+      uploadHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${apiBase}/api/documents/upload`, {
+        method: 'POST',
+        headers: uploadHeaders,
+        body: formData,
+      });
+    } catch (err: any) {
+      // Mất mạng / bot offline giữa chừng → ném lỗi mạng để caller lưu kho đệm
+      throw { network: true, message: err?.message || 'Không thể kết nối máy chủ.' };
+    }
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.success) {
+      if (data?.is_duplicate) {
+        throw { duplicate: true, message: data.message || 'Tài liệu này đã tồn tại trong kho đề!' };
+      }
+      throw { message: data?.error || data?.message || 'Lỗi khi kiểm định tệp.' };
+    }
+    return data as InspectionResult;
+  };
+
+  const queueToOutbox = async (file: File): Promise<void> => {
+    await savePendingDoc(file, displayUploaderName);
+    await refreshOutbox();
+  };
+
+  const markQueueItem = (
+    index: number,
+    patch: Partial<QueuedFile> & { status: QueuedFile['status'] }
+  ) => {
+    setFileQueue((prev) => prev.map((it, idx) => (idx === index ? { ...it, ...patch } : it)));
+  };
+
   const handleBatchUpload = async () => {
     if (fileQueue.length === 0) return;
-
-    if (!user) {
-      onOpenAuthModal();
-      return;
-    }
 
     setIsUploading(true);
     setGeneralError('');
     setHasCompletedBatch(false);
 
     let hasSuccess = false;
+    // Bot offline đã biết trước → lưu thẳng kho đệm, khỏi thử từng tệp
+    const offlineMode = !botOnline;
 
     for (let i = 0; i < fileQueue.length; i++) {
       const item = fileQueue[i];
@@ -201,84 +275,36 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
       setCurrentProcessingIndex(i);
 
-      setFileQueue((prev) =>
-        prev.map((it, idx) => (idx === i ? { ...it, status: 'uploading' } : it))
-      );
+      if (offlineMode) {
+        try {
+          await queueToOutbox(item.file);
+          markQueueItem(i, { status: 'queued' });
+        } catch {
+          markQueueItem(i, { status: 'error', errorMessage: 'Không lưu tạm được (bộ nhớ trình duyệt bị chặn).' });
+        }
+        continue;
+      }
+
+      markQueueItem(i, { status: 'uploading' });
 
       try {
-        const formData = new FormData();
-        formData.append('file', item.file);
-        formData.append('uploader_name', user.global_name || user.username);
-        formData.append('uploader_id', user.id);
-
-        const uploadHeaders: Record<string, string> = {
-          'ngrok-skip-browser-warning': 'true',
-        };
-        const token = user?.accessToken || getDiscordAccessToken();
-        if (token) {
-          uploadHeaders['Authorization'] = `Bearer ${token}`;
-        }
-
-        const res = await fetch(`${apiBase}/api/documents/upload`, {
-          method: 'POST',
-          headers: uploadHeaders,
-          body: formData,
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          if (data.is_duplicate) {
-            setFileQueue((prev) =>
-              prev.map((it, idx) =>
-                idx === i
-                  ? {
-                      ...it,
-                      status: 'duplicate',
-                      errorMessage: data.message || 'Tài liệu này đã tồn tại trong kho đề!',
-                    }
-                  : it
-              )
-            );
-          } else {
-            setFileQueue((prev) =>
-              prev.map((it, idx) =>
-                idx === i
-                  ? {
-                      ...it,
-                      status: 'error',
-                      errorMessage: data.error || data.message || 'Lỗi khi kiểm định tệp.',
-                    }
-                  : it
-              )
-            );
-          }
-        } else {
-          hasSuccess = true;
-          setFileQueue((prev) =>
-            prev.map((it, idx) =>
-              idx === i
-                ? {
-                    ...it,
-                    status: 'success',
-                    result: data,
-                  }
-                : it
-            )
-          );
-        }
+        const data = await uploadSingleFile(item.file);
+        hasSuccess = true;
+        markQueueItem(i, { status: 'success', result: data });
       } catch (err: any) {
-        setFileQueue((prev) =>
-          prev.map((it, idx) =>
-            idx === i
-              ? {
-                  ...it,
-                  status: 'error',
-                  errorMessage: err.message || 'Không thể kết nối máy chủ.',
-                }
-              : it
-          )
-        );
+        if (err?.network) {
+          // Rớt mạng giữa chừng → lưu kho đệm thay vì báo lỗi
+          try {
+            await queueToOutbox(item.file);
+            markQueueItem(i, { status: 'queued' });
+          } catch {
+            markQueueItem(i, { status: 'error', errorMessage: 'Không thể kết nối máy chủ.' });
+          }
+        } else if (err?.duplicate) {
+          markQueueItem(i, { status: 'duplicate', errorMessage: err.message });
+        } else {
+          markQueueItem(i, { status: 'error', errorMessage: err?.message || 'Lỗi khi kiểm định tệp.' });
+        }
       }
     }
 
@@ -290,6 +316,72 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       onUploadSuccess();
     }
   };
+
+  const mimeForExt = (ext: string): string => {
+    switch (ext) {
+      case '.pdf':
+        return 'application/pdf';
+      case '.docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case '.doc':
+        return 'application/msword';
+      case '.txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  };
+
+  // Gửi lại toàn bộ kho đệm (thủ công hoặc tự động khi bot online)
+  const flushOutbox = async () => {
+    if (isFlushing || !botOnline) return;
+    let pending: OutboxItem[];
+    try {
+      pending = await listPendingDocs();
+    } catch {
+      return;
+    }
+    if (pending.length === 0) return;
+
+    setIsFlushing(true);
+    let changed = false;
+    for (const p of pending) {
+      const file = p.blob instanceof File ? p.blob : new File([p.blob], p.name, { type: mimeForExt(p.ext) });
+      try {
+        await uploadSingleFile(file);
+        await removePendingDoc(p.id);
+        changed = true;
+      } catch (err: any) {
+        if (err?.network) break; // Vẫn offline → dừng, giữ nguyên kho đệm
+        if (err?.duplicate) {
+          await removePendingDoc(p.id);
+          changed = true;
+          continue;
+        }
+        await touchPendingDoc(p.id, {
+          attempts: p.attempts + 1,
+          lastError: err?.message || 'Lỗi khi kiểm định tệp.',
+        }).catch(() => {});
+      }
+    }
+    await refreshOutbox();
+    setIsFlushing(false);
+    if (changed && onUploadSuccess) {
+      onUploadSuccess();
+    }
+  };
+
+  useEffect(() => {
+    refreshOutbox();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (botOnline) {
+      flushOutbox();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botOnline]);
 
   // ----------------------------------------------------
   // LOGIC TAB 2: GOOGLE DRIVE 5 LỚP BẢO MẬT
@@ -621,6 +713,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                 </div>
               )}
 
+
               <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                 {fileQueue.map((item) => {
                   const res = item.result;
@@ -634,6 +727,8 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                           ? 'bg-emerald-950/20 border-emerald-500/40'
                           : item.status === 'duplicate'
                           ? 'bg-amber-950/20 border-amber-500/40'
+                          : item.status === 'queued'
+                          ? 'bg-sky-950/20 border-sky-500/40'
                           : item.status === 'error'
                           ? 'bg-rose-950/20 border-rose-500/40'
                           : 'bg-white/[0.02] border-white/5 hover:border-white/10'
@@ -649,6 +744,8 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                                 : item.status === 'duplicate'
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : item.status === 'queued'
+                                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                                 : item.status === 'error'
                                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                 : 'bg-white/10 text-white/70'
@@ -660,6 +757,8 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               <Check className="w-4 h-4" />
                             ) : item.status === 'duplicate' ? (
                               <AlertTriangle className="w-4 h-4" />
+                            ) : item.status === 'queued' ? (
+                              <RefreshCw className="w-4 h-4" />
                             ) : (
                               item.file.name.split('.').pop()
                             )}
@@ -685,6 +784,11 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               {item.status === 'duplicate' && (
                                 <span className="text-amber-400 font-semibold">
                                   • {item.errorMessage}
+                                </span>
+                              )}
+                              {item.status === 'queued' && (
+                                <span className="text-sky-400 font-semibold">
+                                  • Đã lưu tạm, sẽ tự gửi khi bot online
                                 </span>
                               )}
                               {item.status === 'error' && (
@@ -740,6 +844,65 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* KHO ĐỆM OFFLINE: đề lưu tạm khi bot offline, tự gửi khi online */}
+          {outboxItems.length > 0 && (
+            <div className="rounded-3xl bg-sky-950/20 border border-sky-500/30 p-5 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className={`w-4 h-4 text-sky-400 ${isFlushing ? 'animate-spin' : ''}`} />
+                  <h3 className="font-bold text-sm sm:text-base text-white">
+                    Kho Lưu Tạm ({outboxItems.length} đề đang chờ bot online)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={flushOutbox}
+                  disabled={isFlushing || !botOnline}
+                  className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  {isFlushing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-3.5 h-3.5" />
+                  )}
+                  <span>{botOnline ? 'Gửi Ngay Tất Cả' : 'Chờ Bot Online (sẽ tự gửi)'}</span>
+                </button>
+              </div>
+              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+                {outboxItems.map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between gap-3"
+                  >
+                    <div className="overflow-hidden">
+                      <div className="font-bold text-xs sm:text-sm text-white truncate max-w-md">
+                        {p.name}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {formatFileSize(p.size)} • {p.uploaderName}
+                        {p.attempts > 0 && (
+                          <span className="text-amber-400"> • Thử lại {p.attempts} lần</span>
+                        )}
+                        {p.lastError && <span className="text-rose-400"> • {p.lastError}</span>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await removePendingDoc(p.id);
+                        await refreshOutbox();
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer shrink-0"
+                      title="Xóa khỏi kho tạm"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
