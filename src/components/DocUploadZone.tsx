@@ -189,7 +189,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       if (newItems.length === 0) return;
     }
 
-    setFileQueue((prev) => [...prev, ...newItems].slice(0, 15));
+    setFileQueue((prev) => [...prev, ...newItems]);
   };
 
   const removeFileFromQueue = (id: string) => {
@@ -603,7 +603,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                   Định dạng: PDF, DOCX, DOC
                 </span>
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-xl bg-pink-500/10 text-pink-300 border border-pink-500/20">
-                  Chọn nhiều tệp (Tối đa 15 tệp/lần)
+                  Không giới hạn số tệp (mỗi tệp ≤ 25MB)
                 </span>
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20">
                   Tự động chống trùng lặp
