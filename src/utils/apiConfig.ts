@@ -33,8 +33,9 @@ function isSafeUrl(urlStr: string): boolean {
 
 /**
  * Trả về API Base URL an toàn.
- * Trên môi trường HTTPS (Vercel Production), ưu tiên dùng Relative Path ""
- * để tận dụng Vercel Serverless Rewrites (/api/* -> Backend), loại bỏ rủi ro CORS và SSRF.
+ * Trên môi trường HTTPS (Vercel Production), gọi trực tiếp tunnel URL từ browser
+ * (kèm header ngrok-skip-browser-warning) để vượt interstitial ngrok free.
+ * Không dùng Vercel Rewrite /api/* vì fetch server-side không gắn được header đó.
  */
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
@@ -44,10 +45,22 @@ export function getApiBaseUrl(): string {
       return envUrl.trim().replace(/\/+$/, "");
     }
 
+    // 1b. Override người dùng đã lưu (đọc lại cái setCustomApiUrl đã ghi)
+    try {
+      const saved = window.localStorage.getItem("hyperhub_api_base_url");
+      if (saved && isSafeUrl(saved)) {
+        return saved.trim().replace(/\/+$/, "");
+      }
+    } catch {
+      // localStorage bị chặn (private mode): bỏ qua
+    }
+
     // 2. Khi chạy trên HTTPS (Vercel Production):
-    // Sử dụng relative URL "" để gọi qua Vercel Rewrites (/api/*) cùng origin, an toàn tuyệt đối
+    // Gọi TRỰC TIẾP tunnel URL từ browser (kèm header ngrok-skip-browser-warning).
+    // KHÔNG dùng relative "" qua Vercel Rewrite nữa vì rewrite phía server không
+    // gửi được header đó → ngrok free chặn bằng trang ERR_NGROK_6024.
     if (window.location.protocol === "https:") {
-      return "";
+      return DEFAULT_TUNNEL_URL;
     }
 
     // 3. Local development
