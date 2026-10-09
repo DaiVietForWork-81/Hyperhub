@@ -28,6 +28,7 @@ import {
   removePendingDoc,
   touchPendingDoc,
 } from '../utils/outbox';
+import { useToast } from '../context/ToastContext';
 
 interface DocUploadZoneProps {
   apiBase: string;
@@ -90,6 +91,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 }) => {
   // Tab chuyển đổi: Tải tệp trực tiếp HOẶC Nộp link Google Drive
   const [activeTab, setActiveTab] = useState<'file_upload' | 'gdrive_link'>('file_upload');
+  const { showSuccess, showInfo, showError } = useToast();
 
   // --- TRẠNG THÁI TAB TẢI TỆP TRỰC TIẾP ---
   const [fileQueue, setFileQueue] = useState<QueuedFile[]>([]);
@@ -312,8 +314,11 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     setCurrentProcessingIndex(-1);
     setHasCompletedBatch(true);
 
-    if (hasSuccess && onUploadSuccess) {
-      onUploadSuccess();
+    if (hasSuccess) {
+      showSuccess('Nộp đợt đề thi thành công! Đã cập nhật vào kho đề.', 'Nộp Đề');
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
     }
   };
 
@@ -366,8 +371,11 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     }
     await refreshOutbox();
     setIsFlushing(false);
-    if (changed && onUploadSuccess) {
-      onUploadSuccess();
+    if (changed) {
+      showSuccess('Đã gửi thành công các tài liệu trong kho đệm ngoại tuyến!', 'Kho Đệm');
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
     }
   };
 
@@ -458,13 +466,16 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         setGdriveResults(rawResults);
       } else {
         setGdriveResults(data.results || []);
+        showSuccess('Đã tiếp nhận và thẩm định thành công đề thi từ Google Drive!', 'Google Drive');
         if (onUploadSuccess) onUploadSuccess();
       }
     } catch (err: any) {
       clearTimeout(timerProbe);
       clearTimeout(timerSandbox);
       clearTimeout(timerScan);
-      setGdriveError(err.message || 'Không thể kết nối máy chủ để kiểm định Google Drive.');
+      const errMsg = err.message || 'Không thể kết nối máy chủ để kiểm định Google Drive.';
+      setGdriveError(errMsg);
+      showError(errMsg, 'Google Drive');
     } finally {
       setIsGDriveSubmitting(false);
     }
@@ -477,6 +488,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         setGdriveUrl(text.trim());
         setGdriveError('');
         setGdriveBlockedInfo(null);
+        showInfo('Đã dán liên kết từ bộ nhớ tạm.', 'Google Drive');
       }
     } catch {
       // Bỏ qua nếu người dùng không cấp quyền clipboard

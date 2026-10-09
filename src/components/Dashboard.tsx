@@ -37,6 +37,7 @@ const AdminPanel = lazy(() =>
 );
 import { getExamTrackInfo, getGradeBadgeStyle } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
+import { useToast } from '../context/ToastContext';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -151,6 +152,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
     initialTab || 'overview'
   );
+  const { showSuccess, showInfo, showError } = useToast();
 
   useEffect(() => {
     if (initialTab) {
@@ -490,15 +492,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const data = await res.json();
       if (data.success && data.document) {
         setCurrentExam(data.document);
+        showSuccess(`Đã bốc đề: ${data.document.title || data.document.file_name}`, 'Bốc Đề Thành Công');
         window.scrollTo({ top: 350, behavior: 'smooth' });
       } else {
-        setExamError(
+        const msg =
           data.message ||
-            'Không tìm thấy đề thi phù hợp với tiêu chí hiện tại. Hãy thử chọn môn học hoặc loại đề khác!'
-        );
+          'Không tìm thấy đề thi phù hợp với tiêu chí hiện tại. Hãy thử chọn môn học hoặc loại đề khác!';
+        setExamError(msg);
+        showError(msg, 'Bốc Đề');
       }
     } catch (err: any) {
-      setExamError(`Lỗi kết nối tới Bot phát đề: ${err.message || 'Hết thời gian chờ phản hồi'}`);
+      const errMsg = `Lỗi kết nối tới Bot phát đề: ${err.message || 'Hết thời gian chờ phản hồi'}`;
+      setExamError(errMsg);
+      showError(errMsg, 'Bốc Đề');
     } finally {
       setIsLoadingExam(false);
     }
@@ -1378,16 +1384,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      const isBookmarked = bookmarkedIds.has(currentExam.id);
                       toggleBookmarkExam(currentExam.id);
                       setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                      if (!isBookmarked) {
+                        showSuccess(
+                          `Đã lưu "${currentExam.title || currentExam.file_name}" vào Tủ Sách Cá Nhân! ⭐`,
+                          'Tủ Sách'
+                        );
+                      } else {
+                        showInfo(
+                          `Đã gỡ "${currentExam.title || currentExam.file_name}" khỏi Tủ Sách.`,
+                          'Tủ Sách'
+                        );
+                      }
                     }}
+                    aria-label={
+                      bookmarkedIds.has(currentExam.id)
+                        ? 'Bỏ lưu đề thi khỏi tủ sách cá nhân'
+                        : 'Lưu đề thi vào tủ sách cá nhân'
+                    }
                     className={`inline-flex items-center gap-2.5 px-5 py-3.5 rounded-2xl border font-bold text-xs sm:text-sm shadow-xl transition-all cursor-pointer ${
                       bookmarkedIds.has(currentExam.id)
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
                         : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
                     }`}
                   >
-                    <Star className={`w-4 h-4 shrink-0 ${bookmarkedIds.has(currentExam.id) ? 'fill-current text-amber-400' : ''}`} />
+                    <Star
+                      className={`w-4 h-4 shrink-0 ${
+                        bookmarkedIds.has(currentExam.id) ? 'fill-current text-amber-400' : ''
+                      }`}
+                    />
                     <span>{bookmarkedIds.has(currentExam.id) ? 'Đã Lưu Vào Tủ Sách' : '⭐ Lưu Vào Tủ Sách'}</span>
                   </button>
 
@@ -1792,9 +1819,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <button
                             type="button"
                             onClick={() => {
+                              const isBookmarked = bookmarkedIds.has(doc.id);
                               toggleBookmarkExam(doc.id);
                               setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                              if (!isBookmarked) {
+                                showSuccess(
+                                  `Đã lưu "${doc.title || doc.file_name}" vào Tủ Sách! ⭐`,
+                                  'Tủ Sách'
+                                );
+                              } else {
+                                showInfo(
+                                  `Đã gỡ "${doc.title || doc.file_name}" khỏi Tủ Sách.`,
+                                  'Tủ Sách'
+                                );
+                              }
                             }}
+                            aria-label={
+                              bookmarkedIds.has(doc.id)
+                                ? 'Bỏ lưu đề thi khỏi tủ sách cá nhân'
+                                : 'Lưu đề thi vào tủ sách cá nhân'
+                            }
                             className={`p-2.5 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
                               bookmarkedIds.has(doc.id)
                                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
