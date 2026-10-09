@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   ArrowLeft,
@@ -512,6 +512,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
     window.addEventListener('hyperhub_api_changed', onApiChanged);
     return () => window.removeEventListener('hyperhub_api_changed', onApiChanged);
   }, [checkBotStatus, fetchDocStats, fetchDocuments]);
+
+  // Tự nhận diện bot vừa bật (offline → online): tải lại toàn bộ dữ liệu
+  const prevOnlineRef = useRef<boolean>(false);
+  const [justReconnected, setJustReconnected] = useState<boolean>(false);
+  useEffect(() => {
+    const wasOnline = prevOnlineRef.current;
+    prevOnlineRef.current = botStatus.online;
+    if (!wasOnline && botStatus.online) {
+      fetchDocStats();
+      fetchDocuments();
+      setJustReconnected(true);
+      const t = setTimeout(() => setJustReconnected(false), 8000);
+      return () => clearTimeout(t);
+    }
+  }, [botStatus.online, fetchDocStats, fetchDocuments]);
 
   const formatFileSize = (bytes: number): string => {
     if (!bytes) return 'N/A';
@@ -1203,8 +1218,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {/* 2. User Unverified Email Warning Barrier */}
-            {(!user || !user.verified) && (
+            {/* Bot vừa bật lại: báo đã tự nhận diện + đồng bộ */}
+            {justReconnected && botStatus.online && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <p className="text-xs sm:text-sm font-semibold">
+                  Bot đã online trở lại — danh sách đề và kho lưu tạm đang tự đồng bộ.
+                </p>
+              </div>
+            )}
+
+            {/* 2. User Unverified Email Warning Barrier */}            {(!user || !user.verified) && (
               <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
                 <div className="space-y-2">
