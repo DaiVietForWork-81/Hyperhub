@@ -35,7 +35,7 @@ import { DocUploadZone } from './DocUploadZone';
 const AdminPanel = lazy(() =>
   import('./AdminPanel').then((m) => ({ default: m.AdminPanel }))
 );
-import { formatEstimatedLevel, getExamTrackInfo } from '../utils/formatters';
+import { getExamTrackInfo, getGradeBadgeStyle } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 
 interface DashboardProps {
@@ -70,6 +70,8 @@ interface ExamDocument {
   timestamp: string;
   file_hash?: string;
   notes?: string;
+  academic_year?: string;
+  school_or_department?: string;
   verdict?: string | null;
   exam_track?: string | null;
   confidence?: number | null;
@@ -79,16 +81,16 @@ interface ExamDocument {
   duplicate_count?: number;
 }
 
-// Danh mục Khối Lớp
+// Danh mục Khối Lớp đồng bộ 7 Role Discord Server
 const GRADE_OPTIONS = [
-  { id: 'ALL', label: 'Mọi Khối', subtitle: 'Tất cả lớp' },
-  { id: '12', label: 'Lớp 12', subtitle: 'Ôn TN & ĐH' },
-  { id: '11', label: 'Lớp 11', subtitle: 'THPT' },
-  { id: '10', label: 'Lớp 10', subtitle: 'THPT' },
-  { id: '9', label: 'Lớp 9', subtitle: 'Ôn Vào 10' },
-  { id: '8', label: 'Lớp 8', subtitle: 'THCS' },
-  { id: '7', label: 'Lớp 7', subtitle: 'THCS' },
-  { id: '6', label: 'Lớp 6', subtitle: 'THCS' },
+  { id: 'ALL', label: 'Mọi Khối', subtitle: 'Tất cả lớp', color: '#8B5CF6' },
+  { id: '12', label: 'Lớp 12', subtitle: 'Ôn TN & ĐH', color: '#EF4444' },
+  { id: '11', label: 'Lớp 11', subtitle: 'THPT', color: '#F97316' },
+  { id: '10', label: 'Lớp 10', subtitle: 'THPT', color: '#F59E0B' },
+  { id: '9', label: 'Lớp 9', subtitle: 'Ôn Vào 10', color: '#10B981' },
+  { id: '8', label: 'Lớp 8', subtitle: 'THCS', color: '#06B6D4' },
+  { id: '7', label: 'Lớp 7', subtitle: 'THCS', color: '#3B82F6' },
+  { id: '6', label: 'Lớp 6', subtitle: 'THCS', color: '#8B5CF6' },
 ];
 
 // Danh mục 5 Thể Loại Đề Thi Chuẩn Theo Yêu Cầu (Đề thường, Đề HSG, Đề chuyên, Đề quốc tế, Đề chung)
@@ -590,16 +592,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={g.id}
                   type="button"
                   onClick={() => handleGradeChange(g.id)}
-                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                  style={{
+                    borderColor: isSelected ? g.color : undefined,
+                  }}
+                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 group relative overflow-hidden ${
                     isSelected
-                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/30 scale-[1.02]'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/50 dark:hover:bg-white/[0.04]'
+                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30 scale-[1.03] ring-2 ring-purple-500/40'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50/50 dark:hover:bg-white/[0.04]'
                   }`}
                 >
-                  <span className="font-bold text-xs sm:text-sm">{g.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    {g.id !== 'ALL' && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 shadow-xs"
+                        style={{ backgroundColor: g.color }}
+                      />
+                    )}
+                    <span className="font-bold text-xs sm:text-sm">{g.label}</span>
+                  </div>
                   <span
                     className={`text-[10px] ${
-                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/40'
+                      isSelected ? 'text-purple-100 font-medium' : 'text-slate-400 dark:text-white/40'
                     }`}
                   >
                     {g.subtitle}
@@ -1255,15 +1268,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
             {currentExam && (
-              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950/30 via-black/40 to-pink-950/30 border-2 border-purple-500/50 shadow-2xl shadow-purple-950/40 space-y-6 animate-in slide-in-from-bottom-6 duration-300">
+              <div className="p-6 sm:p-8 rounded-3xl golden-hologram-card border-2 border-amber-500/50 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40">
                       Môn: {currentExam.subject}
                     </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">
-                      {formatEstimatedLevel(currentExam.estimated_level)}
-                    </span>
+                    {(() => {
+                      const gradeStyle = getGradeBadgeStyle(currentExam.estimated_level);
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
+                          <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
+                          <span>{gradeStyle.label}</span>
+                        </span>
+                      );
+                    })()}
                     {(() => {
                       const tr = getExamTrackInfo(currentExam);
                       return (
@@ -1276,9 +1295,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </span>
                       );
                     })()}
+                    {currentExam.academic_year && (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+                        <span>📅</span>
+                        <span>{currentExam.academic_year}</span>
+                      </span>
+                    )}
+                    {currentExam.school_or_department && (
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30 flex items-center gap-1 truncate max-w-[220px]" title={currentExam.school_or_department}>
+                        <span>🏫</span>
+                        <span className="truncate">{currentExam.school_or_department}</span>
+                      </span>
+                    )}
                     {currentExam.verdict && (
                       <span
-                        className="px-3 py-1 rounded-full text-xs font-bold border border-white/10 bg-white/10 text-white/80"
+                        className="px-3 py-1 rounded-full text-xs font-bold border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80"
                         title="Kết quả thẩm định quét kỹ của Bot"
                       >
                         {currentExam.verdict === 'XAC_MINH'
@@ -1293,12 +1324,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {currentExam.confidence != null && ` • ${Math.round(Number(currentExam.confidence) * 100)}%`}
                       </span>
                     )}
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/80 border border-white/10">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80 border border-slate-300 dark:border-white/10">
                       {currentExam.page_count} trang
                     </span>
                   </div>
 
-                  <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="text-xs text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Đã bốc đề ngẫu nhiên thành công!</span>
                   </span>
@@ -1567,9 +1598,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               {/* Grid các đề thi */}
               {isLoadingDocs ? (
-                <div className="p-12 text-center text-slate-400 dark:text-white/40 space-y-3">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-500" />
-                  <p className="text-xs font-medium">Đang tải danh sách đề thi từ kho Discord...</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((idx) => (
+                    <div
+                      key={idx}
+                      className="p-5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] space-y-4 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-5 rounded-full skeleton-shimmer" />
+                          <div className="w-20 h-5 rounded-full skeleton-shimmer" />
+                          <div className="w-14 h-5 rounded-full skeleton-shimmer" />
+                        </div>
+                        <div className="w-12 h-4 rounded-md skeleton-shimmer" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="w-5/6 h-5 rounded-lg skeleton-shimmer" />
+                        <div className="w-1/2 h-3.5 rounded-lg skeleton-shimmer" />
+                      </div>
+                      <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                        <div className="w-9 h-9 rounded-xl skeleton-shimmer" />
+                        <div className="flex-1 h-9 rounded-xl skeleton-shimmer" />
+                        <div className="flex-1 h-9 rounded-xl skeleton-shimmer" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : showBookmarksOnly && displayedDocuments.length === 0 ? (
                 <div className="p-12 rounded-3xl bg-amber-500/5 dark:bg-amber-500/[0.03] border border-dashed border-amber-500/30 text-center space-y-3">
@@ -1592,183 +1645,204 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : displayedDocuments.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {displayedDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`p-5 rounded-3xl backdrop-blur-xl border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group ${
-                        doc.is_duplicate_copy
-                          ? 'border-amber-500/40 bg-amber-950/10 dark:bg-amber-950/20 hover:border-amber-500/70'
-                          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-purple-400/50 dark:hover:border-purple-500/40'
-                      }`}
-                    >
-                      {/* Top Badges */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
-                            {doc.subject}
-                          </span>
-                          {(() => {
-                            const tr = getExamTrackInfo(doc);
-  return (
-                              <span
-                                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${tr.badgeClass}`}
-                                title={`${tr.description} (${tr.difficultyNote})`}
-                              >
-                                <span>{tr.icon}</span>
-                                <span>{tr.label}</span>
+                  {displayedDocuments.map((doc) => {
+                    const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
+                    const trackInfo = getExamTrackInfo(doc);
+
+                    return (
+                      <div
+                        key={doc.id}
+                        className={`p-5 rounded-3xl backdrop-blur-xl border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group cosmic-card ${
+                          doc.is_duplicate_copy
+                            ? 'border-amber-500/40 bg-amber-950/10 dark:bg-amber-950/20 hover:border-amber-500/70'
+                            : 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-purple-400/50 dark:hover:border-purple-500/40'
+                        }`}
+                      >
+                        {/* Top Badges */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                              {doc.subject}
+                            </span>
+                            <span
+                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${trackInfo.badgeClass}`}
+                              title={`${trackInfo.description} (${trackInfo.difficultyNote})`}
+                            >
+                              <span>{trackInfo.icon}</span>
+                              <span>{trackInfo.label}</span>
+                            </span>
+                            {/* Khối lớp chuẩn 7 Role Discord Server */}
+                            <span
+                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
+                              <span>{gradeStyle.label}</span>
+                            </span>
+                            {/* Duplicate badge */}
+                            {doc.is_duplicate_copy ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                ⚠️ Bản Trùng (#{doc.id})
                               </span>
-                            );
-                          })()}
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80">
-                            {formatEstimatedLevel(doc.estimated_level)}
+                            ) : doc.is_duplicate ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                📌 Bản Gốc
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                                ✨ Độc Bản
+                              </span>
+                            )}
+                            {/* Năm học bóc tách */}
+                            {doc.academic_year && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                                <span>📅</span>
+                                <span>{doc.academic_year}</span>
+                              </span>
+                            )}
+                            {/* Trường / Tỉnh bóc tách */}
+                            {doc.school_or_department && (
+                              <span
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20 flex items-center gap-1 truncate max-w-[170px]"
+                                title={doc.school_or_department}
+                              >
+                                <span>🏫</span>
+                                <span className="truncate">{doc.school_or_department}</span>
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
+                              {doc.file_type || 'PDF'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 dark:text-white/40 font-mono">
+                            {formatFileSize(doc.file_size_bytes)}
                           </span>
-                          {/* Duplicate badge */}
-                          {doc.is_duplicate_copy ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                              ⚠️ Bản Trùng (#{doc.id})
-                            </span>
-                          ) : doc.is_duplicate ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                              📌 Bản Gốc
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
-                              ✨ Độc Bản
-                            </span>
+                        </div>
+
+                        {/* Tiêu đề & Thông tin đề */}
+                        <div>
+                          <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
+                            {doc.title || doc.file_name}
+                          </h4>
+                          <div className="text-[11px] text-slate-400 dark:text-white/40 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span>{doc.page_count} trang</span>
+                            {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
+                            <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
+                          </div>
+                          {doc.notes && (
+                            <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-300 flex items-start gap-1.5">
+                              <span className="font-bold shrink-0">📝 Ghi chú:</span>
+                              <span className="line-clamp-2">{doc.notes}</span>
+                            </div>
                           )}
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
-                            {doc.file_type || 'PDF'}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-400 dark:text-white/40 font-mono">
-                          {formatFileSize(doc.file_size_bytes)}
-                        </span>
-                      </div>
-
-                      {/* Tiêu đề & Thông tin đề */}
-                      <div>
-                        <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
-                          {doc.title || doc.file_name}
-                        </h4>
-                        <div className="text-[11px] text-slate-400 dark:text-white/40 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <span>{doc.page_count} trang</span>
-                          {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
-                          <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
-                        </div>
-                        {doc.notes && (
-                          <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-300 flex items-start gap-1.5">
-                            <span className="font-bold shrink-0">📝 Ghi chú:</span>
-                            <span className="line-clamp-2">{doc.notes}</span>
-                          </div>
-                        )}
-                        {(doc.verdict || doc.exam_track || doc.confidence != null) && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-                            {doc.verdict && (
-                              <span
-                                title="Kết quả thẩm định quét kỹ của Bot"
-                                className={`font-bold px-1.5 py-0.5 rounded-md border ${
-                                  doc.verdict === 'XAC_MINH'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                    : doc.verdict === 'KO_XAC_MINH'
-                                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                                }`}
-                              >
-                                {doc.verdict === 'XAC_MINH'
-                                  ? '✅ Xác minh'
-                                  : doc.verdict === 'CHUA_RO_RANG'
-                                    ? '⚠️ Chưa rõ ràng'
-                                    : doc.verdict === 'KO_RO_RANG'
-                                      ? '❓ Không rõ ràng'
+                          {(doc.verdict || doc.exam_track || doc.confidence != null) && (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                              {doc.verdict && (
+                                <span
+                                  title="Kết quả thẩm định quét kỹ của Bot"
+                                  className={`font-bold px-1.5 py-0.5 rounded-md border ${
+                                    doc.verdict === 'XAC_MINH'
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                                       : doc.verdict === 'KO_XAC_MINH'
-                                        ? '⛔ Không xác minh'
-                                        : `🛡️ ${doc.verdict}`}
-                              </span>
-                            )}
-                            {doc.exam_track && (
-                              <span
-                                title="Thể loại đề (thường < hsg < chuyên)"
-                                className="font-bold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 uppercase"
-                              >
-                                {doc.exam_track === 'thuong'
-                                  ? '📚 Thường'
-                                  : doc.exam_track === 'hsg'
-                                    ? '🏅 HSG'
-                                    : doc.exam_track === 'chuyen'
-                                      ? '🏆 Chuyên'
-                                      : doc.exam_track === 'quoc_te'
-                                        ? '🌍 Quốc tế'
-                                        : `🏷️ ${doc.exam_track}`}
-                              </span>
-                            )}
-                            {doc.confidence != null && (
-                              <span
-                                title="Độ tin cậy phân loại của Bot"
-                                className="font-mono px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
-                              >
-                                {Math.round(Number(doc.confidence) * 100)}%
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                  }`}
+                                >
+                                  {doc.verdict === 'XAC_MINH'
+                                    ? '✅ Xác minh'
+                                    : doc.verdict === 'CHUA_RO_RANG'
+                                      ? '⚠️ Chưa rõ ràng'
+                                      : doc.verdict === 'KO_RO_RANG'
+                                        ? '❓ Không rõ ràng'
+                                        : doc.verdict === 'KO_XAC_MINH'
+                                          ? '⛔ Không xác minh'
+                                          : `🛡️ ${doc.verdict}`}
+                                </span>
+                              )}
+                              {doc.exam_track && (
+                                <span
+                                  title="Thể loại đề (thường < hsg < chuyên)"
+                                  className="font-bold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 uppercase"
+                                >
+                                  {doc.exam_track === 'thuong'
+                                    ? '📚 Thường'
+                                    : doc.exam_track === 'hsg'
+                                      ? '🏅 HSG'
+                                      : doc.exam_track === 'chuyen'
+                                        ? '🏆 Chuyên'
+                                        : doc.exam_track === 'quoc_te'
+                                          ? '🌍 Quốc tế'
+                                          : `🏷️ ${doc.exam_track}`}
+                                </span>
+                              )}
+                              {doc.confidence != null && (
+                                <span
+                                  title="Độ tin cậy phân loại của Bot"
+                                  className="font-mono px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+                                >
+                                  {Math.round(Number(doc.confidence) * 100)}%
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Nút thao tác trên từng đề */}
-                      <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
-                        {/* Nút ⭐ Bookmark / Lưu vào tủ sách */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            toggleBookmarkExam(doc.id);
-                            setBookmarkedIds(new Set(getBookmarkedExamIds()));
-                          }}
-                          className={`p-2.5 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
-                            bookmarkedIds.has(doc.id)
-                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
-                              : 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
-                          }`}
-                          title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
-                        >
-                          <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
-                        </button>
+                        {/* Nút thao tác trên từng đề */}
+                        <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                          {/* Nút ⭐ Bookmark / Lưu vào tủ sách */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toggleBookmarkExam(doc.id);
+                              setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                            }}
+                            className={`p-2.5 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
+                              bookmarkedIds.has(doc.id)
+                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                                : 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
+                            }`}
+                            title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
+                          </button>
 
-                        {/* Mở xem trực tiếp trong tab mới */}
-                        <a
-                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
-                          title="Mở xem trực tiếp tệp trong tab mới"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Mở Tệp</span>
-                        </a>
-
-                        <a
-                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download={doc.file_name || 'de_thi.pdf'}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 active:scale-95 transition-all cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Tải Về</span>
-                        </a>
-
-                        {getSafeExternalUrl(doc.jump_url) && (
+                          {/* Mở xem trực tiếp trong tab mới */}
                           <a
-                            href={getSafeExternalUrl(doc.jump_url)}
+                            href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-600 dark:text-white/70 transition-all cursor-pointer"
-                            title="Mở bài đăng trên Discord"
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
+                            title="Mở xem trực tiếp tệp trong tab mới"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Mở Tệp</span>
                           </a>
-                        )}
+
+                          <a
+                            href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={doc.file_name || 'de_thi.pdf'}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>Tải Về</span>
+                          </a>
+
+                          {getSafeExternalUrl(doc.jump_url) && (
+                            <a
+                              href={getSafeExternalUrl(doc.jump_url)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-600 dark:text-white/70 transition-all cursor-pointer"
+                              title="Mở bài đăng trên Discord"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-3">

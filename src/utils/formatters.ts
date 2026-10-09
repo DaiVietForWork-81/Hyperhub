@@ -151,3 +151,81 @@ export function getExamTrackInfo(doc: {
     description: 'Đề thi đại trà, phổ thông, định kỳ, thi thử THPT (thường < hsg < chuyên)',
   };
 }
+
+export interface GradeBadgeStyle {
+  label: string;
+  badgeClass: string;
+  accentColor: string;
+  dotColor: string;
+}
+
+/**
+ * Lấy style badge và màu sắc đồng bộ với 7 Khối Lớp của Discord Server:
+ * Lớp 12: Đỏ (#EF4444) | Lớp 11: Cam (#F97316) | Lớp 10: Hổ phách (#F59E0B)
+ * Lớp 9: Lục (#10B981)  | Lớp 8: Cyan (#06B6D4) | Lớp 7: Lam (#3B82F6) | Lớp 6: Tím (#8B5CF6)
+ */
+export function getGradeBadgeStyle(level?: string | null): GradeBadgeStyle {
+  const l = (level || '').toLowerCase();
+  if (l.includes('12') || l.includes('lớp 12')) {
+    return {
+      label: 'Lớp 12',
+      badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
+      accentColor: '#EF4444',
+      dotColor: 'bg-red-500',
+    };
+  }
+  if (l.includes('11') || l.includes('lớp 11')) {
+    return {
+      label: 'Lớp 11',
+      badgeClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30',
+      accentColor: '#F97316',
+      dotColor: 'bg-orange-500',
+    };
+  }
+  if (l.includes('10') || l.includes('lớp 10')) {
+    return {
+      label: 'Lớp 10',
+      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+      accentColor: '#F59E0B',
+      dotColor: 'bg-amber-500',
+    };
+  }
+  if (l.includes('9') || l.includes('lớp 9')) {
+    return {
+      label: 'Lớp 9',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      accentColor: '#10B981',
+      dotColor: 'bg-emerald-500',
+    };
+  }
+  if (l.includes('8') || l.includes('lớp 8')) {
+    return {
+      label: 'Lớp 8',
+      badgeClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+      accentColor: '#06B6D4',
+      dotColor: 'bg-cyan-500',
+    };
+  }
+  if (l.includes('7') || l.includes('lớp 7')) {
+    return {
+      label: 'Lớp 7',
+      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+      accentColor: '#3B82F6',
+      dotColor: 'bg-blue-500',
+    };
+  }
+  if (l.includes('6') || l.includes('lớp 6')) {
+    return {
+      label: 'Lớp 6',
+      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+      accentColor: '#8B5CF6',
+      dotColor: 'bg-purple-500',
+    };
+  }
+  return {
+    label: formatEstimatedLevel(level),
+    badgeClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    accentColor: '#64748B',
+    dotColor: 'bg-slate-400',
+  };
+}
