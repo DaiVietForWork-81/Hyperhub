@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 
 // ============================================================================
-// HỆ THỐNG KHỐI HÌNH HỌC 3D WIREFRAME KÍNH TÍM (CHUẨN THEO ẢNH MẪU CỦA NGƯỜI DÙNG)
-// - Khối chữ nhật 3D (đứng, có vạch chia ngang giữa y hệt ảnh)
+// HỆ THỐNG KHỐI HÌNH HỌC 3D WIREFRAME KÍNH TÍM SỐ LƯỢNG LỚN (CHUẨN 100% ẢNH MẪU)
+// - Khối chữ nhật 3D (Đứng, có vạch chia ngang giữa y hệt ảnh người dùng gửi)
 // - Khối vuông 3D (Cube)
 // - Cầu nguyên tử (Atomic sphere với vòng electron)
 // - Cầu 3D bình thường (Smooth sphere)
@@ -11,13 +11,14 @@ import React, { useEffect, useRef } from 'react';
 // - Khối hình thang 3D (Trapezoid)
 //
 // ĐẶC TÍNH:
-// 1. Mỗi khối tồn tại đúng 8 GIÂY, sau 8 giây tắt và hiện khối mới ở vị trí ngẫu nhiên
-// 2. Khi di chuyển, có AURA KHỐI màu tím phát sáng halo xung quanh
-// 3. Khi ấn chuột, càng ấn nhiều lần thì CÀNG NHIỀU KHỐI TIẾN ĐẾN VÀ ĐI THEO CHUỘT
+// 1. SỐ LƯỢNG NHIỀU (48 khối) trải khắp toàn bộ background, luôn có hàng chục khối hiện diện
+// 2. Mỗi khối tồn tại đúng 8 GIÂY, sau 8 giây tắt và hiện khối mới ở vị trí ngẫu nhiên
+// 3. Khi di chuyển, có AURA KHỐI TÍM tỏa sáng rực rỡ di chuyển cùng chiều với khối
+// 4. Khi ấn chuột: Càng ấn nhiều lần, CÀNG NHIỀU KHỐI TIẾN ĐẾN VÀ ĐI THEO CHUỘT
 // ============================================================================
 
 export type WireframeShapeType =
-  | 'rect_box'       // Khối hộp chữ nhật (chuẩn ảnh mẫu)
+  | 'rect_box'       // Khối hộp chữ nhật đứng (chuẩn 100% ảnh mẫu)
   | 'cube'           // Khối lập phương
   | 'atom_sphere'    // Cầu nguyên tử
   | 'normal_sphere'  // Cầu bình thường
@@ -42,8 +43,8 @@ interface WireframeBlock {
   vRotY: number;
   vRotZ: number;
   electronAngle: number;
-  birthTime: number; // Thời điểm sinh ra (ms)
-  lifespan: number;  // Đúng 8000ms (8 giây)
+  birthTime: number; // ms
+  lifespan: number;  // 8000ms (đúng 8 giây)
   isFollowingMouse: boolean;
   orbitAngle: number;
   orbitRadius: number;
@@ -51,6 +52,7 @@ interface WireframeBlock {
 
 const ALL_SHAPES: WireframeShapeType[] = [
   'rect_box',
+  'rect_box', // Tăng tỷ lệ xuất hiện khối hộp chữ nhật theo đúng ảnh mẫu
   'cube',
   'atom_sphere',
   'normal_sphere',
@@ -62,7 +64,8 @@ const ALL_SHAPES: WireframeShapeType[] = [
 export const CosmicInteractiveCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Danh sách các khối
+  // Danh sách các khối (tăng lên 48 khối để ngoài background cực kỳ đông đảo và sống động)
+  const TOTAL_BLOCKS = 48;
   const blocksRef = useRef<WireframeBlock[]>([]);
   const mouseRef = useRef<{ x: number; y: number; active: boolean }>({
     x: typeof window !== 'undefined' ? window.innerWidth / 2 : 600,
@@ -70,12 +73,11 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     active: false,
   });
 
-  // Số lượng khối được kích hoạt đi theo chuột (tăng dần khi ấn chuột)
   const clickComboCountRef = useRef<number>(0);
   const clickResetTimerRef = useRef<number | null>(null);
   const nextIdRef = useRef<number>(1);
 
-  // Helper: Tạo 1 khối wireframe tím mới tại vị trí ngẫu nhiên
+  // Tạo khối mới tại vị trí ngẫu nhiên
   const spawnBlock = (
     w: number,
     h: number,
@@ -85,13 +87,14 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     const type =
       forcedType ?? ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)];
 
-    const posX = 60 + Math.random() * (w - 120);
-    const posY = 60 + Math.random() * (h - 120);
+    // Rải đều khắp toàn bộ màn hình, bao gồm cả lề và trung tâm
+    const posX = Math.random() * w;
+    const posY = Math.random() * h;
 
-    const baseSpeed = 0.5 + Math.random() * 0.9;
+    const baseSpeed = 0.45 + Math.random() * 0.95;
     const moveAngle = Math.random() * Math.PI * 2;
 
-    const baseSize = 36 + Math.random() * 16;
+    const baseSize = 34 + Math.random() * 20;
     const isBox = type === 'rect_box';
 
     return {
@@ -102,33 +105,32 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       vx: Math.cos(moveAngle) * baseSpeed,
       vy: Math.sin(moveAngle) * baseSpeed,
       width: baseSize,
-      height: isBox ? baseSize * 1.45 : baseSize, // Khối chữ nhật cao 1.45x như ảnh mẫu
-      depth: baseSize * 0.6,
-      rotX: 0.2 + (Math.random() - 0.5) * 0.4,
-      rotY: 0.3 + (Math.random() - 0.5) * 0.4,
+      height: isBox ? baseSize * 1.45 : baseSize, // Chiều cao 1.45x như ảnh mẫu
+      depth: baseSize * 0.65,
+      rotX: 0.15 + (Math.random() - 0.5) * 0.4,
+      rotY: 0.25 + (Math.random() - 0.5) * 0.4,
       rotZ: (Math.random() - 0.5) * 0.2,
-      vRotX: (Math.random() - 0.5) * 0.012,
-      vRotY: (Math.random() - 0.5) * 0.015,
-      vRotZ: (Math.random() - 0.5) * 0.01,
+      vRotX: (Math.random() - 0.5) * 0.014,
+      vRotY: (Math.random() - 0.5) * 0.016,
+      vRotZ: (Math.random() - 0.5) * 0.012,
       electronAngle: Math.random() * Math.PI * 2,
       birthTime: performance.now() - birthTimeOffset,
-      lifespan: 8000, // Đúng 8 GIÂY để hiện
+      lifespan: 8000, // ĐÚNG 8 GIÂY
       isFollowingMouse: false,
       orbitAngle: Math.random() * Math.PI * 2,
-      orbitRadius: 45 + Math.random() * 95,
+      orbitRadius: 35 + Math.random() * 110,
     };
   };
 
-  // Khởi tạo ban đầu với các thời điểm sinh so le nhau trong 8 giây
+  // Khởi tạo ban đầu: 48 khối với birthTime rải đều so le trong 8000ms
   useEffect(() => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const initialCount = 18; // Số lượng khối trên màn hình
     const list: WireframeBlock[] = [];
 
-    for (let i = 0; i < initialCount; i++) {
-      // Phân bổ birthTime so le trong khoảng 8000ms để không tắt đồng loạt
-      const offset = (i / initialCount) * 8000;
+    for (let i = 0; i < TOTAL_BLOCKS; i++) {
+      // Phân bổ thời điểm sinh so le trong 8 giây
+      const offset = (i / TOTAL_BLOCKS) * 8000;
       const type = ALL_SHAPES[i % ALL_SHAPES.length];
       list.push(spawnBlock(w, h, offset, type));
     }
@@ -136,7 +138,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     blocksRef.current = list;
   }, []);
 
-  // Bắt sự kiện ấn chuột: Càng ấn nhiều lần -> Càng nhiều khối tiến đến đi theo chuột
+  // Xử lý click chuột: Càng ấn nhiều lần -> CÀNG NHIỀU KHỐI TIẾN ĐẾN ĐI THEO CHUỘT
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       // Chỉ nhận chuột trái
@@ -146,21 +148,21 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       mouseRef.current.y = e.clientY;
       mouseRef.current.active = true;
 
-      // Mỗi lần ấn chuột -> Tăng số lượng khối đi theo chuột
+      // Mỗi lần click -> Tăng số lượng khối hút theo chuột
       clickComboCountRef.current += 1;
       const clicks = clickComboCountRef.current;
 
-      // Tính số khối bị hút theo số lần click:
-      // 1 click: 2 khối
-      // 2 clicks: 5 khối
-      // 3 clicks: 9 khối
-      // 4+ clicks: toàn bộ các khối trên màn hình!
+      // Tăng mạnh số lượng khối tiến đến theo mỗi cú click:
+      // 1 click: 6 khối gần nhất
+      // 2 clicks: 15 khối
+      // 3 clicks: 28 khối
+      // 4+ clicks: TOÀN BỘ 48 KHỐI cùng nhau tiến đến theo chuột!
       const targetFollowerCount = Math.min(
         blocksRef.current.length,
-        clicks <= 1 ? 2 : clicks === 2 ? 5 : clicks === 3 ? 9 : blocksRef.current.length
+        clicks === 1 ? 6 : clicks === 2 ? 15 : clicks === 3 ? 28 : blocksRef.current.length
       );
 
-      // Sắp xếp các khối theo khoảng cách tới chuột để các khối gần nhất tiến đến trước
+      // Sắp xếp theo khoảng cách tới chuột để các khối gần nhất lao đến trước
       const mx = e.clientX;
       const my = e.clientY;
       const sorted = [...blocksRef.current].sort((a, b) => {
@@ -169,7 +171,6 @@ export const CosmicInteractiveCanvas: React.FC = () => {
         return da - db;
       });
 
-      // Gán trạng thái theo dõi chuột
       const followersSet = new Set(
         sorted.slice(0, targetFollowerCount).map((b) => b.id)
       );
@@ -180,7 +181,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
         }
       });
 
-      // Reset timer: Sau 3.5 giây không ấn chuột nữa, số lượng khối theo chuột sẽ từ từ giảm về 0
+      // Sau 3.5 giây không ấn chuột nữa, các khối sẽ nhẹ nhàng tản ra
       if (clickResetTimerRef.current) {
         window.clearTimeout(clickResetTimerRef.current);
       }
@@ -211,7 +212,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     };
   }, []);
 
-  // Main Canvas Render Loop (60 - 120 FPS)
+  // Main Canvas Render Loop (Chuẩn Retina 4K, 60 - 120 FPS)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -220,19 +221,27 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     if (!ctx) return;
 
     let animId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let dpr = window.devicePixelRatio || 1;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
 
-    const handleResize = () => {
+    const resizeCanvas = () => {
       if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.scale(dpr, dpr);
     };
 
-    window.addEventListener('resize', handleResize);
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     // ========================================================================
-    // HÀM VẼ AURA KHỐI TÍM (Hào quang tím bao quanh và di chuyển cùng khối)
+    // 1. VẼ AURA KHỐI TÍM (RỰC RỠ, CHUYỂN ĐỘNG CÙNG KHỐI)
     // ========================================================================
     const drawBlockAura = (
       x: number,
@@ -242,12 +251,12 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       isFollowing: boolean
     ) => {
       ctx.save();
-      const auraRad = isFollowing ? radius * 1.9 : radius * 1.5;
-      const grad = ctx.createRadialGradient(x, y, radius * 0.2, x, y, auraRad);
+      const auraRad = isFollowing ? radius * 2.2 : radius * 1.7;
+      const grad = ctx.createRadialGradient(x, y, radius * 0.15, x, y, auraRad);
 
-      const auraIntensity = isFollowing ? 0.65 : 0.38;
+      const auraIntensity = isFollowing ? 0.75 : 0.48;
       grad.addColorStop(0, `rgba(192, 132, 252, ${auraIntensity * alpha})`);
-      grad.addColorStop(0.5, `rgba(147, 51, 234, ${0.2 * alpha})`);
+      grad.addColorStop(0.45, `rgba(168, 85, 247, ${0.28 * alpha})`);
       grad.addColorStop(1, 'rgba(147, 51, 234, 0)');
 
       ctx.fillStyle = grad;
@@ -258,33 +267,27 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     };
 
     // ========================================================================
-    // HÀM VẼ CÁC KHỐI THEO PHONG CÁCH ẢNH MẪU (Translucent Purple + Neon Edges)
+    // 2. VẼ KHỐI HỘP CHỮ NHẬT / VUÔNG 3D (ĐÚNG Y HỆT ẢNH MẪU NGƯỜI DÙNG TẢI LÊN)
+    // Thân kính tím trong suốt + viền neon tím rực + vạch chia ngang giữa!
     // ========================================================================
-
-    // 1. KHỐI HỘP CHỮ NHẬT / VUÔNG 3D (ĐÚNG Y HỆT ẢNH MẪU NGƯỜI DÙNG TẢI LÊN)
-    // Có vạch chia ngang ở giữa, kính tím trong suốt, viền tím sáng!
     const drawWireframeBox = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w, height: h, depth: d, rotX, rotY, isFollowingMouse } = block;
 
       ctx.save();
       ctx.translate(x, y);
 
-      // Phối cảnh 3D góc nhìn
       const cosX = Math.cos(rotX);
       const sinX = Math.sin(rotX);
       const cosY = Math.cos(rotY);
       const sinY = Math.sin(rotY);
 
-      // 8 đỉnh của khối hộp chữ nhật 3D
       const hw = w * 0.5;
       const hh = h * 0.5;
       const hd = d * 0.5;
 
       const project = (px: number, py: number, pz: number) => {
-        // Xoay Y
         const x1 = px * cosY + pz * sinY;
         const z1 = -px * sinY + pz * cosY;
-        // Xoay X
         const y2 = py * cosX - z1 * sinX;
         return { x: x1, y: y2 };
       };
@@ -299,22 +302,24 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       const p6 = project(hw, hh, hd);
       const p7 = project(-hw, hh, hd);
 
-      // Điểm giữa của các cạnh dọc (Vạch chia ngang ở giữa như ảnh mẫu)
+      // Điểm giữa các cạnh dọc (Vạch chia ngang ở giữa y hệt ảnh chụp)
       const m0 = project(-hw, 0, -hd);
       const m1 = project(hw, 0, -hd);
       const m2 = project(hw, 0, hd);
       const m3 = project(-hw, 0, hd);
 
-      // Màu sắc chuẩn ảnh mẫu: Kính tím bán trong suốt + viền neon tím rực rỡ
+      // Màu sắc rực rỡ, rõ nét đúng ảnh mẫu
       const strokeColor = isFollowingMouse
-        ? `rgba(232, 121, 249, ${0.95 * alpha})`
-        : `rgba(216, 180, 254, ${0.85 * alpha})`;
-      const fillColor = `rgba(147, 51, 234, ${0.18 * alpha})`;
+        ? `rgba(240, 171, 252, ${0.98 * alpha})`
+        : `rgba(216, 180, 254, ${0.92 * alpha})`;
+      const fillColor = isFollowingMouse
+        ? `rgba(168, 85, 247, ${0.35 * alpha})`
+        : `rgba(147, 51, 234, ${0.28 * alpha})`;
 
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = isFollowingMouse ? 2.4 : 2.0;
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = isFollowingMouse ? 16 : 10;
+      ctx.shadowBlur = isFollowingMouse ? 18 : 12;
 
       // Mặt trước
       ctx.fillStyle = fillColor;
@@ -327,7 +332,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // Mặt sau (nhìn xuyên qua được kính trong suốt)
+      // Mặt sau (nhìn xuyên thấu kính trong suốt)
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y);
       ctx.lineTo(p1.x, p1.y);
@@ -337,7 +342,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // 4 cạnh nối mặt trước và mặt sau
+      // 4 cạnh nối các góc
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y); ctx.lineTo(p4.x, p4.y);
       ctx.moveTo(p1.x, p1.y); ctx.lineTo(p5.x, p5.y);
@@ -345,7 +350,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.moveTo(p3.x, p3.y); ctx.lineTo(p7.x, p7.y);
       ctx.stroke();
 
-      // VẠCH PHÂN CHIA NGANG Ở GIỮA (ĐÚNG Y HỆT ẢNH MẪU NGƯỜI DÙNG TẢI LÊN!)
+      // VẠCH PHÂN CHIA NGANG Ở GIỮA THÂN KHỐI (CHÍNH XÁC NHƯ ẢNH MẪU)
       ctx.beginPath();
       ctx.moveTo(m0.x, m0.y); ctx.lineTo(m1.x, m1.y);
       ctx.lineTo(m2.x, m2.y); ctx.lineTo(m3.x, m3.y);
@@ -355,53 +360,53 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.restore();
     };
 
-    // 2. KHỐI CẦU NGUYÊN TỬ (Atomic Sphere with Electron Rings)
+    // 3. KHỐI CẦU NGUYÊN TỬ (Atomic Sphere with Electron Orbits)
     const drawAtomSphere = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w, electronAngle, isFollowingMouse } = block;
-      const r = w * 0.42;
+      const r = w * 0.44;
 
       ctx.save();
       ctx.translate(x, y);
 
       const strokeColor = isFollowingMouse
-        ? `rgba(232, 121, 249, ${0.95 * alpha})`
-        : `rgba(216, 180, 254, ${0.85 * alpha})`;
+        ? `rgba(240, 171, 252, ${0.98 * alpha})`
+        : `rgba(216, 180, 254, ${0.92 * alpha})`;
 
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
 
-      // Hạt nhân cầu kính tím bên trong
+      // Hạt nhân cầu kính tím
       const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
-      grad.addColorStop(0, `rgba(255, 255, 255, ${0.8 * alpha})`);
-      grad.addColorStop(0.4, `rgba(192, 132, 252, ${0.45 * alpha})`);
-      grad.addColorStop(1, `rgba(147, 51, 234, ${0.2 * alpha})`);
+      grad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * alpha})`);
+      grad.addColorStop(0.4, `rgba(192, 132, 252, ${0.55 * alpha})`);
+      grad.addColorStop(1, `rgba(147, 51, 234, ${0.3 * alpha})`);
 
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
 
-      // Vòng quỹ đạo nguyên tử 1 & 2
+      // 3 vòng elip quỹ đạo nguyên tử
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 1.3;
+      ctx.lineWidth = 1.8;
 
-      const angles = [0.55, 2.1];
+      const angles = [0.55, 1.6, 2.7];
       angles.forEach((ang, i) => {
         ctx.save();
         ctx.rotate(ang);
         ctx.beginPath();
-        ctx.ellipse(0, 0, r * 1.8, r * 0.65, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, r * 1.85, r * 0.68, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Hạt electron phát sáng xoay quanh
-        const pos = electronAngle * (1 + i * 0.4);
-        const ex = Math.cos(pos) * (r * 1.8);
-        const ey = Math.sin(pos) * (r * 0.65);
+        // Hạt electron phát sáng
+        const pos = electronAngle * (1 + i * 0.35);
+        const ex = Math.cos(pos) * (r * 1.85);
+        const ey = Math.sin(pos) * (r * 0.68);
 
         ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(ex, ey, 2.4, 0, Math.PI * 2);
+        ctx.arc(ex, ey, 2.6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
@@ -409,7 +414,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.restore();
     };
 
-    // 3. KHỐI CẦU BÌNH THƯỜNG (Smooth 3D Sphere với vòng kính vĩ tuyến)
+    // 4. KHỐI CẦU BÌNH THƯỜNG (Smooth 3D Sphere với vòng kính vĩ độ)
     const drawNormalSphere = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w } = block;
       const r = w * 0.48;
@@ -418,22 +423,22 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.translate(x, y);
 
       const grad = ctx.createRadialGradient(-r * 0.35, -r * 0.35, 0, 0, 0, r);
-      grad.addColorStop(0, `rgba(245, 208, 254, ${0.75 * alpha})`);
-      grad.addColorStop(0.45, `rgba(192, 132, 252, ${0.35 * alpha})`);
-      grad.addColorStop(1, `rgba(147, 51, 234, ${0.15 * alpha})`);
+      grad.addColorStop(0, `rgba(245, 208, 254, ${0.85 * alpha})`);
+      grad.addColorStop(0.45, `rgba(192, 132, 252, ${0.45 * alpha})`);
+      grad.addColorStop(1, `rgba(147, 51, 234, ${0.25 * alpha})`);
 
       ctx.fillStyle = grad;
-      ctx.strokeStyle = `rgba(216, 180, 254, ${0.85 * alpha})`;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = `rgba(216, 180, 254, ${0.92 * alpha})`;
+      ctx.lineWidth = 2.0;
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
 
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Đường kính vĩ độ wireframe bên trong
+      // Đường kính vĩ độ wireframe
       ctx.beginPath();
       ctx.ellipse(0, 0, r, r * 0.38, 0, 0, Math.PI * 2);
       ctx.stroke();
@@ -441,21 +446,20 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.restore();
     };
 
-    // 4. KHỐI TAM GIÁC (3D Pyramid / Tetrahedron Wireframe)
+    // 5. KHỐI TAM GIÁC (3D Pyramid Wireframe)
     const drawPyramid = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w } = block;
-      const s = w * 0.6;
+      const s = w * 0.62;
 
       ctx.save();
       ctx.translate(x, y);
 
-      ctx.fillStyle = `rgba(147, 51, 234, ${0.18 * alpha})`;
-      ctx.strokeStyle = `rgba(216, 180, 254, ${0.85 * alpha})`;
-      ctx.lineWidth = 1.5;
+      ctx.fillStyle = `rgba(147, 51, 234, ${0.28 * alpha})`;
+      ctx.strokeStyle = `rgba(216, 180, 254, ${0.92 * alpha})`;
+      ctx.lineWidth = 2.0;
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
 
-      // Mặt trước
       ctx.beginPath();
       ctx.moveTo(0, -s);
       ctx.lineTo(s * 0.86, s * 0.6);
@@ -464,7 +468,6 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // Đỉnh nối tâm đáy
       ctx.beginPath();
       ctx.moveTo(0, -s);
       ctx.lineTo(0, s * 0.3);
@@ -476,23 +479,22 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.restore();
     };
 
-    // 5. KHỐI HÌNH BÌNH HÀNH 3D (Parallelogram Wireframe)
+    // 6. KHỐI HÌNH BÌNH HÀNH 3D (Parallelogram Wireframe)
     const drawParallelogram = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w } = block;
-      const pw = w * 0.8;
-      const ph = w * 0.55;
+      const pw = w * 0.85;
+      const ph = w * 0.58;
       const skew = pw * 0.35;
 
       ctx.save();
       ctx.translate(x, y);
 
-      ctx.fillStyle = `rgba(147, 51, 234, ${0.18 * alpha})`;
-      ctx.strokeStyle = `rgba(216, 180, 254, ${0.85 * alpha})`;
-      ctx.lineWidth = 1.5;
+      ctx.fillStyle = `rgba(147, 51, 234, ${0.28 * alpha})`;
+      ctx.strokeStyle = `rgba(216, 180, 254, ${0.92 * alpha})`;
+      ctx.lineWidth = 2.0;
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
 
-      // Mặt trước
       ctx.beginPath();
       ctx.moveTo(-pw / 2 + skew, -ph / 2);
       ctx.lineTo(pw / 2, -ph / 2);
@@ -502,8 +504,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // Chiều sâu 3D phía sau
-      const dOffset = 8;
+      const dOffset = 10;
       ctx.beginPath();
       ctx.moveTo(-pw / 2 + skew + dOffset, -ph / 2 - dOffset);
       ctx.lineTo(pw / 2 + dOffset, -ph / 2 - dOffset);
@@ -513,21 +514,21 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.restore();
     };
 
-    // 6. KHỐI HÌNH THANG 3D (Trapezoid Wireframe)
+    // 7. KHỐI HÌNH THANG 3D (Trapezoid Wireframe)
     const drawTrapezoid = (block: WireframeBlock, alpha: number) => {
       const { x, y, width: w } = block;
-      const topW = w * 0.5;
-      const botW = w * 0.95;
-      const th = w * 0.6;
+      const topW = w * 0.52;
+      const botW = w * 0.98;
+      const th = w * 0.62;
 
       ctx.save();
       ctx.translate(x, y);
 
-      ctx.fillStyle = `rgba(147, 51, 234, ${0.18 * alpha})`;
-      ctx.strokeStyle = `rgba(216, 180, 254, ${0.85 * alpha})`;
-      ctx.lineWidth = 1.5;
+      ctx.fillStyle = `rgba(147, 51, 234, ${0.28 * alpha})`;
+      ctx.strokeStyle = `rgba(216, 180, 254, ${0.92 * alpha})`;
+      ctx.lineWidth = 2.0;
       ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
 
       ctx.beginPath();
       ctx.moveTo(-topW / 2, -th / 2);
@@ -538,7 +539,6 @@ export const CosmicInteractiveCanvas: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // Vạch ngang bên trong
       ctx.beginPath();
       ctx.moveTo(-topW * 0.7, 0);
       ctx.lineTo(topW * 0.7, 0);
@@ -548,7 +548,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
     };
 
     // ========================================================================
-    // CHU TRÌNH RENDER LIÊN TỤC (TÍNH TOÁN 8 GIÂY & ĐI THEO CHUỘT)
+    // CHU TRÌNH RENDER 120 FPS: ĐẢM BẢO ĐÚNG 8S VÀ TIẾN ĐẾN THEO CHUỘT
     // ========================================================================
     const render = () => {
       ctx.clearRect(0, 0, width, height);
@@ -562,62 +562,61 @@ export const CosmicInteractiveCanvas: React.FC = () => {
         const block = blocks[i];
         const age = now - block.birthTime;
 
-        // KIỂM TRA ĐÚNG 8 GIÂY: Sau 8 giây thì tắt và hiện khối mới ở vị trí ngẫu nhiên
+        // ĐÚNG 8 GIÂY: Sau 8 giây (8000ms), khối tắt và sinh ra khối mới ở vị trí ngẫu nhiên
         if (age >= block.lifespan) {
           blocks[i] = spawnBlock(width, height, 0);
           continue;
         }
 
-        // Tính độ mờ Alpha mượt mà:
-        // 0.0s -> 0.7s: Hiện dần (Fade in)
-        // 0.7s -> 7.3s: Hiện rõ (Full opacity)
-        // 7.3s -> 8.0s: Tắt dần (Fade out)
+        // Tính Alpha mượt mà trong chu kỳ 8s:
+        // 0.0s -> 0.6s: Hiện dần (Fade in)
+        // 0.6s -> 7.4s: Hiện sáng rõ (Full bright)
+        // 7.4s -> 8.0s: Tắt dần (Fade out)
         let alpha = 1;
-        if (age < 700) {
-          alpha = age / 700;
-        } else if (age > 7300) {
-          alpha = Math.max(0, (8000 - age) / 700);
+        if (age < 600) {
+          alpha = age / 600;
+        } else if (age > 7400) {
+          alpha = Math.max(0, (8000 - age) / 600);
         }
 
         // CHUYỂN ĐỘNG:
         if (block.isFollowingMouse) {
           // KHI ẤN CHUỘT: KHỐI TIẾN ĐẾN VÀ ĐI THEO CHUỘT
-          block.orbitAngle += 0.025;
+          block.orbitAngle += 0.03;
           const targetX = mx + Math.cos(block.orbitAngle) * block.orbitRadius;
           const targetY = my + Math.sin(block.orbitAngle) * block.orbitRadius;
 
-          block.vx += (targetX - block.x) * 0.08;
-          block.vy += (targetY - block.y) * 0.08;
-          block.vx *= 0.86;
-          block.vy *= 0.86;
+          block.vx += (targetX - block.x) * 0.085;
+          block.vy += (targetY - block.y) * 0.085;
+          block.vx *= 0.88;
+          block.vy *= 0.88;
         } else {
-          // BÌNH THƯỜNG: BAY LƯỢN ÊM Ả KHẮP TRANG WEB
-          // Bật nảy nhẹ khi chạm mép màn hình
-          if (block.x < 30) block.vx = Math.abs(block.vx);
-          if (block.x > width - 30) block.vx = -Math.abs(block.vx);
-          if (block.y < 30) block.vy = Math.abs(block.vy);
-          if (block.y > height - 30) block.vy = -Math.abs(block.vy);
+          // BÌNH THƯỜNG: BAY LƯỢN TỰ DO QUANH BACKGROUND
+          if (block.x < 25) block.vx = Math.abs(block.vx);
+          if (block.x > width - 25) block.vx = -Math.abs(block.vx);
+          if (block.y < 25) block.vy = Math.abs(block.vy);
+          if (block.y > height - 25) block.vy = -Math.abs(block.vy);
         }
 
         block.x += block.vx;
         block.y += block.vy;
 
-        // Xoay 3D nhẹ nhàng
+        // Góc xoay 3D
         block.rotX += block.vRotX;
         block.rotY += block.vRotY;
         block.rotZ += block.vRotZ;
         block.electronAngle += 0.05;
 
-        // VẼ AURA KHỐI TÍM (DI CHUYỂN CÙNG VỚI KHỐI)
+        // 1. VẼ AURA KHỐI TÍM (DI CHUYỂN CÙNG VỚI KHỐI)
         drawBlockAura(
           block.x,
           block.y,
-          block.height * 0.7,
+          block.height * 0.75,
           alpha,
           block.isFollowingMouse
         );
 
-        // VẼ KHỐI 3D CHUẨN MẪU THEO TỪNG LOẠI HÌNH
+        // 2. VẼ KHỐI 3D CHUẨN MẪU
         switch (block.type) {
           case 'rect_box':
           case 'cube':
@@ -648,7 +647,7 @@ export const CosmicInteractiveCanvas: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', resizeCanvas);
     };
   }, []);
 
