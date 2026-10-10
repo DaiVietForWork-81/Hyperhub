@@ -11,6 +11,7 @@ import {
 import { ScrollReveal } from './ScrollReveal';
 import { SpotlightCard } from './SpotlightCard';
 import { MinecraftCosmicCube } from './MinecraftCosmicCube';
+import { MinecraftEnchantedBook, MinecraftBlock } from './MinecraftVoxelItems';
 
 export const CommunityChannels: React.FC = () => {
   return (
@@ -149,6 +150,21 @@ export const CommunityChannels: React.FC = () => {
                   Box chat thân thuộc trên Messenger giúp bạn hỏi nhanh bài tập, nhận thông báo đề thi 
                   và cập nhật tin tức tuyển sinh 10 & THPT Quốc Gia mọi lúc trên điện thoại.
                 </p>
+              </div>
+
+              {/* Vật phẩm Minecraft Tương Tác: Sách Phù Phép Tri Thức & Khối Kim Cương */}
+              <div className="py-2 sm:py-3 flex items-center justify-around bg-black/30 rounded-2xl border border-sky-500/20 backdrop-blur-sm px-2">
+                <MinecraftEnchantedBook
+                  size={50}
+                  label="Sách Phù Phép"
+                  isFloating={true}
+                />
+                <MinecraftBlock
+                  type="diamond"
+                  size={44}
+                  label="Kim Cương 3D"
+                  isFloating={true}
+                />
               </div>
 
               {/* Feature bullets */}

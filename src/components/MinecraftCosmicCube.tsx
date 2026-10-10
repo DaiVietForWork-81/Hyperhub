@@ -147,11 +147,20 @@ export const MinecraftCosmicCube: React.FC<MinecraftCosmicCubeProps> = ({
       {/* ======================================================== */}
       {/* 2. MINECRAFT VOXEL 3D CUBE (Phóng to khi chạm vào)       */}
       {/* ======================================================== */}
+      {/* Glow Layer (GPU accelerated layer, zero lag) */}
       <div
-        className={`relative preserve-3d transition-all duration-500 ease-out ${
-          isHovered
-            ? 'scale-[1.22] drop-shadow-[0_0_35px_rgba(217,70,239,0.85)]'
-            : 'scale-100 drop-shadow-[0_0_20px_rgba(168,85,247,0.45)]'
+        className={`absolute rounded-full pointer-events-none transition-all duration-500 -z-10 ${
+          isHovered ? 'scale-125 opacity-80' : 'scale-95 opacity-40'
+        }`}
+        style={{
+          width: size * 1.4,
+          height: size * 1.4,
+          background: 'radial-gradient(circle, rgba(217, 70, 239, 0.45) 0%, rgba(147, 51, 234, 0.2) 40%, transparent 70%)',
+        }}
+      />
+      <div
+        className={`relative preserve-3d transition-transform duration-500 ease-out ${
+          isHovered ? 'scale-[1.22]' : 'scale-100'
         }`}
         style={{
           width: size,

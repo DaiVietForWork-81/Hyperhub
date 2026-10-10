@@ -62,8 +62,8 @@ export const CosmicCube: React.FC<CosmicCubeProps> = ({
     },
   }[colorTheme];
 
-  // Face common classes
-  const faceBase = `absolute inset-0 border backdrop-blur-[2px] transition-all duration-300 ${themeStyles.border} ${themeStyles.bg}`;
+  // Face common classes (No backdrop-blur to ensure buttery 60-120fps hardware rendering)
+  const faceBase = `absolute inset-0 border transition-all duration-300 ${themeStyles.border} ${themeStyles.bg}`;
 
   const speedClass = isHovered
     ? 'animate-spin-cube-fast'

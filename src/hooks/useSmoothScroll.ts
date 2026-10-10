@@ -20,14 +20,14 @@ export const useSmoothScroll = () => {
       return;
     }
 
-    // Lenis configuration: velvety smooth, buttery inertia when scrolling up and down
+    // Lenis configuration: snappy, direct response, zero lag
     const lenis = new Lenis({
-      duration: 1.15,
+      duration: 0.85,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Silky exponential settle
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 0.9, // Balanced 1:1 glide without jerky steps
+      wheelMultiplier: 1.0, // 1:1 direct scroll control
       touchMultiplier: 1.5,
       infinite: false,
       syncTouch: false,

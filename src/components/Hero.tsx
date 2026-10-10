@@ -22,8 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
-import { CosmicCube } from './CosmicCube';
-import { QuantumCore } from './QuantumCore';
+import { MinecraftBlock, MinecraftEnchantedBook } from './MinecraftVoxelItems';
 
 const ROW1_SUBJECTS = [
   { name: "Toán Học", icon: Calculator, color: "text-blue-400", border: "border-blue-500/20" },
@@ -82,12 +81,12 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         {/* HyperHub Big Main Title - With Animated Texture Flow & Atmospheric Aura */}
         <ScrollReveal delay={200}>
           <div className="relative mb-4 sm:mb-6 select-none inline-block">
-            {/* Anchored 3D Cube & Quantum Core Ornaments */}
-            <div className="hidden md:block absolute -left-16 lg:-left-24 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-80 hover:opacity-100 transition-opacity">
-              <CosmicCube size={48} colorTheme="purple" isFloating={true} />
+            {/* Anchored Minecraft 3D Voxel Diamond Block & Enchanted Book */}
+            <div className="hidden md:block absolute -left-16 lg:-left-24 top-1/2 -translate-y-1/2 pointer-events-auto select-none opacity-85 hover:opacity-100 transition-opacity">
+              <MinecraftBlock type="diamond" size={48} label="DIAMOND" isFloating={true} />
             </div>
-            <div className="hidden md:block absolute -right-16 lg:-right-24 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-80 hover:opacity-100 transition-opacity">
-              <QuantumCore size={56} colorTheme="pink" isFloating={true} />
+            <div className="hidden md:block absolute -right-16 lg:-right-24 top-1/2 -translate-y-1/2 pointer-events-auto select-none opacity-85 hover:opacity-100 transition-opacity">
+              <MinecraftEnchantedBook size={52} label="ENCHANT" isFloating={true} />
             </div>
 
             <div className="text-aura-halo">

@@ -855,6 +855,104 @@ html.light .golden-hologram-card {
   will-change: transform;
 }
 
+/* Wide Traveling / Patrol Paths Around The Web (Di chuyển xung quanh web mượt mà 60-120fps) */
+@keyframes wander-patrol-1 {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(120px, -80px, 0) rotate(8deg);
+  }
+  50% {
+    transform: translate3d(220px, 40px, 0) rotate(-6deg);
+  }
+  75% {
+    transform: translate3d(80px, 110px, 0) rotate(10deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes wander-patrol-2 {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  30% {
+    transform: translate3d(-150px, 70px, 0) rotate(-10deg);
+  }
+  60% {
+    transform: translate3d(-80px, -110px, 0) rotate(8deg);
+  }
+  85% {
+    transform: translate3d(60px, -50px, 0) rotate(-5deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes wander-orbit-large {
+  0% {
+    transform: translate3d(-70px, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(0, -80px, 0) rotate(90deg);
+  }
+  50% {
+    transform: translate3d(70px, 0, 0) rotate(180deg);
+  }
+  75% {
+    transform: translate3d(0, 80px, 0) rotate(270deg);
+  }
+  100% {
+    transform: translate3d(-70px, 0, 0) rotate(360deg);
+  }
+}
+
+@keyframes wander-diagonal {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-170px, 120px, 0) rotate(14deg);
+  }
+}
+
+@keyframes wander-horizontal-sweep {
+  0%, 100% {
+    transform: translate3d(-50px, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(220px, -50px, 0) rotate(12deg);
+  }
+}
+
+.animate-wander-1 {
+  animation: wander-patrol-1 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-wander-2 {
+  animation: wander-patrol-2 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-wander-orbit {
+  animation: wander-orbit-large 24s linear infinite;
+  will-change: transform;
+}
+
+.animate-wander-diagonal {
+  animation: wander-diagonal 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-wander-sweep {
+  animation: wander-horizontal-sweep 28s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* ========================================= */
 /* MINECRAFT VOXEL COSMIC CUBE & ELECTRON ORBITS */
 /* ========================================= */
