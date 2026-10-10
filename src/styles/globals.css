@@ -855,6 +855,86 @@ html.light .golden-hologram-card {
   will-change: transform;
 }
 
+/* ========================================= */
+/* MINECRAFT VOXEL COSMIC CUBE & ELECTRON ORBITS */
+/* ========================================= */
+
+@keyframes electron-orbit-1 {
+  0% {
+    transform: rotateX(68deg) rotateY(25deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(68deg) rotateY(25deg) rotateZ(360deg);
+  }
+}
+
+@keyframes electron-orbit-2 {
+  0% {
+    transform: rotateX(-58deg) rotateY(38deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(-58deg) rotateY(38deg) rotateZ(-360deg);
+  }
+}
+
+@keyframes electron-orbit-3 {
+  0% {
+    transform: rotateX(20deg) rotateY(-72deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(20deg) rotateY(-72deg) rotateZ(360deg);
+  }
+}
+
+@keyframes ender-mote-rise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-24px) scale(1);
+  }
+  100% {
+    transform: translateY(-48px) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.animate-electron-1 {
+  animation: electron-orbit-1 6s linear infinite;
+  will-change: transform;
+}
+
+.animate-electron-2 {
+  animation: electron-orbit-2 8s linear infinite;
+  will-change: transform;
+}
+
+.animate-electron-3 {
+  animation: electron-orbit-3 10s linear infinite;
+  will-change: transform;
+}
+
+.animate-electron-fast-1 {
+  animation: electron-orbit-1 2.2s linear infinite;
+  will-change: transform;
+}
+
+.animate-electron-fast-2 {
+  animation: electron-orbit-2 2.8s linear infinite;
+  will-change: transform;
+}
+
+.animate-electron-fast-3 {
+  animation: electron-orbit-3 3.4s linear infinite;
+  will-change: transform;
+}
+
+.animate-ender-mote {
+  animation: ender-mote-rise 2.4s ease-out infinite;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

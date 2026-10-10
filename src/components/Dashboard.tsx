@@ -42,6 +42,7 @@ import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
 import { CosmicCube } from './CosmicCube';
 import { QuantumCore } from './QuantumCore';
+import { MinecraftCosmicCube } from './MinecraftCosmicCube';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -1136,8 +1137,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {/* Card 1: Discord Bot Live Status */}
               <div className="p-6 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    <Bot className="w-6 h-6" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    {/* Lõi Minecraft Không Gian với các hạt electron quay quanh */}
+                    <div className="hidden sm:flex items-center justify-center" title="Lõi Máy Chủ Minecraft Không Gian - Chạm để tăng tốc hạt electron!">
+                      <MinecraftCosmicCube size={36} showLabel={false} />
+                    </div>
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
@@ -1242,12 +1249,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </p>
               </div>
 
-              <button
-                onClick={() => setActiveTab('get_exam')}
-                className="btn-shimmer px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/40 hover:-translate-y-1 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
-              >
-                Mở Kho Đề Thi Ngay
-              </button>
+              <div className="flex items-center gap-4">
+                <div className="hidden lg:block">
+                  <MinecraftCosmicCube size={44} showLabel={false} />
+                </div>
+                <button
+                  onClick={() => setActiveTab('get_exam')}
+                  className="btn-shimmer px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/40 hover:-translate-y-1 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+                >
+                  Mở Kho Đề Thi Ngay
+                </button>
+              </div>
             </div>
           </div>
         )}

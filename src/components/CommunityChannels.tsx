@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { SpotlightCard } from './SpotlightCard';
+import { MinecraftCosmicCube } from './MinecraftCosmicCube';
 
 export const CommunityChannels: React.FC = () => {
   return (
@@ -75,6 +76,15 @@ export const CommunityChannels: React.FC = () => {
                   Trung tâm học tập sôi động với bot thẩm định tự động, phòng học Lo-fi voice 24/7, 
                   phân chia chuyên mục theo từng môn và tổ chức các buổi thi thử định kỳ.
                 </p>
+              </div>
+
+              {/* Khối Minecraft Không Gian Tương Tác (Cosmic Voxel Server Core) */}
+              <div className="py-2 sm:py-3 flex items-center justify-center bg-black/30 rounded-2xl border border-purple-500/20 backdrop-blur-sm">
+                <MinecraftCosmicCube
+                  size={64}
+                  label="Chạm Để Tương Tác Lõi Máy Chủ"
+                  showLabel={true}
+                />
               </div>
 
               {/* Feature bullets */}
