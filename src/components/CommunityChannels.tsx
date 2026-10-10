@@ -10,8 +10,6 @@ import {
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { SpotlightCard } from './SpotlightCard';
-import { MinecraftCosmicCube } from './MinecraftCosmicCube';
-import { GeometricAtomSphere, GeometricOctahedron } from './Geometric3DItems';
 
 export const CommunityChannels: React.FC = () => {
   return (
@@ -79,15 +77,6 @@ export const CommunityChannels: React.FC = () => {
                 </p>
               </div>
 
-              {/* Khối Lập Phương 3D Không Gian Tương Tác (3D Cosmic Cube Core) */}
-              <div className="py-2 sm:py-3 flex items-center justify-center bg-black/30 rounded-2xl border border-purple-500/20 backdrop-blur-sm">
-                <MinecraftCosmicCube
-                  size={64}
-                  label="Khối Lập Phương 3D & Hạt Lượng Tử"
-                  showLabel={true}
-                />
-              </div>
-
               {/* Feature bullets */}
               <div className="space-y-2.5 pt-2 border-t border-white/10 text-xs text-slate-300">
                 <div className="flex items-center gap-2.5">
@@ -150,20 +139,6 @@ export const CommunityChannels: React.FC = () => {
                   Box chat thân thuộc trên Messenger giúp bạn hỏi nhanh bài tập, nhận thông báo đề thi 
                   và cập nhật tin tức tuyển sinh 10 & THPT Quốc Gia mọi lúc trên điện thoại.
                 </p>
-              </div>
-
-              {/* Khối Hình Học 3D Tương Tác: Cầu Nguyên Tử & Bát Diện */}
-              <div className="py-2 sm:py-3 flex items-center justify-around bg-black/30 rounded-2xl border border-sky-500/20 backdrop-blur-sm px-2">
-                <GeometricAtomSphere
-                  size={52}
-                  theme="cyan"
-                  isFloating={true}
-                />
-                <GeometricOctahedron
-                  size={46}
-                  theme="pink"
-                  isFloating={true}
-                />
               </div>
 
               {/* Feature bullets */}

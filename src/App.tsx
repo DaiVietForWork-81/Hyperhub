@@ -9,7 +9,6 @@ import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { MouseAura } from './components/MouseAura';
 import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
-import { CosmicDriftOrnaments } from './components/CosmicDriftOrnaments';
 import { CosmicInteractiveCanvas } from './components/CosmicInteractiveCanvas';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
@@ -120,10 +119,9 @@ export const App: React.FC = () => {
     <div 
       className="relative min-h-dvh w-full overflow-x-hidden selection:bg-purple-500/30 selection:text-purple-200 bg-[#050508] text-white"
     >
-      {/* Background Ambience, Cyber Grid, 3D Cosmic Drift & Mouse Aura */}
+      {/* Background Ambience, Cyber Grid, 3D Wireframe Cosmos & Mouse Aura */}
       <AmbientGlow />
       <CyberGrid />
-      <CosmicDriftOrnaments />
       <CosmicInteractiveCanvas />
       <MouseAura />
 
