@@ -10,6 +10,7 @@ import { MouseAura } from './components/MouseAura';
 import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
 import { CosmicDriftOrnaments } from './components/CosmicDriftOrnaments';
+import { CosmicInteractiveCanvas } from './components/CosmicInteractiveCanvas';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
 import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
@@ -123,6 +124,7 @@ export const App: React.FC = () => {
       <AmbientGlow />
       <CyberGrid />
       <CosmicDriftOrnaments />
+      <CosmicInteractiveCanvas />
       <MouseAura />
 
       {/* Header Navigation with Dashboard Trigger */}
