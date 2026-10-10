@@ -40,6 +40,8 @@ import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStora
 import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
+import { CosmicCube } from './CosmicCube';
+import { QuantumCore } from './QuantumCore';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -601,7 +603,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const renderFilterControls = (showRollButton: boolean = true) => (
     <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-7">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block">
+            <QuantumCore size={34} colorTheme="cyan" isFloating={true} />
+          </div>
           <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
             <Filter className="w-4 h-4" />
           </div>
@@ -1537,16 +1542,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span>Kho Lưu Trữ Đề Thi Đã Thẩm Định</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
-                    <span>Kho Đề Thi</span>
-                    <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
-                      {stats.total_real} Đề
-                    </span>
-                  </h1>
-                  <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div className="hidden sm:block">
+                    <CosmicCube size={42} colorTheme="purple" isFloating={true} />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
+                      <span>Kho Đề Thi</span>
+                      <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
+                        {stats.total_real} Đề
+                      </span>
+                    </h1>
+                    <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                      Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2.5 flex-wrap">

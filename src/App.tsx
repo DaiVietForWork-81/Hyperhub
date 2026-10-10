@@ -9,6 +9,7 @@ import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { MouseAura } from './components/MouseAura';
 import { AmbientGlow } from './components/AmbientGlow';
 import { CyberGrid } from './components/CyberGrid';
+import { CosmicDriftOrnaments } from './components/CosmicDriftOrnaments';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
 import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
@@ -118,9 +119,10 @@ export const App: React.FC = () => {
     <div 
       className="relative min-h-dvh w-full overflow-x-hidden selection:bg-purple-500/30 selection:text-purple-200 bg-[#050508] text-white"
     >
-      {/* Background Ambience, Cyber Grid & Mouse Aura */}
+      {/* Background Ambience, Cyber Grid, 3D Cosmic Drift & Mouse Aura */}
       <AmbientGlow />
       <CyberGrid />
+      <CosmicDriftOrnaments />
       <MouseAura />
 
       {/* Header Navigation with Dashboard Trigger */}

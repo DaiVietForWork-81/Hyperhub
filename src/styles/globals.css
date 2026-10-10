@@ -694,6 +694,167 @@ html.light .golden-hologram-card {
               0 0 20px 0 rgba(139, 92, 246, 0.1);
 }
 
+/* ========================================= */
+/* 3D COSMIC GEOMETRICS, CUBES & CORES (Vercel standard) */
+/* ========================================= */
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-600 {
+  perspective: 600px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-visible {
+  backface-visibility: visible;
+}
+
+@keyframes spin-cube-3d {
+  0% {
+    transform: rotateX(15deg) rotateY(0deg) rotateZ(0deg);
+  }
+  50% {
+    transform: rotateX(200deg) rotateY(180deg) rotateZ(45deg);
+  }
+  100% {
+    transform: rotateX(375deg) rotateY(360deg) rotateZ(360deg);
+  }
+}
+
+@keyframes spin-cube-reverse {
+  0% {
+    transform: rotateX(0deg) rotateY(360deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(0deg) rotateZ(360deg);
+  }
+}
+
+@keyframes spin-gyro-1 {
+  0% {
+    transform: rotateX(70deg) rotateY(20deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(70deg) rotateY(20deg) rotateZ(360deg);
+  }
+}
+
+@keyframes spin-gyro-2 {
+  0% {
+    transform: rotateX(-45deg) rotateY(50deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(-45deg) rotateY(50deg) rotateZ(-360deg);
+  }
+}
+
+@keyframes spin-gyro-3 {
+  0% {
+    transform: rotateX(25deg) rotateY(-65deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(25deg) rotateY(-65deg) rotateZ(360deg);
+  }
+}
+
+@keyframes core-pulse-glow {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.6;
+    filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.6));
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.95;
+    filter: drop-shadow(0 0 28px rgba(236, 72, 153, 0.9));
+  }
+}
+
+@keyframes float-drift-1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(15px, -22px, 0) rotate(6deg);
+  }
+  66% {
+    transform: translate3d(-12px, -35px, 0) rotate(-4deg);
+  }
+}
+
+@keyframes float-drift-2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-20px, 28px, 0) rotate(-8deg);
+  }
+}
+
+@keyframes float-drift-3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(18px, 20px, 0) rotate(12deg);
+  }
+}
+
+.animate-spin-cube {
+  animation: spin-cube-3d 24s linear infinite;
+  will-change: transform;
+}
+
+.animate-spin-cube-fast {
+  animation: spin-cube-3d 12s linear infinite;
+  will-change: transform;
+}
+
+.animate-spin-cube-reverse {
+  animation: spin-cube-reverse 20s linear infinite;
+  will-change: transform;
+}
+
+.animate-gyro-1 {
+  animation: spin-gyro-1 8s linear infinite;
+  will-change: transform;
+}
+
+.animate-gyro-2 {
+  animation: spin-gyro-2 12s linear infinite;
+  will-change: transform;
+}
+
+.animate-gyro-3 {
+  animation: spin-gyro-3 16s linear infinite;
+  will-change: transform;
+}
+
+.animate-core-pulse {
+  animation: core-pulse-glow 3s ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+.animate-drift-1 {
+  animation: float-drift-1 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-drift-2 {
+  animation: float-drift-2 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-drift-3 {
+  animation: float-drift-3 12s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
@@ -703,4 +864,5 @@ html.light .golden-hologram-card {
     scroll-behavior: auto !important;
   }
 }
+
 

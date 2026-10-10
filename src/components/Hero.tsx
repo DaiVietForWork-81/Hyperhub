@@ -22,6 +22,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
+import { CosmicCube } from './CosmicCube';
+import { QuantumCore } from './QuantumCore';
 
 const ROW1_SUBJECTS = [
   { name: "Toán Học", icon: Calculator, color: "text-blue-400", border: "border-blue-500/20" },
@@ -80,6 +82,14 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         {/* HyperHub Big Main Title - With Animated Texture Flow & Atmospheric Aura */}
         <ScrollReveal delay={200}>
           <div className="relative mb-4 sm:mb-6 select-none inline-block">
+            {/* Anchored 3D Cube & Quantum Core Ornaments */}
+            <div className="hidden md:block absolute -left-16 lg:-left-24 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-80 hover:opacity-100 transition-opacity">
+              <CosmicCube size={48} colorTheme="purple" isFloating={true} />
+            </div>
+            <div className="hidden md:block absolute -right-16 lg:-right-24 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-80 hover:opacity-100 transition-opacity">
+              <QuantumCore size={56} colorTheme="pink" isFloating={true} />
+            </div>
+
             <div className="text-aura-halo">
               <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tight leading-none drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
                 <span className="cosmic-text-flow">
