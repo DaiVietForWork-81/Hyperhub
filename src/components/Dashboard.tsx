@@ -1141,8 +1141,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                       <Bot className="w-6 h-6" />
                     </div>
-                    {/* Lõi Minecraft Không Gian với các hạt electron quay quanh */}
-                    <div className="hidden sm:flex items-center justify-center" title="Lõi Máy Chủ Minecraft Không Gian - Chạm để tăng tốc hạt electron!">
+                    {/* Khối Lập Phương Không Gian 3D với các hạt electron lượng tử */}
+                    <div className="hidden sm:flex items-center justify-center" title="Khối Lập Phương Không Gian 3D - Chạm để tăng tốc hạt electron lượng tử!">
                       <MinecraftCosmicCube size={36} showLabel={false} />
                     </div>
                   </div>

@@ -10,7 +10,7 @@ interface MinecraftCosmicCubeProps {
 
 export const MinecraftCosmicCube: React.FC<MinecraftCosmicCubeProps> = ({
   size = 84,
-  label = 'HyperHub Server Core',
+  label = 'Khối Lập Phương 3D & Hạt Lượng Tử',
   showLabel = true,
   className = '',
   onClick,
@@ -26,7 +26,7 @@ export const MinecraftCosmicCube: React.FC<MinecraftCosmicCubeProps> = ({
     onClick?.();
   };
 
-  // Minecraft Obsidian & Ender Pixel Face Matrix (16-grid aesthetic)
+  // Pure 3D Geometric Glass Cube Matrix
   const faceBaseStyle = `
     absolute inset-0 border-2 border-purple-400/60 dark:border-fuchsia-500/70
     bg-gradient-to-br from-[#12072B] via-[#0D041D] to-[#1F093D]
@@ -38,7 +38,7 @@ export const MinecraftCosmicCube: React.FC<MinecraftCosmicCubeProps> = ({
     <div
       role="button"
       tabIndex={0}
-      aria-label="Khối Minecraft Không Gian HyperHub"
+      aria-label="Khối Lập Phương Không Gian 3D HyperHub"
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

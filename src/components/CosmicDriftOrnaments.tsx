@@ -1,11 +1,14 @@
 import React from 'react';
-import { QuantumCore } from './QuantumCore';
 import {
-  MinecraftBlock,
-  MinecraftEnchantedBook,
-  MinecraftXpOrb,
-  Geometric3D,
-} from './MinecraftVoxelItems';
+  GeometricAtomSphere,
+  GeometricSphere,
+  GeometricCube,
+  GeometricRectPrism,
+  GeometricPyramid,
+  GeometricParallelogram,
+  GeometricTrapezoid,
+  GeometricOctahedron,
+} from './Geometric3DItems';
 
 interface CosmicDriftOrnamentsProps {
   className?: string;
@@ -24,138 +27,139 @@ export const CosmicDriftOrnaments: React.FC<CosmicDriftOrnamentsProps> = ({
       }}
     >
       {/* ======================================================== */}
-      {/* 1. KHỐI ĐỨNG YÊN CHỖ (Anchored Minecraft & 3D Shapes)       */}
+      {/* 1. KHỐI HÌNH HỌC 3D NEO VỊ TRÍ (Anchored 3D Shapes)       */}
       {/* ======================================================== */}
 
-      {/* Góc Trên Phải: Khối Kim Cương Minecraft 3D Voxel (Diamond Block) */}
+      {/* Góc Trên Phải: Khối Lập Phương 3D Kính Neon (3D Cube) */}
       <div className="pointer-events-auto absolute top-20 right-4 sm:right-12 lg:right-24 hover:opacity-100 transition-opacity">
-        <MinecraftBlock
-          type="diamond"
+        <GeometricCube
           size={52}
-          label="DIAMOND"
+          theme="purple"
           isFloating={true}
         />
       </div>
 
-      {/* Góc Trên Trái: Cuốn Sách Phù Phép Tri Thức Minecraft (Enchanted Book) */}
+      {/* Góc Trên Trái: Khối Cầu Nguyên Tử Lượng Tử (Atomic Sphere) */}
       <div className="pointer-events-auto hidden sm:block absolute top-28 left-4 sm:left-10 lg:left-20 hover:opacity-100 transition-opacity">
-        <MinecraftEnchantedBook
-          size={54}
-          label="ENCHANTED BOOK"
+        <GeometricAtomSphere
+          size={56}
+          theme="cyan"
           isFloating={true}
         />
       </div>
 
-      {/* Góc Giữa Trái: Khối Đá Đỏ Minecraft (Redstone Ore) */}
+      {/* Góc Giữa Trái: Khối Bát Diện 3D (Octahedron) */}
       <div className="pointer-events-auto hidden md:block absolute top-[650px] left-6 lg:left-14 opacity-85 hover:opacity-100 transition-opacity">
-        <MinecraftBlock
-          type="redstone"
-          size={46}
-          label="REDSTONE"
-          isFloating={true}
-        />
-      </div>
-
-      {/* Góc Giữa Phải: Khối Bát Diện 3D Lượng Tử (Quantum Octahedron) */}
-      <div className="pointer-events-auto hidden sm:block absolute top-[750px] right-6 lg:right-16 opacity-85 hover:opacity-100 transition-opacity">
-        <Geometric3D
-          shape="octahedron"
+        <GeometricOctahedron
           size={50}
-          colorTheme="purple"
+          theme="pink"
           isFloating={true}
         />
       </div>
 
-      {/* Đoạn Thân: Khối Ngọc Lục Bảo (Emerald Voxel) */}
+      {/* Góc Giữa Phải: Khối Tam Giác Kim Tự Tháp 3D (Pyramid) */}
+      <div className="pointer-events-auto hidden sm:block absolute top-[750px] right-6 lg:right-16 opacity-85 hover:opacity-100 transition-opacity">
+        <GeometricPyramid
+          size={52}
+          theme="amber"
+          isFloating={true}
+        />
+      </div>
+
+      {/* Đoạn Thân: Khối Hình Bình Hành 3D (Parallelogram) */}
       <div className="pointer-events-auto hidden lg:block absolute top-[1400px] right-12 opacity-80 hover:opacity-100 transition-opacity">
-        <MinecraftBlock
-          type="emerald"
-          size={48}
-          label="EMERALD"
+        <GeometricParallelogram
+          size={50}
+          theme="emerald"
           isFloating={true}
         />
       </div>
 
-      {/* Đoạn Thân Trái: Con Quay Hồi Chuyển Lượng Tử (Cyan Quantum Core) */}
+      {/* Đoạn Thân Trái: Khối Hình Thang 3D (Trapezoid) */}
       <div className="pointer-events-auto hidden md:block absolute top-[1500px] left-12 opacity-80 hover:opacity-100 transition-opacity">
-        <QuantumCore
-          size={54}
-          colorTheme="cyan"
+        <GeometricTrapezoid
+          size={52}
+          theme="cyan"
           isFloating={true}
         />
       </div>
 
       {/* ======================================================== */}
-      {/* 2. CÁC ĐỒ VẬT DI CHUYỂN XUNG QUANH WEB (Wandering Patrol) */}
+      {/* 2. CÁC KHỐI HÌNH HỌC 3D DI CHUYỂN TUẦN TRA QUANH WEB      */}
       {/* ======================================================== */}
 
-      {/* Đồ vật di chuyển 1: Khối Vàng Minecraft tuần tra lượn sóng ngang dọc */}
+      {/* Khối di chuyển 1: Khối Hộp Chữ Nhật 3D tuần tra ngang dọc */}
       <div className="pointer-events-auto absolute top-[350px] left-[15%] hidden md:block">
         <div className="animate-wander-1">
-          <MinecraftBlock
-            type="gold"
-            size={42}
-            label="GOLD ORE"
+          <GeometricRectPrism
+            size={48}
+            theme="cyan"
             isFloating={false}
           />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 2: Hạt Kinh Nghiệm Minecraft (XP Orb 1) di chuyển quanh trang web */}
+      {/* Khối di chuyển 2: Khối Cầu 3D mượt mà bay lượn quanh web */}
       <div className="pointer-events-auto absolute top-[220px] left-[55%]">
         <div className="animate-wander-2">
-          <MinecraftXpOrb size={38} isFloating={false} />
+          <GeometricSphere
+            size={42}
+            theme="pink"
+            isFloating={false}
+          />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 3: Khối Bát Diện 3D bay quanh quỹ đạo rộng */}
+      {/* Khối di chuyển 3: Khối Bát Diện 3D bay quanh quỹ đạo rộng */}
       <div className="pointer-events-auto absolute top-[950px] right-[20%] hidden sm:block">
         <div className="animate-wander-orbit">
-          <Geometric3D
-            shape="octahedron"
+          <GeometricOctahedron
             size={46}
-            colorTheme="cyan"
+            theme="purple"
             isFloating={false}
           />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 4: Kim Tự Tháp Năng Lượng 3D di chuyển đường chéo */}
+      {/* Khối di chuyển 4: Khối Tam Giác Kim Tự Tháp 3D di chuyển đường chéo */}
       <div className="pointer-events-auto absolute top-[1150px] left-[25%] hidden lg:block">
         <div className="animate-wander-diagonal">
-          <Geometric3D
-            shape="pyramid"
-            size={48}
-            colorTheme="amber"
+          <GeometricPyramid
+            size={46}
+            theme="amber"
             isFloating={false}
           />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 5: Cuốn Sách Phù Phép lướt ngang trang trọng */}
+      {/* Khối di chuyển 5: Cầu Nguyên Tử 3D lướt ngang trang trọng */}
       <div className="pointer-events-auto absolute top-[520px] right-[12%] hidden sm:block">
         <div className="animate-wander-sweep">
-          <MinecraftEnchantedBook
-            size={48}
+          <GeometricAtomSphere
+            size={50}
+            theme="emerald"
             isFloating={false}
           />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 6: Hạt Kinh Nghiệm Minecraft (XP Orb 2) tuần tra phía dưới */}
+      {/* Khối di chuyển 6: Khối Lập Phương 3D tuần tra phía dưới */}
       <div className="pointer-events-auto absolute top-[1750px] right-[35%] hidden sm:block">
         <div className="animate-wander-1">
-          <MinecraftXpOrb size={34} isFloating={false} />
+          <GeometricCube
+            size={44}
+            theme="purple"
+            isFloating={false}
+          />
         </div>
       </div>
 
-      {/* Đồ vật di chuyển 7: Lăng Kính Lượng Tử Phản Chiếu (Prism) */}
+      {/* Khối di chuyển 7: Khối Hình Thang 3D bay quanh quỹ đạo elip */}
       <div className="pointer-events-auto absolute top-[1950px] left-[18%] hidden md:block">
         <div className="animate-wander-orbit">
-          <Geometric3D
-            shape="prism"
-            size={44}
-            colorTheme="emerald"
+          <GeometricTrapezoid
+            size={46}
+            theme="cyan"
             isFloating={false}
           />
         </div>

@@ -11,7 +11,7 @@ import {
 import { ScrollReveal } from './ScrollReveal';
 import { SpotlightCard } from './SpotlightCard';
 import { MinecraftCosmicCube } from './MinecraftCosmicCube';
-import { MinecraftEnchantedBook, MinecraftBlock } from './MinecraftVoxelItems';
+import { GeometricAtomSphere, GeometricOctahedron } from './Geometric3DItems';
 
 export const CommunityChannels: React.FC = () => {
   return (
@@ -79,11 +79,11 @@ export const CommunityChannels: React.FC = () => {
                 </p>
               </div>
 
-              {/* Khối Minecraft Không Gian Tương Tác (Cosmic Voxel Server Core) */}
+              {/* Khối Lập Phương 3D Không Gian Tương Tác (3D Cosmic Cube Core) */}
               <div className="py-2 sm:py-3 flex items-center justify-center bg-black/30 rounded-2xl border border-purple-500/20 backdrop-blur-sm">
                 <MinecraftCosmicCube
                   size={64}
-                  label="Chạm Để Tương Tác Lõi Máy Chủ"
+                  label="Khối Lập Phương 3D & Hạt Lượng Tử"
                   showLabel={true}
                 />
               </div>
@@ -152,17 +152,16 @@ export const CommunityChannels: React.FC = () => {
                 </p>
               </div>
 
-              {/* Vật phẩm Minecraft Tương Tác: Sách Phù Phép Tri Thức & Khối Kim Cương */}
+              {/* Khối Hình Học 3D Tương Tác: Cầu Nguyên Tử & Bát Diện */}
               <div className="py-2 sm:py-3 flex items-center justify-around bg-black/30 rounded-2xl border border-sky-500/20 backdrop-blur-sm px-2">
-                <MinecraftEnchantedBook
-                  size={50}
-                  label="Sách Phù Phép"
+                <GeometricAtomSphere
+                  size={52}
+                  theme="cyan"
                   isFloating={true}
                 />
-                <MinecraftBlock
-                  type="diamond"
-                  size={44}
-                  label="Kim Cương 3D"
+                <GeometricOctahedron
+                  size={46}
+                  theme="pink"
                   isFloating={true}
                 />
               </div>
