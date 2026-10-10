@@ -38,6 +38,8 @@ const AdminPanel = lazy(() =>
 import { getExamTrackInfo, getGradeBadgeStyle } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 import { useToast } from '../context/ToastContext';
+import { ExamDossierModal } from './ExamDossierModal';
+import { CommandPalette } from './CommandPalette';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -55,7 +57,7 @@ interface BotStatus {
   guilds_count?: number;
 }
 
-interface ExamDocument {
+export interface ExamDocument {
   id: number;
   subject: string;
   title: string;
@@ -284,14 +286,67 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<'newest' | 'pages' | 'size' | 'confidence'>('newest');
 
-  // Danh sách đề thi được hiển thị (có lọc theo Tủ Sách Yêu Thích nếu được kích hoạt)
+  // Modal Hồ Sơ Chi Tiết & Command Palette
+  const [selectedDossierDoc, setSelectedDossierDoc] = useState<ExamDocument | null>(null);
+  const [isDossierOpen, setIsDossierOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+
+  // Phím tắt toàn cục Ctrl+K hoặc Cmd+K để mở thanh tìm kiếm siêu tốc
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Danh sách đề thi được hiển thị (có lọc theo Tủ Sách Yêu Thích và Sắp xếp nâng cao)
   const displayedDocuments = useMemo(() => {
-    if (showBookmarksOnly) {
-      return documentsList.filter((doc) => bookmarkedIds.has(doc.id));
+    let list = showBookmarksOnly
+      ? documentsList.filter((doc) => bookmarkedIds.has(doc.id))
+      : [...documentsList];
+
+    if (sortBy === 'newest') {
+      list.sort((a, b) => b.id - a.id);
+    } else if (sortBy === 'pages') {
+      list.sort((a, b) => (b.page_count || 0) - (a.page_count || 0));
+    } else if (sortBy === 'size') {
+      list.sort((a, b) => (b.file_size_bytes || 0) - (a.file_size_bytes || 0));
+    } else if (sortBy === 'confidence') {
+      list.sort((a, b) => (Number(b.confidence) || 0) - (Number(a.confidence) || 0));
     }
-    return documentsList;
-  }, [documentsList, showBookmarksOnly, bookmarkedIds]);
+
+    return list;
+  }, [documentsList, showBookmarksOnly, bookmarkedIds, sortBy]);
+
+  // Thống kê phân bố tài liệu theo 7 Khối Lớp
+  const gradeDistribution = useMemo(() => {
+    const dist: Record<string, number> = {
+      '12': 0,
+      '11': 0,
+      '10': 0,
+      '9': 0,
+      '8': 0,
+      '7': 0,
+      '6': 0,
+    };
+    documentsList.forEach((d) => {
+      const l = (d.estimated_level || '').toLowerCase();
+      if (l.includes('12')) dist['12']++;
+      else if (l.includes('11')) dist['11']++;
+      else if (l.includes('10')) dist['10']++;
+      else if (l.includes('9')) dist['9']++;
+      else if (l.includes('8')) dist['8']++;
+      else if (l.includes('7')) dist['7']++;
+      else if (l.includes('6')) dist['6']++;
+    });
+    return dist;
+  }, [documentsList]);
 
   // Trạng thái đề ngẫu nhiên được chọn
   const [isLoadingExam, setIsLoadingExam] = useState<boolean>(false);
@@ -1493,12 +1548,156 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
                   </p>
                 </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    onClick={() => setIsCommandPaletteOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <Search className="w-4 h-4 text-purple-400" />
+                    <span>Tìm Siêu Tốc (Ctrl+K)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('submit_doc')}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    <span>+ Nộp Đề Mới Vào Kho</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Thước Đo Phân Bố Tài Liệu Theo 7 Khối Lớp */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+                  <GraduationCap className="w-4 h-4 text-purple-400" />
+                  Phân Bố Tài Liệu 7 Khối Lớp (Đồng Bộ Mã Màu Discord Roles)
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  Tổng {documentsList.length} đề thi
+                </span>
+              </div>
+
+              {/* Multi-segmented visual bar */}
+              <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex">
+                {gradeDistribution['12'] > 0 && (
+                  <div
+                    className="h-full bg-red-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['12'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 12: ${gradeDistribution['12']} đề`}
+                    onClick={() => handleGradeChange('GRADE_12')}
+                  />
+                )}
+                {gradeDistribution['11'] > 0 && (
+                  <div
+                    className="h-full bg-orange-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['11'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 11: ${gradeDistribution['11']} đề`}
+                    onClick={() => handleGradeChange('GRADE_11')}
+                  />
+                )}
+                {gradeDistribution['10'] > 0 && (
+                  <div
+                    className="h-full bg-amber-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['10'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 10: ${gradeDistribution['10']} đề`}
+                    onClick={() => handleGradeChange('GRADE_10')}
+                  />
+                )}
+                {gradeDistribution['9'] > 0 && (
+                  <div
+                    className="h-full bg-emerald-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['9'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 9: ${gradeDistribution['9']} đề`}
+                    onClick={() => handleGradeChange('GRADE_9')}
+                  />
+                )}
+                {gradeDistribution['8'] > 0 && (
+                  <div
+                    className="h-full bg-cyan-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['8'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 8: ${gradeDistribution['8']} đề`}
+                    onClick={() => handleGradeChange('GRADE_8')}
+                  />
+                )}
+                {gradeDistribution['7'] > 0 && (
+                  <div
+                    className="h-full bg-blue-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['7'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 7: ${gradeDistribution['7']} đề`}
+                    onClick={() => handleGradeChange('GRADE_7')}
+                  />
+                )}
+                {gradeDistribution['6'] > 0 && (
+                  <div
+                    className="h-full bg-purple-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{ width: `${(gradeDistribution['6'] / Math.max(1, documentsList.length)) * 100}%` }}
+                    title={`Lớp 6: ${gradeDistribution['6']} đề`}
+                    onClick={() => handleGradeChange('GRADE_6')}
+                  />
+                )}
+              </div>
+
+              {/* Legend labels */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
                 <button
-                  onClick={() => setActiveTab('submit_doc')}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_12')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 cursor-pointer hover:bg-red-500/20"
                 >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>+ Nộp Đề Mới Vào Kho</span>
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span>Lớp 12 ({gradeDistribution['12']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_11')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 cursor-pointer hover:bg-orange-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-orange-500" />
+                  <span>Lớp 11 ({gradeDistribution['11']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_10')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-pointer hover:bg-amber-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>Lớp 10 ({gradeDistribution['10']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_9')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>Lớp 9 ({gradeDistribution['9']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_8')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  <span>Lớp 8 ({gradeDistribution['8']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_7')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>Lớp 7 ({gradeDistribution['7']})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGradeChange('GRADE_6')}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 cursor-pointer hover:bg-purple-500/20"
+                >
+                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span>Lớp 6 ({gradeDistribution['6']})</span>
                 </button>
               </div>
             </div>
@@ -1598,6 +1797,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {bookmarkedIds.size}
                     </span>
                   </button>
+                </div>
+
+                {/* Sắp Xếp Nâng Cao */}
+                <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-3 py-1 rounded-xl">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                    Sắp xếp:
+                  </span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="bg-transparent text-xs font-bold text-slate-800 dark:text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="newest" className="bg-slate-900 text-white">Mới Nhất</option>
+                    <option value="pages" className="bg-slate-900 text-white">Nhiều Trang Nhất</option>
+                    <option value="size" className="bg-slate-900 text-white">Dung Lượng Lớn</option>
+                    <option value="confidence" className="bg-slate-900 text-white">Độ Tin Cậy AI</option>
+                  </select>
                 </div>
 
                 {/* Reset bộ lọc */}
@@ -1745,8 +1961,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </span>
                         </div>
 
-                        {/* Tiêu đề & Thông tin đề */}
-                        <div>
+                        {/* Tiêu đề & Thông tin đề (Nhấn để mở Hồ Sơ Chi Tiết) */}
+                        <div
+                          onClick={() => {
+                            setSelectedDossierDoc(doc);
+                            setIsDossierOpen(true);
+                          }}
+                          className="cursor-pointer"
+                        >
                           <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
                             {doc.title || doc.file_name}
                           </h4>
@@ -1847,6 +2069,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
                           >
                             <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
+                          </button>
+
+                          {/* Nút Xem Hồ Sơ Kiểm Định AI */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDossierDoc(doc);
+                              setIsDossierOpen(true);
+                            }}
+                            className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                            title="Xem hồ sơ phân tích kiểm định chi tiết của AI"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Hồ Sơ</span>
                           </button>
 
                           {/* Mở xem trực tiếp trong tab mới */}
@@ -1973,7 +2209,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
 
-      {/* [ĐÃ CHUYỂN] Modal Cài đặt endpoint API giờ nằm trong Admin Hub → tab Cấu Hình Bot */}
+      {/* Modal Hồ Sơ Kiểm Định Đề Thi Toàn Diện */}
+      <ExamDossierModal
+        doc={selectedDossierDoc}
+        isOpen={isDossierOpen}
+        onClose={() => setIsDossierOpen(false)}
+        isBookmarked={selectedDossierDoc ? bookmarkedIds.has(selectedDossierDoc.id) : false}
+        onToggleBookmark={(id) => {
+          const isB = bookmarkedIds.has(id);
+          toggleBookmarkExam(id);
+          setBookmarkedIds(new Set(getBookmarkedExamIds()));
+          if (!isB) {
+            showSuccess('Đã lưu đề thi vào Tủ Sách Cá Nhân! ⭐', 'Tủ Sách');
+          } else {
+            showInfo('Đã bỏ lưu khỏi Tủ Sách.', 'Tủ Sách');
+          }
+        }}
+        apiBase={getApiBaseUrl()}
+      />
+
+      {/* Thanh Tìm Kiếm Siêu Tốc & Lệnh Nhanh (Ctrl+K / ⌘K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        documents={documentsList}
+        onSelectExam={(doc) => {
+          setSelectedDossierDoc(doc);
+          setIsDossierOpen(true);
+        }}
+        onNavigateTab={(tab) => setActiveTab(tab)}
+        onNavigateHome={onBackToHome}
+        onTriggerRandomExam={handlePickRandomExam}
+      />
     </div>
   );
 };
