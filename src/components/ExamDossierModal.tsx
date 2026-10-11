@@ -116,6 +116,30 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>{doc.verdict === 'XAC_MINH' ? 'Đã Thẩm Định ✅' : 'Tài Liệu Hợp Lệ'}</span>
             </span>
+
+            {/* Chuẩn Bộ GD&ĐT 2025 */}
+            {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
+              <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm shadow-cyan-950/40">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Chuẩn Bộ GD&ĐT 2025</span>
+              </span>
+            )}
+
+            {/* Trạng thái Đáp án */}
+            {doc.has_answer_keys && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                <span>Có Đáp Án</span>
+              </span>
+            )}
+
+            {/* Trạng thái Lời giải */}
+            {doc.has_detailed_solutions && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                <span>Lời Giải Chi Tiết</span>
+              </span>
+            )}
           </div>
 
           <h2 id="dossier-title" className="text-xl sm:text-2xl font-black text-white leading-tight">
@@ -174,6 +198,44 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Khối Cấu Trúc Đề Thi Chuẩn Bộ GD&ĐT 2025 */}
+        {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0) || (doc.moet_part2_count && doc.moet_part2_count > 0) || (doc.moet_part3_count && doc.moet_part3_count > 0)) && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-slate-900/40 to-indigo-950/30 border border-cyan-500/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wider">
+                <Layers className="w-4 h-4 text-cyan-400" />
+                Cấu Trúc Đề Thi Chuẩn Bộ GD&ĐT 2025
+              </span>
+              <span className="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                Form Mới
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                <div className="text-[11px] text-slate-400 font-medium">Phần I: 4 Phương Án</div>
+                <div className="font-bold text-white text-sm">
+                  {doc.moet_part1_count ? `${doc.moet_part1_count} câu` : '12 câu'}
+                </div>
+                <div className="text-[10px] text-cyan-400/80">Chọn 1 phương án đúng</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                <div className="text-[11px] text-slate-400 font-medium">Phần II: Đúng / Sai</div>
+                <div className="font-bold text-white text-sm">
+                  {doc.moet_part2_count ? `${doc.moet_part2_count} câu` : '4 câu'}
+                </div>
+                <div className="text-[10px] text-emerald-400/80">4 ý a, b, c, d mỗi câu</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                <div className="text-[11px] text-slate-400 font-medium">Phần III: Trả Lời Ngắn</div>
+                <div className="font-bold text-white text-sm">
+                  {doc.moet_part3_count ? `${doc.moet_part3_count} câu` : '6 câu'}
+                </div>
+                <div className="text-[10px] text-indigo-400/80">Điền số / kết quả ngắn</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Thanh Độ Tin Cậy & Thẩm Định AI */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-black/40 to-indigo-950/40 border border-purple-500/20 space-y-2.5">

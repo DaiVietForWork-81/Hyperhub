@@ -78,6 +78,12 @@ export interface ExamDocument {
   verdict?: string | null;
   exam_track?: string | null;
   confidence?: number | null;
+  moet_2025_compliant?: boolean;
+  moet_part1_count?: number;
+  moet_part2_count?: number;
+  moet_part3_count?: number;
+  has_answer_keys?: boolean;
+  has_detailed_solutions?: boolean;
   is_duplicate?: boolean;
   is_duplicate_copy?: boolean;
   original_id?: number | null;
@@ -2054,6 +2060,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                   className="font-mono px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
                                 >
                                   {Math.round(Number(doc.confidence) * 100)}%
+                                </span>
+                              )}
+                              {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
+                                <span
+                                  title="Đề thi cấu trúc chuẩn mới Bộ GD&ĐT 2025 (3 phần: Trắc nghiệm 4 lựa chọn, Đúng/Sai, Trả lời ngắn)"
+                                  className="font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30"
+                                >
+                                  ✨ Chuẩn 2025
+                                </span>
+                              )}
+                              {doc.has_answer_keys && (
+                                <span
+                                  title="Đề thi đã kèm bảng đáp án"
+                                  className="font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20"
+                                >
+                                  📝 Có đáp án
+                                </span>
+                              )}
+                              {doc.has_detailed_solutions && (
+                                <span
+                                  title="Đề thi có hướng dẫn giải / lời giải chi tiết"
+                                  className="font-semibold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20"
+                                >
+                                  ✨ Lời giải chi tiết
                                 </span>
                               )}
                             </div>

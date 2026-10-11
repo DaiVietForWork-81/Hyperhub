@@ -56,6 +56,12 @@ export interface InspectionResult {
   school_or_department?: string;
   summary: string;
   file_hash?: string;
+  moet_2025_compliant?: boolean;
+  moet_part1_count?: number;
+  moet_part2_count?: number;
+  moet_part3_count?: number;
+  has_answer_keys?: boolean;
+  has_detailed_solutions?: boolean;
   download_url: string;
   security_verification?: {
     layer1_url_auth?: string;
@@ -789,9 +795,26 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                 <span className="text-purple-400 font-semibold">• Đang kiểm định AI...</span>
                               )}
                               {item.status === 'success' && res && (
-                                <span className="text-emerald-400 font-semibold">
-                                  • Môn: {res.detected_subject} | {formatEstimatedLevel(res.estimated_level)} | {res.page_count} trang
-                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <span className="text-emerald-400 font-semibold">
+                                    • Môn: {res.detected_subject} | {formatEstimatedLevel(res.estimated_level)} | {res.page_count} trang
+                                  </span>
+                                  {(res.moet_2025_compliant || (res.moet_part1_count && res.moet_part1_count > 0)) && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                      ✨ Chuẩn 2025
+                                    </span>
+                                  )}
+                                  {res.has_answer_keys && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                      📝 Có đáp án
+                                    </span>
+                                  )}
+                                  {res.has_detailed_solutions && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                      ✨ Lời giải chi tiết
+                                    </span>
+                                  )}
+                                </div>
                               )}
                               {item.status === 'duplicate' && (
                                 <span className="text-amber-400 font-semibold">
@@ -1240,6 +1263,21 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               {item.school && (
                                 <span className="text-cyan-400 font-semibold">
                                   • Nguồn: {item.school}
+                                </span>
+                              )}
+                              {(item.moet_2025_compliant || (item.moet_part1_count && item.moet_part1_count > 0)) && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                  ✨ Chuẩn 2025
+                                </span>
+                              )}
+                              {item.has_answer_keys && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  📝 Có đáp án
+                                </span>
+                              )}
+                              {item.has_detailed_solutions && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  ✨ Lời giải chi tiết
                                 </span>
                               )}
                             </div>
