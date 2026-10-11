@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeTransitionState } from '../components/ThemeCurtain';
 
 export type Theme = 'dark';
+
+export interface ThemeTransitionState {
+  isActive: boolean;
+  currentTheme: 'dark';
+  targetTheme: 'dark';
+  stage: 'idle';
+  message: string;
+}
 
 const applyDOMTheme = () => {
   if (typeof document === 'undefined') return;
@@ -46,3 +53,5 @@ export const useTheme = () => {
 
   return { theme, toggleTheme, setTheme, transitionState };
 };
+
+export default useTheme;

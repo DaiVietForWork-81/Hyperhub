@@ -8,7 +8,6 @@ import { ExamCountdown } from './components/ExamCountdown';
 import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { MouseAura } from './components/MouseAura';
 import { AmbientGlow } from './components/AmbientGlow';
-import { CyberGrid } from './components/CyberGrid';
 import { SpaceCubeBackground } from './components/SpaceCubeBackground';
 import { Footer } from './components/Footer';
 import { LofiPlayer } from './components/LofiPlayer';
@@ -119,9 +118,8 @@ export const App: React.FC = () => {
     <div 
       className="relative min-h-dvh w-full overflow-x-hidden selection:bg-purple-500/30 selection:text-purple-200 bg-[#050508] text-white"
     >
-      {/* Background Ambience, Cyber Grid, 3D Space Cubes & Mouse Aura */}
+      {/* Background Ambience, 3D Space Cubes & Mouse Aura */}
       <AmbientGlow />
-      <CyberGrid />
       {activeView !== 'dashboard' && <SpaceCubeBackground />}
       <MouseAura />
 

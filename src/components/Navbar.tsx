@@ -21,7 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNearTop, setIsNearTop] = useState(true);
-  const [docCount, setDocCount] = useState<number>(29);
+  const [docCount, setDocCount] = useState<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
 
   // Lấy số lượng đề thật từ Bot
@@ -36,10 +36,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           const data = await res.json();
           if (data && (data.total_real || data.total_items)) {
             setDocCount(data.total_real || data.total_items);
+          } else {
+            setDocCount(null);
           }
+        } else {
+          setDocCount(null);
         }
       } catch {
-        // Fallback
+        setDocCount(null);
       }
     };
     fetchCount();
@@ -183,9 +187,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5 text-purple-400" />
               <span>Kho Đề</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300">
-                {docCount} Đề
-              </span>
+              {docCount !== null && docCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300">
+                  {docCount} Đề
+                </span>
+              )}
             </button>
 
             <button
@@ -298,9 +304,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <BookOpen className="w-4 h-4 text-purple-400" />
                   <span>Kho Đề Thi</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
-                  {docCount} đề
-                </span>
+                {docCount !== null && docCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
+                    {docCount} đề
+                  </span>
+                )}
               </button>
 
               <button
