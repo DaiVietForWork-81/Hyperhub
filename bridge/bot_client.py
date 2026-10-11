@@ -91,11 +91,14 @@ class BotBridgeClient:
 
     async def _db_fallback_leaderboard(self, mode: str = "ranked", limit: int = 50) -> dict[str, Any]:
         """Truy vấn bảng xếp hạng trực tiếp từ CSDL khi không gọi được REST API."""
+        engine = None
         try:
+            from sqlalchemy.pool import NullPool
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
             from sqlalchemy import select, desc
 
-            engine = create_async_engine(config.DATABASE_URL, echo=False)
+            _pool_kw = {"poolclass": NullPool} if "sqlite" in config.DATABASE_URL.lower() else {}
+            engine = create_async_engine(config.DATABASE_URL, echo=False, **_pool_kw)
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
             # Import User model
@@ -150,11 +153,13 @@ class BotBridgeClient:
                             ),
                         })
 
-                await engine.dispose()
                 return {"mode": mode, "total": len(data), "leaderboard": data, "source": "database"}
         except Exception as db_err:
             logger.error(f"Fallback CSDL thất bại: {db_err}")
             return {"mode": mode, "total": 0, "leaderboard": [], "error": str(db_err)}
+        finally:
+            if engine is not None:
+                await engine.dispose()
 
     async def get_active_duels(self) -> dict[str, Any]:
         """Lấy danh sách các trận đấu Ranked 1:1 thời gian thực."""
