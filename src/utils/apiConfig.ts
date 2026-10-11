@@ -24,12 +24,13 @@ const ALLOWED_API_HOSTS = [
 function isSafeUrl(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
-    return ALLOWED_API_HOSTS.some(
-      (host) =>
-        parsed.hostname === host ||
-        parsed.hostname.endsWith(".ngrok-free.dev") ||
-        parsed.hostname.endsWith(".trycloudflare.com") ||
-        parsed.hostname.endsWith(".cfargotunnel.com")
+    const host = parsed.hostname.toLowerCase();
+    if (ALLOWED_API_HOSTS.includes(host)) return true;
+    return (
+      host.endsWith(".ngrok-free.dev") ||
+      host.endsWith(".ngrok.io") ||
+      host.endsWith(".trycloudflare.com") ||
+      host.endsWith(".cfargotunnel.com")
     );
   } catch {
     return false;
