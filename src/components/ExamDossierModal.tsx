@@ -17,7 +17,6 @@ import {
 import { ExamDocument } from './Dashboard';
 import { getGradeBadgeStyle, getExamTrackInfo, formatFileSize } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
-import { CosmicCube } from './CosmicCube';
 
 interface ExamDossierModalProps {
   doc: ExamDocument | null;
@@ -119,21 +118,14 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             </span>
           </div>
 
-          <div className="flex items-start gap-3.5">
-            <div className="shrink-0 mt-0.5 hidden sm:block">
-              <CosmicCube size={38} colorTheme="purple" isFloating={true} />
-            </div>
-            <div>
-              <h2 id="dossier-title" className="text-xl sm:text-2xl font-black text-white leading-tight">
-                {doc.title || doc.file_name}
-              </h2>
+          <h2 id="dossier-title" className="text-xl sm:text-2xl font-black text-white leading-tight">
+            {doc.title || doc.file_name}
+          </h2>
 
-              <p className="text-xs sm:text-sm text-slate-400 font-mono mt-1">
-                Tệp gốc: <span className="text-slate-300">{doc.file_name}</span> • Dung lượng:{' '}
-                <span className="text-slate-300">{formatFileSize(doc.file_size_bytes)}</span>
-              </p>
-            </div>
-          </div>
+          <p className="text-xs sm:text-sm text-slate-400 font-mono">
+            Tệp gốc: <span className="text-slate-300">{doc.file_name}</span> • Dung lượng:{' '}
+            <span className="text-slate-300">{formatFileSize(doc.file_size_bytes)}</span>
+          </p>
         </div>
 
         {/* Lưới Thông Tin Trích Xuất (AI Inspection Metrics Grid) */}
