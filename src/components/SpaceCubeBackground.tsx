@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 
 // ============================================================================
-// HỆ THỐNG KHỐI KHÔNG GIAN 3D: CUBE & SPHERE (8 KHỐI - 8S - VA CHẠM ĐÀN HỒI)
-// - Đúng 8 khối không gian (4 Cube + 4 Sphere) luân phiên hiển thị nền
+// HỆ THỐNG KHỐI KHÔNG GIAN 3D: CUBE & SPHERE (SPAWN NGẪU NHIÊN 8 - 16 KHỐI)
+// - Số lượng khối spawn ngẫu nhiên linh hoạt từ 8 đến 16 khối (Cube & Sphere)
 // - Vòng đời mỗi khối: đúng 8 giây (Fade in 1s -> Duy trì 6s -> Fade out 1s -> Tắt)
-// - Sau 8s, khối cũ tắt hoàn toàn và 1 khối mới spawn ở vị trí ngẫu nhiên
+// - Luân phiên ngẫu nhiên tăng/giảm trong dải 8-16 khối một cách mượt mà (Fade In/Out)
 // - CÁC KHỐI VA CHẠM VỚI NHAU: Khi 2 khối chạm nhau, chúng tự động bật nảy đàn hồi (Bounce),
-//   đổi hướng bay, thay đổi góc xoay 3D và phát ra gợn sóng ánh sáng tại điểm va chạm
+//   đổi hướng bay, thay đổi góc xoay 3D và phát ra gợn sóng ánh sáng tại điểm tiếp xúc
 // - Va chạm đàn hồi với 4 cạnh màn hình: Giúp các khối luôn bay lượn trong tầm nhìn
 // - Parallax nhẹ nhàng theo con trỏ chuột khi lướt web
 // - Không dùng shadowBlur, khóa DPR=1, 60 FPS Throttling, 0% lag CPU/GPU
@@ -43,9 +43,13 @@ interface CollisionRipple {
   alpha: number;
 }
 
+const MIN_SHAPES = 8;     // Tối thiểu 8 khối
+const MAX_SHAPES = 16;    // Tối đa 16 khối
 const LIFETIME_MS = 8000; // Đúng 8 giây mỗi khối
 const FADE_MS = 1000;     // 1 giây đầu Fade in, 1 giây cuối Fade out
-const TOTAL_SHAPES = 8;   // Đúng 8 khối
+
+// Helper sinh ngẫu nhiên số lượng khối trong khoảng 8 - 16
+const getRandomShapeCount = () => Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES + 1)) + MIN_SHAPES;
 
 export const SpaceCubeBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -89,47 +93,47 @@ export const SpaceCubeBackground: React.FC = () => {
     resize();
     window.addEventListener('resize', resize, { passive: true });
 
-    // 8 Vùng không gian phân chia đều khắp màn hình (Balanced Spatial Sectors)
+    // 16 Vùng không gian phân chia đều khắp màn hình (16 Balanced Spatial Sectors)
     const getZonePosition = (zoneId: number) => {
       const isPortrait = height > width;
       if (isPortrait) {
-        // Màn hình dọc (Mobile): Chia 2 cột x 4 hàng trải dọc đều từ trên xuống
-        const col = zoneId % 2;
-        const row = Math.floor(zoneId / 2);
+        // Màn hình dọc (Mobile): Chia 2 cột x 8 hàng trải dọc đều từ trên xuống
+        const col = (zoneId % 16) % 2;
+        const row = Math.floor((zoneId % 16) / 2);
         const xBase = col === 0 ? 0.22 : 0.78;
-        const yBase = 0.14 + row * 0.24;
+        const yBase = 0.08 + row * 0.115;
         return {
-          x: xBase * width + (Math.random() - 0.5) * (width * 0.12),
-          y: yBase * height + (Math.random() - 0.5) * (height * 0.08),
+          x: xBase * width + (Math.random() - 0.5) * (width * 0.10),
+          y: yBase * height + (Math.random() - 0.5) * (height * 0.06),
         };
       } else {
-        // Màn hình ngang (Desktop): Chia 4 cột x 2 hàng trải đều 4 góc và 4 biên
-        const col = zoneId % 4;
-        const row = Math.floor(zoneId / 4);
+        // Màn hình ngang (Desktop): Chia 4 cột x 4 hàng trải đều 16 ô không gian
+        const col = (zoneId % 16) % 4;
+        const row = Math.floor((zoneId % 16) / 4);
         const xBase = 0.12 + col * 0.253; // ~0.12, 0.37, 0.63, 0.88
-        const yBase = row === 0 ? 0.22 : 0.78;
+        const yBase = 0.12 + row * 0.253; // ~0.12, 0.37, 0.63, 0.88
         return {
           x: xBase * width + (Math.random() - 0.5) * (width * 0.08),
-          y: yBase * height + (Math.random() - 0.5) * (height * 0.10),
+          y: yBase * height + (Math.random() - 0.5) * (height * 0.08),
         };
       }
     };
 
     // Hàm tạo mới hoặc tái sinh một khối theo vùng được phân chia đều
     const spawnShape = (id: number, birthOffsetMs = 0): SpaceShape => {
-      // Phân chia đều: 4 Cube (0, 2, 5, 7) và 4 Sphere (1, 3, 4, 6) xen kẽ đối xứng
-      const kind: ShapeKind = [0, 2, 5, 7].includes(id % 8) ? 'cube' : 'sphere';
-      const pos = getZonePosition(id % 8);
+      // Xen kẽ đều: Cube và Sphere
+      const kind: ShapeKind = (id % 2 === 0) ? 'cube' : 'sphere';
+      const pos = getZonePosition(id % 16);
 
       // Hướng vận tốc ban đầu hướng nhẹ vào vùng không gian mở
-      const col = (id % 8) % 4;
-      const row = Math.floor((id % 8) / 4);
+      const col = (id % 16) % 4;
+      const row = Math.floor((id % 16) / 4);
       const angleBiasX = col < 2 ? 0.35 : -0.35;
-      const angleBiasY = row === 0 ? 0.35 : -0.35;
+      const angleBiasY = row < 2 ? 0.35 : -0.35;
       const baseAngle = Math.atan2(angleBiasY, angleBiasX);
       const moveAngle = baseAngle + (Math.random() - 0.5) * 1.2;
-      const speed = 0.20 + Math.random() * 0.22;
-      const zDepth = 0.85 + Math.random() * 0.35;
+      const speed = 0.18 + Math.random() * 0.22;
+      const zDepth = 0.82 + Math.random() * 0.38;
 
       return {
         id,
@@ -139,7 +143,7 @@ export const SpaceCubeBackground: React.FC = () => {
         zDepth,
         vx: Math.cos(moveAngle) * speed,
         vy: Math.sin(moveAngle) * speed,
-        baseSize: 38 + Math.random() * 10,
+        baseSize: 34 + Math.random() * 10,
         rotX: Math.random() * Math.PI * 2,
         rotY: Math.random() * Math.PI * 2,
         rotZ: Math.random() * Math.PI * 2,
@@ -153,10 +157,14 @@ export const SpaceCubeBackground: React.FC = () => {
       };
     };
 
-    // Khởi tạo 8 khối với thời gian lệch pha nhau đúng 1 giây
+    // Khởi tạo ngẫu nhiên từ 8 - 16 khối với thời gian lệch pha nhau mượt mà
+    let targetShapeCount = getRandomShapeCount();
+    let lastTargetRollTime = performance.now();
+    let nextShapeId = 0;
+
     const shapes: SpaceShape[] = [];
-    for (let i = 0; i < TOTAL_SHAPES; i++) {
-      shapes.push(spawnShape(i, i * (LIFETIME_MS / TOTAL_SHAPES)));
+    for (let i = 0; i < targetShapeCount; i++) {
+      shapes.push(spawnShape(nextShapeId++, i * (LIFETIME_MS / targetShapeCount)));
     }
 
     // Parallax di chuyển chuột nhẹ nhàng (không bắt sự kiện click)
@@ -276,6 +284,12 @@ export const SpaceCubeBackground: React.FC = () => {
       ctx.clearRect(0, 0, width, height);
       const fov = 340;
 
+      // Định kỳ mỗi 7 giây, ngẫu nhiên chọn lại số lượng khối mục tiêu trong khoảng [8, 16]
+      if (now - lastTargetRollTime > 7000) {
+        targetShapeCount = getRandomShapeCount();
+        lastTargetRollTime = now;
+      }
+
       // ======================================================================
       // 1. CẬP NHẬT VỊ TRÍ, VÒNG ĐỜI & VA CHẠM BIÊN CỦA TỪNG KHỐI
       // ======================================================================
@@ -285,8 +299,17 @@ export const SpaceCubeBackground: React.FC = () => {
         // Kiểm tra vòng đời 8 giây
         const age = now - item.birthTime;
         if (age >= LIFETIME_MS) {
-          shapes[i] = spawnShape(item.id, 0);
-          item = shapes[i];
+          // Nếu số khối hiện tại đang lớn hơn targetShapeCount và vẫn > MIN_SHAPES (8):
+          // Khối đã fade out hoàn toàn -> loại bỏ để giảm dần số lượng mượt mà
+          if (shapes.length > targetShapeCount && shapes.length > MIN_SHAPES) {
+            shapes.splice(i, 1);
+            i--;
+            continue;
+          } else {
+            // Tái sinh khối mới tại vùng ngẫu nhiên
+            shapes[i] = spawnShape(nextShapeId++, 0);
+            item = shapes[i];
+          }
         }
 
         // Cập nhật vị trí trôi
@@ -316,6 +339,12 @@ export const SpaceCubeBackground: React.FC = () => {
           item.y = height - currentRadius - padding;
           item.vy = -Math.abs(item.vy);
         }
+      }
+
+      // Nếu số khối hiện tại ít hơn mục tiêu và chưa đạt MAX_SHAPES (16):
+      // Sinh thêm khối mới với hiệu ứng Fade-in êm ái
+      if (shapes.length < targetShapeCount && shapes.length < MAX_SHAPES) {
+        shapes.push(spawnShape(nextShapeId++, 0));
       }
 
       // ======================================================================
