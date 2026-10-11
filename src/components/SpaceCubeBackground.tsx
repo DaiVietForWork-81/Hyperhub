@@ -1,14 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 
 // ============================================================================
-// HỆ THỐNG KHỐI KHÔNG GIAN 3D: CUBE & SPHERE (8 KHỐI - 8S LIFECYCLE - ZERO LAG)
+// HỆ THỐNG KHỐI KHÔNG GIAN 3D: CUBE & SPHERE (8 KHỐI - 8S - VA CHẠM ĐÀN HỒI)
 // - Đúng 8 khối không gian (4 Cube + 4 Sphere) luân phiên hiển thị nền
 // - Vòng đời mỗi khối: đúng 8 giây (Fade in 1s -> Duy trì 6s -> Fade out 1s -> Tắt)
 // - Sau 8s, khối cũ tắt hoàn toàn và 1 khối mới spawn ở vị trí ngẫu nhiên
-// - Khởi tạo lệch pha 1 giây: chuyển động liên tục, êm dịu, không chớp giật
-// - Parallax nhẹ nhàng theo con trỏ chuột khi lướt web (không cần bấm chuột)
-// - Aura tím huyền ảo di chuyển đồng bộ cùng từng khối
-// - Tối ưu hiệu năng cao: Không dùng shadowBlur, khóa DPR=1, 60 FPS Throttling
+// - CÁC KHỐI VA CHẠM VỚI NHAU: Khi 2 khối chạm nhau, chúng tự động bật nảy đàn hồi (Bounce),
+//   đổi hướng bay, thay đổi góc xoay 3D và phát ra gợn sóng ánh sáng tại điểm va chạm
+// - Va chạm đàn hồi với 4 cạnh màn hình: Giúp các khối luôn bay lượn trong tầm nhìn
+// - Parallax nhẹ nhàng theo con trỏ chuột khi lướt web
+// - Không dùng shadowBlur, khóa DPR=1, 60 FPS Throttling, 0% lag CPU/GPU
 // ============================================================================
 
 type ShapeKind = 'cube' | 'sphere';
@@ -32,6 +33,14 @@ interface SpaceShape {
   birthTime: number; // Timestamp lúc sinh ra
   orbitAngle: number;
   orbitSpeed: number;
+}
+
+interface CollisionRipple {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  alpha: number;
 }
 
 const LIFETIME_MS = 8000; // Đúng 8 giây mỗi khối
@@ -65,6 +74,7 @@ export const SpaceCubeBackground: React.FC = () => {
     let isPaused = false;
     let lastTime = 0;
     const targetInterval = 1000 / 60; // 60 FPS
+    const ripples: CollisionRipple[] = [];
 
     const resize = () => {
       if (!canvas) return;
@@ -83,14 +93,14 @@ export const SpaceCubeBackground: React.FC = () => {
     const spawnShape = (id: number, birthOffsetMs = 0): SpaceShape => {
       const kind: ShapeKind = id % 2 === 0 ? 'cube' : 'sphere';
       const moveAngle = Math.random() * Math.PI * 2;
-      const speed = 0.16 + Math.random() * 0.22;
-      const zDepth = 0.8 + Math.random() * 0.45;
+      const speed = 0.22 + Math.random() * 0.26;
+      const zDepth = 0.85 + Math.random() * 0.40;
 
       return {
         id,
         kind,
-        x: Math.random() * width,
-        y: Math.random() * height,
+        x: 40 + Math.random() * (width - 80),
+        y: 40 + Math.random() * (height - 80),
         zDepth,
         vx: Math.cos(moveAngle) * speed,
         vy: Math.sin(moveAngle) * speed,
@@ -231,16 +241,158 @@ export const SpaceCubeBackground: React.FC = () => {
       ctx.clearRect(0, 0, width, height);
       const fov = 340;
 
+      // ======================================================================
+      // 1. CẬP NHẬT VỊ TRÍ, VÒNG ĐỜI & VA CHẠM BIÊN CỦA TỪNG KHỐI
+      // ======================================================================
       for (let i = 0; i < shapes.length; i++) {
         let item = shapes[i];
 
-        // 1. KIỂM TRA VÒNG ĐỜI (8 GIÂY)
+        // Kiểm tra vòng đời 8 giây
         const age = now - item.birthTime;
         if (age >= LIFETIME_MS) {
-          // Sau đúng 8s, khối cũ tắt và spawn khối mới ở vị trí ngẫu nhiên
           shapes[i] = spawnShape(item.id, 0);
           item = shapes[i];
         }
+
+        // Cập nhật vị trí trôi
+        item.x += item.vx;
+        item.y += item.vy;
+        item.rotX += item.vRotX;
+        item.rotY += item.vRotY;
+        item.rotZ += item.vRotZ;
+        item.orbitAngle += item.orbitSpeed;
+
+        // Va chạm đàn hồi với 4 cạnh màn hình (Bouncing off walls)
+        const currentRadius = (item.baseSize * item.zDepth) / 2;
+        const padding = 12;
+
+        if (item.x < currentRadius + padding) {
+          item.x = currentRadius + padding;
+          item.vx = Math.abs(item.vx);
+        } else if (item.x > width - currentRadius - padding) {
+          item.x = width - currentRadius - padding;
+          item.vx = -Math.abs(item.vx);
+        }
+
+        if (item.y < currentRadius + padding) {
+          item.y = currentRadius + padding;
+          item.vy = Math.abs(item.vy);
+        } else if (item.y > height - currentRadius - padding) {
+          item.y = height - currentRadius - padding;
+          item.vy = -Math.abs(item.vy);
+        }
+      }
+
+      // ======================================================================
+      // 2. VẬT LÝ VA CHẠM ĐÀN HỒI GIỮA CÁC KHỐI VỚI NHAU (INTER-SHAPE COLLISIONS)
+      // ======================================================================
+      for (let i = 0; i < shapes.length; i++) {
+        for (let j = i + 1; j < shapes.length; j++) {
+          const a = shapes[i];
+          const b = shapes[j];
+
+          const ra = (a.baseSize * a.zDepth) / 2;
+          const rb = (b.baseSize * b.zDepth) / 2;
+          const minDist = ra + rb;
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy);
+
+          // Phát hiện va chạm khi khoảng cách < tổng bán kính
+          if (dist < minDist && dist > 0.001) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            // 1. Tách rời để không bị dính / lún vào nhau (Position Correction)
+            const overlap = (minDist - dist) * 0.5;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+
+            // 2. Phản xạ vận tốc đàn hồi (Elastic Impulse)
+            const kx = a.vx - b.vx;
+            const ky = a.vy - b.vy;
+            const vn = kx * nx + ky * ny;
+
+            // Chỉ bật nảy nếu 2 khối đang chuyển động tiến về phía nhau
+            if (vn > 0) {
+              const massA = ra;
+              const massB = rb;
+              const impulse = (2 * vn) / (massA + massB);
+
+              a.vx -= impulse * massB * nx;
+              a.vy -= impulse * massB * ny;
+              b.vx += impulse * massA * nx;
+              b.vy += impulse * massA * ny;
+
+              // Khống chế vận tốc để duy trì chuyển động êm dịu
+              const maxSpd = 0.85;
+              const minSpd = 0.18;
+              const spdA = Math.hypot(a.vx, a.vy);
+              if (spdA > maxSpd) {
+                a.vx = (a.vx / spdA) * maxSpd;
+                a.vy = (a.vy / spdA) * maxSpd;
+              } else if (spdA < minSpd && spdA > 0) {
+                a.vx = (a.vx / spdA) * minSpd;
+                a.vy = (a.vy / spdA) * minSpd;
+              }
+              const spdB = Math.hypot(b.vx, b.vy);
+              if (spdB > maxSpd) {
+                b.vx = (b.vx / spdB) * maxSpd;
+                b.vy = (b.vy / spdB) * maxSpd;
+              } else if (spdB < minSpd && spdB > 0) {
+                b.vx = (b.vx / spdB) * minSpd;
+                b.vy = (b.vy / spdB) * minSpd;
+              }
+
+              // Đổi nhẹ vận tốc xoay góc ngẫu nhiên khi va chạm
+              a.vRotX = (Math.random() - 0.5) * 0.008;
+              a.vRotY = (Math.random() - 0.5) * 0.008;
+              b.vRotX = (Math.random() - 0.5) * 0.008;
+              b.vRotY = (Math.random() - 0.5) * 0.008;
+
+              // Tạo gợn sóng phát sáng nhẹ tại điểm tiếp xúc
+              if (ripples.length < 10) {
+                ripples.push({
+                  x: a.x + nx * ra,
+                  y: a.y + ny * ra,
+                  radius: 4,
+                  maxRadius: 36,
+                  alpha: 0.6,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // ======================================================================
+      // 3. VẼ CÁC GỢN SÓNG PHÁT SÁNG KHI VA CHẠM (COLLISION RIPPLES)
+      // ======================================================================
+      for (let r = ripples.length - 1; r >= 0; r--) {
+        const rip = ripples[r];
+        rip.radius += 1.4;
+        rip.alpha -= 0.025;
+
+        if (rip.alpha <= 0 || rip.radius >= rip.maxRadius) {
+          ripples.splice(r, 1);
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.arc(rip.x + px * 0.8, rip.y + py * 0.8, rip.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(232, 121, 249, ${rip.alpha})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      // ======================================================================
+      // 4. VẼ TỪNG KHỐI KHÔNG GIAN 3D
+      // ======================================================================
+      for (let i = 0; i < shapes.length; i++) {
+        const item = shapes[i];
 
         // Tính toán độ mờ (Fade In 1s đầu -> 100% -> Fade Out 1s cuối)
         const currentAge = now - item.birthTime;
@@ -255,27 +407,12 @@ export const SpaceCubeBackground: React.FC = () => {
 
         if (alpha <= 0.01) continue;
 
-        // 2. CHUYỂN ĐỘNG TRÔI TỰ NHIÊN
-        item.x += item.vx;
-        item.y += item.vy;
-        item.rotX += item.vRotX;
-        item.rotY += item.vRotY;
-        item.rotZ += item.vRotZ;
-        item.orbitAngle += item.orbitSpeed;
-
-        // Wrap màn hình
-        const margin = 70;
-        if (item.x < -margin) item.x = width + margin;
-        if (item.x > width + margin) item.x = -margin;
-        if (item.y < -margin) item.y = height + margin;
-        if (item.y > height + margin) item.y = -margin;
-
         // Tọa độ màn hình + Parallax
         const screenX = item.x + px * item.zDepth;
         const screenY = item.y + py * item.zDepth;
         const currentSize = (item.baseSize * item.zDepth) / 2;
 
-        // 3. AURA TÍM HUYỀN ẢO DI CHUYỂN THEO KHỐI
+        // AURA TÍM HUYỀN ẢO DI CHUYỂN THEO KHỐI
         const auraRadius = currentSize * 2.2;
         const auraGrad = ctx.createRadialGradient(
           screenX,
@@ -294,7 +431,7 @@ export const SpaceCubeBackground: React.FC = () => {
         ctx.arc(screenX, screenY, auraRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // 4. VẼ THEO LOẠI HÌNH: CUBE HOẶC SPHERE
+        // VẼ THEO LOẠI HÌNH: CUBE HOẶC SPHERE
         if (item.kind === 'cube') {
           // --- VẼ KHỐI LẬP PHƯƠNG 3D ---
           const projectedVerts: Array<{ x: number; y: number; z: number }> = [];
