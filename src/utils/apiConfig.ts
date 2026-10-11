@@ -9,6 +9,7 @@ export const LOCAL_API_URL = "http://localhost:8080";
 
 export const API_FETCH_HEADERS: Record<string, string> = {
   "ngrok-skip-browser-warning": "true",
+  "cf-skip-browser-warning": "true",
   "Accept": "application/json",
 };
 
@@ -24,7 +25,11 @@ function isSafeUrl(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
     return ALLOWED_API_HOSTS.some(
-      (host) => parsed.hostname === host || parsed.hostname.endsWith(".ngrok-free.dev")
+      (host) =>
+        parsed.hostname === host ||
+        parsed.hostname.endsWith(".ngrok-free.dev") ||
+        parsed.hostname.endsWith(".trycloudflare.com") ||
+        parsed.hostname.endsWith(".cfargotunnel.com")
     );
   } catch {
     return false;

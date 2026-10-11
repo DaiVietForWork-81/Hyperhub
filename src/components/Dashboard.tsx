@@ -365,22 +365,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
+        const isOnline = data.status === 'online';
         setBotStatus({
-          online: data.status === 'online',
+          online: isOnline,
           bot_user: data.bot_user,
           ping_ms: data.ping_ms,
           uptime_seconds: data.uptime_seconds,
           guilds_count: data.guilds_count,
         });
+        if (!isOnline) {
+          setDocumentsList([]);
+          setTotalDocsCount(0);
+        }
       } else {
         setBotStatus({ online: false });
+        setDocumentsList([]);
+        setTotalDocsCount(0);
       }
     } catch {
       setBotStatus({ online: false });
+      setDocumentsList([]);
+      setTotalDocsCount(0);
     }
   }, []);
 
-  // 2. Lấy danh sách tất cả đề thi từ Kho Discord (Full List)
+  // 2. Lấy danh sách tất cả đề thi từ Kho Discord (Không giới hạn - Full List)
   const fetchDocuments = useCallback(
     async (
       gradeOverride?: string,
@@ -393,7 +402,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       try {
         const apiBase = getApiBaseUrl();
         const q = new URLSearchParams();
-        q.set('limit', '100');
+        // Không giới hạn số lượng đề thi khi Bot online (lấy toàn bộ từ CSDL Discord)
+        q.set('limit', '5000');
 
         const g = gradeOverride !== undefined ? gradeOverride : selectedGrade;
         const t = typeOverride !== undefined ? typeOverride : selectedExamType;
@@ -409,7 +419,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
           headers: API_FETCH_HEADERS,
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         });
         if (res.ok) {
           const data = await res.json();
@@ -417,9 +427,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             setDocumentsList(data.documents);
             setTotalDocsCount(data.total ?? data.documents.length);
           }
+        } else {
+          // Khi bot tắt hoặc lỗi mạng: Web KHÔNG hiện đề
+          setDocumentsList([]);
+          setTotalDocsCount(0);
         }
-      } catch (e) {
-        console.error('Lỗi lấy danh sách đề thi:', e);
+      } catch {
+        // Khi bot tắt / mất kết nối: Web KHÔNG hiện đề
+        setDocumentsList([]);
+        setTotalDocsCount(0);
       } finally {
         setIsLoadingDocs(false);
       }
@@ -439,15 +455,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const data = await res.json();
         if (data.success) {
           setStats({
-            total_real: data.total_real || data.total_items || 29,
-            unique_items: data.unique_items || 28,
+            total_real: data.total_real || data.total_items || 0,
+            unique_items: data.unique_items || 0,
             duplicate_items: data.duplicate_items || 0,
           });
-          setTotalDocsCount(data.total_real || data.total_items || 29);
+          setTotalDocsCount(data.total_real || data.total_items || 0);
         }
+      } else {
+        setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
+        setTotalDocsCount(0);
       }
     } catch {
-      // Giữ mặc định nếu bot offline
+      // Khi bot offline: reset thống kê về 0
+      setStats({
+        total_real: 0,
+        unique_items: 0,
+        duplicate_items: 0,
+      });
+      setTotalDocsCount(0);
     }
   }, []);
 
@@ -2123,6 +2148,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     );
                   })}
+                </div>
+              ) : !botStatus.online ? (
+                <div className="p-10 rounded-3xl bg-rose-500/10 dark:bg-rose-500/[0.05] border border-rose-500/30 text-center space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center mx-auto shadow-lg shadow-rose-950/20">
+                    <AlertTriangle className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-base font-black text-slate-900 dark:text-white">
+                      🔴 Máy Chủ Bot Discord Đang Offline
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-white/70 max-w-md mx-auto leading-relaxed">
+                      Kho đề thi được đồng bộ trực tiếp thời gian thực từ Discord Server.
+                      Khi Discord Bot tắt, danh sách đề thi trên Web sẽ tạm ẩn để đảm bảo tính xác thực.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        checkBotStatus();
+                        fetchDocStats();
+                        fetchDocuments();
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Kiểm Tra Lại Kết Nối</span>
+                    </button>
+                    <a
+                      href="https://discord.gg/D34HX87bGe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Mở Máy Chủ Discord</span>
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-3">
