@@ -122,7 +122,7 @@ export const App: React.FC = () => {
       {/* Background Ambience, Cyber Grid, 3D Space Cubes & Mouse Aura */}
       <AmbientGlow />
       <CyberGrid />
-      <SpaceCubeBackground />
+      {activeView !== 'dashboard' && <SpaceCubeBackground />}
       <MouseAura />
 
       {/* Header Navigation with Dashboard Trigger */}

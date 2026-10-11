@@ -1,13 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 
 // ============================================================================
-// HỆ THỐNG KHỐI KHÔNG GIAN 3D SIÊU MƯỢT (ULTRA HIGH-PERFORMANCE / ZERO LAG)
-// - Số lượng tinh giản, thanh lịch: 6 khối trên Desktop, 3 khối trên Mobile
-// - Phân bố rải rác ở viền màn hình, không chen chúc hay che khuất văn bản
-// - Loại bỏ hoàn toàn shadowBlur (triệt tiêu 100% gánh nặng Gaussian Blur của GPU/CPU)
-// - Khóa DPR = 1 (giảm 75% tải rasterizer so với DPR 2x trên màn hình Retina / 2K / 4K)
-// - Delta-time Throttling ở 60 FPS mượt mà (chống nóng máy trên màn 144Hz - 240Hz)
-// - Tự động Pause khi người dùng chuyển Tab (Page Visibility API)
+// HỆ THỐNG KHỐI KHÔNG GIAN 3D: CUBE & SPHERE (8 KHỐI - 8S - DRAGGABLE - ZERO LAG)
+// - Đúng 8 khối không gian (4 Cube + 4 Sphere) luân phiên hiển thị
+// - Vòng đời mỗi khối: đúng 8 giây (Fade in 1s -> Duy trì 6s -> Fade out 1s -> Tắt)
+// - Sau 8s, khối cũ tắt và 1 khối mới spawn ở vị trí ngẫu nhiên khắp màn hình
+// - Khởi tạo lệch pha: cứ mỗi 1 giây có 1 khối fade out và 1 khối mới spawn
+// - KHI GIỮ CHUỘT TRÁI VÀO KHỐI: Khối đó sẽ bị tóm và di chuyển mượt mà theo con trỏ chuột
+// - KHI ẤN GIỮ CHUỘT Ở NGOÀI: Các khối khác sẽ bị lực hấp dẫn kéo tiến dần về con trỏ chuột
+// - Aura tím huyền ảo di chuyển đồng bộ cùng từng khối
+// - Không dùng shadowBlur, khóa DPR=1, 60 FPS Throttling, 0% lag CPU/GPU
 // ============================================================================
 
 type ShapeKind = 'cube' | 'sphere';
@@ -17,7 +19,7 @@ interface SpaceShape {
   kind: ShapeKind;
   x: number;
   y: number;
-  zDepth: number; // 0.75 -> 1.25
+  zDepth: number;
   vx: number;
   vy: number;
   baseSize: number;
@@ -27,25 +29,46 @@ interface SpaceShape {
   vRotX: number;
   vRotY: number;
   vRotZ: number;
-  alpha: number;
+  baseAlpha: number;
+  birthTime: number; // Timestamp lúc sinh ra
   orbitAngle: number;
   orbitSpeed: number;
 }
 
+const LIFETIME_MS = 8000; // Đúng 8 giây mỗi khối
+const FADE_MS = 1000;     // 1 giây đầu Fade in, 1 giây cuối Fade out
+const TOTAL_SHAPES = 8;   // Đúng 8 khối
+
 export const SpaceCubeBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mouseRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
+  const mouseRef = useRef<{
+    x: number;
+    y: number;
+    targetX: number;
+    targetY: number;
+    clientX: number;
+    clientY: number;
+    prevClientX: number;
+    prevClientY: number;
+    isDown: boolean;
+    draggedShapeId: number | null;
+  }>({
     x: 0,
     y: 0,
     targetX: 0,
     targetY: 0,
+    clientX: window.innerWidth / 2,
+    clientY: window.innerHeight / 2,
+    prevClientX: window.innerWidth / 2,
+    prevClientY: window.innerHeight / 2,
+    isDown: false,
+    draggedShapeId: null,
   });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Tối ưu Context: alpha = true, desynchronized nếu hỗ trợ
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
@@ -54,9 +77,8 @@ export const SpaceCubeBackground: React.FC = () => {
     let height = window.innerHeight;
     let isPaused = false;
     let lastTime = 0;
-    const targetInterval = 1000 / 60; // Khóa 60 FPS tối ưu năng lượng
+    const targetInterval = 1000 / 60; // 60 FPS
 
-    // Khóa DPR = 1 để background luôn siêu nhẹ trên mọi màn hình
     const resize = () => {
       if (!canvas) return;
       width = window.innerWidth;
@@ -70,67 +92,93 @@ export const SpaceCubeBackground: React.FC = () => {
     resize();
     window.addEventListener('resize', resize, { passive: true });
 
-    // 6 Vị trí thanh lịch phân bố ở các rìa không gian
-    const isMobile = width < 768;
-    const presetShapes: Array<{
-      kind: ShapeKind;
-      x: number;
-      y: number;
-      z: number;
-      size: number;
-    }> = isMobile
-      ? [
-          // Mobile: Chỉ 3 khối nhẹ nhàng
-          { kind: 'cube',   x: 0.12, y: 0.20, z: 1.0, size: 38 },
-          { kind: 'sphere', x: 0.85, y: 0.50, z: 0.9, size: 34 },
-          { kind: 'cube',   x: 0.20, y: 0.82, z: 1.0, size: 36 },
-        ]
-      : [
-          // Desktop: 6 khối (3 Cube + 3 Sphere) thoáng đãng, tuyệt đẹp
-          { kind: 'cube',   x: 0.10, y: 0.18, z: 1.15, size: 46 }, // Trên trái (Hero)
-          { kind: 'sphere', x: 0.88, y: 0.22, z: 1.10, size: 44 }, // Trên phải (Hero)
-          { kind: 'sphere', x: 0.08, y: 0.52, z: 0.90, size: 38 }, // Giữa trái
-          { kind: 'cube',   x: 0.90, y: 0.58, z: 0.95, size: 40 }, // Giữa phải
-          { kind: 'sphere', x: 0.82, y: 0.82, z: 1.05, size: 42 }, // Dưới phải
-          { kind: 'cube',   x: 0.16, y: 0.86, z: 1.10, size: 44 }, // Dưới trái
-        ];
-
-    const shapes: SpaceShape[] = [];
-
-    for (let i = 0; i < presetShapes.length; i++) {
-      const p = presetShapes[i];
+    // Hàm tạo mới hoặc tái sinh một khối tại vị trí ngẫu nhiên
+    const spawnShape = (id: number, birthOffsetMs = 0): SpaceShape => {
+      const kind: ShapeKind = id % 2 === 0 ? 'cube' : 'sphere';
       const moveAngle = Math.random() * Math.PI * 2;
-      const speed = 0.14 + Math.random() * 0.18; // Trôi êm dịu, không giật
+      const speed = 0.16 + Math.random() * 0.22;
+      const zDepth = 0.8 + Math.random() * 0.45;
 
-      shapes.push({
-        id: i,
-        kind: p.kind,
-        x: p.x * width + (Math.random() - 0.5) * 30,
-        y: p.y * height + (Math.random() - 0.5) * 30,
-        zDepth: p.z,
+      return {
+        id,
+        kind,
+        x: Math.random() * width,
+        y: Math.random() * height,
+        zDepth,
         vx: Math.cos(moveAngle) * speed,
         vy: Math.sin(moveAngle) * speed,
-        baseSize: p.size,
+        baseSize: 38 + Math.random() * 12,
         rotX: Math.random() * Math.PI * 2,
         rotY: Math.random() * Math.PI * 2,
         rotZ: Math.random() * Math.PI * 2,
         vRotX: 0.003 + (Math.random() - 0.5) * 0.004,
         vRotY: 0.004 + (Math.random() - 0.5) * 0.004,
         vRotZ: 0.002 + (Math.random() - 0.5) * 0.003,
-        alpha: 0.55 + p.z * 0.35,
+        baseAlpha: 0.65 + zDepth * 0.3,
+        birthTime: performance.now() - birthOffsetMs,
         orbitAngle: Math.random() * Math.PI * 2,
-        orbitSpeed: 0.018 + Math.random() * 0.015,
-      });
+        orbitSpeed: 0.02 + Math.random() * 0.015,
+      };
+    };
+
+    // Khởi tạo 8 khối với thời gian lệch pha nhau đúng 1 giây
+    const shapes: SpaceShape[] = [];
+    for (let i = 0; i < TOTAL_SHAPES; i++) {
+      shapes.push(spawnShape(i, i * (LIFETIME_MS / TOTAL_SHAPES)));
     }
 
-    // Parallax chuột nhẹ nhàng
+    // Xử lý di chuyển chuột
     const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current.prevClientX = mouseRef.current.clientX;
+      mouseRef.current.prevClientY = mouseRef.current.clientY;
+      mouseRef.current.clientX = e.clientX;
+      mouseRef.current.clientY = e.clientY;
       mouseRef.current.targetX = (e.clientX - width / 2) * 0.035;
       mouseRef.current.targetY = (e.clientY - height / 2) * 0.035;
     };
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
-    // Tạm dừng khi chuyển Tab (Tiết kiệm 100% pin/CPU khi không xem trang)
+    // Khi ấn chuột trái: Kiểm tra xem có trúng khối nào để kéo (drag) không
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      mouseRef.current.isDown = true;
+      mouseRef.current.clientX = e.clientX;
+      mouseRef.current.clientY = e.clientY;
+      mouseRef.current.prevClientX = e.clientX;
+      mouseRef.current.prevClientY = e.clientY;
+
+      const currentParallaxX = mouseRef.current.x;
+      const currentParallaxY = mouseRef.current.y;
+      let clickedShapeId: number | null = null;
+      let minDistance = Infinity;
+
+      for (let i = 0; i < shapes.length; i++) {
+        const s = shapes[i];
+        const sX = s.x + currentParallaxX * s.zDepth;
+        const sY = s.y + currentParallaxY * s.zDepth;
+        const currentSize = (s.baseSize * s.zDepth) / 2;
+        const hitRadius = Math.max(currentSize * 2.2, 55); // Vùng chạm thoải mái
+        const dist = Math.hypot(e.clientX - sX, e.clientY - sY);
+
+        if (dist <= hitRadius && dist < minDistance) {
+          minDistance = dist;
+          clickedShapeId = s.id;
+        }
+      }
+
+      mouseRef.current.draggedShapeId = clickedShapeId;
+    };
+
+    // Khi thả chuột: Thả khối đang kéo
+    const handleMouseUp = () => {
+      mouseRef.current.isDown = false;
+      mouseRef.current.draggedShapeId = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('mousedown', handleMouseDown, { passive: true });
+    window.addEventListener('mouseup', handleMouseUp, { passive: true });
+
+    // Tự động tạm dừng khi ẩn tab
     const handleVisibilityChange = () => {
       isPaused = document.hidden;
       if (!isPaused) {
@@ -139,7 +187,7 @@ export const SpaceCubeBackground: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Tọa độ chuẩn khối lập phương 3D (Cube)
+    // Dữ liệu đỉnh & cạnh Cube 3D
     const unitCubeVertices = [
       [-1, -1, -1], [ 1, -1, -1], [ 1,  1, -1], [-1,  1, -1],
       [-1, -1,  1], [ 1, -1,  1], [ 1,  1,  1], [-1,  1,  1],
@@ -160,7 +208,7 @@ export const SpaceCubeBackground: React.FC = () => {
       [0, 4], [1, 5], [2, 6], [3, 7],
     ];
 
-    // Xoay 3D Euler nhanh gọn
+    // Xoay 3D Euler
     const rotate3D = (
       x: number,
       y: number,
@@ -187,7 +235,7 @@ export const SpaceCubeBackground: React.FC = () => {
       return [x3, y3, z2];
     };
 
-    // Vẽ vòng tròn 3D tối ưu (16 bước thay vì 32)
+    // Vẽ vòng tròn 3D tối ưu (16 bước)
     const draw3DCircle = (
       screenX: number,
       screenY: number,
@@ -220,37 +268,96 @@ export const SpaceCubeBackground: React.FC = () => {
       ctx.stroke();
     };
 
-    // Vòng lặp Render chính với Delta-time Throttling
+    // Vòng lặp Render chính
     const render = (now: number) => {
       animId = requestAnimationFrame(render);
 
       if (isPaused) return;
 
-      // Throttle ở 60 FPS
       const delta = now - lastTime;
       if (delta < targetInterval) return;
       lastTime = now - (delta % targetInterval);
 
-      // Parallax easing
+      // Parallax chuột
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
       const px = mouseRef.current.x;
       const py = mouseRef.current.y;
+      const isMouseDown = mouseRef.current.isDown;
+      const draggedId = mouseRef.current.draggedShapeId;
+      const targetMouseX = mouseRef.current.clientX;
+      const targetMouseY = mouseRef.current.clientY;
+      const mouseDeltaX = targetMouseX - mouseRef.current.prevClientX;
+      const mouseDeltaY = targetMouseY - mouseRef.current.prevClientY;
 
       ctx.clearRect(0, 0, width, height);
       const fov = 340;
 
       for (let i = 0; i < shapes.length; i++) {
-        const item = shapes[i];
+        let item = shapes[i];
+        const isThisDragged = draggedId === item.id;
 
-        // Cập nhật vị trí
-        item.x += item.vx;
-        item.y += item.vy;
+        // 1. KIỂM TRA VÒNG ĐỜI (8 GIÂY)
+        // Nếu người dùng đang giữ chuột kéo khối này, gia hạn tuổi thọ để không bị biến mất giữa chừng
+        if (isThisDragged) {
+          item.birthTime = now - 2000;
+        }
 
-        // Xoay 3D
-        item.rotX += item.vRotX;
-        item.rotY += item.vRotY;
-        item.rotZ += item.vRotZ;
+        const age = now - item.birthTime;
+        if (age >= LIFETIME_MS && !isThisDragged) {
+          // Sau đúng 8s, khối cũ tắt và spawn khối mới ở vị trí ngẫu nhiên
+          shapes[i] = spawnShape(item.id, 0);
+          item = shapes[i];
+        }
+
+        // Tính toán độ mờ (Fade In 1s đầu -> 100% -> Fade Out 1s cuối)
+        const currentAge = now - item.birthTime;
+        let fadeFactor = 1;
+        if (currentAge < FADE_MS) {
+          fadeFactor = currentAge / FADE_MS;
+        } else if (currentAge > LIFETIME_MS - FADE_MS && !isThisDragged) {
+          fadeFactor = Math.max(0, (LIFETIME_MS - currentAge) / FADE_MS);
+        }
+        fadeFactor = fadeFactor * fadeFactor * (3 - 2 * fadeFactor);
+        const alpha = Math.min(1, Math.max(0.01, item.baseAlpha * fadeFactor));
+
+        if (alpha <= 0.01) continue;
+
+        // 2. TƯƠNG TÁC CHUỘT: GIỮ CHUỘT TRÁI KÉO KHỐI HOẶC HẤP DẪN CÁC KHỐI ĐẾN
+        if (isThisDragged) {
+          // KHỐI ĐANG BỊ GIỮ CHUỘT: DI CHUYỂN BÁM THEO CON TRỎ CHUỘT
+          const targetItemX = targetMouseX - px * item.zDepth;
+          const targetItemY = targetMouseY - py * item.zDepth;
+          item.x += (targetItemX - item.x) * 0.45;
+          item.y += (targetItemY - item.y) * 0.45;
+          item.vx = mouseDeltaX * 0.15;
+          item.vy = mouseDeltaY * 0.15;
+          // Tăng tốc độ quay nhẹ khi bị kéo tạo cảm giác vật lý sống động
+          item.rotX += item.vRotX * 2.2;
+          item.rotY += item.vRotY * 2.2;
+        } else if (isMouseDown) {
+          // CÁC KHỐI KHÁC: TIẾN DẦN VỀ PHÍA CON TRỎ CHUỘT
+          const dx = targetMouseX - item.x;
+          const dy = targetMouseY - item.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 25) {
+            const pullSpeed = Math.min(dist * 0.035, 4.0);
+            item.x += (dx / dist) * pullSpeed;
+            item.y += (dy / dist) * pullSpeed;
+          }
+          item.rotX += item.vRotX;
+          item.rotY += item.vRotY;
+          item.rotZ += item.vRotZ;
+        } else {
+          // TRÔI TỰ NHIÊN
+          item.x += item.vx;
+          item.y += item.vy;
+          item.rotX += item.vRotX;
+          item.rotY += item.vRotY;
+          item.rotZ += item.vRotZ;
+        }
+
         item.orbitAngle += item.orbitSpeed;
 
         // Wrap màn hình
@@ -264,20 +371,21 @@ export const SpaceCubeBackground: React.FC = () => {
         const screenX = item.x + px * item.zDepth;
         const screenY = item.y + py * item.zDepth;
         const currentSize = (item.baseSize * item.zDepth) / 2;
-        const alpha = Math.min(1, Math.max(0.2, item.alpha));
 
-        // 1. AURA TÍM HUYỀN ẢO XUNG QUANH KHỐI (Không dùng shadow, dùng gradient mềm nhẹ)
-        const auraRadius = currentSize * 2.0;
+        // 3. AURA TÍM HUYỀN ẢO DI CHUYỂN THEO KHỐI
+        const auraMultiplier = isThisDragged ? 2.6 : 2.2;
+        const auraRadius = currentSize * auraMultiplier;
         const auraGrad = ctx.createRadialGradient(
           screenX,
           screenY,
-          currentSize * 0.2,
+          currentSize * 0.15,
           screenX,
           screenY,
           auraRadius
         );
-        auraGrad.addColorStop(0, `rgba(168, 85, 247, ${0.22 * alpha})`);
-        auraGrad.addColorStop(0.6, `rgba(139, 92, 246, ${0.08 * alpha})`);
+        const auraAlpha = isThisDragged ? alpha * 1.3 : alpha;
+        auraGrad.addColorStop(0, `rgba(168, 85, 247, ${0.30 * auraAlpha})`);
+        auraGrad.addColorStop(0.55, `rgba(139, 92, 246, ${0.12 * auraAlpha})`);
         auraGrad.addColorStop(1, 'rgba(139, 92, 246, 0)');
 
         ctx.fillStyle = auraGrad;
@@ -285,7 +393,7 @@ export const SpaceCubeBackground: React.FC = () => {
         ctx.arc(screenX, screenY, auraRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. VẼ THEO LOẠI HÌNH: CUBE HOẶC SPHERE
+        // 4. VẼ THEO LOẠI HÌNH: CUBE HOẶC SPHERE
         if (item.kind === 'cube') {
           // --- VẼ KHỐI LẬP PHƯƠNG 3D ---
           const projectedVerts: Array<{ x: number; y: number; z: number }> = [];
@@ -323,13 +431,17 @@ export const SpaceCubeBackground: React.FC = () => {
             ctx.lineTo(p2.x, p2.y);
             ctx.lineTo(p3.x, p3.y);
             ctx.closePath();
-            ctx.fillStyle = `rgba(168, 85, 247, ${0.11 * alpha})`;
+            ctx.fillStyle = isThisDragged
+              ? `rgba(192, 132, 252, ${0.20 * alpha})`
+              : `rgba(168, 85, 247, ${0.12 * alpha})`;
             ctx.fill();
           }
 
-          // 12 Cạnh wireframe tím neon sáng rõ (Không dùng shadowBlur)
-          ctx.lineWidth = 1.3;
-          ctx.strokeStyle = `rgba(216, 180, 254, ${0.80 * alpha})`;
+          // 12 Cạnh wireframe tím neon sáng
+          ctx.lineWidth = isThisDragged ? 1.6 : 1.3;
+          ctx.strokeStyle = isThisDragged
+            ? `rgba(232, 121, 249, ${0.95 * alpha})`
+            : `rgba(216, 180, 254, ${0.82 * alpha})`;
 
           ctx.beginPath();
           for (let e = 0; e < cubeEdges.length; e++) {
@@ -339,18 +451,18 @@ export const SpaceCubeBackground: React.FC = () => {
           }
           ctx.stroke();
 
-          // 8 Hạt đỉnh sáng hồng neon
-          ctx.fillStyle = `rgba(244, 114, 182, ${0.90 * alpha})`;
+          // 8 Hạt đỉnh hồng phát sáng
+          ctx.fillStyle = `rgba(244, 114, 182, ${0.95 * alpha})`;
           for (let v = 0; v < projectedVerts.length; v++) {
             ctx.beginPath();
-            ctx.arc(projectedVerts[v].x, projectedVerts[v].y, 1.4, 0, Math.PI * 2);
+            ctx.arc(projectedVerts[v].x, projectedVerts[v].y, isThisDragged ? 1.8 : 1.4, 0, Math.PI * 2);
             ctx.fill();
           }
         } else {
           // --- VẼ KHỐI CẦU 3D TINH GỌN (SPHERE) ---
           const R = currentSize;
 
-          // Thân quả cầu kính 3D với tâm phản chiếu ánh sáng
+          // Thân quả cầu kính 3D
           const sphereGrad = ctx.createRadialGradient(
             screenX - R * 0.3,
             screenY - R * 0.3,
@@ -359,9 +471,9 @@ export const SpaceCubeBackground: React.FC = () => {
             screenY,
             R
           );
-          sphereGrad.addColorStop(0, `rgba(216, 180, 254, ${0.28 * alpha})`);
-          sphereGrad.addColorStop(0.6, `rgba(168, 85, 247, ${0.12 * alpha})`);
-          sphereGrad.addColorStop(1, `rgba(126, 34, 206, ${0.04 * alpha})`);
+          sphereGrad.addColorStop(0, `rgba(216, 180, 254, ${0.32 * alpha})`);
+          sphereGrad.addColorStop(0.6, `rgba(168, 85, 247, ${0.15 * alpha})`);
+          sphereGrad.addColorStop(1, `rgba(126, 34, 206, ${0.05 * alpha})`);
 
           ctx.fillStyle = sphereGrad;
           ctx.beginPath();
@@ -369,24 +481,28 @@ export const SpaceCubeBackground: React.FC = () => {
           ctx.fill();
 
           // Viền ngoài khối cầu
-          ctx.lineWidth = 1.2;
-          ctx.strokeStyle = `rgba(216, 180, 254, ${0.70 * alpha})`;
+          ctx.lineWidth = isThisDragged ? 1.5 : 1.2;
+          ctx.strokeStyle = isThisDragged
+            ? `rgba(232, 121, 249, ${0.90 * alpha})`
+            : `rgba(216, 180, 254, ${0.72 * alpha})`;
           ctx.beginPath();
           ctx.arc(screenX, screenY, R, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Xích đạo và Kinh tuyến (chỉ 2 vòng thanh mảnh, 16 steps)
+          // Xích đạo và Kinh tuyến
           ctx.lineWidth = 1.0;
-          ctx.strokeStyle = `rgba(192, 132, 252, ${0.55 * alpha})`;
+          ctx.strokeStyle = `rgba(192, 132, 252, ${0.60 * alpha})`;
           draw3DCircle(screenX, screenY, R, item.rotX, item.rotY, item.rotZ, fov, 'XZ', 16);
           draw3DCircle(screenX, screenY, R, item.rotX, item.rotY, item.rotZ, fov, 'YZ', 16);
 
-          // Vành đai quỹ đạo quanh quả cầu (18 steps)
+          // Vành đai quỹ đạo quanh quả cầu
           const orbitR = R * 1.38;
-          ctx.strokeStyle = `rgba(244, 114, 182, ${0.40 * alpha})`;
+          ctx.strokeStyle = isThisDragged
+            ? `rgba(244, 114, 182, ${0.65 * alpha})`
+            : `rgba(244, 114, 182, ${0.42 * alpha})`;
           draw3DCircle(screenX, screenY, orbitR, item.rotX + 0.3, item.rotY + 0.4, item.rotZ, fov, 'XZ', 18);
 
-          // Hạt electron phát sáng bay quanh vành đai
+          // Hạt electron phát sáng bay trên vành đai
           const elX = orbitR * Math.cos(item.orbitAngle);
           const elZ = orbitR * Math.sin(item.orbitAngle);
           const [rotElX, rotElY, rotElZ] = rotate3D(elX, 0, elZ, item.rotX + 0.3, item.rotY + 0.4, item.rotZ);
@@ -394,9 +510,9 @@ export const SpaceCubeBackground: React.FC = () => {
           const elScreenX = screenX + rotElX * elScale;
           const elScreenY = screenY + rotElY * elScale;
 
-          ctx.fillStyle = `rgba(255, 182, 255, ${0.95 * alpha})`;
+          ctx.fillStyle = `rgba(255, 182, 255, ${0.98 * alpha})`;
           ctx.beginPath();
-          ctx.arc(elScreenX, elScreenY, 2.0, 0, Math.PI * 2);
+          ctx.arc(elScreenX, elScreenY, isThisDragged ? 2.5 : 2.0, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -408,6 +524,8 @@ export const SpaceCubeBackground: React.FC = () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
