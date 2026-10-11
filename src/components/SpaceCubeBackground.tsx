@@ -283,7 +283,6 @@ export const SpaceCubeBackground: React.FC = () => {
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
       const px = mouseRef.current.x;
       const py = mouseRef.current.y;
-      const isMouseDown = mouseRef.current.isDown;
       const draggedId = mouseRef.current.draggedShapeId;
       const targetMouseX = mouseRef.current.clientX;
       const targetMouseY = mouseRef.current.clientY;
@@ -323,34 +322,20 @@ export const SpaceCubeBackground: React.FC = () => {
 
         if (alpha <= 0.01) continue;
 
-        // 2. TƯƠNG TÁC CHUỘT: GIỮ CHUỘT TRÁI KÉO KHỐI HOẶC HẤP DẪN CÁC KHỐI ĐẾN
+        // 2. TƯƠNG TÁC CHUỘT: CHỈ DUY NHẤT 1 KHỐI ĐƯỢC GIỮ CHUỘT TRÁI MỚI DI CHUYỂN THEO
         if (isThisDragged) {
-          // KHỐI ĐANG BỊ GIỮ CHUỘT: DI CHUYỂN BÁM THEO CON TRỎ CHUỘT
+          // CHỈ DUY NHẤT KHỐI NÀY DI CHUYỂN BÁM THEO CON TRỎ CHUỘT
           const targetItemX = targetMouseX - px * item.zDepth;
           const targetItemY = targetMouseY - py * item.zDepth;
-          item.x += (targetItemX - item.x) * 0.45;
-          item.y += (targetItemY - item.y) * 0.45;
+          item.x += (targetItemX - item.x) * 0.55;
+          item.y += (targetItemY - item.y) * 0.55;
           item.vx = mouseDeltaX * 0.15;
           item.vy = mouseDeltaY * 0.15;
           // Tăng tốc độ quay nhẹ khi bị kéo tạo cảm giác vật lý sống động
           item.rotX += item.vRotX * 2.2;
           item.rotY += item.vRotY * 2.2;
-        } else if (isMouseDown) {
-          // CÁC KHỐI KHÁC: TIẾN DẦN VỀ PHÍA CON TRỎ CHUỘT
-          const dx = targetMouseX - item.x;
-          const dy = targetMouseY - item.y;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist > 25) {
-            const pullSpeed = Math.min(dist * 0.035, 4.0);
-            item.x += (dx / dist) * pullSpeed;
-            item.y += (dy / dist) * pullSpeed;
-          }
-          item.rotX += item.vRotX;
-          item.rotY += item.vRotY;
-          item.rotZ += item.vRotZ;
         } else {
-          // TRÔI TỰ NHIÊN
+          // TẤT CẢ CÁC KHỐI CÒN LẠI VẪN TRÔI TỰ NHIÊN, TUYỆT ĐỐI KHÔNG BỊ HÚT THEO CHUỘT
           item.x += item.vx;
           item.y += item.vy;
           item.rotX += item.vRotX;
