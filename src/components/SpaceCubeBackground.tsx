@@ -89,22 +89,57 @@ export const SpaceCubeBackground: React.FC = () => {
     resize();
     window.addEventListener('resize', resize, { passive: true });
 
-    // Hàm tạo mới hoặc tái sinh một khối tại vị trí ngẫu nhiên
+    // 8 Vùng không gian phân chia đều khắp màn hình (Balanced Spatial Sectors)
+    const getZonePosition = (zoneId: number) => {
+      const isPortrait = height > width;
+      if (isPortrait) {
+        // Màn hình dọc (Mobile): Chia 2 cột x 4 hàng trải dọc đều từ trên xuống
+        const col = zoneId % 2;
+        const row = Math.floor(zoneId / 2);
+        const xBase = col === 0 ? 0.22 : 0.78;
+        const yBase = 0.14 + row * 0.24;
+        return {
+          x: xBase * width + (Math.random() - 0.5) * (width * 0.12),
+          y: yBase * height + (Math.random() - 0.5) * (height * 0.08),
+        };
+      } else {
+        // Màn hình ngang (Desktop): Chia 4 cột x 2 hàng trải đều 4 góc và 4 biên
+        const col = zoneId % 4;
+        const row = Math.floor(zoneId / 4);
+        const xBase = 0.12 + col * 0.253; // ~0.12, 0.37, 0.63, 0.88
+        const yBase = row === 0 ? 0.22 : 0.78;
+        return {
+          x: xBase * width + (Math.random() - 0.5) * (width * 0.08),
+          y: yBase * height + (Math.random() - 0.5) * (height * 0.10),
+        };
+      }
+    };
+
+    // Hàm tạo mới hoặc tái sinh một khối theo vùng được phân chia đều
     const spawnShape = (id: number, birthOffsetMs = 0): SpaceShape => {
-      const kind: ShapeKind = id % 2 === 0 ? 'cube' : 'sphere';
-      const moveAngle = Math.random() * Math.PI * 2;
-      const speed = 0.22 + Math.random() * 0.26;
-      const zDepth = 0.85 + Math.random() * 0.40;
+      // Phân chia đều: 4 Cube (0, 2, 5, 7) và 4 Sphere (1, 3, 4, 6) xen kẽ đối xứng
+      const kind: ShapeKind = [0, 2, 5, 7].includes(id % 8) ? 'cube' : 'sphere';
+      const pos = getZonePosition(id % 8);
+
+      // Hướng vận tốc ban đầu hướng nhẹ vào vùng không gian mở
+      const col = (id % 8) % 4;
+      const row = Math.floor((id % 8) / 4);
+      const angleBiasX = col < 2 ? 0.35 : -0.35;
+      const angleBiasY = row === 0 ? 0.35 : -0.35;
+      const baseAngle = Math.atan2(angleBiasY, angleBiasX);
+      const moveAngle = baseAngle + (Math.random() - 0.5) * 1.2;
+      const speed = 0.20 + Math.random() * 0.22;
+      const zDepth = 0.85 + Math.random() * 0.35;
 
       return {
         id,
         kind,
-        x: 40 + Math.random() * (width - 80),
-        y: 40 + Math.random() * (height - 80),
+        x: Math.max(30, Math.min(width - 30, pos.x)),
+        y: Math.max(30, Math.min(height - 30, pos.y)),
         zDepth,
         vx: Math.cos(moveAngle) * speed,
         vy: Math.sin(moveAngle) * speed,
-        baseSize: 38 + Math.random() * 12,
+        baseSize: 38 + Math.random() * 10,
         rotX: Math.random() * Math.PI * 2,
         rotY: Math.random() * Math.PI * 2,
         rotZ: Math.random() * Math.PI * 2,
