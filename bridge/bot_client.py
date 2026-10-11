@@ -107,17 +107,18 @@ class BotBridgeClient:
             from database.models import User
 
             async with session_factory() as session:
+                filter_cond = User.is_retired.is_(False) if hasattr(User, "is_retired") else True
                 if mode == "freedom":
                     stmt = (
                         select(User)
-                        .where(User.is_active.is_(True))
+                        .where(filter_cond)
                         .order_by(desc(User.rating))
                         .limit(limit)
                     )
                 else:
                     stmt = (
                         select(User)
-                        .where(User.is_active.is_(True))
+                        .where(filter_cond)
                         .order_by(desc(User.ranked_rating))
                         .limit(limit)
                     )
@@ -126,11 +127,12 @@ class BotBridgeClient:
 
                 data = []
                 for idx, u in enumerate(users):
+                    cf_handle_val = getattr(u, "codeforces_handle", None) or getattr(u, "cf_handle", "") or ""
                     if mode == "freedom":
                         data.append({
                             "rank": idx + 1,
                             "discord_id": u.discord_id,
-                            "cf_handle": u.cf_handle or "",
+                            "cf_handle": cf_handle_val,
                             "rating": u.rating,
                             "tier": u.rank,
                         })
@@ -138,7 +140,7 @@ class BotBridgeClient:
                         data.append({
                             "rank": idx + 1,
                             "discord_id": u.discord_id,
-                            "cf_handle": u.cf_handle or "",
+                            "cf_handle": cf_handle_val,
                             "ranked_rating": u.ranked_rating,
                             "ranked_tier": u.ranked_rank,
                             "ranked_wins": u.ranked_wins,
