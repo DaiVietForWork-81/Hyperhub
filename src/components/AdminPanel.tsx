@@ -26,6 +26,10 @@ import {
   Check,
   ChevronUp,
   ChevronDown,
+  GitBranch,
+  ArrowUpCircle,
+  Zap,
+  ExternalLink,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS, setCustomApiUrl, DEFAULT_TUNNEL_URL, LOCAL_API_URL } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
@@ -519,16 +523,180 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   }, [getAuthHeaders]);
 
+  // =========================================================================
+  // ĐỒNG BỘ DISCORD & GITHUB UPDATER
+  // =========================================================================
+  interface SystemUpdateStatus {
+    current_hash: string;
+    remote_hash: string;
+    has_update: boolean;
+    commits: string[];
+    commit_msg?: string;
+    branch?: string;
+    last_check_timestamp?: number;
+  }
+  const [updateStatus, setUpdateStatus] = useState<SystemUpdateStatus | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [isApplyingUpdate, setIsApplyingUpdate] = useState<boolean>(false);
+  const [isReloadingSystem, setIsReloadingSystem] = useState<boolean>(false);
+  const [isSendingAnnounceStartup, setIsSendingAnnounceStartup] = useState<boolean>(false);
+  const [systemActionMsg, setSystemActionMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const fetchUpdateStatus = useCallback(async () => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/update_status`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUpdateStatus(data);
+      }
+    } catch {
+      // Bỏ qua nếu offline
+    }
+  }, [getAuthHeaders]);
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setSystemActionMsg(null);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/check_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || 'Kiểm tra thất bại');
+      setUpdateStatus((prev) => ({
+        ...prev,
+        current_hash: data.local_hash || prev?.current_hash || 'dev',
+        remote_hash: data.remote_hash || prev?.remote_hash || 'dev',
+        has_update: !!data.has_update,
+        commits: data.commits || [],
+      }));
+      if (data.has_update) {
+        setSystemActionMsg({
+          type: 'info',
+          text: `🔔 Phát hiện bản cập nhật mới trên GitHub (${data.remote_hash})!`,
+        });
+      } else {
+        setSystemActionMsg({
+          type: 'success',
+          text: '✅ Hệ thống đang ở phiên bản mới nhất từ GitHub.',
+        });
+      }
+    } catch (err: any) {
+      setSystemActionMsg({
+        type: 'error',
+        text: `Lỗi khi kiểm tra GitHub: ${err.message}`,
+      });
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (!window.confirm('Bạn có chắc muốn cài đặt bản cập nhật mới từ GitHub và hot-reload toàn bộ bot?')) return;
+    setIsApplyingUpdate(true);
+    setSystemActionMsg(null);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/apply_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Cập nhật thất bại');
+      }
+      setSystemActionMsg({
+        type: 'success',
+        text: `🎉 Cập nhật thành công lên bản ${data.new_hash}! Hệ thống đã được hot-reload toàn diện.`,
+      });
+      await fetchUpdateStatus();
+      if (onRefreshParentDocs) onRefreshParentDocs();
+    } catch (err: any) {
+      setSystemActionMsg({
+        type: 'error',
+        text: `Lỗi cập nhật: ${err.message}`,
+      });
+    } finally {
+      setIsApplyingUpdate(false);
+    }
+  };
+
+  const handleReloadSystem = async () => {
+    setIsReloadingSystem(true);
+    setSystemActionMsg(null);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/reload`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Reload thất bại');
+      }
+      setSystemActionMsg({
+        type: 'success',
+        text: `⚡ ${data.message || 'Đã nạp lại toàn bộ hệ thống thành công!'}`,
+      });
+      if (onRefreshParentDocs) onRefreshParentDocs();
+    } catch (err: any) {
+      setSystemActionMsg({
+        type: 'error',
+        text: `Lỗi reload: ${err.message}`,
+      });
+    } finally {
+      setIsReloadingSystem(false);
+    }
+  };
+
+  const handleAnnounceStartup = async () => {
+    setIsSendingAnnounceStartup(true);
+    setSystemActionMsg(null);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/announce_startup`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Gửi thông báo thất bại');
+      }
+      setSystemActionMsg({
+        type: 'success',
+        text: '📢 Đã gửi thông báo khởi động và link Vercel vào kênh #1536199276273860638 thành công!',
+      });
+    } catch (err: any) {
+      setSystemActionMsg({
+        type: 'error',
+        text: `Lỗi: ${err.message}`,
+      });
+    } finally {
+      setIsSendingAnnounceStartup(false);
+    }
+  };
+
+  // Tự động kiểm tra update status khi mở AdminPanel
+  useEffect(() => {
+    fetchUpdateStatus();
+  }, [fetchUpdateStatus]);
+
   useEffect(() => {
     if (adminTab === 'config') {
       if (!botConfig) fetchBotConfig();
+      fetchUpdateStatus();
       // Nạp endpoint hiện tại vào ô nhập lần đầu mở tab
       if (!endpointInit) {
         setEndpointInput(getApiBaseUrl());
         setEndpointInit(true);
       }
     }
-  }, [adminTab, fetchBotConfig, botConfig, endpointInit]);
+  }, [adminTab, fetchBotConfig, botConfig, endpointInit, fetchUpdateStatus]);
 
   // =========================================================================
   // TAB 6: LOG SERVER (DISCORD AUDIT LOG)
@@ -742,6 +910,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           </button>
         )}
       </div>
+
+      {/* Update Alert Banner */}
+      {updateStatus?.has_update && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-950/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+              <ArrowUpCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs sm:text-sm font-bold text-amber-300 flex flex-wrap items-center gap-2">
+                <span>PHÁT HIỆN BẢN CẬP NHẬT MỚI TỪ GITHUB!</span>
+                <span className="font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[11px]">
+                  {updateStatus.current_hash} ➔ {updateStatus.remote_hash}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
+                {updateStatus.commits && updateStatus.commits.length > 0
+                  ? updateStatus.commits[0]
+                  : 'Có commit mới trên nhánh main của hyperhub-bot.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <button
+              onClick={handleApplyUpdate}
+              disabled={isApplyingUpdate}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-900/40 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isApplyingUpdate ? 'animate-spin' : ''}`} />
+              <span>{isApplyingUpdate ? 'Đang Cập Nhật...' : 'Cập Nhật Ngay (1-Click)'}</span>
+            </button>
+            <button
+              onClick={() => setAdminTab('config')}
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold cursor-pointer"
+            >
+              Xem Chi Tiết
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-2">
@@ -1527,6 +1735,137 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* =================================================================== */}
       {adminTab === 'config' && (
         <div className="space-y-4">
+          {/* Card Đồng Bộ Discord & Cập Nhật GitHub */}
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-emerald-400" />
+                <span>Đồng Bộ Discord & Cập Nhật Hệ Thống (GitHub 1-Click Update)</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCheckUpdate}
+                  disabled={isCheckingUpdate || isApplyingUpdate}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Search className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                  <span>{isCheckingUpdate ? 'Đang kiểm tra...' : 'Kiểm Tra GitHub'}</span>
+                </button>
+                <button
+                  onClick={handleReloadSystem}
+                  disabled={isReloadingSystem}
+                  className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Zap className={`w-3.5 h-3.5 ${isReloadingSystem ? 'animate-spin' : ''}`} />
+                  <span>{isReloadingSystem ? 'Đang reload...' : 'Tối Ưu & Reload'}</span>
+                </button>
+              </div>
+            </div>
+
+            {systemActionMsg && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                  systemActionMsg.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : systemActionMsg.type === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                }`}
+              >
+                {systemActionMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                )}
+                <div className="flex-1">{systemActionMsg.text}</div>
+                <button
+                  onClick={() => setSystemActionMsg(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Phiên Bản Hệ Thống</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Bản hiện tại:</span>
+                  <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded">
+                    {updateStatus?.current_hash || 'dev'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Bản mới trên GitHub:</span>
+                  <span className={`font-mono font-bold px-2 py-0.5 rounded ${updateStatus?.has_update ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-emerald-300 bg-emerald-500/10'}`}>
+                    {updateStatus?.remote_hash || updateStatus?.current_hash || 'dev'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Trạng thái:</span>
+                  <span className={`font-semibold ${updateStatus?.has_update ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {updateStatus?.has_update ? '🔔 Có bản cập nhật mới' : '✅ Đang ở bản mới nhất'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kênh Đồng Bộ Discord</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Kênh điều hành:</span>
+                  <span className="font-mono text-purple-300">#1536199276273860638</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Cổng Web Vercel:</span>
+                  <a
+                    href="https://hyperhub-one.vercel.app"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-[11px]"
+                  >
+                    <span>hyperhub-one.vercel.app</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <button
+                  onClick={handleAnnounceStartup}
+                  disabled={isSendingAnnounceStartup}
+                  className="w-full mt-1 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-500/30 text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Send className={`w-3 h-3 ${isSendingAnnounceStartup ? 'animate-spin' : ''}`} />
+                  <span>{isSendingAnnounceStartup ? 'Đang gửi...' : 'Gửi lại thông báo khởi động đến Discord'}</span>
+                </button>
+              </div>
+            </div>
+
+            {updateStatus?.has_update && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <ArrowUpCircle className="w-4 h-4" />
+                    <span>Chi Tiết Commit Mới Từ GitHub (nhánh main)</span>
+                  </span>
+                  <button
+                    onClick={handleApplyUpdate}
+                    disabled={isApplyingUpdate}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isApplyingUpdate ? 'animate-spin' : ''}`} />
+                    <span>{isApplyingUpdate ? 'Đang Cập Nhật & Reload...' : 'Cài Bản Update Ngay (1-Click)'}</span>
+                  </button>
+                </div>
+                {updateStatus.commits && updateStatus.commits.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-black/60 font-mono text-[11px] text-slate-300 space-y-1">
+                    {updateStatus.commits.map((c, idx) => (
+                      <div key={idx} className="truncate">{c}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Endpoint API — dời từ sidebar vào Hub */}
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">

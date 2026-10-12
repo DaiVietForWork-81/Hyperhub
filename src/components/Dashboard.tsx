@@ -447,6 +447,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     username?: string;
     user_id?: number | string;
   } | null>(null);
+  const [hasSystemUpdate, setHasSystemUpdate] = useState<boolean>(false);
 
   // Cache quyền admin theo user (dùng khi backend chết vẫn nhận diện admin để mở Hub)
   const readCachedAdmin = useCallback((): boolean => {
@@ -500,6 +501,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
             setAdminInfo(data.admin || null);
             writeCachedAdmin(true);
             confirmed = true;
+            // Kiểm tra trạng thái cập nhật hệ thống
+            try {
+              const updRes = await fetch(`${apiBase}/api/system/update_status`, {
+                headers,
+                signal: AbortSignal.timeout(6000),
+              });
+              if (updRes.ok) {
+                const updData = await updRes.json();
+                setHasSystemUpdate(!!updData.has_update);
+              }
+            } catch {
+              // Bỏ qua nếu lỗi
+            }
           } else {
             writeCachedAdmin(false);
           }
@@ -1598,6 +1612,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               >
                 <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>Quản Trị</span>
+                {hasSystemUpdate && (
+                  <span className="animate-pulse px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
+                    Update
+                  </span>
+                )}
                 <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/30">
                   {adminInfo?.role_name || 'ADMIN'}
                 </span>
@@ -1683,6 +1702,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full">
+        {/* Banner Thông Báo Bản Cập Nhật GitHub Dành Cho Admin */}
+        {hasSystemUpdate && activeTab !== 'admin' && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-950/20">
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 text-base">🚀</span>
+              <div>
+                <div className="text-xs sm:text-sm font-bold text-amber-300">
+                  Phát hiện bản cập nhật mới trên GitHub!
+                </div>
+                <div className="text-[11px] text-slate-300 dark:text-white/70">
+                  Mã nguồn mới đã sẵn sàng. Bạn có thể cài đặt và nạp lại hệ thống chỉ với 1 cú click.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('admin')}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs cursor-pointer shadow-md shadow-amber-950/40 shrink-0"
+            >
+              Mở Hub Cập Nhật (1-Click)
+            </button>
+          </div>
+        )}
+
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header Greeting */}
