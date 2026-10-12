@@ -40,6 +40,7 @@ import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStora
 import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
+import { fetchDocsFromTurso } from '../utils/tursoClient';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -434,14 +435,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
             setTotalDocsCount(data.total ?? data.documents.length);
           }
         } else {
-          // Khi bot tắt hoặc lỗi mạng: Web KHÔNG hiện đề
+          // Khi bot tắt: Tự động fallback sang Turso libSQL Cloud (5GB)
+          const tursoDocs = await fetchDocsFromTurso(100);
+          if (tursoDocs && tursoDocs.length > 0) {
+            setDocumentsList(tursoDocs as any);
+            setTotalDocsCount(tursoDocs.length);
+          } else {
+            setDocumentsList([]);
+            setTotalDocsCount(0);
+          }
+        }
+      } catch {
+        // Khi bot tắt / mất kết nối: Tự động fallback sang Turso libSQL Cloud
+        try {
+          const tursoDocs = await fetchDocsFromTurso(100);
+          if (tursoDocs && tursoDocs.length > 0) {
+            setDocumentsList(tursoDocs as any);
+            setTotalDocsCount(tursoDocs.length);
+          } else {
+            setDocumentsList([]);
+            setTotalDocsCount(0);
+          }
+        } catch {
           setDocumentsList([]);
           setTotalDocsCount(0);
         }
-      } catch {
-        // Khi bot tắt / mất kết nối: Web KHÔNG hiện đề
-        setDocumentsList([]);
-        setTotalDocsCount(0);
       } finally {
         setIsLoadingDocs(false);
       }

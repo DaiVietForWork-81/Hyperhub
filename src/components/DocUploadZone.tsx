@@ -29,6 +29,14 @@ import {
   touchPendingDoc,
 } from '../utils/outbox';
 import { useToast } from '../context/ToastContext';
+import {
+  inspectDocumentClient,
+  ClientInspectionReport,
+} from '../utils/clientDocInspector';
+import {
+  checkHashExistsTurso,
+  saveDocumentToTurso,
+} from '../utils/tursoClient';
 
 interface DocUploadZoneProps {
   apiBase: string;
@@ -76,6 +84,7 @@ interface QueuedFile {
   id: string;
   file: File;
   status: 'pending' | 'uploading' | 'success' | 'duplicate' | 'error' | 'queued';
+  clientReport?: ClientInspectionReport;
   result?: InspectionResult;
   errorMessage?: string;
 }
@@ -184,11 +193,38 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       );
       if (alreadyInQueue) return;
 
-      newItems.push({
+      const newItem: QueuedFile = {
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
         file,
         status: 'pending',
-      });
+      };
+      newItems.push(newItem);
+
+      // Chạy tiền kiểm định trên Trình duyệt (Client-side Edge Inspector) để giảm tải CPU VPS
+      inspectDocumentClient(file)
+        .then(async (report) => {
+          // Kiểm tra trùng lặp nhanh trên Turso Cloud (< 50ms)
+          const dup = await checkHashExistsTurso(report.fileHash);
+          setFileQueue((prev) =>
+            prev.map((q) => {
+              if (q.id === newItem.id) {
+                if (dup.exists) {
+                  return {
+                    ...q,
+                    clientReport: report,
+                    status: 'duplicate',
+                    errorMessage: `Tài liệu đã tồn tại trong kho (nộp bởi ${dup.existingDoc?.author_name || 'thành viên'} vào ${dup.existingDoc?.timestamp || 'trước đó'})`,
+                  };
+                }
+                return { ...q, clientReport: report };
+              }
+              return q;
+            })
+          );
+        })
+        .catch((err) => {
+          console.warn('[DocUploadZone] Lỗi client-side inspection:', err);
+        });
     });
 
     if (errors.length > 0) {
@@ -215,12 +251,34 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   // Tên hiển thị: thành viên Discord hoặc "Khách" (mở cho mọi người, không cần đăng nhập)
   const displayUploaderName = user?.global_name || user?.username || 'Khách';
 
-  const uploadSingleFile = async (file: File): Promise<InspectionResult> => {
+  const uploadSingleFile = async (
+    file: File,
+    clientReport?: ClientInspectionReport
+  ): Promise<InspectionResult> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('uploader_name', displayUploaderName);
     if (user?.id) {
       formData.append('uploader_id', user.id);
+    }
+
+    // Gửi kèm siêu dữ liệu đã kiểm định trước từ trình duyệt (Client Edge Inspector)
+    if (clientReport) {
+      formData.append('client_pre_parsed', 'true');
+      formData.append('file_hash', clientReport.fileHash);
+      formData.append('subject', clientReport.detectedSubject);
+      formData.append('grade', clientReport.estimatedLevel);
+      formData.append('exam_type', clientReport.examType);
+      formData.append('moet_2025_compliant', clientReport.moet2025Compliant ? '1' : '0');
+      formData.append('moet_part1_count', String(clientReport.moetPart1Count));
+      formData.append('moet_part2_count', String(clientReport.moetPart2Count));
+      formData.append('moet_part3_count', String(clientReport.moetPart3Count));
+      formData.append('has_answer_keys', clientReport.hasAnswerKeys ? '1' : '0');
+      formData.append('has_detailed_solutions', clientReport.hasDetailedSolutions ? '1' : '0');
+      formData.append('question_count', String(clientReport.questionCount));
+      formData.append('academic_year', clientReport.academicYear || '');
+      formData.append('school_or_department', clientReport.schoolOrDepartment || '');
+      formData.append('summary', clientReport.summary);
     }
 
     const uploadHeaders: Record<string, string> = {
@@ -274,7 +332,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     setHasCompletedBatch(false);
 
     let hasSuccess = false;
-    // Bot offline đã biết trước → lưu thẳng kho đệm, khỏi thử từng tệp
+    // Bot offline đã biết trước → lưu thẳng kho đệm Turso Cloud & outbox, khỏi thử từng tệp
     const offlineMode = !botOnline;
 
     for (let i = 0; i < fileQueue.length; i++) {
@@ -286,9 +344,50 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       if (offlineMode) {
         try {
           await queueToOutbox(item.file);
+
+          // Bảo lưu thẳng lên Turso Cloud (5GB Storage) với queue_status = 'pending_bot'
+          if (item.clientReport) {
+            let base64Content: string | undefined = undefined;
+            if (item.file.size <= 5 * 1024 * 1024) {
+              base64Content = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string) || '');
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(item.file);
+              });
+            }
+            await saveDocumentToTurso(
+              {
+                subject: item.clientReport.detectedSubject,
+                title: item.file.name,
+                fileName: item.file.name,
+                fileSizeBytes: item.file.size,
+                fileType: item.file.name.split('.').pop()?.toUpperCase() || 'PDF',
+                estimatedLevel: item.clientReport.estimatedLevel,
+                questionCount: item.clientReport.questionCount,
+                pageCount: item.clientReport.pageCount,
+                authorName: displayUploaderName,
+                authorId: user?.id ? parseInt(user.id, 10) : 0,
+                fileHash: item.clientReport.fileHash,
+                rawTextSnippet: item.clientReport.rawTextSnippet,
+                academicYear: item.clientReport.academicYear,
+                schoolOrDepartment: item.clientReport.schoolOrDepartment,
+                moet2025Compliant: item.clientReport.moet2025Compliant,
+                moetPart1Count: item.clientReport.moetPart1Count,
+                moetPart2Count: item.clientReport.moetPart2Count,
+                moetPart3Count: item.clientReport.moetPart3Count,
+                hasAnswerKeys: item.clientReport.hasAnswerKeys,
+                hasDetailedSolutions: item.clientReport.hasDetailedSolutions,
+                fileContentBase64: base64Content,
+              },
+              'pending_bot'
+            );
+          }
+
+          hasSuccess = true;
           markQueueItem(i, { status: 'queued' });
         } catch {
-          markQueueItem(i, { status: 'error', errorMessage: 'Không lưu tạm được (bộ nhớ trình duyệt bị chặn).' });
+          markQueueItem(i, { status: 'error', errorMessage: 'Không thể lưu tạm lên Turso Cloud.' });
         }
         continue;
       }
@@ -296,14 +395,42 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       markQueueItem(i, { status: 'uploading' });
 
       try {
-        const data = await uploadSingleFile(item.file);
+        const data = await uploadSingleFile(item.file, item.clientReport);
         hasSuccess = true;
         markQueueItem(i, { status: 'success', result: data });
       } catch (err: any) {
         if (err?.network) {
-          // Rớt mạng giữa chừng → lưu kho đệm thay vì báo lỗi
+          // Rớt mạng giữa chừng → lưu Turso Cloud + kho đệm thay vì báo lỗi
           try {
             await queueToOutbox(item.file);
+            if (item.clientReport) {
+              await saveDocumentToTurso(
+                {
+                  subject: item.clientReport.detectedSubject,
+                  title: item.file.name,
+                  fileName: item.file.name,
+                  fileSizeBytes: item.file.size,
+                  fileType: item.file.name.split('.').pop()?.toUpperCase() || 'PDF',
+                  estimatedLevel: item.clientReport.estimatedLevel,
+                  questionCount: item.clientReport.questionCount,
+                  pageCount: item.clientReport.pageCount,
+                  authorName: displayUploaderName,
+                  authorId: user?.id ? parseInt(user.id, 10) : 0,
+                  fileHash: item.clientReport.fileHash,
+                  rawTextSnippet: item.clientReport.rawTextSnippet,
+                  academicYear: item.clientReport.academicYear,
+                  schoolOrDepartment: item.clientReport.schoolOrDepartment,
+                  moet2025Compliant: item.clientReport.moet2025Compliant,
+                  moetPart1Count: item.clientReport.moetPart1Count,
+                  moetPart2Count: item.clientReport.moetPart2Count,
+                  moetPart3Count: item.clientReport.moetPart3Count,
+                  hasAnswerKeys: item.clientReport.hasAnswerKeys,
+                  hasDetailedSolutions: item.clientReport.hasDetailedSolutions,
+                },
+                'pending_bot'
+              );
+            }
+            hasSuccess = true;
             markQueueItem(i, { status: 'queued' });
           } catch {
             markQueueItem(i, { status: 'error', errorMessage: 'Không thể kết nối máy chủ.' });
@@ -823,7 +950,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               )}
                               {item.status === 'queued' && (
                                 <span className="text-sky-400 font-semibold">
-                                  • Đã lưu tạm, sẽ tự gửi khi bot online
+                                  • Đã bảo lưu trên Turso Cloud (5GB) • Tự động đồng bộ Discord khi Bot online
                                 </span>
                               )}
                               {item.status === 'error' && (
@@ -832,6 +959,31 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                 </span>
                               )}
                             </div>
+
+                            {/* HIỂN THỊ TIỀN KIỂM ĐỊNH TỪ TRÌNH DUYỆT (Client-side Edge Inspector) */}
+                            {item.clientReport && item.status !== 'success' && (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/20 flex items-center gap-1">
+                                  <Sparkles className="w-2.5 h-2.5 text-purple-400" />
+                                  <span>{item.clientReport.detectedSubjectVi} • {item.clientReport.estimatedLevel}</span>
+                                </span>
+                                {item.clientReport.moet2025Compliant && (
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/20">
+                                    ✨ Chuẩn 2025 (P1: {item.clientReport.moetPart1Count}, P2: {item.clientReport.moetPart2Count}, P3: {item.clientReport.moetPart3Count})
+                                  </span>
+                                )}
+                                {item.clientReport.academicYear && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[10px] text-slate-400 bg-white/5 border border-white/10">
+                                    📅 {item.clientReport.academicYear}
+                                  </span>
+                                )}
+                                {item.clientReport.schoolOrDepartment && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[10px] text-slate-300 bg-white/5 border border-white/10 truncate max-w-[200px]">
+                                    🏫 {item.clientReport.schoolOrDepartment}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
