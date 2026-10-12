@@ -14,7 +14,7 @@ import {
   Sparkles,
   Layers,
 } from 'lucide-react';
-import { ExamDocument } from './Dashboard';
+import { ExamDocument, getEducationLevelBadgeInfo } from './Dashboard';
 import { getGradeBadgeStyle, getExamTrackInfo, formatFileSize } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 
@@ -94,6 +94,17 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
               {doc.subject}
             </span>
+
+            {/* Bậc giáo dục: Chung, Cấp 2, Cấp 3 */}
+            {(() => {
+              const eduBadge = getEducationLevelBadgeInfo(doc);
+              return (
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
+                  <span>{eduBadge.icon}</span>
+                  <span>{eduBadge.label}</span>
+                </span>
+              );
+            })()}
 
             {/* Khối lớp chuẩn 7 Discord Roles */}
             <span

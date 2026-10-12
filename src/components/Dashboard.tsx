@@ -89,10 +89,50 @@ export interface ExamDocument {
   is_duplicate_copy?: boolean;
   original_id?: number | null;
   duplicate_count?: number;
+  educational_level?: 'CHUNG' | 'CAP_2' | 'CAP_3' | string;
 }
 
-// Danh mục Khối Lớp đồng bộ 7 Role Discord Server
-const GRADE_OPTIONS = [
+// ============================================================================
+// PHÂN LOẠI THEO 3 BẬC GIÁO DỤC: CHUNG, CẤP 2, CẤP 3
+// ============================================================================
+export type EducationLevel = 'ALL' | 'CAP_2' | 'CAP_3';
+
+export const EDUCATION_LEVEL_OPTIONS: {
+  id: EducationLevel;
+  label: string;
+  badge: string;
+  icon: string;
+  color: string;
+  desc: string;
+}[] = [
+  {
+    id: 'ALL',
+    label: 'Chung',
+    badge: 'Cả Cấp 2 & Cấp 3',
+    icon: '🌐',
+    color: '#8B5CF6',
+    desc: 'Hiển thị gộp tất cả khối lớp (6 → 12) và toàn bộ môn học',
+  },
+  {
+    id: 'CAP_2',
+    label: 'Cấp 2',
+    badge: 'THCS (Lớp 6 - 9)',
+    icon: '🏫',
+    color: '#10B981',
+    desc: '9 môn học chính thức theo chương trình GDPT 2018',
+  },
+  {
+    id: 'CAP_3',
+    label: 'Cấp 3',
+    badge: 'THPT (Lớp 10 - 12)',
+    icon: '🎓',
+    color: '#EF4444',
+    desc: '8 môn bắt buộc + 7 môn tự chọn theo GDPT 2018',
+  },
+];
+
+// Danh mục Khối Lớp cho chế độ Chung (Cả Cấp 2 & 3)
+export const ALL_GRADE_OPTIONS = [
   { id: 'ALL', label: 'Mọi Khối', subtitle: 'Tất cả lớp', color: '#8B5CF6' },
   { id: '12', label: 'Lớp 12', subtitle: 'Ôn TN & ĐH', color: '#EF4444' },
   { id: '11', label: 'Lớp 11', subtitle: 'THPT', color: '#F97316' },
@@ -103,8 +143,24 @@ const GRADE_OPTIONS = [
   { id: '6', label: 'Lớp 6', subtitle: 'THCS', color: '#8B5CF6' },
 ];
 
-// Danh mục 5 Thể Loại Đề Thi Chuẩn Theo Yêu Cầu (Đề thường, Đề HSG, Đề chuyên, Đề quốc tế, Đề chung)
-// Quy tắc độ khó: Đề thường < Đề HSG < Đề chuyên
+// Danh mục Khối Lớp riêng cho Cấp 2 (THCS)
+export const CAP2_GRADE_OPTIONS = [
+  { id: 'ALL', label: 'Mọi Khối Cấp 2', subtitle: 'Lớp 6 → 9', color: '#10B981' },
+  { id: '9', label: 'Lớp 9', subtitle: 'Ôn Vào 10', color: '#10B981' },
+  { id: '8', label: 'Lớp 8', subtitle: 'THCS', color: '#06B6D4' },
+  { id: '7', label: 'Lớp 7', subtitle: 'THCS', color: '#3B82F6' },
+  { id: '6', label: 'Lớp 6', subtitle: 'THCS', color: '#8B5CF6' },
+];
+
+// Danh mục Khối Lớp riêng cho Cấp 3 (THPT)
+export const CAP3_GRADE_OPTIONS = [
+  { id: 'ALL', label: 'Mọi Khối Cấp 3', subtitle: 'Lớp 10 → 12', color: '#EF4444' },
+  { id: '12', label: 'Lớp 12', subtitle: 'Ôn TN & ĐH', color: '#EF4444' },
+  { id: '11', label: 'Lớp 11', subtitle: 'THPT', color: '#F97316' },
+  { id: '10', label: 'Lớp 10', subtitle: 'THPT', color: '#F59E0B' },
+];
+
+// 5 Thể Loại Đề Thi Chuẩn (thường < hsg < chuyên)
 const EXAM_TYPE_OPTIONS = [
   { id: 'ALL', label: 'Mọi Thể Loại', badge: 'Tất cả ✨', icon: '✨', desc: 'Toàn bộ kho đề' },
   { id: 'THUONG', label: 'Đề Thường', badge: 'Cơ bản 📘', icon: '📘', desc: 'Đại trà, định kỳ, thi thử (thường < hsg < chuyên)' },
@@ -114,19 +170,220 @@ const EXAM_TYPE_OPTIONS = [
   { id: 'CHUNG', label: 'Đề Chung', badge: 'Tổng hợp 📚', icon: '📚', desc: 'Đề cương, lý thuyết tổng hợp (dễ gây hiểu lầm)' },
 ];
 
-// Danh mục Môn Học
-const SUBJECT_OPTIONS = [
-  { id: 'ALL', label: 'Tất Cả Các Môn', icon: '🌐' },
-  { id: 'MATHEMATICS', label: 'Toán Học', icon: '📐' },
-  { id: 'INFORMATICS', label: 'Tin Học / Lập Trình', icon: '💻' },
-  { id: 'LITERATURE', label: 'Ngữ Văn', icon: '📖' },
-  { id: 'ENGLISH', label: 'Tiếng Anh', icon: '🇬🇧' },
-  { id: 'PHYSICS', label: 'Vật Lý', icon: '⚡' },
-  { id: 'CHEMISTRY', label: 'Hóa Học', icon: '🧪' },
-  { id: 'BIOLOGY', label: 'Sinh Học', icon: '🧬' },
-  { id: 'HISTORY', label: 'Lịch Sử', icon: '🏛️' },
-  { id: 'GEOGRAPHY', label: 'Địa Lý', icon: '🗺️' },
+// ============================================================================
+// DANH MỤC MÔN HỌC THEO TỪNG CẤP (CHUẨN CHƯƠNG TRÌNH GDPT 2018)
+// ============================================================================
+
+// CẤP 2 (THCS): ĐÚNG 9 MÔN THEO YÊU CẦU
+export const CAP2_SUBJECT_OPTIONS = [
+  { id: 'ALL', label: 'Tất Cả Môn Cấp 2', icon: '🌐' },
+  { id: 'LITERATURE', label: 'Ngữ văn', icon: '📖' },
+  { id: 'MATHEMATICS', label: 'Toán', icon: '📐' },
+  { id: 'ENGLISH', label: 'Ngoại ngữ 1', icon: '🇬🇧' },
+  { id: 'CIVIC_EDUCATION', label: 'Giáo dục công dân', icon: '⚖️' },
+  { id: 'HISTORY_GEOGRAPHY', label: 'Lịch sử và Địa lý', icon: '🗺️' },
+  { id: 'NATURAL_SCIENCE', label: 'Khoa học tự nhiên', icon: '🔬' },
+  { id: 'TECHNOLOGY', label: 'Công nghệ', icon: '⚙️' },
+  { id: 'INFORMATICS', label: 'Tin học', icon: '💻' },
+  { id: 'PHYSICAL_EDUCATION', label: 'Giáo dục thể chất', icon: '🏃' },
 ];
+
+// CẤP 3 (THPT): 8 MÔN BẮT BUỘC THEO YÊU CẦU
+export const CAP3_MANDATORY_SUBJECTS = [
+  { id: 'LITERATURE', label: 'Ngữ văn', icon: '📖', group: 'mandatory' },
+  { id: 'MATHEMATICS', label: 'Toán', icon: '📐', group: 'mandatory' },
+  { id: 'ENGLISH', label: 'Ngoại ngữ 1', icon: '🇬🇧', group: 'mandatory' },
+  { id: 'HISTORY', label: 'Lịch sử', icon: '🏛️', group: 'mandatory' },
+  { id: 'PHYSICAL_EDUCATION', label: 'Giáo dục thể chất', icon: '🏃', group: 'mandatory' },
+  { id: 'DEFENSE_SECURITY_EDU', label: 'Giáo dục quốc phòng và an ninh', icon: '🛡️', group: 'mandatory' },
+  { id: 'EXPERIENTIAL_CAREER_ACT', label: 'Hoạt động trải nghiệm, hướng nghiệp', icon: '🧭', group: 'mandatory' },
+  { id: 'LOCAL_EDUCATION', label: 'Nội dung giáo dục của địa phương', icon: '🏘️', group: 'mandatory' },
+];
+
+// CẤP 3 (THPT): 7 MÔN TỰ CHỌN THEO YÊU CẦU
+export const CAP3_ELECTIVE_SUBJECTS = [
+  { id: 'GEOGRAPHY', label: 'Địa lí', icon: '🗺️', group: 'elective' },
+  { id: 'ECONOMIC_LEGAL_EDU', label: 'Giáo dục kinh tế và pháp luật', icon: '⚖️', group: 'elective' },
+  { id: 'PHYSICS', label: 'Vật lí', icon: '⚡', group: 'elective' },
+  { id: 'CHEMISTRY', label: 'Hóa học', icon: '🧪', group: 'elective' },
+  { id: 'BIOLOGY', label: 'Sinh học', icon: '🧬', group: 'elective' },
+  { id: 'TECHNOLOGY', label: 'Công nghệ', icon: '⚙️', group: 'elective' },
+  { id: 'INFORMATICS', label: 'Tin học', icon: '💻', group: 'elective' },
+];
+
+export const CAP3_SUBJECT_OPTIONS = [
+  { id: 'ALL', label: 'Tất Cả Môn Cấp 3', icon: '🌐' },
+  ...CAP3_MANDATORY_SUBJECTS,
+  ...CAP3_ELECTIVE_SUBJECTS,
+];
+
+// CHẾ ĐỘ CHUNG: TỔNG HỢP CẢ 2 CẤP
+export const ALL_SUBJECT_OPTIONS = [
+  { id: 'ALL', label: 'Tất Cả Các Môn', icon: '🌐' },
+  { id: 'MATHEMATICS', label: 'Toán', icon: '📐' },
+  { id: 'LITERATURE', label: 'Ngữ văn', icon: '📖' },
+  { id: 'ENGLISH', label: 'Ngoại ngữ 1', icon: '🇬🇧' },
+  { id: 'INFORMATICS', label: 'Tin học', icon: '💻' },
+  { id: 'TECHNOLOGY', label: 'Công nghệ', icon: '⚙️' },
+  { id: 'PHYSICAL_EDUCATION', label: 'Giáo dục thể chất', icon: '🏃' },
+  { id: 'NATURAL_SCIENCE', label: 'Khoa học tự nhiên (Cấp 2)', icon: '🔬' },
+  { id: 'HISTORY_GEOGRAPHY', label: 'Lịch sử và Địa lý (Cấp 2)', icon: '🗺️' },
+  { id: 'CIVIC_EDUCATION', label: 'Giáo dục công dân (Cấp 2)', icon: '⚖️' },
+  { id: 'PHYSICS', label: 'Vật lí (Cấp 3)', icon: '⚡' },
+  { id: 'CHEMISTRY', label: 'Hóa học (Cấp 3)', icon: '🧪' },
+  { id: 'BIOLOGY', label: 'Sinh học (Cấp 3)', icon: '🧬' },
+  { id: 'HISTORY', label: 'Lịch sử (Cấp 3)', icon: '🏛️' },
+  { id: 'GEOGRAPHY', label: 'Địa lí (Cấp 3)', icon: '🗺️' },
+  { id: 'ECONOMIC_LEGAL_EDU', label: 'Giáo dục kinh tế & pháp luật (Cấp 3)', icon: '⚖️' },
+  { id: 'DEFENSE_SECURITY_EDU', label: 'GD Quốc phòng & An ninh (Cấp 3)', icon: '🛡️' },
+  { id: 'EXPERIENTIAL_CAREER_ACT', label: 'HĐ trải nghiệm, hướng nghiệp (Cấp 3)', icon: '🧭' },
+  { id: 'LOCAL_EDUCATION', label: 'Nội dung GD địa phương (Cấp 3)', icon: '🏘️' },
+];
+
+// ============================================================================
+// HÀM HELPER XÁC ĐỊNH BẬC GIÁO DỤC CỦA ĐỀ THI
+// ============================================================================
+export function getDocumentEducationLevel(doc: {
+  estimated_level?: string;
+  subject?: string;
+  educational_level?: string;
+}): 'CAP_2' | 'CAP_3' | 'CHUNG' {
+  if (doc.educational_level === 'CAP_2') return 'CAP_2';
+  if (doc.educational_level === 'CAP_3') return 'CAP_3';
+
+  const level = (doc.estimated_level || '').toLowerCase();
+  const subj = (doc.subject || '').toUpperCase();
+
+  // 1. Phân loại theo Khối lớp
+  if (
+    /(?:lớp|khối|\b)\s*(?:[6-9])\b/i.test(level) ||
+    /k[6-9]\b|[6-9]th\b|thcs|vào\s*10/i.test(level)
+  ) {
+    return 'CAP_2';
+  }
+  if (
+    /(?:lớp|khối|\b)\s*(?:10|11|12)\b/i.test(level) ||
+    /k(?:10|11|12)\b|(?:10|11|12)th\b|thpt|đại\s*học|tốt\s*nghiệp/i.test(level)
+  ) {
+    return 'CAP_3';
+  }
+
+  // 2. Phân loại theo Môn học đặc thù
+  // Môn đặc thù Cấp 2: KHTN, Lịch sử và Địa lý, GDCD
+  if (
+    subj.includes('NATURAL_SCIENCE') ||
+    subj.includes('KHTN') ||
+    subj.includes('HISTORY_GEOGRAPHY') ||
+    subj.includes('LS_DL') ||
+    subj.includes('CIVIC_EDUCATION') ||
+    subj.includes('GDCD')
+  ) {
+    return 'CAP_2';
+  }
+
+  // Môn đặc thù Cấp 3: Vật lí, Hóa học, Sinh học, GDQP-AN, GDKT&PL, HĐTN-HN, GDĐP
+  if (
+    subj.includes('PHYSICS') ||
+    subj.includes('VAT_LY') ||
+    subj.includes('CHEMISTRY') ||
+    subj.includes('HOA_HOC') ||
+    subj.includes('BIOLOGY') ||
+    subj.includes('SINH_HOC') ||
+    subj.includes('ECONOMIC_LEGAL_EDU') ||
+    subj.includes('GDKT') ||
+    subj.includes('DEFENSE_SECURITY_EDU') ||
+    subj.includes('GDQP') ||
+    subj.includes('EXPERIENTIAL_CAREER_ACT') ||
+    subj.includes('HDTN') ||
+    subj.includes('LOCAL_EDUCATION') ||
+    subj.includes('GDDP')
+  ) {
+    return 'CAP_3';
+  }
+
+  return 'CHUNG';
+}
+
+// Khớp nối linh hoạt giữa mã môn và môn thực tế của tài liệu
+export function isDocMatchingSubject(docSubject: string, filterSubjectId: string): boolean {
+  if (filterSubjectId === 'ALL') return true;
+  const s = (docSubject || '').toUpperCase();
+  const fid = filterSubjectId.toUpperCase();
+
+  switch (fid) {
+    case 'MATHEMATICS':
+      return s.includes('TOAN') || s.includes('MATH');
+    case 'LITERATURE':
+      return s.includes('VAN') || s.includes('LIT') || s.includes('NGU_VAN');
+    case 'ENGLISH':
+      return s.includes('ENG') || s.includes('ANH') || s.includes('NGOAI_NGU');
+    case 'INFORMATICS':
+      return s.includes('INFO') || s.includes('TIN');
+    case 'PHYSICS':
+      return s.includes('PHYS') || s.includes('LY') || s.includes('VAT_LY');
+    case 'CHEMISTRY':
+      return s.includes('CHEM') || s.includes('HOA');
+    case 'BIOLOGY':
+      return s.includes('BIO') || s.includes('SINH');
+    case 'HISTORY':
+      return (s.includes('HIST') || s.includes('SU')) && !s.includes('GEO') && !s.includes('DIA');
+    case 'GEOGRAPHY':
+      return (s.includes('GEO') || s.includes('DIA')) && !s.includes('HIST') && !s.includes('SU');
+    case 'CIVIC_EDUCATION':
+      return s.includes('CIVIC') || s.includes('GDCD') || s.includes('CONG_DAN');
+    case 'ECONOMIC_LEGAL_EDU':
+      return s.includes('GDKT') || s.includes('KINH_TE') || s.includes('PHAP_LUAT') || s.includes('ECONOMIC');
+    case 'NATURAL_SCIENCE':
+      return s.includes('NATURAL') || s.includes('KHTN') || s.includes('TU_NHIEN');
+    case 'HISTORY_GEOGRAPHY':
+      return s.includes('HISTORY_GEOGRAPHY') || s.includes('LS_DL') || (s.includes('SU') && s.includes('DIA'));
+    case 'TECHNOLOGY':
+      return s.includes('TECH') || s.includes('CONG_NGHE');
+    case 'PHYSICAL_EDUCATION':
+      return s.includes('THE_CHAT') || s.includes('GDTC') || s.includes('PHYSICAL') || s.includes('THE_DUC');
+    case 'DEFENSE_SECURITY_EDU':
+      return s.includes('DEFENSE') || s.includes('GDQP') || s.includes('QUOC_PHONG') || s.includes('AN_NINH');
+    case 'EXPERIENTIAL_CAREER_ACT':
+      return s.includes('EXPERIENTIAL') || s.includes('HDTN') || s.includes('TRAI_NGHIEM') || s.includes('HUONG_NGHIEP');
+    case 'LOCAL_EDUCATION':
+      return s.includes('LOCAL') || s.includes('GDDP') || s.includes('DIA_PHUONG');
+    default:
+      return s === fid;
+  }
+}
+
+// Lấy style & nhãn badge Cấp Học
+export function getEducationLevelBadgeInfo(doc: { estimated_level?: string; subject?: string; educational_level?: string }) {
+  const lvl = getDocumentEducationLevel(doc);
+  if (lvl === 'CAP_2') {
+    return {
+      id: 'CAP_2',
+      label: 'Cấp 2 (THCS)',
+      shortLabel: 'Cấp 2',
+      icon: '🏫',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      dotColor: 'bg-emerald-500',
+    };
+  }
+  if (lvl === 'CAP_3') {
+    return {
+      id: 'CAP_3',
+      label: 'Cấp 3 (THPT)',
+      shortLabel: 'Cấp 3',
+      icon: '🎓',
+      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+      dotColor: 'bg-purple-500',
+    };
+  }
+  return {
+    id: 'CHUNG',
+    label: 'Chung (Cả 2 cấp)',
+    shortLabel: 'Chung',
+    icon: '🌐',
+    badgeClass: 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/70 border-slate-200 dark:border-white/15',
+    dotColor: 'bg-slate-400',
+  };
+}
 
 // Gợi ý từ khóa nhanh
 const QUICK_KEYWORD_TAGS = [
@@ -277,6 +534,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, []);
 
   // Form Lọc & Tìm Kiếm Đề Thi (Mặc định ALL để hiển thị danh sách đầy đủ)
+  const [selectedEducationLevel, setSelectedEducationLevel] = useState<EducationLevel>('ALL');
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
   const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
   const [selectedExamType, setSelectedExamType] = useState<string>('ALL');
@@ -312,12 +570,66 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Danh sách đề thi được hiển thị (có lọc theo Tủ Sách Yêu Thích và Sắp xếp nâng cao)
+  // Danh sách đề thi được hiển thị (có lọc theo Bậc học, Khối lớp, Thể loại, Môn học, Tủ Sách, Tìm kiếm)
   const displayedDocuments = useMemo(() => {
     let list = showBookmarksOnly
       ? documentsList.filter((doc) => bookmarkedIds.has(doc.id))
       : [...documentsList];
 
+    // 1. Lọc theo Bậc Giáo Dục: Chung (hiện cả 2), Cấp 2 (hiện riêng), Cấp 3 (hiện riêng)
+    if (selectedEducationLevel === 'CAP_2') {
+      list = list.filter((doc) => getDocumentEducationLevel(doc) === 'CAP_2');
+    } else if (selectedEducationLevel === 'CAP_3') {
+      list = list.filter((doc) => getDocumentEducationLevel(doc) === 'CAP_3');
+    }
+
+    // 2. Lọc theo Khối Lớp nếu đang chọn cụ thể
+    if (selectedGrade && selectedGrade !== 'ALL') {
+      list = list.filter((doc) => {
+        const l = (doc.estimated_level || '').toLowerCase();
+        if (selectedGrade === '9') {
+          return l.includes('9') || l.includes('vào 10');
+        }
+        return l.includes(selectedGrade);
+      });
+    }
+
+    // 3. Lọc theo Thể Loại Đề Thi
+    if (selectedExamType && selectedExamType !== 'ALL') {
+      list = list.filter((doc) => {
+        const track = (doc.exam_track || '').toLowerCase();
+        if (selectedExamType === 'THUONG') return track === 'thuong' || !track;
+        if (selectedExamType === 'HSG') return track === 'hsg';
+        if (selectedExamType === 'CHUYEN') return track === 'chuyen';
+        if (selectedExamType === 'QUOC_TE') return track === 'quoc_te';
+        if (selectedExamType === 'CHUNG') return track === 'chung';
+        return true;
+      });
+    }
+
+    // 4. Lọc theo Môn Học
+    if (selectedSubject && selectedSubject !== 'ALL') {
+      list = list.filter((doc) => isDocMatchingSubject(doc.subject, selectedSubject));
+    }
+
+    // 5. Lọc theo Từ Khóa Tìm Kiếm
+    if (descriptionKeyword && descriptionKeyword.trim()) {
+      const kw = descriptionKeyword.trim().toLowerCase();
+      list = list.filter((doc) => {
+        const title = (doc.title || '').toLowerCase();
+        const fname = (doc.file_name || '').toLowerCase();
+        const subj = (doc.subject || '').toLowerCase();
+        const school = (doc.school_or_department || '').toLowerCase();
+        return (
+          title.includes(kw) ||
+          fname.includes(kw) ||
+          subj.includes(kw) ||
+          school.includes(kw)
+        );
+      });
+    }
+
+    // Sắp xếp nâng cao
     if (sortBy === 'newest') {
       list.sort((a, b) => b.id - a.id);
     } else if (sortBy === 'pages') {
@@ -329,9 +641,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
 
     return list;
-  }, [documentsList, showBookmarksOnly, bookmarkedIds, sortBy]);
+  }, [
+    documentsList,
+    showBookmarksOnly,
+    bookmarkedIds,
+    selectedEducationLevel,
+    selectedGrade,
+    selectedExamType,
+    selectedSubject,
+    descriptionKeyword,
+    sortBy,
+  ]);
 
-  // Thống kê phân bố tài liệu theo 7 Khối Lớp
+  // Thống kê phân bố tài liệu theo Khối Lớp tương ứng với Bậc Học đang chọn
   const gradeDistribution = useMemo(() => {
     const dist: Record<string, number> = {
       '12': 0,
@@ -342,18 +664,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
       '7': 0,
       '6': 0,
     };
-    documentsList.forEach((d) => {
+
+    const targetDocs =
+      selectedEducationLevel === 'CAP_2'
+        ? documentsList.filter((d) => getDocumentEducationLevel(d) === 'CAP_2')
+        : selectedEducationLevel === 'CAP_3'
+        ? documentsList.filter((d) => getDocumentEducationLevel(d) === 'CAP_3')
+        : documentsList;
+
+    targetDocs.forEach((d) => {
       const l = (d.estimated_level || '').toLowerCase();
       if (l.includes('12')) dist['12']++;
       else if (l.includes('11')) dist['11']++;
       else if (l.includes('10')) dist['10']++;
-      else if (l.includes('9')) dist['9']++;
+      else if (l.includes('9') || l.includes('vào 10')) dist['9']++;
       else if (l.includes('8')) dist['8']++;
       else if (l.includes('7')) dist['7']++;
       else if (l.includes('6')) dist['6']++;
     });
     return dist;
-  }, [documentsList]);
+  }, [documentsList, selectedEducationLevel]);
 
   // Trạng thái đề ngẫu nhiên được chọn
   const [isLoadingExam, setIsLoadingExam] = useState<boolean>(false);
@@ -509,6 +839,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, 15000);
     return () => clearInterval(timer);
   }, [checkBotStatus, fetchDocStats]);
+
+  // Cập nhật Bậc Giáo Dục: Chung, Cấp 2, Cấp 3
+  const handleEducationLevelChange = (level: EducationLevel) => {
+    setSelectedEducationLevel(level);
+
+    // Tự động chuyển Khối Lớp nếu không thuộc cấp vừa chọn
+    let nextGrade = selectedGrade;
+    if (level === 'CAP_2' && ['12', '11', '10'].includes(selectedGrade)) {
+      nextGrade = 'ALL';
+      setSelectedGrade('ALL');
+    } else if (level === 'CAP_3' && ['9', '8', '7', '6'].includes(selectedGrade)) {
+      nextGrade = 'ALL';
+      setSelectedGrade('ALL');
+    }
+
+    // Tự động chuyển Môn Học nếu môn hiện tại không thuộc cấp vừa chọn
+    let nextSubject = selectedSubject;
+    const cap2SubjectIds = CAP2_SUBJECT_OPTIONS.map((s) => s.id);
+    const cap3SubjectIds = CAP3_SUBJECT_OPTIONS.map((s) => s.id);
+
+    if (level === 'CAP_2' && selectedSubject !== 'ALL' && !cap2SubjectIds.includes(selectedSubject)) {
+      nextSubject = 'ALL';
+      setSelectedSubject('ALL');
+    } else if (level === 'CAP_3' && selectedSubject !== 'ALL' && !cap3SubjectIds.includes(selectedSubject)) {
+      nextSubject = 'ALL';
+      setSelectedSubject('ALL');
+    }
+
+    fetchDocuments(nextGrade, selectedExamType, nextSubject, descriptionKeyword);
+  };
 
   // Cập nhật danh sách khi đổi filter
   const handleGradeChange = (gradeId: string) => {
@@ -679,23 +1039,105 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       <form onSubmit={handleFilterSubmit} className="space-y-6">
+        {/* 0. BẬC GIÁO DỤC: CHUNG, CẤP 2, CẤP 3 */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
+              <GraduationCap className="w-4 h-4 text-purple-500" />
+              <span>Bậc Giáo Dục & Cấp Học</span>
+            </label>
+            <span className="text-[11px] text-slate-400 dark:text-white/40">
+              Đang chọn:{' '}
+              <strong className="text-purple-600 dark:text-purple-400">
+                {EDUCATION_LEVEL_OPTIONS.find((e) => e.id === selectedEducationLevel)?.label}
+              </strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {EDUCATION_LEVEL_OPTIONS.map((opt) => {
+              const isSelected = selectedEducationLevel === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleEducationLevelChange(opt.id)}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 group ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02] border-purple-400 ring-2 ring-purple-500/40'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/30 dark:hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{opt.icon}</span>
+                      <span className="font-extrabold text-sm sm:text-base">{opt.label}</span>
+                    </div>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        isSelected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20'
+                      }`}
+                    >
+                      {opt.badge}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[11px] leading-tight ${
+                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/40'
+                    }`}
+                  >
+                    {opt.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 1. KHỐI LỚP */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
               <GraduationCap className="w-4 h-4 text-purple-500" />
-              <span>1. Khối Lớp Học Sinh</span>
+              <span>
+                1. Khối Lớp Học Sinh{' '}
+                {selectedEducationLevel === 'CAP_2'
+                  ? '(Cấp 2: Lớp 6 - 9)'
+                  : selectedEducationLevel === 'CAP_3'
+                  ? '(Cấp 3: Lớp 10 - 12)'
+                  : '(Toàn Bộ Khối 6 - 12)'}
+              </span>
             </label>
             <span className="text-[11px] text-slate-400 dark:text-white/40">
               Đang chọn:{' '}
               <strong className="text-purple-600 dark:text-purple-400">
-                {GRADE_OPTIONS.find((g) => g.id === selectedGrade)?.label}
+                {(selectedEducationLevel === 'CAP_2'
+                  ? CAP2_GRADE_OPTIONS
+                  : selectedEducationLevel === 'CAP_3'
+                  ? CAP3_GRADE_OPTIONS
+                  : ALL_GRADE_OPTIONS
+                ).find((g) => g.id === selectedGrade)?.label || 'Mọi Khối'}
               </strong>
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-            {GRADE_OPTIONS.map((g) => {
+          <div
+            className={`grid gap-2 ${
+              selectedEducationLevel === 'CAP_2'
+                ? 'grid-cols-2 sm:grid-cols-5'
+                : selectedEducationLevel === 'CAP_3'
+                ? 'grid-cols-2 sm:grid-cols-4'
+                : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-8'
+            }`}
+          >
+            {(selectedEducationLevel === 'CAP_2'
+              ? CAP2_GRADE_OPTIONS
+              : selectedEducationLevel === 'CAP_3'
+              ? CAP3_GRADE_OPTIONS
+              : ALL_GRADE_OPTIONS
+            ).map((g) => {
               const isSelected = selectedGrade === g.id;
               return (
                 <button
@@ -796,40 +1238,126 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 3. MÔN HỌC */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-emerald-500" />
-              <span>3. Môn Học Ôn Tập</span>
+              <span>
+                3. Môn Học Ôn Tập{' '}
+                {selectedEducationLevel === 'CAP_2'
+                  ? '(9 Môn Chuẩn GDPT 2018 THCS)'
+                  : selectedEducationLevel === 'CAP_3'
+                  ? '(8 Môn Bắt Buộc + 7 Môn Tự Chọn)'
+                  : '(Gộp Cả Cấp 2 & Cấp 3)'}
+              </span>
             </label>
             <span className="text-[11px] text-slate-400 dark:text-white/40">
               Đang chọn:{' '}
               <strong className="text-emerald-600 dark:text-emerald-400">
-                {SUBJECT_OPTIONS.find((s) => s.id === selectedSubject)?.label}
+                {(selectedEducationLevel === 'CAP_2'
+                  ? CAP2_SUBJECT_OPTIONS
+                  : selectedEducationLevel === 'CAP_3'
+                  ? CAP3_SUBJECT_OPTIONS
+                  : ALL_SUBJECT_OPTIONS
+                ).find((s) => s.id === selectedSubject)?.label || 'Tất Cả Các Môn'}
               </strong>
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {SUBJECT_OPTIONS.map((s) => {
-              const isSelected = selectedSubject === s.id;
-              return (
+          {selectedEducationLevel === 'CAP_3' ? (
+            <div className="space-y-3.5">
+              {/* Nút Chọn Tất Cả Môn Cấp 3 */}
+              <div>
                 <button
-                  key={s.id}
                   type="button"
-                  onClick={() => handleSubjectChange(s.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
+                  onClick={() => handleSubjectChange('ALL')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedSubject === 'ALL'
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-105'
                       : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
                   }`}
                 >
-                  <span>{s.icon}</span>
-                  <span>{s.label}</span>
+                  <span>🌐</span>
+                  <span>Tất Cả Môn Cấp 3 (8 Bắt buộc + 7 Tự chọn)</span>
                 </button>
-              );
-            })}
-          </div>
+              </div>
+
+              {/* Nhóm 1: 8 Môn Bắt Buộc */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                  <span>📌 8 Môn Học Bắt Buộc (Chuẩn Cấp 3):</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {CAP3_MANDATORY_SUBJECTS.map((s) => {
+                    const isSelected = selectedSubject === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => handleSubjectChange(s.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30 scale-105'
+                            : 'bg-white dark:bg-white/[0.05] text-slate-700 dark:text-white/80 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:text-purple-600 dark:hover:text-purple-300 border border-slate-200 dark:border-white/10'
+                        }`}
+                      >
+                        <span>{s.icon}</span>
+                        <span>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Nhóm 2: 7 Môn Tự Chọn */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 flex items-center gap-1.5">
+                  <span>🎨 7 Môn Học Tự Chọn (Chuẩn Cấp 3):</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {CAP3_ELECTIVE_SUBJECTS.map((s) => {
+                    const isSelected = selectedSubject === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => handleSubjectChange(s.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-pink-600 text-white shadow-md shadow-pink-900/30 scale-105'
+                            : 'bg-white dark:bg-white/[0.05] text-slate-700 dark:text-white/80 hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-300 border border-slate-200 dark:border-white/10'
+                        }`}
+                      >
+                        <span>{s.icon}</span>
+                        <span>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {(selectedEducationLevel === 'CAP_2' ? CAP2_SUBJECT_OPTIONS : ALL_SUBJECT_OPTIONS).map((s) => {
+                const isSelected = selectedSubject === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSubjectChange(s.id)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-105'
+                        : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                    }`}
+                  >
+                    <span>{s.icon}</span>
+                    <span>{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 4. TỪ KHÓA MÔ TẢ */}
@@ -1385,6 +1913,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       Môn: {currentExam.subject}
                     </span>
                     {(() => {
+                      const eduBadge = getEducationLevelBadgeInfo(currentExam);
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
+                          <span>{eduBadge.icon}</span>
+                          <span>{eduBadge.label}</span>
+                        </span>
+                      );
+                    })()}
+                    {(() => {
                       const gradeStyle = getGradeBadgeStyle(currentExam.estimated_level);
                       return (
                         <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
@@ -1866,7 +2403,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Reset bộ lọc */}
-                {(selectedGrade !== 'ALL' ||
+                {(selectedEducationLevel !== 'ALL' ||
+                  selectedGrade !== 'ALL' ||
                   selectedExamType !== 'ALL' ||
                   selectedSubject !== 'ALL' ||
                   descriptionKeyword ||
@@ -1874,6 +2412,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     onClick={() => {
                       setShowBookmarksOnly(false);
+                      setSelectedEducationLevel('ALL');
                       setSelectedGrade('ALL');
                       setSelectedExamType('ALL');
                       setSelectedSubject('ALL');
@@ -1956,6 +2495,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
                               {doc.subject}
                             </span>
+                            {/* Bậc giáo dục: Chung, Cấp 2, Cấp 3 */}
+                            {(() => {
+                              const eduBadge = getEducationLevelBadgeInfo(doc);
+                              return (
+                                <span
+                                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${eduBadge.badgeClass}`}
+                                >
+                                  <span>{eduBadge.icon}</span>
+                                  <span>{eduBadge.shortLabel}</span>
+                                </span>
+                              );
+                            })()}
                             <span
                               className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${trackInfo.badgeClass}`}
                               title={`${trackInfo.description} (${trackInfo.difficultyNote})`}

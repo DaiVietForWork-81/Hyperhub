@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
-import { ExamDocument } from './Dashboard';
+import { ExamDocument, getEducationLevelBadgeInfo } from './Dashboard';
 import { getGradeBadgeStyle } from '../utils/formatters';
 
 interface CommandPaletteProps {
@@ -181,6 +181,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
                             {exam.subject}
                           </span>
+                          {(() => {
+                            const eduBadge = getEducationLevelBadgeInfo(exam);
+                            return (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${eduBadge.badgeClass}`}
+                              >
+                                <span>{eduBadge.icon}</span>
+                                <span>{eduBadge.shortLabel}</span>
+                              </span>
+                            );
+                          })()}
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${gradeStyle.badgeClass}`}
                           >

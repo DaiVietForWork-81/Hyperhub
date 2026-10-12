@@ -963,6 +963,18 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                             {/* HIỂN THỊ TIỀN KIỂM ĐỊNH TỪ TRÌNH DUYỆT (Client-side Edge Inspector) */}
                             {item.clientReport && item.status !== 'success' && (
                               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 ${
+                                    item.clientReport.educationalLevel === 'CAP_2'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                      : item.clientReport.educationalLevel === 'CAP_3'
+                                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                      : 'bg-slate-500/20 text-slate-300 border-slate-500/30'
+                                  }`}
+                                >
+                                  <span>{item.clientReport.educationalLevel === 'CAP_2' ? '🏫' : item.clientReport.educationalLevel === 'CAP_3' ? '🎓' : '🌐'}</span>
+                                  <span>{item.clientReport.educationalLevelVi}</span>
+                                </span>
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/20 flex items-center gap-1">
                                   <Sparkles className="w-2.5 h-2.5 text-purple-400" />
                                   <span>{item.clientReport.detectedSubjectVi} • {item.clientReport.estimatedLevel}</span>

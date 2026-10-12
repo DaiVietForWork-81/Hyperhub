@@ -21,6 +21,8 @@ export interface ClientInspectionReport {
   pageCount: number;
   academicYear?: string;
   schoolOrDepartment?: string;
+  educationalLevel: 'CHUNG' | 'CAP_2' | 'CAP_3';
+  educationalLevelVi: string;
   moet2025Compliant: boolean;
   moetPart1Count: number;
   moetPart2Count: number;
@@ -157,46 +159,94 @@ function extractPdfTextSnippet(bytes: Uint8Array): string {
 // ============================================================================
 // 4. BỘ NHẬN DIỆN MÔN HỌC, KHỐI LỚP & CHUẨN 2025
 // ============================================================================
-const SUBJECT_MAP: Record<string, { vi: string; re: RegExp }> = {
-  TOAN: {
-    vi: 'Toán học',
-    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:toán|toán\s+học|đại\s+số|hình\s+học|giải\s+tích)/i,
+const SUBJECT_MAP: Record<string, { vi: string; re: RegExp; cap?: 'CAP_2' | 'CAP_3' | 'CHUNG' }> = {
+  // --- MÔN TÍCH HỢP & ĐẶC THÙ CẤP 2 (GDPT 2018) ---
+  NATURAL_SCIENCE: {
+    vi: 'Khoa học tự nhiên',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:khoa\s*học\s*tự\s*nhiên|khtn)\b/i,
+    cap: 'CAP_2',
   },
-  VAT_LY: {
+  HISTORY_GEOGRAPHY: {
+    vi: 'Lịch sử và Địa lý',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:lịch\s*sử\s*(?:và|&|-)\s*địa\s*l[ií]|ls\s*&\s*dl)\b/i,
+    cap: 'CAP_2',
+  },
+  CIVIC_EDUCATION: {
+    vi: 'Giáo dục công dân',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:giáo\s*dục\s*công\s*dân|gdcd)\b/i,
+    cap: 'CAP_2',
+  },
+
+  // --- MÔN BẮT BUỘC & TỰ CHỌN ĐẶC THÙ CẤP 3 (GDPT 2018) ---
+  ECONOMIC_LEGAL_EDU: {
+    vi: 'Giáo dục kinh tế và pháp luật',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:kinh\s*tế\s*(?:và|&)\s*pháp\s*luật|gdkt\s*&\s*pl|gdkt-pl)\b/i,
+    cap: 'CAP_3',
+  },
+  DEFENSE_SECURITY_EDU: {
+    vi: 'Giáo dục quốc phòng và an ninh',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:quốc\s*phòng\s*(?:và|&)\s*an\s*ninh|gdqp(?:\s*&?\s*an)?|quân\s*sự)\b/i,
+    cap: 'CAP_3',
+  },
+  EXPERIENTIAL_CAREER_ACT: {
+    vi: 'Hoạt động trải nghiệm, hướng nghiệp',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:hoạt\s*động\s*trải\s*nghiệm|hướng\s*nghiệp|hđtn(?:\s*&?\s*hn)?)\b/i,
+    cap: 'CAP_3',
+  },
+  LOCAL_EDUCATION: {
+    vi: 'Nội dung giáo dục của địa phương',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:giáo\s*dục\s*(?:của\s*)?địa\s*phương|nội\s*dung\s*gd\s*địa\s*phương|gdđp)\b/i,
+    cap: 'CAP_3',
+  },
+  PHYSICS: {
     vi: 'Vật lí',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:vật\s*l[ií]|vật\s+lượng|cơ\s+học|quang\s+học)/i,
+    cap: 'CAP_3',
   },
-  HOA_HOC: {
+  CHEMISTRY: {
     vi: 'Hóa học',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:hóa\s*h[oọ]c|hóa\s*vô\s*cơ|hóa\s*hữu\s*cơ)/i,
+    cap: 'CAP_3',
   },
-  SINH_HOC: {
+  BIOLOGY: {
     vi: 'Sinh học',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:sinh\s*h[oọ]c|di\s*truyền|sinh\s*thái)/i,
+    cap: 'CAP_3',
   },
-  NGU_VAN: {
+  GEOGRAPHY: {
+    vi: 'Địa lí',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:địa\s*l[ií]|địa\s*học)/i,
+    cap: 'CAP_3',
+  },
+
+  // --- MÔN XUYÊN SUỐT CẢ CẤP 2 & CẤP 3 ---
+  LITERATURE: {
     vi: 'Ngữ văn',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:ngữ\s*văn|văn\s*học|đọc\s*hiểu\s*văn\s*bản)/i,
   },
-  TIENG_ANH: {
-    vi: 'Tiếng Anh',
-    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:tiếng\s*anh|english|ngoại\s*ngữ)/i,
+  MATHEMATICS: {
+    vi: 'Toán',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:toán|toán\s+học|đại\s+số|hình\s+học|giải\s+tích)/i,
   },
-  LICH_SU: {
+  ENGLISH: {
+    vi: 'Ngoại ngữ 1 (Tiếng Anh)',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:tiếng\s*anh|english|ngoại\s*ngữ(?:\s*1)?)/i,
+  },
+  HISTORY: {
     vi: 'Lịch sử',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:lịch\s*sử|sử\s*học)/i,
   },
-  DIA_LY: {
-    vi: 'Địa lí',
-    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:địa\s*l[ií]|địa\s*học)/i,
-  },
-  GDCD: {
-    vi: 'GDCD / GDKT&PL',
-    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:giáo\s*dục\s*công\s*dân|gdcd|gdkt\s*&\s*pl|kinh\s*tế\s*và\s*pháp\s*luật)/i,
-  },
-  TIN_HOC: {
+  INFORMATICS: {
     vi: 'Tin học',
     re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:tin\s*học|lập\s*trình|thuật\s*toán|informatics)/i,
+  },
+  TECHNOLOGY: {
+    vi: 'Công nghệ',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:công\s*nghệ)/i,
+  },
+  PHYSICAL_EDUCATION: {
+    vi: 'Giáo dục thể chất',
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:giáo\s*dục\s*thể\s*chất|gdtc|thể\s*dục)/i,
   },
 };
 
@@ -255,11 +305,42 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     estimatedLevel = 'Khối 11';
   } else if (/lớp\s*12|khối\s*12|k12\b|12th|thpt\s*quốc\s*gia/i.test(searchCorpus)) {
     estimatedLevel = 'Khối 12 (Ôn thi THPT)';
-  } else if (/lớp\s*[6-9]|thcs/i.test(searchCorpus)) {
+  } else if (/lớp\s*9|khối\s*9|k9\b|9th|vào\s*10/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 9 (Ôn Vào 10)';
+  } else if (/lớp\s*8|khối\s*8|k8\b|8th/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 8';
+  } else if (/lớp\s*7|khối\s*7|k7\b|7th/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 7';
+  } else if (/lớp\s*6|khối\s*6|k6\b|6th/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 6';
+  } else if (/thcs/i.test(searchCorpus)) {
     estimatedLevel = 'Khối THCS';
   }
 
-  // 3. Nhận diện Năm học & Trường ra đề
+  // 3. Phân loại Bậc Giáo Dục (Chung, Cấp 2, Cấp 3)
+  let educationalLevel: 'CHUNG' | 'CAP_2' | 'CAP_3' = 'CHUNG';
+  const matchedSubjObj = SUBJECT_MAP[detectedSubject];
+  if (matchedSubjObj?.cap === 'CAP_2') {
+    educationalLevel = 'CAP_2';
+  } else if (matchedSubjObj?.cap === 'CAP_3') {
+    educationalLevel = 'CAP_3';
+  }
+
+  // Tinh chỉnh theo khối lớp
+  if (/lớp\s*[6-9]|khối\s*[6-9]|k[6-9]\b|[6-9]th|thcs|vào\s*10/i.test(searchCorpus)) {
+    educationalLevel = 'CAP_2';
+  } else if (/lớp\s*(?:10|11|12)|khối\s*(?:10|11|12)|k(?:10|11|12)\b|(?:10|11|12)th|thpt|tốt\s*nghiệp|đại\s*học/i.test(searchCorpus)) {
+    educationalLevel = 'CAP_3';
+  }
+
+  const educationalLevelVi =
+    educationalLevel === 'CAP_2'
+      ? 'Cấp 2 (THCS)'
+      : educationalLevel === 'CAP_3'
+      ? 'Cấp 3 (THPT)'
+      : 'Chung (Cả 2 cấp)';
+
+  // 4. Nhận diện Năm học & Trường ra đề
   let academicYear: string | undefined;
   const yearMatch = searchCorpus.match(RE_ACADEMIC_YEAR);
   if (yearMatch) {
@@ -272,7 +353,7 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     schoolOrDepartment = schoolMatch[0].trim().replace(/[-–—]+$/, '');
   }
 
-  // 4. Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (3 Phần)
+  // 5. Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (3 Phần)
   const hasPart1 = RE_MOET_PART1.test(searchCorpus);
   const hasPart2 = RE_MOET_PART2.test(searchCorpus);
   const hasPart3 = RE_MOET_PART3.test(searchCorpus);
@@ -287,9 +368,9 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
   let p2Count = 0;
   let p3Count = 0;
   if (moet2025Compliant) {
-    p1Count = detectedSubject === 'TOAN' ? 12 : 18;
+    p1Count = detectedSubject === 'MATHEMATICS' ? 12 : 18;
     p2Count = 4;
-    p3Count = detectedSubject === 'TOAN' ? 6 : 4;
+    p3Count = detectedSubject === 'MATHEMATICS' ? 6 : 4;
   }
 
   const hasAnswerKeys = RE_ANSWER_KEYS.test(searchCorpus);
@@ -304,6 +385,7 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
   }
 
   const summary = [
+    `Bậc: ${educationalLevelVi}`,
     `Môn: ${detectedSubjectVi}`,
     `Khối: ${estimatedLevel}`,
     moet2025Compliant ? `Chuẩn 2025 (P1: ${p1Count}, P2: ${p2Count}, P3: ${p3Count})` : null,
@@ -330,6 +412,8 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     pageCount: Math.max(1, Math.ceil(file.size / (150 * 1024))),
     academicYear,
     schoolOrDepartment,
+    educationalLevel,
+    educationalLevelVi,
     moet2025Compliant,
     moetPart1Count: p1Count,
     moetPart2Count: p2Count,
