@@ -404,6 +404,15 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           try {
             await queueToOutbox(item.file);
             if (item.clientReport) {
+              let base64Content: string | undefined = undefined;
+              if (item.file.size <= 5 * 1024 * 1024) {
+                base64Content = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve((reader.result as string) || '');
+                  reader.onerror = () => resolve('');
+                  reader.readAsDataURL(item.file);
+                });
+              }
               await saveDocumentToTurso(
                 {
                   subject: item.clientReport.detectedSubject,
@@ -426,6 +435,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                   moetPart3Count: item.clientReport.moetPart3Count,
                   hasAnswerKeys: item.clientReport.hasAnswerKeys,
                   hasDetailedSolutions: item.clientReport.hasDetailedSolutions,
+                  fileContentBase64: base64Content,
                 },
                 'pending_bot'
               );
@@ -702,6 +712,60 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'file_upload' && (
         <div className="space-y-6">
+          {/* VÒNG LẶP ĐỒNG BỘ 4 BƯỚC: WEB ⇄ TURSO 5GB ⇄ DISCORD BOT */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/60 border border-purple-500/20 backdrop-blur-xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-white/5">
+              <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span>Quy trình nộp đề & đồng bộ hai chiều (Web ⇄ Turso Cloud 5GB ⇄ Discord Bot)</span>
+              </div>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
+                ⚡ Tự động giải phóng Base64 sau khi đăng để bảo toàn Quota 5GB
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="font-bold text-purple-300 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-[10px] font-black">1</span>
+                  <span>Kiểm định Client AI</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Web trích xuất trước năm học, trường ra đề, môn học GDPT 2018 & cấu trúc 2025 giúp giảm tải cho máy chủ.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="font-bold text-blue-300 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-[10px] font-black">2</span>
+                  <span>Turso Cloud (5GB Đệm)</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Lưu trữ đệm an toàn cả khi Bot tắt. Tính toán SHA-256 chống nộp trùng lặp tài liệu.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-black">3</span>
+                  <span>Chuyển giao Worker Bot</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Bot khởi động sẽ tự động quét hàng đợi Turso, lấy file nhị phân sẵn sàng chuyển tiếp vào Discord.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px] font-black">4</span>
+                  <span>Đăng Tệp & Giải Phóng</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Gửi tệp thật vào đúng kênh môn học Discord, sau đó đặt Base64 Turso về NULL để giữ nguyên dung lượng 5GB trọn đời!
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}

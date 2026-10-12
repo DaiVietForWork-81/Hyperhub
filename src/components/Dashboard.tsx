@@ -23,6 +23,10 @@ import {
   UploadCloud,
   Dices,
   Star,
+  Calendar,
+  School,
+  SlidersHorizontal,
+  FileCheck,
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import {
@@ -554,6 +558,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [selectedExamType, setSelectedExamType] = useState<string>('ALL');
   const [descriptionKeyword, setDescriptionKeyword] = useState<string>('');
 
+  // BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN 2025, ĐÁP ÁN & LỜI GIẢI)
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('ALL');
+  const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
+  const [filterMoet2025, setFilterMoet2025] = useState<boolean>(false);
+  const [filterHasAnswers, setFilterHasAnswers] = useState<boolean>(false);
+  const [filterHasSolutions, setFilterHasSolutions] = useState<boolean>(false);
+  const [filterHasDiscordLink, setFilterHasDiscordLink] = useState<boolean>(false);
+
   // Danh Sách Đề Thi Trong Kho (Full Catalog List)
   const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
@@ -584,7 +596,74 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Danh sách đề thi được hiển thị (có lọc theo Bậc học, Khối lớp, Thể loại, Môn học, Tủ Sách, Tìm kiếm)
+  // Danh sách các Năm Học trích xuất động từ CSDL
+  const availableAcademicYears = useMemo(() => {
+    const yearCounts: Record<string, number> = {};
+    documentsList.forEach((d) => {
+      let y = d.academic_year?.trim();
+      if (!y) {
+        const m = (d.title + ' ' + d.file_name).match(/(?:20\d{2}\s*[-–—]\s*20\d{2})|(?:20\d{2})/);
+        if (m) y = m[0].replace(/\s+/g, '');
+      }
+      if (y && y.length >= 4) {
+        yearCounts[y] = (yearCounts[y] || 0) + 1;
+      }
+    });
+    return Object.entries(yearCounts)
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.year.localeCompare(a.year));
+  }, [documentsList]);
+
+  // Danh sách các Trường / Sở GD&ĐT trích xuất động từ CSDL
+  const availableSchools = useMemo(() => {
+    const schoolCounts: Record<string, number> = {};
+    documentsList.forEach((d) => {
+      const s = d.school_or_department?.trim();
+      if (s && s.length >= 2) {
+        schoolCounts[s] = (schoolCounts[s] || 0) + 1;
+      }
+    });
+    return Object.entries(schoolCounts)
+      .map(([school, count]) => ({ school, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [documentsList]);
+
+  // Đếm tổng số bộ lọc nâng cao đang bật
+  const activeAdvancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedAcademicYear !== 'ALL') count++;
+    if (selectedSchool !== 'ALL') count++;
+    if (filterMoet2025) count++;
+    if (filterHasAnswers) count++;
+    if (filterHasSolutions) count++;
+    if (filterHasDiscordLink) count++;
+    return count;
+  }, [
+    selectedAcademicYear,
+    selectedSchool,
+    filterMoet2025,
+    filterHasAnswers,
+    filterHasSolutions,
+    filterHasDiscordLink,
+  ]);
+
+  // Đặt lại toàn bộ bộ lọc
+  const handleResetAllFilters = useCallback(() => {
+    setShowBookmarksOnly(false);
+    setSelectedEducationLevel('ALL');
+    setSelectedGrade('ALL');
+    setSelectedExamType('ALL');
+    setSelectedSubject('ALL');
+    setDescriptionKeyword('');
+    setSelectedAcademicYear('ALL');
+    setSelectedSchool('ALL');
+    setFilterMoet2025(false);
+    setFilterHasAnswers(false);
+    setFilterHasSolutions(false);
+    setFilterHasDiscordLink(false);
+  }, []);
+
+  // Danh sách đề thi được hiển thị (có lọc theo Bậc học, Khối lớp, Thể loại, Môn học, Năm học, Trường ra đề, Chuẩn 2025, Tủ Sách, Tìm kiếm)
   const displayedDocuments = useMemo(() => {
     let list = showBookmarksOnly
       ? documentsList.filter((doc) => bookmarkedIds.has(doc.id))
@@ -626,7 +705,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
       list = list.filter((doc) => isDocMatchingSubject(doc.subject, selectedSubject));
     }
 
-    // 5. Lọc theo Từ Khóa Tìm Kiếm
+    // 5. Lọc theo Năm Học
+    if (selectedAcademicYear && selectedAcademicYear !== 'ALL') {
+      list = list.filter((doc) => {
+        if (doc.academic_year === selectedAcademicYear) return true;
+        const text = (doc.title + ' ' + doc.file_name).toLowerCase();
+        return text.includes(selectedAcademicYear.toLowerCase());
+      });
+    }
+
+    // 6. Lọc theo Nguồn Trường / Sở GD&ĐT
+    if (selectedSchool && selectedSchool !== 'ALL') {
+      list = list.filter((doc) => {
+        const sch = (doc.school_or_department || '').toLowerCase();
+        return sch.includes(selectedSchool.toLowerCase());
+      });
+    }
+
+    // 7. Lọc Cấu Trúc Chuẩn Bộ GD&ĐT 2025 (3 Phần)
+    if (filterMoet2025) {
+      list = list.filter(
+        (doc) =>
+          doc.moet_2025_compliant ||
+          (doc.moet_part1_count != null && doc.moet_part1_count > 0) ||
+          (doc.moet_part2_count != null && doc.moet_part2_count > 0) ||
+          (doc.moet_part3_count != null && doc.moet_part3_count > 0)
+      );
+    }
+
+    // 8. Lọc Có Bảng Đáp Án
+    if (filterHasAnswers) {
+      list = list.filter((doc) => doc.has_answer_keys);
+    }
+
+    // 9. Lọc Có Lời Giải Chi Tiết
+    if (filterHasSolutions) {
+      list = list.filter((doc) => doc.has_detailed_solutions);
+    }
+
+    // 10. Lọc Đã Có Link Discord / CDN
+    if (filterHasDiscordLink) {
+      list = list.filter((doc) => Boolean(doc.jump_url || doc.download_url));
+    }
+
+    // 11. Lọc theo Từ Khóa Tìm Kiếm
     if (descriptionKeyword && descriptionKeyword.trim()) {
       const kw = descriptionKeyword.trim().toLowerCase();
       list = list.filter((doc) => {
@@ -634,11 +756,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const fname = (doc.file_name || '').toLowerCase();
         const subj = (doc.subject || '').toLowerCase();
         const school = (doc.school_or_department || '').toLowerCase();
+        const year = (doc.academic_year || '').toLowerCase();
         return (
           title.includes(kw) ||
           fname.includes(kw) ||
           subj.includes(kw) ||
-          school.includes(kw)
+          school.includes(kw) ||
+          year.includes(kw)
         );
       });
     }
@@ -663,6 +787,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     selectedGrade,
     selectedExamType,
     selectedSubject,
+    selectedAcademicYear,
+    selectedSchool,
+    filterMoet2025,
+    filterHasAnswers,
+    filterHasSolutions,
+    filterHasDiscordLink,
     descriptionKeyword,
     sortBy,
   ]);
@@ -2444,29 +2574,179 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </select>
                 </div>
 
-                {/* Reset bộ lọc */}
+                {/* Nút Xem Tất Cả / Reset Nhanh */}
                 {(selectedEducationLevel !== 'ALL' ||
                   selectedGrade !== 'ALL' ||
                   selectedExamType !== 'ALL' ||
                   selectedSubject !== 'ALL' ||
                   descriptionKeyword ||
-                  showBookmarksOnly) && (
+                  showBookmarksOnly ||
+                  activeAdvancedFilterCount > 0) && (
                   <button
-                    onClick={() => {
-                      setShowBookmarksOnly(false);
-                      setSelectedEducationLevel('ALL');
-                      setSelectedGrade('ALL');
-                      setSelectedExamType('ALL');
-                      setSelectedSubject('ALL');
-                      setDescriptionKeyword('');
-                      fetchDocuments('ALL', 'ALL', 'ALL', '', filterDup);
-                    }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                    onClick={handleResetAllFilters}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5 w-fit border border-purple-500/20"
+                    title="Khôi phục trạng thái xem toàn bộ kho đề"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Xem Tất Cả ({stats.total_real} đề)</span>
+                    <span>Đặt Lại Bộ Lọc ({stats.total_real} đề)</span>
                   </button>
                 )}
+              </div>
+
+              {/* BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN BỘ GD&ĐT 2025, ĐÁP ÁN) */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/60 border border-slate-200/60 dark:border-white/10 backdrop-blur-xl space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
+                    <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+                    <span>Bộ Lọc Chuyên Sâu (Năm Học, Nguồn Ra Đề, Cấu Trúc 2025 & Đáp Án)</span>
+                    {activeAdvancedFilterCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-500 text-white animate-pulse">
+                        {activeAdvancedFilterCount} đang chọn
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span>Tìm thấy:</span>
+                    <span className="text-white font-bold px-2 py-0.5 rounded-lg bg-white/10 font-mono">
+                      {displayedDocuments.length} / {documentsList.length} đề
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hàng 1: Chọn Năm Học & Trường / Sở GD&ĐT Ra Đề */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Lọc Năm Học */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Năm Học Ra Đề:</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedAcademicYear}
+                        onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs font-medium text-white focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+                      >
+                        <option value="ALL">Mọi Năm Học (Toàn bộ)</option>
+                        {availableAcademicYears.map(({ year, count }) => (
+                          <option key={year} value={year}>
+                            📅 Năm học {year} ({count} đề)
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lọc Trường / Sở GD&ĐT Ra Đề */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                      <School className="w-3.5 h-3.5 text-violet-400" />
+                      <span>Trường / Sở GD&ĐT Ra Đề:</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedSchool}
+                        onChange={(e) => setSelectedSchool(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs font-medium text-white focus:outline-none focus:border-violet-500 cursor-pointer appearance-none"
+                      >
+                        <option value="ALL">Tất Cả Trường & Sở GD&ĐT</option>
+                        {availableSchools.map(({ school, count }) => (
+                          <option key={school} value={school}>
+                            🏫 {school} ({count} đề)
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hàng 2: Các Toggle Pills Chuyên Sâu */}
+                <div className="pt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-400 shrink-0">
+                    Đặc điểm đề thi:
+                  </span>
+
+                  {/* Pill 1: Chuẩn Bộ GD&ĐT 2025 */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterMoet2025((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      filterMoet2025
+                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-900/30 font-black'
+                        : 'bg-white/5 text-slate-300 hover:bg-cyan-950/30 hover:text-cyan-300 border border-white/10'
+                    }`}
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${filterMoet2025 ? 'text-slate-950' : 'text-cyan-400'}`} />
+                    <span>✨ Chuẩn Bộ GD&ĐT 2025 (3 Phần)</span>
+                  </button>
+
+                  {/* Pill 2: Có Bảng Đáp Án */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterHasAnswers((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      filterHasAnswers
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-900/30 font-black'
+                        : 'bg-white/5 text-slate-300 hover:bg-emerald-950/30 hover:text-emerald-300 border border-white/10'
+                    }`}
+                  >
+                    <FileCheck className={`w-3.5 h-3.5 ${filterHasAnswers ? 'text-slate-950' : 'text-emerald-400'}`} />
+                    <span>📝 Có Bảng Đáp Án</span>
+                  </button>
+
+                  {/* Pill 3: Có Lời Giải Chi Tiết */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterHasSolutions((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      filterHasSolutions
+                        ? 'bg-purple-500 text-white shadow-md shadow-purple-900/30 font-black'
+                        : 'bg-white/5 text-slate-300 hover:bg-purple-950/30 hover:text-purple-300 border border-white/10'
+                    }`}
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${filterHasSolutions ? 'text-white' : 'text-purple-400'}`} />
+                    <span>💡 Có Lời Giải Chi Tiết</span>
+                  </button>
+
+                  {/* Pill 4: Đã Có Link Discord / CDN */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterHasDiscordLink((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      filterHasDiscordLink
+                        ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/30 font-black'
+                        : 'bg-white/5 text-slate-300 hover:bg-[#5865F2]/20 hover:text-indigo-300 border border-white/10'
+                    }`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>🚀 Đã Đồng Bộ Kênh Discord</span>
+                  </button>
+
+                  {/* Clear All Advanced Filters */}
+                  {activeAdvancedFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAcademicYear('ALL');
+                        setSelectedSchool('ALL');
+                        setFilterMoet2025(false);
+                        setFilterHasAnswers(false);
+                        setFilterHasSolutions(false);
+                        setFilterHasDiscordLink(false);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer ml-auto"
+                    >
+                      ✕ Bỏ {activeAdvancedFilterCount} bộ lọc
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Grid các đề thi */}
@@ -2577,22 +2857,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 ✨ Độc Bản
                               </span>
                             )}
-                            {/* Năm học bóc tách */}
+                            {/* Năm học bóc tách (Bấm để lọc theo năm) */}
                             {doc.academic_year && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAcademicYear(doc.academic_year || 'ALL');
+                                }}
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/50 hover:bg-indigo-500/20 flex items-center gap-1 transition-all cursor-pointer"
+                                title={`Lọc nhanh các đề thuộc năm học ${doc.academic_year}`}
+                              >
                                 <span>📅</span>
                                 <span>{doc.academic_year}</span>
-                              </span>
+                              </button>
                             )}
-                            {/* Trường / Tỉnh bóc tách */}
+                            {/* Trường / Tỉnh bóc tách (Bấm để lọc theo trường) */}
                             {doc.school_or_department && (
-                              <span
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20 flex items-center gap-1 truncate max-w-[170px]"
-                                title={doc.school_or_department}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSchool(doc.school_or_department || 'ALL');
+                                }}
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20 hover:border-violet-500/50 hover:bg-violet-500/20 flex items-center gap-1 truncate max-w-[170px] transition-all cursor-pointer"
+                                title={`Lọc nhanh các đề thuộc ${doc.school_or_department}`}
                               >
                                 <span>🏫</span>
                                 <span className="truncate">{doc.school_or_department}</span>
-                              </span>
+                              </button>
                             )}
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
                               {doc.file_type || 'PDF'}

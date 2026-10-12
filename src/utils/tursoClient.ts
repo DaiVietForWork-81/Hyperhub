@@ -239,3 +239,71 @@ export async function fetchDocsFromTurso(limit = 100, offset = 0): Promise<any[]
   const res = await executeTurso(sql, [limit, offset]);
   return res.rows;
 }
+
+export interface TursoStorageStats {
+  totalDocs: number;
+  totalBytes: number;
+  pendingCount: number;
+  syncedCount: number;
+  limitBytes: number;
+  usedPercent: number;
+  formattedUsed: string;
+  formattedLimit: string;
+}
+
+export function formatBytes(bytes: number, decimals = 2): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+/**
+ * 4. Đo lường dung lượng sử dụng trên Turso Cloud (Chuẩn hạn mức 5 GB Free)
+ */
+export async function getTursoStorageUsage(): Promise<TursoStorageStats> {
+  const FIVE_GB_BYTES = 5 * 1024 * 1024 * 1024; // 5,368,709,120 bytes
+  try {
+    const sql = `
+      SELECT 
+        COUNT(*) as total_docs,
+        COALESCE(SUM(file_size_bytes), 0) as total_bytes,
+        COALESCE(SUM(CASE WHEN queue_status = 'pending_bot' THEN 1 ELSE 0 END), 0) as pending_count,
+        COALESCE(SUM(CASE WHEN queue_status = 'synced_discord' THEN 1 ELSE 0 END), 0) as synced_count
+      FROM documents_archive
+    `;
+    const res = await executeTurso(sql);
+    const row = res.rows[0] || {};
+    const totalDocs = Number(row.total_docs || 0);
+    const totalBytes = Number(row.total_bytes || 0);
+    const pendingCount = Number(row.pending_count || 0);
+    const syncedCount = Number(row.synced_count || 0);
+    const usedPercent = Math.min(100, Math.max(0, (totalBytes / FIVE_GB_BYTES) * 100));
+
+    return {
+      totalDocs,
+      totalBytes,
+      pendingCount,
+      syncedCount,
+      limitBytes: FIVE_GB_BYTES,
+      usedPercent: parseFloat(usedPercent.toFixed(2)),
+      formattedUsed: formatBytes(totalBytes),
+      formattedLimit: "5.00 GB",
+    };
+  } catch (err) {
+    console.warn("Lỗi đọc dung lượng Turso:", err);
+    return {
+      totalDocs: 0,
+      totalBytes: 0,
+      pendingCount: 0,
+      syncedCount: 0,
+      limitBytes: FIVE_GB_BYTES,
+      usedPercent: 0,
+      formattedUsed: "0 B",
+      formattedLimit: "5.00 GB",
+    };
+  }
+}
+

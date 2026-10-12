@@ -30,9 +30,13 @@ import {
   ArrowUpCircle,
   Zap,
   ExternalLink,
+  Database,
+  HardDrive,
+  Cloud,
 } from 'lucide-react';
 import { getApiBaseUrl, API_FETCH_HEADERS, setCustomApiUrl, DEFAULT_TUNNEL_URL, LOCAL_API_URL } from '../utils/apiConfig';
 import { getDiscordAccessToken } from '../utils/discordAuth';
+import { getTursoStorageUsage, TursoStorageStats } from '../utils/tursoClient';
 
 interface BannedUser {
   user_id: string;
@@ -754,6 +758,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     null
   );
 
+  // ĐỒNG HỒ ĐO DUNG LƯỢNG TURSO CLOUD (5GB METER)
+  const [tursoStats, setTursoStats] = useState<TursoStorageStats | null>(null);
+  const [isLoadingTursoStats, setIsLoadingTursoStats] = useState<boolean>(false);
+
+  const fetchTursoStats = useCallback(async () => {
+    setIsLoadingTursoStats(true);
+    try {
+      const stats = await getTursoStorageUsage();
+      setTursoStats(stats);
+    } catch {
+      // Bỏ qua lỗi
+    } finally {
+      setIsLoadingTursoStats(false);
+    }
+  }, []);
+
   // Modal Chỉnh Sửa Đề
   const [editingDoc, setEditingDoc] = useState<AdminExamDocument | null>(null);
   const [editTitle, setEditTitle] = useState<string>('');
@@ -789,8 +809,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   useEffect(() => {
     if (adminTab === 'documents') {
       fetchAdminDocs();
+      fetchTursoStats();
     }
-  }, [adminTab, fetchAdminDocs]);
+  }, [adminTab, fetchAdminDocs, fetchTursoStats]);
 
   // Xóa đề thi (CSDL + Tệp ổ cứng + Discord)
   const handleDeleteDoc = async (doc: AdminExamDocument) => {
@@ -1417,6 +1438,123 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* =================================================================== */}
       {adminTab === 'documents' && (
         <div className="space-y-4">
+          {/* WIDGET: ĐỒNG HỒ ĐO DUNG LƯỢNG TURSO CLOUD (5GB METER) & TRẠNG THÁI ĐỒNG BỘ */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-950/90 via-purple-950/20 to-slate-900/90 border border-purple-500/20 shadow-xl backdrop-blur-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0">
+                  <Database className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Turso Cloud Storage (5GB Free Quota)</span>
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      libSQL Live
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Hạn mức lưu trữ Turso Cloud: 5 GB • Reads: 500M • Writes: 10M
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchTursoStats}
+                disabled={isLoadingTursoStats}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto border border-white/5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingTursoStats ? 'animate-spin' : ''}`} />
+                <span>Đo Lại Dung Lượng</span>
+              </button>
+            </div>
+
+            {/* Progress Bar 5GB Meter */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Dung lượng đã sử dụng:</span>
+                  <span className="text-white font-bold">
+                    {tursoStats ? tursoStats.formattedUsed : '0 B'} / 5.00 GB
+                  </span>
+                </span>
+                <span className={`font-mono font-bold ${
+                  (tursoStats?.usedPercent || 0) > 80
+                    ? 'text-rose-400'
+                    : (tursoStats?.usedPercent || 0) > 50
+                    ? 'text-amber-400'
+                    : 'text-emerald-400'
+                }`}>
+                  {tursoStats ? `${tursoStats.usedPercent}%` : '0%'}
+                </span>
+              </div>
+
+              <div className="w-full h-3 rounded-full bg-black/50 border border-white/10 overflow-hidden p-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (tursoStats?.usedPercent || 0) > 80
+                      ? 'bg-gradient-to-r from-amber-500 to-rose-500'
+                      : (tursoStats?.usedPercent || 0) > 50
+                      ? 'bg-gradient-to-r from-cyan-500 to-amber-500'
+                      : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400'
+                  }`}
+                  style={{
+                    width: `${Math.max(2, Math.min(100, tursoStats?.usedPercent || 0.5))}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 4 Thẻ Thống Kê Chỉ Số Đồng Bộ */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1 text-xs">
+              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Tổng Hồ Sơ Đề</span>
+                </div>
+                <div className="text-base font-black text-white">
+                  {tursoStats?.totalDocs ?? adminDocs.length} <span className="text-[11px] font-normal text-slate-400">đề</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+                <div className="text-[11px] font-semibold text-amber-300 flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Chờ Bot Đồng Bộ</span>
+                </div>
+                <div className="text-base font-black text-amber-300">
+                  {tursoStats?.pendingCount ?? 0} <span className="text-[11px] font-normal text-amber-400/70">hàng đợi</span>
+                </div>
+                <p className="text-[10px] text-slate-400">Tự gửi sang Discord khi Bot online</p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+                <div className="text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Đã Vào Discord</span>
+                </div>
+                <div className="text-base font-black text-emerald-300">
+                  {tursoStats?.syncedCount ?? 0} <span className="text-[11px] font-normal text-emerald-400/70">đã đăng</span>
+                </div>
+                <p className="text-[10px] text-slate-400">Lưu vĩnh viễn trên Discord CDN</p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+                <div className="text-[11px] font-semibold text-cyan-300 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Chiến Lược Quota</span>
+                </div>
+                <div className="text-xs font-bold text-cyan-200">
+                  Giải phóng Base64
+                </div>
+                <p className="text-[10px] text-slate-400">Tự xóa nhị phân để bảo toàn 5GB</p>
+              </div>
+            </div>
+          </div>
+
           {/* Controls Search & Filter */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
