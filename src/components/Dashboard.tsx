@@ -32,6 +32,8 @@ import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../uti
 import {
   getApiBaseUrl,
   API_FETCH_HEADERS,
+  DEFAULT_TUNNEL_URL,
+  setCustomApiUrl,
 } from '../utils/apiConfig';
 import { ExamCountdown } from './ExamCountdown';
 import { DocUploadZone } from './DocUploadZone';
@@ -838,12 +840,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // 1. Kiểm tra trạng thái Discord Bot
   const checkBotStatus = useCallback(async () => {
+    let apiBase = getApiBaseUrl();
     try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/status`, {
+      let res = await fetch(`${apiBase}/api/status`, {
         headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(4000),
       });
+
+      // Nếu endpoint hiện tại lỗi, tự động thử DEFAULT_TUNNEL_URL (trên môi trường HTTPS)
+      if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
+        try {
+          const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
+            headers: API_FETCH_HEADERS,
+            signal: AbortSignal.timeout(4000),
+          });
+          if (fallbackRes.ok) {
+            res = fallbackRes;
+            apiBase = DEFAULT_TUNNEL_URL;
+            setCustomApiUrl(null);
+          }
+        } catch {}
+      }
+
       if (res.ok) {
         const data = await res.json();
         const isOnline = data.status === 'online';
@@ -864,6 +882,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setTotalDocsCount(0);
       }
     } catch {
+      // Trường hợp kết nối thất bại (lỗi mạng, URL tùy biến cũ bị chết), thử lại với DEFAULT_TUNNEL_URL
+      if (apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
+        try {
+          const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
+            headers: API_FETCH_HEADERS,
+            signal: AbortSignal.timeout(4000),
+          });
+          if (fallbackRes.ok) {
+            const data = await fallbackRes.json();
+            const isOnline = data.status === 'online';
+            setBotStatus({
+              online: isOnline,
+              bot_user: data.bot_user,
+              ping_ms: data.ping_ms,
+              uptime_seconds: data.uptime_seconds,
+              guilds_count: data.guilds_count,
+            });
+            setCustomApiUrl(null);
+            return;
+          }
+        } catch {}
+      }
       setBotStatus({ online: false });
       setDocumentsList([]);
       setTotalDocsCount(0);
@@ -881,7 +921,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     ) => {
       setIsLoadingDocs(true);
       try {
-        const apiBase = getApiBaseUrl();
+        let apiBase = getApiBaseUrl();
         const q = new URLSearchParams();
         // Không giới hạn số lượng đề thi khi Bot online (lấy toàn bộ từ CSDL Discord)
         q.set('limit', '5000');
@@ -898,10 +938,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (search && search.trim()) q.set('search', search.trim());
         if (dup) q.set('filter_dup', dup);
 
-        const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
+        let res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
           headers: API_FETCH_HEADERS,
           signal: AbortSignal.timeout(8000),
         });
+
+        if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
+          try {
+            const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents?${q.toString()}`, {
+              headers: API_FETCH_HEADERS,
+              signal: AbortSignal.timeout(8000),
+            });
+            if (fbRes.ok) {
+              res = fbRes;
+              apiBase = DEFAULT_TUNNEL_URL;
+              setCustomApiUrl(null);
+            }
+          } catch {}
+        }
+
         if (res.ok) {
           const data = await res.json();
           if (data && data.documents) {
@@ -944,11 +999,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // 3. Lấy thống kê số lượng tài liệu
   const fetchDocStats = useCallback(async () => {
     try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/documents/stats`, {
+      let apiBase = getApiBaseUrl();
+      let res = await fetch(`${apiBase}/api/documents/stats`, {
         headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(4000),
       });
+
+      if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
+        try {
+          const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents/stats`, {
+            headers: API_FETCH_HEADERS,
+            signal: AbortSignal.timeout(4000),
+          });
+          if (fbRes.ok) {
+            res = fbRes;
+            apiBase = DEFAULT_TUNNEL_URL;
+            setCustomApiUrl(null);
+          }
+        } catch {}
+      }
+
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

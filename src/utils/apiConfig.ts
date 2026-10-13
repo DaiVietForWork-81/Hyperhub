@@ -45,17 +45,28 @@ function isSafeUrl(urlStr: string): boolean {
  */
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
+    const isHttps = window.location.protocol === "https:";
+
     // 1. Kiểm tra biến môi trường build-time
     const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
     if (envUrl && typeof envUrl === "string" && isSafeUrl(envUrl)) {
-      return envUrl.trim().replace(/\/+$/, "");
+      if (isHttps && !envUrl.startsWith("https://")) {
+        // Trên HTTPS, không dùng URL HTTP để chống Mixed Content
+      } else {
+        return envUrl.trim().replace(/\/+$/, "");
+      }
     }
 
     // 1b. Override người dùng đã lưu (đọc lại cái setCustomApiUrl đã ghi)
     try {
       const saved = window.localStorage.getItem("hyperhub_api_base_url");
       if (saved && isSafeUrl(saved)) {
-        return saved.trim().replace(/\/+$/, "");
+        if (isHttps && !saved.startsWith("https://")) {
+          // Bỏ qua và xóa mục không an toàn (tránh lỗi Mixed Content chặn bot trên Vercel)
+          window.localStorage.removeItem("hyperhub_api_base_url");
+        } else {
+          return saved.trim().replace(/\/+$/, "");
+        }
       }
     } catch {
       // localStorage bị chặn (private mode): bỏ qua
@@ -65,7 +76,7 @@ export function getApiBaseUrl(): string {
     // Gọi TRỰC TIẾP tunnel URL từ browser (kèm header ngrok-skip-browser-warning).
     // KHÔNG dùng relative "" qua Vercel Rewrite nữa vì rewrite phía server không
     // gửi được header đó → ngrok free chặn bằng trang ERR_NGROK_6024.
-    if (window.location.protocol === "https:") {
+    if (isHttps) {
       return DEFAULT_TUNNEL_URL;
     }
 
@@ -80,15 +91,24 @@ export function getApiBaseUrl(): string {
  * Hàm hỗ trợ cấu hình trong môi trường kiểm thử (chỉ chấp nhận domain trong allowlist).
  */
 export function setCustomApiUrl(url: string | null): void {
-  // Trong môi trường production, vô hiệu hóa việc ghi đè qua client storage để chống tấn công
   if (typeof window === "undefined") return;
   if (!url || !url.trim()) {
-    localStorage.removeItem("hyperhub_api_base_url");
+    try {
+      localStorage.removeItem("hyperhub_api_base_url");
+    } catch {}
     return;
   }
 
-  if (isSafeUrl(url)) {
-    localStorage.setItem("hyperhub_api_base_url", url.trim().replace(/\/+$/, ""));
+  const cleanUrl = url.trim().replace(/\/+$/, "");
+  if (window.location.protocol === "https:" && !cleanUrl.startsWith("https://")) {
+    console.warn("Bảo mật: Trên HTTPS chỉ chấp nhận endpoint có bảo mật https://");
+    return;
+  }
+
+  if (isSafeUrl(cleanUrl)) {
+    try {
+      localStorage.setItem("hyperhub_api_base_url", cleanUrl);
+    } catch {}
   } else {
     console.warn("Bảo mật: Từ chối thiết lập API URL không nằm trong danh sách an toàn:", url);
   }
