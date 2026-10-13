@@ -580,6 +580,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'newest' | 'pages' | 'size' | 'confidence'>('newest');
+  // Phân trang & Tối ưu Render danh sách đề (Mặc định 24 đề/trang, chống nghẽn DOM)
+  const [visibleCount, setVisibleCount] = useState<number>(24);
 
   // Modal Hồ Sơ Chi Tiết & Command Palette
   const [selectedDossierDoc, setSelectedDossierDoc] = useState<ExamDocument | null>(null);
@@ -751,23 +753,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       list = list.filter((doc) => Boolean(doc.jump_url || doc.download_url));
     }
 
-    // 11. Lọc theo Từ Khóa Tìm Kiếm
+    // 11. Lọc theo Từ Khóa Tìm Kiếm (Tối ưu Multi-Token: gõ "Toán 12 Chuyên" quét linh hoạt từng từ)
     if (descriptionKeyword && descriptionKeyword.trim()) {
-      const kw = descriptionKeyword.trim().toLowerCase();
-      list = list.filter((doc) => {
-        const title = (doc.title || '').toLowerCase();
-        const fname = (doc.file_name || '').toLowerCase();
-        const subj = (doc.subject || '').toLowerCase();
-        const school = (doc.school_or_department || '').toLowerCase();
-        const year = (doc.academic_year || '').toLowerCase();
-        return (
-          title.includes(kw) ||
-          fname.includes(kw) ||
-          subj.includes(kw) ||
-          school.includes(kw) ||
-          year.includes(kw)
-        );
-      });
+      const tokens = descriptionKeyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (tokens.length > 0) {
+        list = list.filter((doc) => {
+          const text = `${doc.title || ''} ${doc.file_name || ''} ${doc.subject || ''} ${doc.school_or_department || ''} ${doc.academic_year || ''} ${doc.notes || ''}`.toLowerCase();
+          return tokens.every((t) => text.includes(t));
+        });
+      }
     }
 
     // Sắp xếp nâng cao
@@ -799,6 +793,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
     descriptionKeyword,
     sortBy,
   ]);
+
+  // Tự động reset trang về 24 mỗi khi người dùng thay đổi bộ lọc
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [
+    selectedEducationLevel,
+    selectedGrade,
+    selectedExamType,
+    selectedSubject,
+    descriptionKeyword,
+    selectedAcademicYear,
+    selectedSchool,
+    filterMoet2025,
+    filterHasAnswers,
+    filterHasSolutions,
+    filterHasDiscordLink,
+    showBookmarksOnly,
+    sortBy,
+  ]);
+
+  // Danh sách đề phân trang (Chống giật lag DOM trên thiết bị di động / máy cấu hình yếu)
+  const paginatedDocuments = useMemo(() => {
+    return displayedDocuments.slice(0, visibleCount);
+  }, [displayedDocuments, visibleCount]);
+
 
   // Thống kê phân bố tài liệu theo Khối Lớp tương ứng với Bậc Học đang chọn
   const gradeDistribution = useMemo(() => {
@@ -2868,8 +2887,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
                 </div>
               ) : displayedDocuments.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {displayedDocuments.map((doc) => {
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {paginatedDocuments.map((doc) => {
                     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
                     const trackInfo = getExamTrackInfo(doc);
 
@@ -3153,6 +3173,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     );
                   })}
+                  </div>
+
+                  {/* Phân trang / Lazy load chống nghẽn DOM */}
+                  {visibleCount < displayedDocuments.length && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-900/10 border border-purple-500/20 backdrop-blur-md">
+                      <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        Đang hiển thị <span className="font-bold text-purple-600 dark:text-purple-400">{paginatedDocuments.length}</span> / <span className="font-bold">{displayedDocuments.length}</span> đề thi phù hợp
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleCount((prev) => Math.min(prev + 24, displayedDocuments.length))}
+                          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                        >
+                          Tải Thêm (+24 Đề)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVisibleCount(displayedDocuments.length)}
+                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-semibold text-xs transition-all cursor-pointer"
+                        >
+                          Xem Toàn Bộ
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : !botStatus.online ? (
                 <div className="p-10 rounded-3xl bg-rose-500/10 dark:bg-rose-500/[0.05] border border-rose-500/30 text-center space-y-4">
