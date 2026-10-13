@@ -673,9 +673,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     // 1. Lọc theo Bậc Giáo Dục: Chung (hiện cả 2), Cấp 2 (hiện riêng), Cấp 3 (hiện riêng)
     if (selectedEducationLevel === 'CAP_2') {
-      list = list.filter((doc) => getDocumentEducationLevel(doc) === 'CAP_2');
+      list = list.filter((doc) => {
+        const lvl = getDocumentEducationLevel(doc);
+        return lvl === 'CAP_2' || lvl === 'CHUNG';
+      });
     } else if (selectedEducationLevel === 'CAP_3') {
-      list = list.filter((doc) => getDocumentEducationLevel(doc) === 'CAP_3');
+      list = list.filter((doc) => {
+        const lvl = getDocumentEducationLevel(doc);
+        return lvl === 'CAP_3' || lvl === 'CHUNG';
+      });
     }
 
     // 2. Lọc theo Khối Lớp nếu đang chọn cụ thể
@@ -689,16 +695,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
     }
 
-    // 3. Lọc theo Thể Loại Đề Thi
+    // 3. Lọc theo Thể Loại Đề Thi (dùng chuẩn getExamTrackInfo quét title + file_name + level)
     if (selectedExamType && selectedExamType !== 'ALL') {
       list = list.filter((doc) => {
-        const track = (doc.exam_track || '').toLowerCase();
-        if (selectedExamType === 'THUONG') return track === 'thuong' || !track;
-        if (selectedExamType === 'HSG') return track === 'hsg';
-        if (selectedExamType === 'CHUYEN') return track === 'chuyen';
-        if (selectedExamType === 'QUOC_TE') return track === 'quoc_te';
-        if (selectedExamType === 'CHUNG') return track === 'chung';
-        return true;
+        const trackTier = getExamTrackInfo(doc).tier;
+        return trackTier === selectedExamType;
       });
     }
 
@@ -3192,27 +3193,73 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-3">
+                <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-4">
                   <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                  <div className="text-sm font-bold text-slate-800 dark:text-white">
-                    Không tìm thấy đề thi phù hợp với tiêu chí lọc
+                  <div className="space-y-1">
+                    <div className="text-sm font-bold text-slate-800 dark:text-white">
+                      Không tìm thấy đề thi phù hợp với tiêu chí lọc
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm mx-auto">
+                      Hãy thử chọn "Mọi Khối", "Mọi Loại Đề" hoặc nhấn nút bên dưới để khôi phục toàn bộ danh sách đề thi.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm mx-auto">
-                    Hãy thử chọn "Mọi Khối", "Mọi Loại Đề" hoặc xóa từ khóa mô tả để xem toàn bộ
-                    danh sách đề thi.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSelectedGrade('ALL');
-                      setSelectedExamType('ALL');
-                      setSelectedSubject('ALL');
-                      setDescriptionKeyword('');
-                      fetchDocuments('ALL', 'ALL', 'ALL', '');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    Xem Toàn Bộ Kho Đề Thi
-                  </button>
+
+                  {(activeAdvancedFilterCount > 0 || selectedGrade !== 'ALL' || selectedExamType !== 'ALL' || selectedSubject !== 'ALL' || selectedEducationLevel !== 'ALL' || descriptionKeyword) && (
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                      <span className="text-[11px] text-slate-400">Đang lọc theo:</span>
+                      {selectedEducationLevel !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-bold">
+                          {selectedEducationLevel === 'CAP_2' ? 'Cấp 2 (THCS)' : 'Cấp 3 (THPT)'}
+                        </span>
+                      )}
+                      {selectedGrade !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-[10px] font-bold">
+                          Lớp {selectedGrade}
+                        </span>
+                      )}
+                      {selectedExamType !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold">
+                          {selectedExamType}
+                        </span>
+                      )}
+                      {selectedSubject !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                          {selectedSubject}
+                        </span>
+                      )}
+                      {selectedAcademicYear !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">
+                          Năm {selectedAcademicYear}
+                        </span>
+                      )}
+                      {selectedSchool !== 'ALL' && (
+                        <span className="px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 text-[10px] font-bold">
+                          {selectedSchool}
+                        </span>
+                      )}
+                      {filterMoet2025 && (
+                        <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold">
+                          Chuẩn 2025
+                        </span>
+                      )}
+                      {descriptionKeyword && (
+                        <span className="px-2 py-0.5 rounded-md bg-slate-500/20 text-slate-300 text-[10px] font-bold">
+                          "{descriptionKeyword}"
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleResetAllFilters}
+                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Xem Toàn Bộ Kho Đề Thi ({documentsList.length || stats.total_real} Đề)</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
