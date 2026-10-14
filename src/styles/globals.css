@@ -777,27 +777,6 @@ html.light {
   transform: translateY(0) scale(0.97);
 }
 
-/* UX-039: Sliding Pill Tabs Indicator */
-.ux-pill-container {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  padding: 4px;
-}
-.ux-pill-tab {
-  position: relative;
-  z-index: 10;
-  transition: color 0.3s var(--ux-ease);
-}
-.ux-pill-tab-active {
-  color: #ffffff;
-}
-
 /* UX-032: File Drop Upload Zone Glow Pulse */
 @keyframes ux-drop-glow {
   0%, 100% {

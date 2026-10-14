@@ -133,7 +133,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ (kèm Bộ Đếm THPT, Kho Đề, Nộp Đề) và Bảng Điều Khiển (/hub) */}
-      <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
+      <main className={`relative z-10 flex flex-col w-full overflow-x-hidden ${activeView === 'dashboard' ? 'pt-14 sm:pt-16' : 'pt-16 sm:pt-20'}`}>
         {activeView === 'home' ? (
           <>
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />

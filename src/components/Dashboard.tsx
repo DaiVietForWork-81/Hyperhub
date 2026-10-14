@@ -1703,9 +1703,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* SIDEBAR BÊN HÔNG TRÁI                                                     */}
       {/* ========================================================================= */}
-      <aside className="w-full lg:w-72 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto bg-white/90 dark:bg-[#0c0d18]/90 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-white/[0.08] flex flex-col justify-between shrink-0 p-4 sm:p-6 z-20 shadow-md lg:shadow-none">
+      {/* ========================================================================= */}
+      {/* SIDEBAR BÊN HÔNG TRÁI                                                     */}
+      {/* ========================================================================= */}
+      <aside className="w-full lg:w-64 xl:w-72 lg:sticky lg:top-14 sm:lg:top-16 lg:h-[calc(100dvh-3.5rem)] sm:lg:h-[calc(100dvh-4rem)] bg-white/95 dark:bg-[#0c0d18]/95 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-white/[0.08] flex flex-col justify-between shrink-0 p-3 sm:p-4 z-20 shadow-md lg:shadow-none overflow-y-auto">
         {/* Top: Logo & Nav items */}
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           {/* Logo Brand */}
           <div className="flex items-center justify-between">
             <button
@@ -1715,14 +1718,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <img
                 src="/logo.png"
                 alt="HyperHub Logo"
-                className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10 group-hover:ring-purple-500/50 transition-all"
+                className="h-8 w-8 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10 group-hover:ring-purple-500/50 transition-all"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
               <div>
                 <div className="flex items-center">
-                  <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+                  <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
                     HyperHub
                   </span>
                   <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse" />
@@ -1736,21 +1739,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* Back to Home Mobile Button */}
             <button
               onClick={onBackToHome}
-              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-white/60 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              className="lg:hidden p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-white/60 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
               title="Quay lại Trang Chủ"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Navigation Sidebar Buttons (trạng thái Bot + Cài đặt đã chuyển vào Admin Hub) */}
-          <nav className="ux-pill-container flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0 p-1.5 rounded-3xl bg-black/40 border border-white/10">
+          {/* Navigation Sidebar Buttons (Sạch sẽ, gọn nhẹ, góc bo chuẩn rounded-xl không bị quá tròn) */}
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
               }`}
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" />
@@ -1762,15 +1765,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(false);
               }}
-              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && !showBookmarksOnly
-                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
               }`}
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span>Kho Đề</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
                 {totalDocsCount} Đề
               </span>
             </button>
@@ -1780,25 +1783,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(true);
               }}
-              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && showBookmarksOnly
-                  ? 'ux-pill-tab-active bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-lg shadow-amber-500/20 scale-[1.01]'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
               }`}
             >
               <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
               <span>Tủ Sách</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-300 font-bold border border-amber-500/30">
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 dark:text-amber-300 font-bold border border-amber-500/30">
                 {bookmarkedIds.size}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('get_exam')}
-              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'get_exam'
-                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
               }`}
             >
               <Dices className="w-4 h-4 shrink-0" />
@@ -1807,15 +1810,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => setActiveTab('submit_doc')}
-              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'submit_doc'
-                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
               }`}
             >
               <UploadCloud className="w-4 h-4 shrink-0" />
               <span>Kho Nộp Đề</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                 Bot AI
               </span>
             </button>
@@ -1824,20 +1827,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(isAdmin || readCachedAdmin()) && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'ux-pill-tab-active bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30 scale-[1.01]'
-                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10 hover:scale-[1.01]'
+                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md shadow-rose-900/30 font-semibold'
+                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>Quản Trị</span>
                 {hasSystemUpdate && (
-                  <span className="animate-pulse px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
+                  <span className="animate-pulse px-1.5 py-0.5 rounded-md bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
                     Update
                   </span>
                 )}
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/30">
+                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/30">
                   {adminInfo?.role_name || 'ADMIN'}
                 </span>
               </button>
@@ -1845,7 +1848,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={onBackToHome}
-              className="flex items-center gap-3 px-4 py-3 rounded-2xl font-medium text-xs sm:text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all cursor-pointer"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 shrink-0" />
               <span>Về Trang Chủ</span>
@@ -1853,39 +1856,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </nav>
         </div>
 
-        {/* Bottom: Discord User Profile Card */}
-        <div className="pt-4 mt-4 border-t border-slate-200 dark:border-white/10">
+        {/* Bottom: Discord User Profile Card (Gọn nhẹ, luôn hiển thị không phải cuộn) */}
+        <div className="pt-2.5 mt-2 border-t border-slate-200 dark:border-white/10 shrink-0">
           {user ? (
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
-              <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 space-y-2">
+              <div className="flex items-center gap-2.5">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-10 h-10 rounded-xl object-cover ring-2 ring-purple-500/30"
+                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-purple-500/30 shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src =
                       'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
                 />
-                <div className="overflow-hidden flex-1">
-                  <div className="font-bold text-xs sm:text-sm truncate text-slate-900 dark:text-white">
+                <div className="overflow-hidden flex-1 min-w-0">
+                  <div className="font-bold text-xs truncate text-slate-900 dark:text-white">
                     {user.global_name || user.username}
                   </div>
-                  <div className="text-[11px] text-slate-400 dark:text-white/40 truncate">
+                  <div className="text-[10px] text-slate-400 dark:text-white/40 truncate">
                     @{user.username}
                   </div>
                 </div>
               </div>
 
               {/* Email Verification Status */}
-              <div className="flex items-center gap-1.5 text-[11px]">
+              <div className="flex items-center gap-1.5 text-[10px]">
                 {user.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                     <CheckCircle2 className="w-3 h-3" />
                     <span>Email đã xác minh</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-lg border border-rose-500/20">
+                  <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
                     <XCircle className="w-3 h-3" />
                     <span>Email chưa xác minh</span>
                   </span>
@@ -1895,21 +1898,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {/* Logout button */}
               <button
                 onClick={onLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold text-slate-600 dark:text-white/70 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-600 dark:text-white/70 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Đăng xuất</span>
               </button>
             </div>
           ) : (
-            <div className="p-4 rounded-2xl bg-indigo-500/10 dark:bg-[#5865F2]/10 border border-[#5865F2]/30 text-center space-y-3">
-              <ShieldCheck className="w-7 h-7 mx-auto text-[#5865F2]" />
-              <div className="text-xs text-slate-600 dark:text-white/70">
+            <div className="p-3 rounded-xl bg-indigo-500/10 dark:bg-[#5865F2]/10 border border-[#5865F2]/30 text-center space-y-2">
+              <ShieldCheck className="w-6 h-6 mx-auto text-[#5865F2]" />
+              <div className="text-[11px] text-slate-600 dark:text-white/70">
                 Chưa liên kết tài khoản Discord.
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs shadow-md shadow-[#5865F2]/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                className="w-full py-2 px-3 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium text-xs shadow-md shadow-[#5865F2]/20 active:scale-95 transition-all cursor-pointer"
               >
                 Liên Kết Discord Ngay
               </button>

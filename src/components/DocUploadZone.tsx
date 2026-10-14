@@ -679,7 +679,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       </div>
 
       {/* THANH CHUYỂN TAB: [📁 TẢI TỆP TRỰC TIẾP] | [🔗 LINK GOOGLE DRIVE] */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl ux-pill-container">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl">
         <button
           type="button"
           onClick={() => setActiveTab('file_upload')}
