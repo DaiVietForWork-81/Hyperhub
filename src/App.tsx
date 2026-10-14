@@ -122,18 +122,20 @@ export const App: React.FC = () => {
       {activeView !== 'dashboard' && <SpaceCubeBackground />}
       <MouseAura />
 
-      {/* Header Navigation with Dashboard Trigger */}
-      <Navbar
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        activeView={activeView}
-        onSelectView={(view, tab) => navigateTo(view, tab)}
-        user={discordUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-      />
+      {/* Header Navigation: Chỉ hiển thị ở Trang Chủ; Bảng Điều Khiển sử dụng sidebar chuyên biệt */}
+      {activeView === 'home' && (
+        <Navbar
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          activeView={activeView}
+          onSelectView={(view, tab) => navigateTo(view, tab)}
+          user={discordUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        />
+      )}
 
-      {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ (kèm Bộ Đếm THPT, Kho Đề, Nộp Đề) và Bảng Điều Khiển (/hub) */}
-      <main className={`relative z-10 flex flex-col w-full overflow-x-hidden ${activeView === 'dashboard' ? 'pt-14 sm:pt-16' : 'pt-16 sm:pt-20'}`}>
+      {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ và Bảng Điều Khiển (/hub) */}
+      <main className={`relative z-10 flex flex-col w-full overflow-x-hidden ${activeView === 'dashboard' ? 'pt-0' : 'pt-16 sm:pt-20'}`}>
         {activeView === 'home' ? (
           <>
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />
