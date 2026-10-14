@@ -3,14 +3,15 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
   ],
   server: {
+    host: 'localhost',
     port: 3000,
-    open: false
+    open: false,
   },
   build: {
     outDir: 'dist',

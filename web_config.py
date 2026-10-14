@@ -31,7 +31,7 @@ class WebConfig:
     # - Khi cùng máy: http://localhost:8080
     # - Khi khác server: https://bot.domain.com hoặc IP máy chủ Bot
     BOT_API_URL: str = os.getenv("BOT_API_URL", "http://localhost:8080")
-    BOT_API_SECRET: str = os.getenv("BOT_API_SECRET", "hyperhub_bridge_secret_key_2026")
+    BOT_API_SECRET: str = os.getenv("BOT_API_SECRET", "")
 
     # ==================== DATABASE ====================
     # CSDL chung (Hỗ trợ cả SQLite cục bộ và PostgreSQL từ xa)

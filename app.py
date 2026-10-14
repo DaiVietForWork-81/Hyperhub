@@ -65,13 +65,27 @@ def _check_rate_limit(ip: str) -> bool:
 
 def _is_authorized_send(request: web.Request) -> bool:
     """Yêu cầu X-Bot-Secret hoặc Bearer BOT_API_SECRET cho endpoint gửi tin nhắn."""
-    secret = config.BOT_API_SECRET or ""
-    if not secret:
+    secret = (config.BOT_API_SECRET or "").strip()
+    insecure_keys = {
+        "hyperhub_bridge_secret_key_2026",
+        "secret",
+        "changeme",
+        "default_secret",
+        "admin",
+        "123456",
+    }
+    if not secret or len(secret) < 16 or secret.lower() in insecure_keys:
         return False
     auth = request.headers.get("Authorization", "")
+    token = ""
     if auth.startswith("Bearer "):
-        return auth[7:].strip() == secret
-    return request.headers.get("X-Bot-Secret", "").strip() == secret
+        token = auth[7:].strip()
+    elif "X-Bot-Secret" in request.headers:
+        token = request.headers.get("X-Bot-Secret", "").strip()
+    if not token:
+        return False
+    import hmac
+    return hmac.compare_digest(token, secret)
 
 
 @web.middleware
