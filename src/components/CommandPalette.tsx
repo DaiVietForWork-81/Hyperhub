@@ -80,6 +80,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     },
     {
+      id: 'action-uxlab',
+      title: 'Mở Lucian UX/UI Studio (200 Elements Live)',
+      category: 'Công cụ sáng tạo',
+      icon: <Sparkles className="w-4 h-4 text-emerald-400" />,
+      action: () => {
+        window.open('/ux-lab/index.html', '_blank');
+        onClose();
+      },
+    },
+    {
       id: 'action-submit',
       title: 'Nộp Đề Thi Mới (PDF / Word / Google Drive)',
       category: 'Thao tác',

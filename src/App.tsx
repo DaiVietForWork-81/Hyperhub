@@ -17,6 +17,7 @@ import { DreamAspirations } from './components/DreamAspirations';
 import { CommunityIntro } from './components/CommunityIntro';
 import { CommunityChannels } from './components/CommunityChannels';
 import { CoFounders } from './components/CoFounders';
+import { LucianStudioModal } from './components/LucianStudioModal';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
   });
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isUxLabOpen, setIsUxLabOpen] = useState<boolean>(false);
 
   // Điều hướng SPA chuẩn với URL /hub và /
   const navigateTo = useCallback(
@@ -131,6 +133,7 @@ export const App: React.FC = () => {
         onSelectView={(view, tab) => navigateTo(view, tab)}
         user={discordUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenUxLab={() => setIsUxLabOpen(true)}
       />
 
       {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ (kèm Bộ Đếm THPT, Kho Đề, Nộp Đề) và Bảng Điều Khiển (/hub) */}
@@ -185,6 +188,12 @@ export const App: React.FC = () => {
         onSuccess={(user) => {
           setDiscordUser(user);
         }}
+      />
+
+      {/* Lucian UX/UI Studio Modal (200 Elements Live Explorer) */}
+      <LucianStudioModal
+        isOpen={isUxLabOpen}
+        onClose={() => setIsUxLabOpen(false)}
       />
     </div>
   );

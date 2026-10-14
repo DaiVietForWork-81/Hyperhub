@@ -710,9 +710,51 @@ html.light .golden-hologram-card {
 :root {
   --ux-ease: cubic-bezier(.2, .8, .2, 1);
   --ux-spring: cubic-bezier(.34, 1.45, .64, 1);
-  --ux-glass-bg: rgba(255, 255, 255, .06);
-  --ux-glass-line: rgba(255, 255, 255, .15);
-  --ux-grad: linear-gradient(120deg, #8B6CFF, #3D8BFF 55%, #1FB89A);
+  --ux-page: #07080D;
+  --ux-surface: #13141C;
+  --ux-surface-2: #1A1B25;
+  --ux-surface-3: #252632;
+  --ux-ink: #F4F0E8;
+  --ux-ink-2: rgba(244, 240, 232, .68);
+  --ux-ink-3: rgba(244, 240, 232, .42);
+  --ux-line: rgba(255, 255, 255, .08);
+  --ux-line-2: rgba(255, 255, 255, .16);
+  --ux-accent: #B7A4FF;
+  --ux-accent-2: #7DB4FF;
+  --ux-accent-soft: rgba(183, 164, 255, .15);
+  --ux-accent-ink: #0B0C12;
+  --ux-mint: #7EE8C0;
+  --ux-warn: #FFB26B;
+  --ux-danger: #FF7D8C;
+  --ux-glass: rgba(255, 255, 255, .07);
+  --ux-glass-line: rgba(255, 255, 255, .18);
+  --ux-shadow: rgba(0, 0, 0, .45);
+  --ux-shadow-strong: rgba(0, 0, 0, .72);
+  --ux-grad: linear-gradient(120deg, #B7A4FF, #7DB4FF 55%, #A5F2D3);
+}
+
+html.light {
+  --ux-page: #F4F2EE;
+  --ux-surface: #FFFFFF;
+  --ux-surface-2: #F5F3EF;
+  --ux-surface-3: #EAE7E1;
+  --ux-ink: #16151B;
+  --ux-ink-2: #57535F;
+  --ux-ink-3: #8E8A97;
+  --ux-line: rgba(22, 21, 27, .09);
+  --ux-line-2: rgba(22, 21, 27, .17);
+  --ux-accent: #6A57F2;
+  --ux-accent-2: #2F8FE0;
+  --ux-accent-soft: rgba(106, 87, 242, .12);
+  --ux-accent-ink: #FFFFFF;
+  --ux-mint: #119C72;
+  --ux-warn: #D6731E;
+  --ux-danger: #D93A55;
+  --ux-glass: rgba(255, 255, 255, .58);
+  --ux-glass-line: rgba(255, 255, 255, .85);
+  --ux-shadow: rgba(40, 30, 80, .14);
+  --ux-shadow-strong: rgba(40, 30, 80, .3);
+  --ux-grad: linear-gradient(120deg, #7B61FF, #3D8BFF 55%, #1FB89A);
 }
 
 /* UX-001: Liquid Glass Button */
@@ -721,15 +763,15 @@ html.light .golden-hologram-card {
   overflow: hidden;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: var(--ux-glass-bg);
+  background: var(--ux-glass);
   border: 1px solid var(--ux-glass-line);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 var(--ux-shadow), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
   transition: transform 0.4s var(--ux-spring), border-color 0.3s var(--ux-ease), box-shadow 0.3s var(--ux-ease);
 }
 .ux-btn-liquid:hover {
   transform: translateY(-2px) scale(1.02);
-  border-color: rgba(139, 92, 246, 0.45);
-  box-shadow: 0 12px 36px -8px rgba(139, 92, 246, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+  border-color: var(--ux-accent);
+  box-shadow: 0 12px 36px -8px var(--ux-accent-soft), inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
 }
 .ux-btn-liquid:active {
   transform: translateY(0) scale(0.97);
@@ -783,6 +825,26 @@ html.light .golden-hologram-card {
   transform-origin: bottom center;
   animation: ux-eq-pulse 1.2s ease-in-out infinite alternate;
 }
+
+/* UX-025: Floating Input Field */
+.ux-floating-group {
+  position: relative;
+}
+.ux-floating-group input:focus ~ label,
+.ux-floating-group input:not(:placeholder-shown) ~ label {
+  transform: translateY(-24px) scale(0.85);
+  color: var(--ux-accent);
+}
+.ux-floating-group label {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  pointer-events: none;
+  transition: all 0.25s var(--ux-ease);
+  color: var(--ux-ink-3);
+  transform-origin: left top;
+}
+
 
 
 

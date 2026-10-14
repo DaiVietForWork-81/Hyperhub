@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, Sparkles } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 
@@ -10,6 +10,7 @@ interface NavbarProps {
   onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
+  onOpenUxLab?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectView,
   user,
   onOpenAuthModal,
+  onOpenUxLab,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -212,6 +214,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Kho Nộp Đề</span>
             </button>
 
+            {onOpenUxLab && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenUxLab();
+                }}
+                className="group px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-300 flex items-center gap-1.5 cursor-pointer border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/25 text-purple-200 hover:text-white shadow-sm hover:shadow-purple-500/20 active:scale-95"
+                title="Mở thư viện Lucian UX/UI 200 elements"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
+                <span>UX/UI Lab</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                  200+
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'overview')}
@@ -328,6 +348,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <UploadCloud className="w-4 h-4 text-emerald-400" />
                 <span>Kho Nộp Đề</span>
               </button>
+
+              {onOpenUxLab && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenUxLab();
+                  }}
+                  className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center justify-between text-purple-200 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>Lucian UX/UI Studio</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                    200 elements
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"

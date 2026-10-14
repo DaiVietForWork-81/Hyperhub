@@ -854,7 +854,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                       type="button"
                       onClick={handleBatchUpload}
                       disabled={isUploading || pendingCount === 0}
-                      className="px-5 py-2 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-900/40 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                      className="ux-btn-liquid px-6 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-900/40 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                     >
                       {isUploading ? (
                         <>
