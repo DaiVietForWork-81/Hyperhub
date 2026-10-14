@@ -815,17 +815,6 @@ html.light {
   transition: transform 0.4s var(--ux-spring);
 }
 
-/* UX-007: Equalizer Bar Motion */
-@keyframes ux-eq-pulse {
-  0% { transform: scaleY(0.4); }
-  50% { transform: scaleY(1.0); }
-  100% { transform: scaleY(0.6); }
-}
-.ux-eq-bar {
-  transform-origin: bottom center;
-  animation: ux-eq-pulse 1.2s ease-in-out infinite alternate;
-}
-
 /* UX-025: Floating Input Field */
 .ux-floating-group {
   position: relative;

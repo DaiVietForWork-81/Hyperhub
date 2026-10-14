@@ -527,14 +527,14 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
 
           {/* 2 Chế Độ Kỳ Thi & Khóa Học Switcher */}
           <div className="flex flex-col sm:flex-row xl:flex-col gap-2.5 shrink-0">
-            {/* Hàng 1: 2 Chế Độ (Tốt Nghiệp THPT vs Vào Lớp 10) */}
-            <div className="flex items-center p-1 rounded-2xl bg-black/60 border border-white/10 shadow-inner">
+            {/* Hàng 1: 2 Chế Độ (Tốt Nghiệp THPT vs Vào Lớp 10) - Lucian UX-039 Sliding Pill */}
+            <div className="ux-pill-container w-full p-1 bg-black/60 border border-white/10 shadow-inner">
               <button
                 type="button"
                 onClick={() => handleModeChange('thpt')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                className={`ux-pill-tab flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 active:scale-95 cursor-pointer ${
                   selectedMode === 'thpt'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/40'
+                    ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/40 scale-[1.01]'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -545,9 +545,9 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => handleModeChange('grade10')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                className={`ux-pill-tab flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 active:scale-95 cursor-pointer ${
                   selectedMode === 'grade10'
-                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-lg shadow-blue-900/40'
+                    ? 'ux-pill-tab-active bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-lg shadow-blue-900/40 scale-[1.01]'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -557,15 +557,15 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
             </div>
 
             {/* Hàng 2: Chọn Khóa (Khóa 2027 - 2028 & Khóa 2028 - 2029) */}
-            <div className="flex items-center p-1 rounded-2xl bg-black/40 border border-white/10">
+            <div className="ux-pill-container w-full p-1 bg-black/40 border border-white/10">
               <button
                 type="button"
                 onClick={() => handleCohortChange('2027-2028')}
-                className={`flex-1 px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer text-center ${
+                className={`ux-pill-tab flex-1 px-4 py-2 rounded-xl font-bold text-xs transition-all duration-300 active:scale-95 cursor-pointer text-center ${
                   selectedCohort === '2027-2028'
                     ? selectedMode === 'thpt'
-                      ? 'bg-purple-600 text-white shadow-md'
-                      : 'bg-indigo-600 text-white shadow-md'
+                      ? 'ux-pill-tab-active bg-purple-600 text-white shadow-md'
+                      : 'ux-pill-tab-active bg-indigo-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -575,11 +575,11 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => handleCohortChange('2028-2029')}
-                className={`flex-1 px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer text-center ${
+                className={`ux-pill-tab flex-1 px-4 py-2 rounded-xl font-bold text-xs transition-all duration-300 active:scale-95 cursor-pointer text-center ${
                   selectedCohort === '2028-2029'
                     ? selectedMode === 'thpt'
-                      ? 'bg-pink-600 text-white shadow-md'
-                      : 'bg-cyan-600 text-white shadow-md'
+                      ? 'ux-pill-tab-active bg-pink-600 text-white shadow-md'
+                      : 'ux-pill-tab-active bg-cyan-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >

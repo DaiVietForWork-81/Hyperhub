@@ -159,7 +159,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
             <button
               type="button"
               onClick={onOpenDashboard}
-              className="btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-bold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/30 hover:shadow-[0_0_30px_rgba(236,72,153,0.4)] hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="ux-btn-liquid btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-bold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/40 hover:shadow-[0_0_35px_rgba(236,72,153,0.45)] cursor-pointer"
             >
               <span>Vào Bảng Điều Khiển & Lấy Đề</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
@@ -169,9 +169,9 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
               href="https://discord.gg/D34HX87bGe"
               target="_blank"
               rel="noopener noreferrer"
-              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[50px] rounded-full font-medium text-sm text-white/80 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/50 hover:-translate-y-1 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="ux-btn-liquid group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[50px] rounded-full font-medium text-sm text-white/90 hover:text-white bg-white/[0.04] border border-white/10 hover:border-purple-500/50 cursor-pointer"
             >
-              <ExternalLink className="w-4 h-4 text-purple-400" />
+              <ExternalLink className="w-4 h-4 text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
               <span>Tham Gia Discord</span>
             </a>
           </div>

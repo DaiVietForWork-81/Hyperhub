@@ -1744,13 +1744,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Navigation Sidebar Buttons (trạng thái Bot + Cài đặt đã chuyển vào Admin Hub) */}
-          <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+          <nav className="ux-pill-container flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0 p-1.5 rounded-3xl bg-black/40 border border-white/10">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
               }`}
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" />
@@ -1762,10 +1762,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(false);
               }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                 activeTab === 'vault' && !showBookmarksOnly
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
               }`}
             >
               <BookOpen className="w-4 h-4 shrink-0" />
@@ -1780,10 +1780,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(true);
               }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                 activeTab === 'vault' && showBookmarksOnly
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-lg shadow-amber-500/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+                  ? 'ux-pill-tab-active bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-lg shadow-amber-500/20 scale-[1.01]'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
               }`}
             >
               <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
@@ -1795,10 +1795,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => setActiveTab('get_exam')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                 activeTab === 'get_exam'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
               }`}
             >
               <Dices className="w-4 h-4 shrink-0" />
@@ -1807,10 +1807,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => setActiveTab('submit_doc')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                 activeTab === 'submit_doc'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
+                  ? 'ux-pill-tab-active bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.01]'
+                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:scale-[1.01]'
               }`}
             >
               <UploadCloud className="w-4 h-4 shrink-0" />
@@ -1824,10 +1824,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(isAdmin || readCachedAdmin()) && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                className={`ux-pill-tab flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 active:scale-[0.97] cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30'
-                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10'
+                    ? 'ux-pill-tab-active bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30 scale-[1.01]'
+                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10 hover:scale-[1.01]'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
