@@ -166,14 +166,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Desktop Nav Dock */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-md shadow-inner">
+          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-2xl border border-white/[0.1] liquid-glass shadow-inner">
             <button
               type="button"
               onClick={() => handleNavClick('home')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'home'
                   ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-white/75 hover:text-white'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
               }`}
             >
               <Home className="w-3.5 h-3.5" />
@@ -183,12 +183,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'vault')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
             >
               <BookOpen className="w-3.5 h-3.5 text-purple-400" />
               <span>Kho Đề</span>
               {docCount !== null && docCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300">
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                   {docCount} Đề
                 </span>
               )}
@@ -197,7 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'get_exam')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
             >
               <Dices className="w-3.5 h-3.5 text-pink-400" />
               <span>Lấy Đề</span>
@@ -206,7 +206,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'submit_doc')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
             >
               <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
               <span>Kho Nộp Đề</span>
@@ -215,7 +215,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'overview')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                 activeView === 'dashboard'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm'
                   : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
@@ -232,13 +232,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectView('dashboard')}
-                className="flex items-center gap-2.5 py-1.5 px-3 rounded-full bg-white/[0.05] border border-white/10 hover:border-purple-500/40 transition-all cursor-pointer"
+                className="flex items-center gap-2 py-1.5 px-3 rounded-xl liquid-glass border border-white/10 hover:border-purple-500/40 transition-all cursor-pointer"
                 title={`Đã liên kết với Discord: @${user.username}`}
               >
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-6 h-6 rounded-full object-cover ring-1 ring-purple-500"
+                  className="w-6 h-6 rounded-lg object-cover ring-1 ring-purple-500"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
@@ -256,7 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuthModal}
-                className="btn-shimmer inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-full shadow-lg shadow-purple-900/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="btn-shimmer inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl shadow-lg shadow-purple-900/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Liên Kết Discord</span>

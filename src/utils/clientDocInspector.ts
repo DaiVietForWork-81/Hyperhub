@@ -222,7 +222,7 @@ const SUBJECT_MAP: Record<string, { vi: string; re: RegExp; cap?: 'CAP_2' | 'CAP
   // --- MÔN XUYÊN SUỐT CẢ CẤP 2 & CẤP 3 ---
   LITERATURE: {
     vi: 'Ngữ văn',
-    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:ngữ\s*văn|văn\s*học|đọc\s*hiểu\s*văn\s*bản)/i,
+    re: /(?:môn|đề\s+thi(?:\s+thử)?\s+môn)?\s*(?:ngữ\s*văn|văn\s*học|đọc\s*hiểu(?:\s*văn\s*bản)?|nghị\s*luận(?:\s*xã\s*hội|\s*văn\s*học)?|\bnlxh\b|\bnlvh\b|văn\s*mẫu|tập\s*làm\s*văn|cẩm\s*nang\s*(?:văn|nlxh)|tác\s*giả\s*tác\s*phẩm|thơ\s+văn|truyện\s*ngắn|tiểu\s*thuyết|phân\s*tích\s*tác\s*phẩm)/i,
   },
   MATHEMATICS: {
     vi: 'Toán',
@@ -250,10 +250,27 @@ const SUBJECT_MAP: Record<string, { vi: string; re: RegExp; cap?: 'CAP_2' | 'CAP
   },
 };
 
-// Cấu trúc Chuẩn Bộ GD&ĐT 2025
-const RE_MOET_PART1 = /(?:phần|phan)\s*(?:i|1)\b|(?:câu\s+trắc\s+nghiệm\s+nhiều\s+phương\s+án\s+lựa\s+chọn)/i;
-const RE_MOET_PART2 = /(?:phần|phan)\s*(?:ii|2)\b|(?:câu\s+trắc\s+nghiệm\s+đúng\s*[\/\s]*sai)/i;
-const RE_MOET_PART3 = /(?:phần|phan)\s*(?:iii|3)\b|(?:câu\s+trắc\s+nghiệm\s+trả\s+lời\s+ngắn)/i;
+// Gợi ý môn học dựa trên tên file
+const FILENAME_SUBJECT_HINTS: Record<string, RegExp> = {
+  LITERATURE: /(?:^|[_\-.\s])(?:nlxh|nlvh|nghi[_\s-]?luan|van|ngu[_\s-]?van|chuyen[_\s-]?van)(?:[_\-.\s]|$)/i,
+  MATHEMATICS: /(?:^|[_\-.\s])(?:toan|math|giai[_\s-]?tich|hinh[_\s-]?hoc)(?:[_\-.\s]|$)/i,
+  PHYSICS: /(?:^|[_\-.\s])(?:vat[_\s-]?li|vat[_\s-]?ly|physics|ly)(?:[_\-.\s]|$)/i,
+  CHEMISTRY: /(?:^|[_\-.\s])(?:hoa[_\s-]?hoc|chemistry|hoa)(?:[_\-.\s]|$)/i,
+  BIOLOGY: /(?:^|[_\-.\s])(?:sinh[_\s-]?hoc|biology|sinh)(?:[_\-.\s]|$)/i,
+  ENGLISH: /(?:^|[_\-.\s])(?:tieng[_\s-]?anh|english|anh)(?:[_\-.\s]|$)/i,
+  HISTORY: /(?:^|[_\-.\s])(?:lich[_\s-]?su|history|su)(?:[_\-.\s]|$)/i,
+  GEOGRAPHY: /(?:^|[_\-.\s])(?:dia[_\s-]?li|dia[_\s-]?ly|geography|dia)(?:[_\-.\s]|$)/i,
+  INFORMATICS: /(?:^|[_\-.\s])(?:tin[_\s-]?hoc|informatics|lap[_\s-]?trinh|tin)(?:[_\-.\s]|$)/i,
+  NATURAL_SCIENCE: /(?:^|[_\-.\s])(?:khtn|khoa[_\s-]?hoc[_\s-]?tu[_\s-]?nhien)(?:[_\-.\s]|$)/i,
+  CIVIC_EDUCATION: /(?:^|[_\-.\s])(?:gdcd|giao[_\s-]?duc[_\s-]?cong[_\s-]?dan)(?:[_\-.\s]|$)/i,
+  ECONOMIC_LEGAL_EDU: /(?:^|[_\-.\s])(?:gdkt|kinh[_\s-]?te[_\s-]?phap[_\s-]?luat)(?:[_\-.\s]|$)/i,
+  DEFENSE_SECURITY_EDU: /(?:^|[_\-.\s])(?:gdqp|quoc[_\s-]?phong)(?:[_\-.\s]|$)/i,
+};
+
+// Cấu trúc Chuẩn Bộ GD&ĐT 2025 (Chỉ áp dụng đề trắc nghiệm, không áp dụng tự luận/Ngữ văn)
+const RE_MOET_PART1 = /(?:phần\s*(?:i|1)\s*[:.]?\s*(?:câu\s+trắc\s+nghiệm\s+)?nhiều\s+phương\s+án|trắc\s+nghiệm\s+nhiều\s+phương\s+án\s+lựa\s+chọn)/i;
+const RE_MOET_PART2 = /(?:phần\s*(?:ii|2)\s*[:.]?\s*(?:câu\s+trắc\s+nghiệm\s+)?đúng\s*[\/\s]*sai|trắc\s+nghiệm\s+đúng\s*[\/\s]*sai)/i;
+const RE_MOET_PART3 = /(?:phần\s*(?:iii|3)\s*[:.]?\s*(?:câu\s+trắc\s+nghiệm\s+)?trả\s+lời\s+ngắn|trắc\s+nghiệm\s+trả\s+lời\s+ngắn)/i;
 
 const RE_ACADEMIC_YEAR = /(?:năm\s*học|hk\s*[12]|học\s*kỳ\s*[12])?[:\s]*(20\d{2})\s*[-–—]\s*(20\d{2})/i;
 const RE_SCHOOL = /(?:trường\s*(?:thpt|thcs|chuyên)?|sở\s*(?:gd&đt|giáo\s*dục))\s+([A-ZÀ-Ỹa-zà-ỹ0-9\s]{3,40})/i;
@@ -286,14 +303,37 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
   // Kết hợp text trích xuất và tên file để nhận diện
   const searchCorpus = `${file.name} ${extractedText.slice(0, 15000)}`;
 
-  // 1. Nhận diện Môn học
+  // 1. Nhận diện Môn học theo thang điểm đa tầng (Frequency Scoring + Filename Boost)
+  const subjectScores: Record<string, number> = {};
+  for (const key of Object.keys(SUBJECT_MAP)) {
+    subjectScores[key] = 0;
+  }
+
+  // Filename boost (+60 điểm nếu tên file khớp hint đặc thù)
+  const cleanFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  for (const [key, hintRe] of Object.entries(FILENAME_SUBJECT_HINTS)) {
+    if (hintRe.test(cleanFileName) || hintRe.test(file.name.toLowerCase())) {
+      subjectScores[key] = (subjectScores[key] || 0) + 60;
+    }
+  }
+
+  // Corpus occurrences (Mỗi lần xuất hiện +5 điểm)
+  for (const [key, val] of Object.entries(SUBJECT_MAP)) {
+    const globalRe = new RegExp(val.re.source, 'gi');
+    const matches = searchCorpus.match(globalRe);
+    if (matches) {
+      subjectScores[key] = (subjectScores[key] || 0) + matches.length * 5;
+    }
+  }
+
   let detectedSubject = 'GENERAL';
   let detectedSubjectVi = 'Tài liệu chung';
-  for (const [key, val] of Object.entries(SUBJECT_MAP)) {
-    if (val.re.test(searchCorpus)) {
+  let highestScore = 0;
+  for (const [key, score] of Object.entries(subjectScores)) {
+    if (score > highestScore) {
+      highestScore = score;
       detectedSubject = key;
-      detectedSubjectVi = val.vi;
-      break;
+      detectedSubjectVi = SUBJECT_MAP[key].vi;
     }
   }
 
@@ -353,15 +393,16 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     schoolOrDepartment = schoolMatch[0].trim().replace(/[-–—]+$/, '');
   }
 
-  // 5. Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (3 Phần)
+  // 5. Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (Chỉ áp dụng đề thi trắc nghiệm, không áp dụng Ngữ văn)
+  const isMcqExam = detectedSubject !== 'LITERATURE';
   const hasPart1 = RE_MOET_PART1.test(searchCorpus);
   const hasPart2 = RE_MOET_PART2.test(searchCorpus);
   const hasPart3 = RE_MOET_PART3.test(searchCorpus);
-  const moet2025Compliant = hasPart1 && (hasPart2 || hasPart3);
+  const moet2025Compliant = isMcqExam && hasPart1 && (hasPart2 || hasPart3);
 
-  // Đếm sơ bộ câu hỏi
+  // Đếm sơ bộ câu hỏi trắc nghiệm
   const qMatches = searchCorpus.match(/(?:câu|cau)\s*([0-9]{1,3})[:.]/gi) || [];
-  const questionCount = Math.max(qMatches.length, moet2025Compliant ? 22 : 0);
+  const questionCount = qMatches.length;
 
   // Đếm theo từng phần nếu là chuẩn 2025
   let p1Count = 0;

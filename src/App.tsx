@@ -122,20 +122,18 @@ export const App: React.FC = () => {
       {activeView !== 'dashboard' && <SpaceCubeBackground />}
       <MouseAura />
 
-      {/* Header Navigation: Chỉ hiển thị ở Trang Chủ; Bảng Điều Khiển sử dụng sidebar chuyên biệt */}
-      {activeView === 'home' && (
-        <Navbar
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          activeView={activeView}
-          onSelectView={(view, tab) => navigateTo(view, tab)}
-          user={discordUser}
-          onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        />
-      )}
+      {/* Header Navigation: Hiển thị thanh Dock Liquid Glass trên toàn bộ giao diện */}
+      <Navbar
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        activeView={activeView}
+        onSelectView={(view, tab) => navigateTo(view, tab)}
+        user={discordUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+      />
 
       {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ và Bảng Điều Khiển (/hub) */}
-      <main className={`relative z-10 flex flex-col w-full overflow-x-hidden ${activeView === 'dashboard' ? 'pt-0' : 'pt-16 sm:pt-20'}`}>
+      <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
         {activeView === 'home' ? (
           <>
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />

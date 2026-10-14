@@ -1701,33 +1701,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
       {/* ========================================================================= */}
-      {/* SIDEBAR BÊN HÔNG TRÁI                                                     */}
+      {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
       {/* ========================================================================= */}
-      <aside className="w-full lg:w-64 xl:w-72 lg:sticky lg:top-0 lg:h-screen bg-white/95 dark:bg-[#0c0d18]/95 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-white/[0.08] flex flex-col justify-between shrink-0 p-3 sm:p-4 z-20 shadow-md lg:shadow-none lg:overflow-hidden overflow-y-auto">
-        {/* Top: Logo & Nav items (Gọn gàng, cuộn độc lập nếu màn hình siêu thấp) */}
-        <div className="space-y-2.5 sm:space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto no-scrollbar">
+      <aside className="w-full lg:w-56 xl:w-60 lg:sticky lg:top-16 sm:lg:top-20 lg:h-[calc(100vh-4rem)] sm:lg:h-[calc(100vh-5rem)] liquid-glass border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-between shrink-0 p-2.5 sm:p-3 z-20 overflow-y-auto no-scrollbar">
+        {/* Top: Logo & Nav items */}
+        <div className="space-y-2 lg:flex-1 lg:min-h-0 lg:overflow-y-auto no-scrollbar">
           {/* Logo Brand */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pb-1">
             <button
               onClick={onBackToHome}
-              className="flex items-center gap-2.5 group text-left cursor-pointer focus:outline-none"
+              className="flex items-center gap-2 group text-left cursor-pointer focus:outline-none"
             >
               <img
                 src="/logo.png"
                 alt="HyperHub Logo"
-                className="h-8 w-8 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10 group-hover:ring-purple-500/50 transition-all"
+                className="h-7 w-7 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
               <div>
-                <div className="flex items-center">
-                  <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+                <div className="flex items-center leading-none">
+                  <span className="text-sm sm:text-base font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
                     HyperHub
                   </span>
                   <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse" />
                 </div>
-                <span className="text-[10px] text-slate-400 dark:text-white/40 font-medium uppercase tracking-wider block">
+                <span className="text-[9px] text-purple-400 font-semibold uppercase tracking-wider block mt-0.5">
                   Bảng Điều Khiển
                 </span>
               </div>
@@ -1736,24 +1736,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* Back to Home Mobile Button */}
             <button
               onClick={onBackToHome}
-              className="lg:hidden p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-white/60 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              className="lg:hidden p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
               title="Quay lại Trang Chủ"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Navigation Sidebar Buttons (Sạch sẽ, gọn nhẹ, góc bo chuẩn rounded-xl không bị quá tròn) */}
+          {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
           <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
+                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
               <span>Trang chính</span>
             </button>
 
@@ -1762,15 +1762,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(false);
               }}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && !showBookmarksOnly
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
+                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <BookOpen className="w-4 h-4 shrink-0" />
+              <BookOpen className="w-3.5 h-3.5 shrink-0" />
               <span>Kho Đề</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-500 dark:text-pink-300 font-bold border border-pink-500/30">
+              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
                 {totalDocsCount} Đề
               </span>
             </button>
@@ -1780,42 +1780,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setActiveTab('vault');
                 setShowBookmarksOnly(true);
               }}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && showBookmarksOnly
                   ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+              <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
               <span>Tủ Sách</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 dark:text-amber-300 font-bold border border-amber-500/30">
+              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
                 {bookmarkedIds.size}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('get_exam')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'get_exam'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
+                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <Dices className="w-4 h-4 shrink-0" />
+              <Dices className="w-3.5 h-3.5 shrink-0" />
               <span>Lấy Đề</span>
             </button>
 
             <button
               onClick={() => setActiveTab('submit_doc')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'submit_doc'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-semibold'
-                  : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
+                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <UploadCloud className="w-4 h-4 shrink-0" />
+              <UploadCloud className="w-3.5 h-3.5 shrink-0" />
               <span>Kho Nộp Đề</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                 Bot AI
               </span>
             </button>
@@ -1824,20 +1824,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(isAdmin || readCachedAdmin()) && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md shadow-rose-900/30 font-semibold'
-                    : 'text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10'
+                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md shadow-rose-900/30 font-bold'
+                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
                 }`}
               >
-                <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-amber-400" />
                 <span>Quản Trị</span>
                 {hasSystemUpdate && (
-                  <span className="animate-pulse px-1.5 py-0.5 rounded-md bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
+                  <span className="animate-pulse px-1 py-0.2 rounded-md bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
                     Update
                   </span>
                 )}
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/30">
+                <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
                   {adminInfo?.role_name || 'ADMIN'}
                 </span>
               </button>
@@ -1845,33 +1845,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={onBackToHome}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4 shrink-0" />
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
               <span>Về Trang Chủ</span>
             </button>
           </nav>
         </div>
 
-        {/* Bottom: Discord User Profile Card (Luôn ghim dưới đáy không bao giờ phải cuộn) */}
-        <div className="pt-2 mt-auto border-t border-slate-200 dark:border-white/10 shrink-0">
+        {/* Bottom: Discord User Profile Card (Gọn nhẹ, luôn hiện, không bao giờ phải cuộn) */}
+        <div className="pt-2 mt-auto border-t border-white/10 shrink-0">
           {user ? (
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 space-y-2">
-              <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl liquid-glass border border-white/10 space-y-1.5">
+              <div className="flex items-center gap-2">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-purple-500/30 shrink-0"
+                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-purple-500/30 shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src =
                       'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
                 />
                 <div className="overflow-hidden flex-1 min-w-0">
-                  <div className="font-bold text-xs truncate text-slate-900 dark:text-white">
+                  <div className="font-bold text-xs truncate text-white">
                     {user.global_name || user.username}
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/40 truncate">
+                  <div className="text-[10px] text-white/40 truncate">
                     @{user.username}
                   </div>
                 </div>
@@ -1880,13 +1880,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {/* Email Verification Status */}
               <div className="flex items-center gap-1.5 text-[10px]">
                 {user.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    <CheckCircle2 className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 text-[10px]">
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
                     <span>Email đã xác minh</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
-                    <XCircle className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 text-rose-400 font-medium bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20 text-[10px]">
+                    <XCircle className="w-3 h-3 shrink-0" />
                     <span>Email chưa xác minh</span>
                   </span>
                 )}
@@ -1895,21 +1895,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {/* Logout button */}
               <button
                 onClick={onLogout}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-600 dark:text-white/70 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-xs font-medium text-white/70 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Đăng xuất</span>
               </button>
             </div>
           ) : (
-            <div className="p-3 rounded-xl bg-indigo-500/10 dark:bg-[#5865F2]/10 border border-[#5865F2]/30 text-center space-y-2">
-              <ShieldCheck className="w-6 h-6 mx-auto text-[#5865F2]" />
-              <div className="text-[11px] text-slate-600 dark:text-white/70">
+            <div className="p-2.5 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1.5">
+              <ShieldCheck className="w-5 h-5 mx-auto text-[#5865F2]" />
+              <div className="text-[10px] text-white/70">
                 Chưa liên kết tài khoản Discord.
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-2 px-3 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium text-xs shadow-md shadow-[#5865F2]/20 active:scale-95 transition-all cursor-pointer"
+                className="w-full py-1.5 px-2.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium text-xs shadow-md shadow-[#5865F2]/20 active:scale-95 transition-all cursor-pointer"
               >
                 Liên Kết Discord Ngay
               </button>
@@ -2073,17 +2073,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* Status Grid Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {/* Card 1: Discord Bot Live Status */}
-              <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
                       <Bot className="w-5 h-5" />
                     </div>
                     <span
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
                         botStatus.online
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                       }`}
                     >
                       <span
@@ -2094,19 +2094,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white mb-1">
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
                     Bot Discord HyperHub
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-white/50 mb-3">
+                  <p className="text-xs text-white/50 mb-3">
                     {botStatus.online
                       ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
                       : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
                   </p>
                 </div>
-                <div className="text-[11px] font-mono text-slate-400 dark:text-white/40 pt-2.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div className="text-[11px] font-mono text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
                   <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
                   {botStatus.online && (
-                    <span className="text-emerald-500 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
                       ● Live
                     </span>
                   )}
@@ -2114,32 +2114,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Card 2: Kho Tài Liệu */}
-              <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-pink-500/10 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center">
                       <BookOpen className="w-5 h-5" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/30">
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
                       Đã Thẩm Định
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white mb-0.5">
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
                     Kho Đề Thi Sẵn Sàng
                   </h3>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
+                  <div className="text-2xl sm:text-3xl font-black text-white mb-2">
                     {totalDocsCount} Đề
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-white/50">
+                  <p className="text-xs text-white/50">
                     Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
                   </p>
                 </div>
-                <div className="text-[11px] text-slate-400 dark:text-white/40 pt-2.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div className="text-[11px] text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
                   <span>Độc bản: {stats.unique_items || 0}</span>
                   <button
                     type="button"
                     onClick={() => setActiveTab('vault')}
-                    className="text-pink-500 hover:text-pink-400 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-pink-400 hover:text-pink-300 font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     Xem kho →
                   </button>
@@ -2147,32 +2147,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Card 3: Tài Khoản Liên Kết */}
-              <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/10 text-[#5865F2] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center">
                       <UserCheck className="w-5 h-5" />
                     </div>
                     {user ? (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         Đã Kết Nối
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                         Chưa Kết Nối
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white mb-1">
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
                     Xác Thực Discord
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-white/50 mb-3">
+                  <p className="text-xs text-white/50 mb-3">
                     {user
                       ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
                       : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
                   </p>
                 </div>
-                <div className="pt-2.5 border-t border-slate-100 dark:border-white/5">
+                <div className="pt-2.5 border-t border-white/10">
                   {!user ? (
                     <button
                       type="button"
@@ -2182,7 +2182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       Liên Kết Ngay
                     </button>
                   ) : (
-                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center justify-between">
+                    <div className="text-[11px] text-emerald-400 font-semibold flex items-center justify-between">
                       <span>Đủ điều kiện nhận đề thi tự động</span>
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </div>
@@ -2192,7 +2192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Recent Exams Feed */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
+            <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
@@ -3148,16 +3148,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={doc.id}
-                        className={`p-5 rounded-3xl backdrop-blur-xl border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group cosmic-card ${
+                        className={`p-5 rounded-2xl liquid-glass border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group ${
                           doc.is_duplicate_copy
-                            ? 'border-amber-500/40 bg-amber-950/10 dark:bg-amber-950/20 hover:border-amber-500/70'
-                            : 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-purple-400/50 dark:hover:border-purple-500/40'
+                            ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-500/70'
+                            : 'border-white/10 hover:border-purple-500/50'
                         }`}
                       >
                         {/* Top Badges */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30">
                               {doc.subject}
                             </span>
                             {/* Bậc giáo dục: Chung, Cấp 2, Cấp 3 */}
@@ -3165,7 +3165,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               const eduBadge = getEducationLevelBadgeInfo(doc);
                               return (
                                 <span
-                                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${eduBadge.badgeClass}`}
+                                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${eduBadge.badgeClass}`}
                                 >
                                   <span>{eduBadge.icon}</span>
                                   <span>{eduBadge.shortLabel}</span>
@@ -3173,7 +3173,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               );
                             })()}
                             <span
-                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${trackInfo.badgeClass}`}
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${trackInfo.badgeClass}`}
                               title={`${trackInfo.description} (${trackInfo.difficultyNote})`}
                             >
                               <span>{trackInfo.icon}</span>
@@ -3181,7 +3181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </span>
                             {/* Khối lớp chuẩn 7 Role Discord Server */}
                             <span
-                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
                               <span>{gradeStyle.label}</span>
@@ -3196,7 +3196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 📌 Bản Gốc
                               </span>
                             ) : (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                 ✨ Độc Bản
                               </span>
                             )}
@@ -3208,7 +3208,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                   e.stopPropagation();
                                   setSelectedAcademicYear(doc.academic_year || 'ALL');
                                 }}
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/50 hover:bg-indigo-500/20 flex items-center gap-1 transition-all cursor-pointer"
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 flex items-center gap-1 transition-all cursor-pointer"
                                 title={`Lọc nhanh các đề thuộc năm học ${doc.academic_year}`}
                               >
                                 <span>📅</span>
@@ -3223,14 +3223,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                   e.stopPropagation();
                                   setSelectedSchool(doc.school_or_department || 'ALL');
                                 }}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20 hover:border-violet-500/50 hover:bg-violet-500/20 flex items-center gap-1 truncate max-w-[170px] transition-all cursor-pointer"
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:border-violet-400 flex items-center gap-1 truncate max-w-[170px] transition-all cursor-pointer"
                                 title={`Lọc nhanh các đề thuộc ${doc.school_or_department}`}
                               >
                                 <span>🏫</span>
                                 <span className="truncate">{doc.school_or_department}</span>
                               </button>
                             )}
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 uppercase font-bold">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/15 text-pink-300 border border-pink-500/30 uppercase font-bold">
                               {doc.file_type || 'PDF'}
                             </span>
                           </div>
