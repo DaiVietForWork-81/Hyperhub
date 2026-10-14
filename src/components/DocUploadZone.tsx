@@ -679,13 +679,13 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       </div>
 
       {/* THANH CHUYỂN TAB: [📁 TẢI TỆP TRỰC TIẾP] | [🔗 LINK GOOGLE DRIVE] */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl ux-pill-container">
         <button
           type="button"
           onClick={() => setActiveTab('file_upload')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
             activeTab === 'file_upload'
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02]'
               : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
           }`}
         >
@@ -696,9 +696,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('gdrive_link')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
             activeTab === 'gdrive_link'
-              ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-lg shadow-emerald-900/30'
+              ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-lg shadow-emerald-900/30 scale-[1.02]'
               : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
           }`}
         >
@@ -773,8 +773,8 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             onClick={() => !isUploading && fileInputRef.current?.click()}
             className={`relative border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all duration-300 cursor-pointer ${
               isDragging
-                ? 'border-purple-400 bg-purple-500/10 scale-[1.01]'
-                : 'border-white/10 hover:border-purple-500/40 bg-slate-950/60'
+                ? 'ux-drop-active border-purple-400 bg-purple-500/15 scale-[1.02]'
+                : 'border-white/10 hover:border-purple-500/40 bg-slate-950/60 hover:scale-[1.004]'
             }`}
           >
             <input
@@ -788,7 +788,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             />
 
             <div className="max-w-md mx-auto space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg shadow-purple-950/20">
+              <div className={`w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg shadow-purple-950/20 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : 'hover:scale-105'}`}>
                 {isUploading ? (
                   <Loader2 className="w-8 h-8 animate-spin text-pink-400" />
                 ) : (

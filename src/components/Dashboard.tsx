@@ -3185,16 +3185,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <button
                           type="button"
                           onClick={() => setVisibleCount((prev) => Math.min(prev + 24, displayedDocuments.length))}
-                          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                          className="ux-btn-liquid px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg shadow-purple-950/30 transition-all cursor-pointer flex items-center gap-1.5"
                         >
-                          Tải Thêm (+24 Đề)
+                          <span>⚡ Tải Thêm (+24 Đề)</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setVisibleCount(displayedDocuments.length)}
-                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-semibold text-xs transition-all cursor-pointer"
+                          className="ux-btn-liquid px-4 py-2.5 rounded-2xl text-slate-700 dark:text-white/90 font-semibold text-xs transition-all cursor-pointer"
                         >
-                          Xem Toàn Bộ
+                          <span>Xem Toàn Bộ</span>
                         </button>
                       </div>
                     </div>

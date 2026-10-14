@@ -149,16 +149,18 @@ export const LofiPlayer: React.FC = () => {
             </div>
           </div>
 
-          {/* Equalizer Visualizer */}
-          <div className="flex items-end justify-center gap-1 h-6 mb-4 bg-slate-100/80 dark:bg-white/[0.02] rounded-lg p-1 border border-slate-200/80 dark:border-white/[0.05]">
+          {/* Equalizer Visualizer (UX-007 from Skills) */}
+          <div className="flex items-end justify-center gap-1.5 h-7 mb-4 bg-slate-100/80 dark:bg-white/[0.02] rounded-xl p-1.5 border border-slate-200/80 dark:border-white/[0.05]">
             {isPlaying ? (
               <>
-                <span className="w-1 bg-purple-500 rounded-full eq-bar-1"></span>
-                <span className="w-1 bg-pink-500 rounded-full eq-bar-2"></span>
-                <span className="w-1 bg-cyan-500 rounded-full eq-bar-3"></span>
-                <span className="w-1 bg-purple-500 rounded-full eq-bar-4"></span>
-                <span className="w-1 bg-pink-500 rounded-full eq-bar-1"></span>
-                <span className="w-1 bg-cyan-500 rounded-full eq-bar-2"></span>
+                <span className="w-1 h-full bg-purple-500 rounded-full ux-eq-bar" style={{ animationDelay: '-0.2s' }}></span>
+                <span className="w-1 h-full bg-pink-500 rounded-full ux-eq-bar" style={{ animationDelay: '-0.7s' }}></span>
+                <span className="w-1 h-full bg-cyan-500 rounded-full ux-eq-bar" style={{ animationDelay: '-0.4s' }}></span>
+                <span className="w-1 h-full bg-purple-400 rounded-full ux-eq-bar" style={{ animationDelay: '-0.9s' }}></span>
+                <span className="w-1 h-full bg-pink-400 rounded-full ux-eq-bar" style={{ animationDelay: '-0.3s' }}></span>
+                <span className="w-1 h-full bg-cyan-400 rounded-full ux-eq-bar" style={{ animationDelay: '-0.6s' }}></span>
+                <span className="w-1 h-full bg-indigo-500 rounded-full ux-eq-bar" style={{ animationDelay: '-0.1s' }}></span>
+                <span className="w-1 h-full bg-rose-500 rounded-full ux-eq-bar" style={{ animationDelay: '-0.8s' }}></span>
               </>
             ) : (
               <span className="text-[11px] text-slate-400 dark:text-white/40">Nhấn Phát để bật giai điệu</span>
@@ -170,7 +172,7 @@ export const LofiPlayer: React.FC = () => {
             <button
               type="button"
               onClick={togglePlayback}
-              className="w-11 h-11 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-900/30 hover:-translate-y-0.5 hover:scale-105 active:scale-90 transition-all duration-200 cursor-pointer shrink-0"
+              className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-purple-900/30 transition-transform duration-300 hover:scale-108 active:scale-92 cursor-pointer shrink-0 border border-white/20"
               aria-label={isPlaying ? 'Tạm dừng nhạc' : 'Phát nhạc lofi'}
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}

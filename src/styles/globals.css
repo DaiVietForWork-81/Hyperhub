@@ -704,4 +704,85 @@ html.light .golden-hologram-card {
   }
 }
 
+/* ============================================================================
+   UI MOTION & MICRO-INTERACTIONS (from D:\Project\Skills - Lucian UX Series)
+   ============================================================================ */
+:root {
+  --ux-ease: cubic-bezier(.2, .8, .2, 1);
+  --ux-spring: cubic-bezier(.34, 1.45, .64, 1);
+  --ux-glass-bg: rgba(255, 255, 255, .06);
+  --ux-glass-line: rgba(255, 255, 255, .15);
+  --ux-grad: linear-gradient(120deg, #8B6CFF, #3D8BFF 55%, #1FB89A);
+}
+
+/* UX-001: Liquid Glass Button */
+.ux-btn-liquid {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: var(--ux-glass-bg);
+  border: 1px solid var(--ux-glass-line);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.4s var(--ux-spring), border-color 0.3s var(--ux-ease), box-shadow 0.3s var(--ux-ease);
+}
+.ux-btn-liquid:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow: 0 12px 36px -8px rgba(139, 92, 246, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+}
+.ux-btn-liquid:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* UX-039: Sliding Pill Tabs Indicator */
+.ux-pill-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 4px;
+}
+.ux-pill-tab {
+  position: relative;
+  z-index: 10;
+  transition: color 0.3s var(--ux-ease);
+}
+.ux-pill-tab-active {
+  color: #ffffff;
+}
+
+/* UX-032: File Drop Upload Zone Glow Pulse */
+@keyframes ux-drop-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.2), inset 0 0 15px rgba(139, 92, 246, 0.05);
+    border-color: rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(139, 92, 246, 0.45), inset 0 0 25px rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.85);
+  }
+}
+.ux-drop-active {
+  animation: ux-drop-glow 2s var(--ux-ease) infinite;
+  transform: scale(1.008);
+  transition: transform 0.4s var(--ux-spring);
+}
+
+/* UX-007: Equalizer Bar Motion */
+@keyframes ux-eq-pulse {
+  0% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.0); }
+  100% { transform: scaleY(0.6); }
+}
+.ux-eq-bar {
+  transform-origin: bottom center;
+  animation: ux-eq-pulse 1.2s ease-in-out infinite alternate;
+}
+
+
 
