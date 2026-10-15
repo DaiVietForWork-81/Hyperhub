@@ -91,7 +91,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
         <div className="space-y-3 pr-8">
           <div className="flex flex-wrap items-center gap-2">
             {/* Môn học */}
-            <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            <span className="text-xs font-black uppercase px-3 py-1 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
               {doc.subject}
             </span>
 
@@ -99,7 +99,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             {(() => {
               const eduBadge = getEducationLevelBadgeInfo(doc);
               return (
-                <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
+                <span className={`text-xs font-bold px-3 py-1 rounded-md border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
                   <span>{eduBadge.icon}</span>
                   <span>{eduBadge.label}</span>
                 </span>
@@ -108,7 +108,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
             {/* Khối lớp chuẩn 7 Discord Roles */}
             <span
-              className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
+              className={`text-xs font-bold px-3 py-1 rounded-md border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
             >
               <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
               <span>{gradeStyle.label}</span>
@@ -116,21 +116,21 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
             {/* Phân loại Track */}
             <span
-              className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${trackInfo.badgeClass}`}
+              className={`text-xs font-bold px-3 py-1 rounded-md border flex items-center gap-1.5 ${trackInfo.badgeClass}`}
             >
               <span>{trackInfo.icon}</span>
               <span>{trackInfo.label}</span>
             </span>
 
             {/* Trạng thái Thẩm định */}
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>{doc.verdict === 'XAC_MINH' ? 'Đã Thẩm Định ✅' : 'Tài Liệu Hợp Lệ'}</span>
             </span>
 
             {/* Chuẩn Bộ GD&ĐT 2025 */}
             {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
-              <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm shadow-cyan-950/40">
+              <span className="text-xs font-black uppercase px-3 py-1 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm shadow-cyan-950/40">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Chuẩn Bộ GD&ĐT 2025</span>
               </span>
@@ -138,7 +138,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
             {/* Trạng thái Đáp án */}
             {doc.has_answer_keys && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                 <Check className="w-3 h-3" />
                 <span>Có Đáp Án</span>
               </span>
@@ -146,7 +146,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
             {/* Trạng thái Lời giải */}
             {doc.has_detailed_solutions && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 <span>Lời Giải Chi Tiết</span>
               </span>

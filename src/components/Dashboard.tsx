@@ -51,6 +51,7 @@ import { fetchDocsFromTurso } from '../utils/tursoClient';
 interface DashboardProps {
   user: DiscordUser | null;
   initialTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+  onTabChange?: (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
   onOpenAuthModal: () => void;
   onLogout: () => void;
   onBackToHome: () => void;
@@ -417,6 +418,7 @@ const getSafeExternalUrl = (url?: string): string => {
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
   initialTab,
+  onTabChange,
   onOpenAuthModal,
   onLogout,
   onBackToHome,
@@ -425,6 +427,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     initialTab || 'overview'
   );
   const { showSuccess, showInfo, showError } = useToast();
+
+  const handleTabChange = useCallback(
+    (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
+      setActiveTab(tab);
+      onTabChange?.(tab);
+    },
+    [onTabChange]
+  );
 
   useEffect(() => {
     if (initialTab) {
@@ -1242,8 +1252,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const renderFilterControls = (showRollButton: boolean = true) => (
-    <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm space-y-7">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
+    <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-sm space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
             <Filter className="w-4 h-4" />
@@ -1259,7 +1269,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             {documentsList.length} đề thi phù hợp
           </span>
         </div>
@@ -1299,7 +1309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 group ${
                     isSelected
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02] border-purple-400 ring-2 ring-purple-500/40'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/30 dark:hover:bg-white/[0.04]'
+                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-white/[0.06]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -1308,7 +1318,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className="font-extrabold text-sm sm:text-base">{opt.label}</span>
                     </div>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
                         isSelected
                           ? 'bg-white/20 text-white'
                           : 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20'
@@ -1384,7 +1394,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 group relative overflow-hidden ${
                     isSelected
                       ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30 scale-[1.03] ring-2 ring-purple-500/40'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-purple-50/50 dark:hover:bg-white/[0.04]'
+                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-white/[0.06]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -1435,7 +1445,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
                     isSelected
                       ? 'bg-gradient-to-r from-pink-600 to-rose-600 border-pink-500 text-white shadow-lg shadow-pink-900/30 scale-[1.01]'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70 hover:border-pink-300 dark:hover:border-pink-500/30 hover:bg-pink-50/30 dark:hover:bg-white/[0.04]'
+                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-pink-300 dark:hover:border-pink-500/30 hover:bg-white/[0.06]'
                   }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
@@ -1443,10 +1453,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className="font-bold text-xs truncate">{t.label}</span>
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 font-semibold ${
+                    className={`text-[10px] px-2 py-0.5 rounded-md shrink-0 font-semibold ${
                       isSelected
                         ? 'bg-white/20 text-white'
-                        : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-white/60'
+                        : 'bg-white/10 text-slate-300 dark:text-white/60'
                     }`}
                   >
                     {t.badge}
@@ -1517,7 +1527,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Nhóm 1: 8 Môn Bắt Buộc */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-2">
+              <div className="p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
                   <span>📌 8 Môn Học Bắt Buộc (Chuẩn Cấp 3):</span>
                 </div>
@@ -1544,7 +1554,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Nhóm 2: 7 Môn Tự Chọn */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-2">
+              <div className="p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 flex items-center gap-1.5">
                   <span>🎨 7 Môn Học Tự Chọn (Chuẩn Cấp 3):</span>
                 </div>
@@ -1703,50 +1713,127 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
       {/* ========================================================================= */}
-      <aside className="w-full lg:w-56 xl:w-60 lg:sticky lg:top-16 sm:lg:top-20 lg:h-[calc(100vh-4rem)] sm:lg:h-[calc(100vh-5rem)] liquid-glass border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-between shrink-0 p-2.5 sm:p-3 z-20 overflow-y-auto no-scrollbar">
-        {/* Top: Logo & Nav items */}
-        <div className="space-y-2 lg:flex-1 lg:min-h-0 lg:overflow-y-auto no-scrollbar">
-          {/* Logo Brand */}
-          <div className="flex items-center justify-between pb-1">
-            <button
-              onClick={onBackToHome}
-              className="flex items-center gap-2 group text-left cursor-pointer focus:outline-none"
-            >
-              <img
-                src="/logo.png"
-                alt="HyperHub Logo"
-                className="h-7 w-7 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-              <div>
-                <div className="flex items-center leading-none">
-                  <span className="text-sm sm:text-base font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
-                    HyperHub
-                  </span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse" />
-                </div>
-                <span className="text-[9px] text-purple-400 font-semibold uppercase tracking-wider block mt-0.5">
-                  Bảng Điều Khiển
-                </span>
-              </div>
-            </button>
+      {/* ========================================================================= */}
+      {/* MOBILE TABS DOCK (Lucian UX/UI Sliding Pill Tabs - Gọn nhẹ, không thừa thãi)*/}
+      {/* ========================================================================= */}
+      <div className="lg:hidden w-full px-3 py-2 liquid-glass border-b border-white/10 sticky top-16 z-30 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-md">
+        <button
+          onClick={() => handleTabChange('overview')}
+          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            activeTab === 'overview'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+              : 'text-white/70 hover:text-white bg-white/[0.04]'
+          }`}
+        >
+          <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+          <span>Trang chính</span>
+        </button>
 
-            {/* Back to Home Mobile Button */}
-            <button
-              onClick={onBackToHome}
-              className="lg:hidden p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-              title="Quay lại Trang Chủ"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
+        <button
+          onClick={() => {
+            handleTabChange('vault');
+            setShowBookmarksOnly(false);
+          }}
+          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            activeTab === 'vault' && !showBookmarksOnly
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+              : 'text-white/70 hover:text-white bg-white/[0.04]'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+          <span>Kho Đề</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+            {totalDocsCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            handleTabChange('vault');
+            setShowBookmarksOnly(true);
+          }}
+          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            activeTab === 'vault' && showBookmarksOnly
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-sm'
+              : 'text-white/70 hover:text-white bg-white/[0.04]'
+          }`}
+        >
+          <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+          <span>Tủ Sách</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+            {bookmarkedIds.size}
+          </span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('get_exam')}
+          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            activeTab === 'get_exam'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+              : 'text-white/70 hover:text-white bg-white/[0.04]'
+          }`}
+        >
+          <Dices className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+          <span>Lấy Đề</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('submit_doc')}
+          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            activeTab === 'submit_doc'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+              : 'text-white/70 hover:text-white bg-white/[0.04]'
+          }`}
+        >
+          <UploadCloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span>Kho Nộp Đề</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+            Bot AI
+          </span>
+        </button>
+
+        {/* Nút Admin trên Mobile nếu có quyền */}
+        {(isAdmin || readCachedAdmin()) && (
+          <button
+            onClick={() => handleTabChange('admin')}
+            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              activeTab === 'admin'
+                ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-sm font-bold'
+                : 'text-rose-400 hover:text-rose-300 bg-rose-500/10'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>Quản Trị</span>
+          </button>
+        )}
+
+        <button
+          onClick={onBackToHome}
+          className="px-3 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white bg-white/[0.03] transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-auto"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Về Trang Chủ</span>
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* DESKTOP SIDEBAR (Sleek, Compact w-56, Liquid Glass, Profile Card Luôn Hiện) */}
+      {/* ========================================================================= */}
+      <aside className="hidden lg:flex lg:w-56 sticky top-20 h-[calc(100dvh-5.5rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
+        {/* Top: Section Header & Nav items */}
+        <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
+          <div className="flex items-center justify-between px-2 py-1 mb-0.5">
+            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+              <LayoutDashboard className="w-3 h-3 text-purple-400" />
+              <span>Bảng Điều Khiển</span>
+            </span>
+            <span className="text-[10px] text-white/30 font-mono">v2.5</span>
           </div>
 
           {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
-          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+          <nav className="flex flex-col gap-1 overflow-y-auto no-scrollbar flex-1 py-0.5">
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => handleTabChange('overview')}
               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'overview'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
@@ -1759,7 +1846,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => {
-                setActiveTab('vault');
+                handleTabChange('vault');
                 setShowBookmarksOnly(false);
               }}
               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
@@ -1777,7 +1864,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => {
-                setActiveTab('vault');
+                handleTabChange('vault');
                 setShowBookmarksOnly(true);
               }}
               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
@@ -1794,7 +1881,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('get_exam')}
+              onClick={() => handleTabChange('get_exam')}
               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'get_exam'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
@@ -1806,7 +1893,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('submit_doc')}
+              onClick={() => handleTabChange('submit_doc')}
               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'submit_doc'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
@@ -1820,10 +1907,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </button>
 
-            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN, người thường không thấy gì */}
+            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN */}
             {(isAdmin || readCachedAdmin()) && (
               <button
-                onClick={() => setActiveTab('admin')}
+                onClick={() => handleTabChange('admin')}
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                   activeTab === 'admin'
                     ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md shadow-rose-900/30 font-bold'
@@ -1845,7 +1932,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={onBackToHome}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer mt-1"
             >
               <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
               <span>Về Trang Chủ</span>
@@ -1868,7 +1955,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   }}
                 />
                 <div className="overflow-hidden flex-1 min-w-0">
-                  <div className="font-bold text-xs truncate text-white">
+                  <div className="font-bold text-xs truncate text-white leading-tight">
                     {user.global_name || user.username}
                   </div>
                   <div className="text-[10px] text-white/40 truncate">
@@ -1877,41 +1964,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* Email Verification Status */}
-              <div className="flex items-center gap-1.5 text-[10px]">
+              {/* Status & Logout */}
+              <div className="flex items-center justify-between text-[10px] pt-0.5">
                 {user.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 text-[10px]">
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
                     <CheckCircle2 className="w-3 h-3 shrink-0" />
-                    <span>Email đã xác minh</span>
+                    <span>Xác minh</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-rose-400 font-medium bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20 text-[10px]">
+                  <span className="inline-flex items-center gap-1 text-rose-400 font-medium">
                     <XCircle className="w-3 h-3 shrink-0" />
-                    <span>Email chưa xác minh</span>
+                    <span>Chưa xác minh</span>
                   </span>
                 )}
-              </div>
 
-              {/* Logout button */}
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-xs font-medium text-white/70 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Đăng xuất</span>
-              </button>
+                <button
+                  onClick={onLogout}
+                  className="flex items-center gap-1 text-[10px] text-white/50 hover:text-rose-400 transition-colors cursor-pointer"
+                  title="Đăng xuất tài khoản"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Thoát</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="p-2.5 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1.5">
-              <ShieldCheck className="w-5 h-5 mx-auto text-[#5865F2]" />
+            <div className="p-2 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1">
               <div className="text-[10px] text-white/70">
-                Chưa liên kết tài khoản Discord.
+                Chưa liên kết Discord
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-1.5 px-2.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium text-xs shadow-md shadow-[#5865F2]/20 active:scale-95 transition-all cursor-pointer"
+                className="w-full py-1 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
               >
-                Liên Kết Discord Ngay
+                Liên Kết Ngay
               </button>
             </div>
           )}
@@ -2345,7 +2431,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 mb-3">
                 <Dices className="w-3.5 h-3.5 text-purple-500" />
                 <span>Trạm Phát Đề Tự Động</span>
               </div>
@@ -2393,7 +2479,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {/* 2. User Unverified Email Warning Barrier */}            {(!user || !user.verified) && (
+            {/* 2. User Unverified Email Warning Barrier */}
+            {(!user || !user.verified) && (
               <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
                 <div className="space-y-2">
@@ -2420,16 +2507,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
             {currentExam && (
-              <div className="p-6 sm:p-8 rounded-3xl golden-hologram-card border-2 border-amber-500/50 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
+              <div className="p-6 sm:p-7 rounded-2xl liquid-glass border-2 border-amber-500/40 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40">
+                    <span className="px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40">
                       Môn: {currentExam.subject}
                     </span>
                     {(() => {
                       const eduBadge = getEducationLevelBadgeInfo(currentExam);
                       return (
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
+                        <span className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
                           <span>{eduBadge.icon}</span>
                           <span>{eduBadge.label}</span>
                         </span>
@@ -2438,7 +2525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {(() => {
                       const gradeStyle = getGradeBadgeStyle(currentExam.estimated_level);
                       return (
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
+                        <span className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
                           <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
                           <span>{gradeStyle.label}</span>
                         </span>
@@ -2448,7 +2535,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       const tr = getExamTrackInfo(currentExam);
                       return (
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${tr.badgeClass}`}
+                          className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1 ${tr.badgeClass}`}
                           title={`${tr.description} (${tr.difficultyNote})`}
                         >
                           <span>{tr.icon}</span>
@@ -2457,20 +2544,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       );
                     })()}
                     {currentExam.academic_year && (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+                      <span className="px-3 py-1 rounded-md text-xs font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
                         <span>📅</span>
                         <span>{currentExam.academic_year}</span>
                       </span>
                     )}
                     {currentExam.school_or_department && (
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30 flex items-center gap-1 truncate max-w-[220px]" title={currentExam.school_or_department}>
+                      <span className="px-3 py-1 rounded-md text-xs font-semibold bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30 flex items-center gap-1 truncate max-w-[220px]" title={currentExam.school_or_department}>
                         <span>🏫</span>
                         <span className="truncate">{currentExam.school_or_department}</span>
                       </span>
                     )}
                     {currentExam.verdict && (
                       <span
-                        className="px-3 py-1 rounded-full text-xs font-bold border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80"
+                        className="px-3 py-1 rounded-md text-xs font-bold border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80"
                         title="Kết quả thẩm định quét kỹ của Bot"
                       >
                         {currentExam.verdict === 'XAC_MINH'
@@ -2485,12 +2572,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {currentExam.confidence != null && ` • ${Math.round(Number(currentExam.confidence) * 100)}%`}
                       </span>
                     )}
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80 border border-slate-300 dark:border-white/10">
+                    <span className="px-3 py-1 rounded-md text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80 border border-slate-300 dark:border-white/10">
                       {currentExam.page_count} trang
                     </span>
                   </div>
 
-                  <span className="text-xs text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                  <span className="text-xs text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Đã bốc đề ngẫu nhiên thành công!</span>
                   </span>
@@ -2632,7 +2719,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
                 <BookOpen className="w-3.5 h-3.5 text-pink-500" />
                 <span>Kho Lưu Trữ Đề Thi Đã Thẩm Định</span>
               </div>
@@ -2640,7 +2727,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div>
                   <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
                     <span>Kho Đề Thi</span>
-                    <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
+                    <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-md bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
                       {stats.total_real} Đề
                     </span>
                   </h1>
@@ -2659,7 +2746,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('submit_doc')}
+                    onClick={() => handleTabChange('submit_doc')}
                     className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                   >
                     <UploadCloud className="w-4 h-4" />
@@ -2670,7 +2757,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Thước Đo Phân Bố Tài Liệu Theo 7 Khối Lớp */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
+            <div className="p-4 sm:p-5 rounded-2xl liquid-glass border border-white/10 space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700 dark:text-white/80 flex items-center gap-1.5">
                   <GraduationCap className="w-4 h-4 text-purple-400" />
@@ -2682,7 +2769,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Multi-segmented visual bar */}
-              <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex">
+              <div className="w-full h-3 rounded-md bg-white/5 overflow-hidden flex">
                 {gradeDistribution['12'] > 0 && (
                   <div
                     className="h-full bg-red-500 hover:opacity-80 transition-opacity cursor-pointer"
@@ -2857,7 +2944,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     }`}
                   >
                     <span>Đề Độc Bản</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300">
+                    <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300">
                       {stats.unique_items}
                     </span>
                   </button>
@@ -2875,7 +2962,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     }`}
                   >
                     <span>Đề Trùng Lặp</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300">
+                    <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-amber-500/20 text-amber-300">
                       {stats.duplicate_items}
                     </span>
                   </button>
@@ -2891,7 +2978,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <Star className={`w-3.5 h-3.5 ${showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
                     <span>Tủ Sách</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
                       showBookmarksOnly ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-500 dark:text-amber-300'
                     }`}>
                       {bookmarkedIds.size}
@@ -2936,13 +3023,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN BỘ GD&ĐT 2025, ĐÁP ÁN) */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/60 border border-slate-200/60 dark:border-white/10 backdrop-blur-xl space-y-3.5">
+              <div className="p-4 sm:p-5 rounded-2xl liquid-glass border border-white/10 space-y-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-white/5">
                   <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
                     <SlidersHorizontal className="w-4 h-4 text-purple-400" />
                     <span>Bộ Lọc Chuyên Sâu (Năm Học, Nguồn Ra Đề, Cấu Trúc 2025 & Đáp Án)</span>
                     {activeAdvancedFilterCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-500 text-white animate-pulse">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-pink-500 text-white animate-pulse">
                         {activeAdvancedFilterCount} đang chọn
                       </span>
                     )}
@@ -3097,13 +3184,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   {[1, 2, 3, 4, 5, 6].map((idx) => (
                     <div
                       key={idx}
-                      className="p-5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] space-y-4 shadow-xs"
+                      className="p-5 rounded-2xl liquid-glass border border-white/10 space-y-4 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-16 h-5 rounded-full skeleton-shimmer" />
-                          <div className="w-20 h-5 rounded-full skeleton-shimmer" />
-                          <div className="w-14 h-5 rounded-full skeleton-shimmer" />
+                          <div className="w-16 h-5 rounded-md skeleton-shimmer" />
+                          <div className="w-20 h-5 rounded-md skeleton-shimmer" />
+                          <div className="w-14 h-5 rounded-md skeleton-shimmer" />
                         </div>
                         <div className="w-12 h-4 rounded-md skeleton-shimmer" />
                       </div>
@@ -3571,7 +3658,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 mb-3">
                 <UploadCloud className="w-3.5 h-3.5 text-blue-500" />
                 <span>Trạm Nộp Đề & Thẩm Định Tài Liệu</span>
               </div>

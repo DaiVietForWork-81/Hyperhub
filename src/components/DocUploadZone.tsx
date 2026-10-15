@@ -991,17 +991,17 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                     • Môn: {res.detected_subject} | {formatEstimatedLevel(res.estimated_level)} | {res.page_count} trang
                                   </span>
                                   {(res.moet_2025_compliant || (res.moet_part1_count && res.moet_part1_count > 0)) && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                                       ✨ Chuẩn 2025
                                     </span>
                                   )}
                                   {res.has_answer_keys && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                       📝 Có đáp án
                                     </span>
                                   )}
                                   {res.has_detailed_solutions && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                       ✨ Lời giải chi tiết
                                     </span>
                                   )}
@@ -1443,7 +1443,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     Tài Liệu Đã Được Tiếp Nhận Thành Công ({gdriveResults.filter((r) => r.success).length} tệp)
                   </h3>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <Check className="w-3.5 h-3.5" />
                   Đã lưu vào Kho Đề
                 </span>
@@ -1494,17 +1494,17 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                 </span>
                               )}
                               {(item.moet_2025_compliant || (item.moet_part1_count && item.moet_part1_count > 0)) && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                                   ✨ Chuẩn 2025
                                 </span>
                               )}
                               {item.has_answer_keys && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                   📝 Có đáp án
                                 </span>
                               )}
                               {item.has_detailed_solutions && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                   ✨ Lời giải chi tiết
                                 </span>
                               )}

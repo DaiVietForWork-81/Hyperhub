@@ -127,6 +127,7 @@ export const App: React.FC = () => {
         theme={theme}
         onToggleTheme={toggleTheme}
         activeView={activeView}
+        activeTab={dashboardTab}
         onSelectView={(view, tab) => navigateTo(view, tab)}
         user={discordUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
@@ -162,6 +163,7 @@ export const App: React.FC = () => {
           <Dashboard
             user={discordUser}
             initialTab={dashboardTab}
+            onTabChange={(tab) => setDashboardTab(tab)}
             onOpenAuthModal={() => setIsAuthModalOpen(true)}
             onLogout={handleLogout}
             onBackToHome={() => navigateTo('home')}

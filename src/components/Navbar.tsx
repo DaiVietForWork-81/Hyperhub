@@ -7,6 +7,7 @@ interface NavbarProps {
   theme?: string;
   onToggleTheme?: (e?: React.MouseEvent) => void;
   activeView: 'home' | 'dashboard';
+  activeTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
   onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
@@ -14,6 +15,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeView,
+  activeTab = 'overview',
   onSelectView,
   user,
   onOpenAuthModal,
@@ -183,7 +185,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'vault')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'vault'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
             >
               <BookOpen className="w-3.5 h-3.5 text-purple-400" />
               <span>Kho Đề</span>
@@ -197,7 +203,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'get_exam')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'get_exam'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
             >
               <Dices className="w-3.5 h-3.5 text-pink-400" />
               <span>Lấy Đề</span>
@@ -206,7 +216,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleNavClick('dashboard', 'submit_doc')}
-              className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'submit_doc'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
             >
               <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
               <span>Kho Nộp Đề</span>
@@ -216,8 +230,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => handleNavClick('dashboard', 'overview')}
               className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'dashboard'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm'
+                activeView === 'dashboard' && (activeTab === 'overview' || activeTab === 'admin')
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
                   : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
               }`}
             >
@@ -298,14 +312,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'vault')}
-                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center justify-between text-white/85 hover:bg-white/10"
+                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center justify-between ${
+                  activeView === 'dashboard' && activeTab === 'vault'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                    : 'text-white/85 hover:bg-white/10'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
                   <BookOpen className="w-4 h-4 text-purple-400" />
                   <span>Kho Đề Thi</span>
                 </div>
                 {docCount !== null && docCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
+                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                     {docCount} đề
                   </span>
                 )}
@@ -314,7 +332,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'get_exam')}
-                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
+                  activeView === 'dashboard' && activeTab === 'get_exam'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                    : 'text-white/85 hover:bg-white/10'
+                }`}
               >
                 <Dices className="w-4 h-4 text-pink-400" />
                 <span>Lấy Đề Nhanh</span>
@@ -323,7 +345,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'submit_doc')}
-                className="w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 text-white/85 hover:bg-white/10"
+                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
+                  activeView === 'dashboard' && activeTab === 'submit_doc'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                    : 'text-white/85 hover:bg-white/10'
+                }`}
               >
                 <UploadCloud className="w-4 h-4 text-emerald-400" />
                 <span>Kho Nộp Đề</span>
@@ -333,9 +359,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'overview')}
                 className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
-                  activeView === 'dashboard'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'text-white/85'
+                  activeView === 'dashboard' && (activeTab === 'overview' || activeTab === 'admin')
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                    : 'text-white/85 hover:bg-white/10'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4" />
