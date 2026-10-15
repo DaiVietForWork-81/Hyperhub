@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img
               src="/logo.png"
-              alt="HyperHub Logo"
+              alt="Orbit Logo"
               className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
@@ -161,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
             <div className="flex items-center">
               <span className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
-                HyperHub
+                Orbit
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse"></span>
             </div>

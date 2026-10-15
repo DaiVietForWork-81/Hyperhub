@@ -91,7 +91,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     },
     {
       id: 'action-home',
-      title: 'Về Trang Chủ HyperHub',
+      title: 'Về Trang Chủ Orbit',
       category: 'Điều hướng',
       icon: <Home className="w-4 h-4 text-blue-400" />,
       action: () => {
@@ -178,14 +178,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     >
                       <div className="overflow-hidden space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300">
                             {exam.subject}
                           </span>
                           {(() => {
                             const eduBadge = getEducationLevelBadgeInfo(exam);
                             return (
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${eduBadge.badgeClass}`}
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${eduBadge.badgeClass}`}
                               >
                                 <span>{eduBadge.icon}</span>
                                 <span>{eduBadge.shortLabel}</span>
@@ -193,7 +193,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             );
                           })()}
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${gradeStyle.badgeClass}`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${gradeStyle.badgeClass}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
                             <span>{gradeStyle.label}</span>
@@ -261,7 +261,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
           <span className="flex items-center gap-1 text-purple-400 font-semibold">
             <Sparkles className="w-3 h-3" />
-            HyperHub AI Command Engine
+            Orbit AI Command Engine
           </span>
         </div>
       </div>

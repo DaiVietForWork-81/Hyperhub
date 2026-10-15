@@ -77,33 +77,38 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
           </div>
         </ScrollReveal>
 
-        {/* HyperHub Big Main Title - With Animated Texture Flow & Atmospheric Aura */}
+        {/* Orbit Big Main Title - With Animated Texture Flow & Atmospheric Aura */}
         <ScrollReveal delay={200}>
           <div className="relative mb-4 sm:mb-6 select-none inline-block">
             <div className="text-aura-halo">
               <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tight leading-none drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
                 <span className="cosmic-text-flow">
-                  HyperHub
+                  Orbit
                 </span>
               </h1>
             </div>
           </div>
         </ScrollReveal>
 
-        {/* Slogan: LEARN • CHILL • CONNECT with Animated Gradient Texture */}
+        {/* Slogan: LEARN • GROW • CONNECT with Animated Gradient Texture */}
         <ScrollReveal delay={300}>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 text-sm sm:text-xl md:text-2xl lg:text-3xl font-black tracking-[0.1em] sm:tracking-[0.18em] uppercase mb-6 sm:mb-8 text-white">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 text-sm sm:text-xl md:text-2xl lg:text-3xl font-black tracking-[0.1em] sm:tracking-[0.18em] uppercase mb-3 sm:mb-4 text-white">
             <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">LEARN</span>
             </span>
             <span className="text-pink-500 font-normal animate-pulse select-none">•</span>
             <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
-              <span className="cosmic-text-flow">CHILL</span>
+              <span className="cosmic-text-flow">GROW</span>
             </span>
             <span className="text-pink-500 font-normal animate-pulse select-none">•</span>
             <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">CONNECT</span>
             </span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs sm:text-sm text-purple-300 font-medium mb-6 sm:mb-8">
+            <span className="font-semibold text-white">Different paths. One orbit.</span>
+            <span className="text-pink-400">•</span>
+            <span className="text-purple-200/80">Những con đường khác nhau. Cùng một quỹ đạo.</span>
           </div>
         </ScrollReveal>
 
@@ -148,8 +153,8 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
 
         {/* Welcome Description */}
         <ScrollReveal delay={500}>
-          <p className="text-sm sm:text-base md:text-lg text-white/70 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed text-balance px-4">
-            Nơi học hỏi có kho đề thi phong phú, hỗ trợ bốc đề tự động trực tiếp qua liên kết Discord và phát triển toàn diện mọi môn học.
+          <p className="text-sm sm:text-base md:text-lg text-white/75 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed text-balance px-4">
+            Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại <span className="text-white font-semibold">Orbit</span> để học hỏi, bứt phá năng lực và cùng nhau tiến xa hơn trên hành trình tri thức.
           </p>
         </ScrollReveal>
 

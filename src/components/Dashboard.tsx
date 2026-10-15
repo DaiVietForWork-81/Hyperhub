@@ -2044,7 +2044,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                  Bảng điều khiển kết nối trực tiếp với Discord Bot HyperHub và kho lưu trữ đề thi tự động.
+                  Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
                 </p>
               </div>
 
@@ -2181,7 +2181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </span>
                   </div>
                   <h3 className="font-bold text-sm sm:text-base text-white mb-1">
-                    Bot Discord HyperHub
+                    Bot Discord Orbit
                   </h3>
                   <p className="text-xs text-white/50 mb-3">
                     {botStatus.online
@@ -2190,7 +2190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </p>
                 </div>
                 <div className="text-[11px] font-mono text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
-                  <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
+                  <span>User: {botStatus.bot_user || 'Orbit#0594'}</span>
                   {botStatus.online && (
                     <span className="text-emerald-400 font-semibold flex items-center gap-1">
                       ● Live
