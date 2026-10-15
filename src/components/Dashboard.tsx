@@ -46,7 +46,7 @@ import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStora
 import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
-import { fetchDocsFromTurso } from '../utils/tursoClient';
+import { fetchDocsFromTurso, getTursoStorageUsage } from '../utils/tursoClient';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -581,12 +581,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Danh Sách Đề Thi Trong Kho (Full Catalog List)
   const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(29);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(178);
   const [stats, setStats] = useState<{
     total_real: number;
     unique_items: number;
     duplicate_items: number;
-  }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
+  }>({ total_real: 178, unique_items: 178, duplicate_items: 0 });
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'newest' | 'pages' | 'size' | 'confidence'>('newest');
@@ -902,14 +902,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           uptime_seconds: data.uptime_seconds,
           guilds_count: data.guilds_count,
         });
-        if (!isOnline) {
-          setDocumentsList([]);
-          setTotalDocsCount(0);
-        }
       } else {
         setBotStatus({ online: false });
-        setDocumentsList([]);
-        setTotalDocsCount(0);
       }
     } catch {
       // Trường hợp kết nối thất bại (lỗi mạng, URL tùy biến cũ bị chết), thử lại với DEFAULT_TUNNEL_URL
@@ -935,8 +929,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         } catch {}
       }
       setBotStatus({ online: false });
-      setDocumentsList([]);
-      setTotalDocsCount(0);
     }
   }, []);
 
@@ -995,7 +987,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           }
         } else {
           // Khi bot tắt: Tự động fallback sang Turso libSQL Cloud (5GB)
-          const tursoDocs = await fetchDocsFromTurso(100);
+          const tursoDocs = await fetchDocsFromTurso(5000);
           if (tursoDocs && tursoDocs.length > 0) {
             setDocumentsList(tursoDocs as any);
             setTotalDocsCount(tursoDocs.length);
@@ -1007,7 +999,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       } catch {
         // Khi bot tắt / mất kết nối: Tự động fallback sang Turso libSQL Cloud
         try {
-          const tursoDocs = await fetchDocsFromTurso(100);
+          const tursoDocs = await fetchDocsFromTurso(5000);
           if (tursoDocs && tursoDocs.length > 0) {
             setDocumentsList(tursoDocs as any);
             setTotalDocsCount(tursoDocs.length);
@@ -1060,17 +1052,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
           setTotalDocsCount(data.total_real || data.total_items || 0);
         }
       } else {
-        setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
-        setTotalDocsCount(0);
+        try {
+          const tursoStats = await getTursoStorageUsage();
+          const total = tursoStats?.totalDocs || 0;
+          setStats({ total_real: total, unique_items: total, duplicate_items: 0 });
+          if (total > 0) setTotalDocsCount(total);
+        } catch {
+          setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
+        }
       }
     } catch {
-      // Khi bot offline: reset thống kê về 0
-      setStats({
-        total_real: 0,
-        unique_items: 0,
-        duplicate_items: 0,
-      });
-      setTotalDocsCount(0);
+      // Khi bot offline: fallback sang Turso Cloud storage
+      try {
+        const tursoStats = await getTursoStorageUsage();
+        const total = tursoStats?.totalDocs || 0;
+        setStats({ total_real: total, unique_items: total, duplicate_items: 0 });
+        if (total > 0) setTotalDocsCount(total);
+      } catch {
+        setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
+      }
     }
   }, []);
 
@@ -1819,7 +1819,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* DESKTOP SIDEBAR (Sleek, Compact w-56, Liquid Glass, Profile Card Luôn Hiện) */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-56 sticky top-20 h-[calc(100dvh-5.5rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
+      <aside className="hidden lg:flex lg:w-56 sticky top-16 h-[calc(100dvh-4rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
         {/* Top: Section Header & Nav items */}
         <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between px-2 py-1 mb-0.5">
@@ -1989,15 +1989,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-2 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1">
-              <div className="text-[10px] text-white/70">
-                Chưa liên kết Discord
+            <div className="p-2.5 rounded-xl liquid-glass border border-[#5865F2]/30 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#5865F2]/20 text-[#5865F2] flex items-center justify-center shrink-0">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div className="overflow-hidden flex-1 min-w-0">
+                  <div className="font-bold text-xs truncate text-white leading-tight">
+                    Khách vãng lai
+                  </div>
+                  <div className="text-[10px] text-white/50 truncate">
+                    Chưa đăng nhập
+                  </div>
+                </div>
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-1 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
+                className="w-full py-1.5 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                Liên Kết Ngay
+                <span>Liên Kết Ngay</span>
               </button>
             </div>
           )}

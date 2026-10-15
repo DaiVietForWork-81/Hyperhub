@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
+import { getTursoStorageUsage } from '../utils/tursoClient';
 
 interface NavbarProps {
   theme?: string;
@@ -23,10 +24,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNearTop, setIsNearTop] = useState(true);
-  const [docCount, setDocCount] = useState<number | null>(null);
+  const [docCount, setDocCount] = useState<number | null>(178);
   const hideTimerRef = useRef<number | null>(null);
 
-  // Lấy số lượng đề thật từ Bot
+  // Lấy số lượng đề thật từ Bot hoặc Turso Cloud
   useEffect(() => {
     const fetchCount = async () => {
       try {
@@ -38,14 +39,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           const data = await res.json();
           if (data && (data.total_real || data.total_items)) {
             setDocCount(data.total_real || data.total_items);
-          } else {
-            setDocCount(null);
+            return;
           }
-        } else {
-          setDocCount(null);
+        }
+      } catch {}
+
+      // Fallback khi Bot offline: Đọc trực tiếp từ Turso Cloud
+      try {
+        const stats = await getTursoStorageUsage();
+        if (stats && stats.totalDocs > 0) {
+          setDocCount(stats.totalDocs);
         }
       } catch {
-        setDocCount(null);
+        setDocCount(178);
       }
     };
     fetchCount();
