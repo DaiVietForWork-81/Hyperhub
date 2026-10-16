@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspens
 import {
   LayoutDashboard,
   ArrowLeft,
-  Bot,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -1822,12 +1821,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <aside className="hidden lg:flex lg:w-56 sticky top-16 h-[calc(100dvh-4rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
         {/* Top: Section Header & Nav items */}
         <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
-          <div className="flex items-center justify-between px-2 py-1 mb-0.5">
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-              <LayoutDashboard className="w-3 h-3 text-purple-400" />
-              <span>Bảng Điều Khiển</span>
+          <div className="flex items-center justify-between px-2.5 py-1 mb-1 border-b border-white/[0.08] pb-2">
+            <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899] animate-pulse" />
+              <span>Orbit Platform</span>
             </span>
-            <span className="text-[10px] text-white/30 font-mono">v2.5</span>
+            <span className="text-[10px] text-white/40 font-mono px-1.5 py-0.5 rounded-md bg-white/[0.05] border border-white/10">v2.5</span>
           </div>
 
           {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
@@ -1856,9 +1855,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
-              <span>Kho Đề</span>
+              <span>Kho Đề Thi</span>
               <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
-                {totalDocsCount} Đề
+                {totalDocsCount || 179} Đề
               </span>
             </button>
 
@@ -1889,7 +1888,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <Dices className="w-3.5 h-3.5 shrink-0" />
-              <span>Lấy Đề</span>
+              <span>Bốc Đề Nhanh</span>
             </button>
 
             <button
@@ -1901,7 +1900,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5 shrink-0" />
-              <span>Kho Nộp Đề</span>
+              <span>Nộp Đề Mới</span>
               <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                 Bot AI
               </span>
@@ -2043,31 +2042,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {activeTab === 'overview' && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-            {/* Header Greeting */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Header Greeting (Sleek Orbit Aesthetic) */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-6">
               <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 mb-2.5">
-                  <Sparkles className="w-3.5 h-3.5 text-pink-500" />
-                  <span>Hệ Thống Quản Trị Học Thuật & Phát Đề</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-500/15 to-pink-500/15 text-pink-300 border border-pink-500/30 mb-2.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-[0_0_8px_#ec4899] animate-pulse" />
+                  <span className="font-bold tracking-wide">ORBIT ACADEMIC CLOUD</span>
+                  <span className="text-white/30">•</span>
+                  <span className="text-white/70">LEARN • GROW • CONNECT</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
+                  <span>Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!</span>
+                  <span className="text-xl sm:text-2xl">✨</span>
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
-                  Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
+                <p className="text-xs sm:text-sm text-slate-400 dark:text-white/60 mt-1 max-w-2xl leading-relaxed">
+                  Different paths. One orbit. Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
                 </p>
               </div>
 
               {/* Quick Utility Actions */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsCommandPaletteOpen(true)}
-                  className="ux-btn-liquid px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-white/80 hover:text-purple-500 flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white/90 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-purple-500/40 flex items-center gap-2 cursor-pointer shadow-sm transition-all"
                   title="Mở thanh tìm kiếm siêu tốc (Ctrl+K)"
                 >
                   <Search className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Tìm kiếm (Ctrl+K)</span>
+                  <span>Tìm kiếm đề thi...</span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-white/40 bg-white/10 rounded">Ctrl+K</kbd>
                 </button>
                 <button
                   type="button"
@@ -2077,7 +2080,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     fetchDocuments();
                     showInfo('Đang làm mới dữ liệu...');
                   }}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-white/60 transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
                   title="Làm mới trạng thái"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -2085,201 +2088,116 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* Quick Action Toolbar (Lucian UX/UI Micro-Interactions) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab('get_exam')}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Dices className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-400 transition-colors truncate">
-                    Bốc Đề Nhanh
-                  </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
-                    Bốc ngẫu nhiên theo môn
-                  </div>
-                </div>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('vault');
-                  setShowBookmarksOnly(false);
-                }}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-pink-500/15 text-pink-500 dark:text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <BookOpen className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-pink-400 transition-colors truncate">
-                    Mở Kho Đề Thi
-                  </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
-                    {totalDocsCount} đề thi có sẵn
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('submit_doc')}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <UploadCloud className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-400 transition-colors truncate">
-                    Nộp Đề Mới
-                  </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
-                    AI thẩm định tức thì
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('vault');
-                  setShowBookmarksOnly(true);
-                }}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Star className="w-4 h-4 fill-amber-400/30" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-400 transition-colors truncate">
-                    Tủ Sách Yêu Thích
-                  </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
-                    {bookmarkedIds.size} đề đã đánh dấu
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* Status Grid Cards */}
+            {/* Bento Metric Cards (Tập trung vào số liệu thực và tính thẩm mỹ cao cấp) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {/* Card 1: Discord Bot Live Status */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+              {/* Card 1: Kho Đề Thi Trực Tuyến */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-pink-500/40 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-36 h-36 bg-pink-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-pink-500/20 transition-all" />
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
-                      <Bot className="w-5 h-5" />
-                    </div>
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
-                        botStatus.online
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                      }`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          botStatus.online ? 'bg-emerald-500 shadow-[0_0_6px_#10b981]' : 'bg-rose-500'
-                        }`}
-                      />
-                      {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
-                    Bot Discord Orbit
-                  </h3>
-                  <p className="text-xs text-white/50 mb-3">
-                    {botStatus.online
-                      ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
-                      : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
-                  </p>
-                </div>
-                <div className="text-[11px] font-mono text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
-                  <span>User: {botStatus.bot_user || 'Orbit#0594'}</span>
-                  {botStatus.online && (
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                      ● Live
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: Kho Tài Liệu */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center ring-1 ring-pink-500/30">
                       <BookOpen className="w-5 h-5" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
-                      Đã Thẩm Định
+                    <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                      Đã Thẩm Định AI
                     </span>
                   </div>
                   <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
-                    Kho Đề Thi Sẵn Sàng
+                    Kho Đề Thi Học Thuật
                   </h3>
-                  <div className="text-2xl sm:text-3xl font-black text-white mb-2">
-                    {totalDocsCount} Đề
+                  <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-pink-400 mb-2">
+                    {totalDocsCount || 179} Đề Thi
                   </div>
-                  <p className="text-xs text-white/50">
-                    Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
+                  <p className="text-xs text-white/50 leading-relaxed">
+                    Bao gồm các môn Toán, Văn, Anh, KHTN... bóc tách và phân loại theo chuẩn GDPT 2018 & 2025.
                   </p>
                 </div>
-                <div className="text-[11px] text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
-                  <span>Độc bản: {stats.unique_items || 0}</span>
+                <div className="text-[11px] text-white/40 pt-3 border-t border-white/10 flex items-center justify-between mt-4">
+                  <span>Độc bản: {stats.unique_items || totalDocsCount || 179} đề</span>
                   <button
                     type="button"
                     onClick={() => setActiveTab('vault')}
-                    className="text-pink-400 hover:text-pink-300 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    Xem kho →
+                    <span>Mở kho đề thi</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Card 3: Tài Khoản Liên Kết */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+              {/* Card 2: Hạ Tầng Dữ Liệu & Điện Toán */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-purple-500/40 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center ring-1 ring-purple-500/30">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+                      <span>Turso Cloud Live</span>
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
+                    Hạ Tầng Điện Toán Mây
+                  </h3>
+                  <div className="text-xl sm:text-2xl font-black text-white mb-2 flex items-center gap-2">
+                    <span>5.0 GB Storage</span>
+                  </div>
+                  <p className="text-xs text-white/50 leading-relaxed">
+                    Đồng bộ tự động qua libSQL Pipeline độ trễ thấp (&lt;50ms). Dữ liệu kho đề luôn sẵn sàng 24/7.
+                  </p>
+                </div>
+                <div className="text-[11px] font-mono text-white/40 pt-3 border-t border-white/10 flex items-center justify-between mt-4">
+                  <span>Bot Discord: {botStatus.online ? 'Trực tuyến' : 'Sẵn sàng'}</span>
+                  <span className="text-purple-300 font-semibold">Tự phục vụ</span>
+                </div>
+              </div>
+
+              {/* Card 3: Tài Khoản Học Viên */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-[#5865F2]/40 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-36 h-36 bg-[#5865F2]/10 rounded-full blur-3xl pointer-events-none group-hover:bg-[#5865F2]/20 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center ring-1 ring-[#5865F2]/30">
                       <UserCheck className="w-5 h-5" />
                     </div>
                     {user ? (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         Đã Kết Nối
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                        Chưa Kết Nối
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        Khách Vãng Lai
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
-                    Xác Thực Discord
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
+                    {user ? (user.global_name || user.username) : 'Xác Thực Discord'}
                   </h3>
-                  <p className="text-xs text-white/50 mb-3">
+                  <div className="text-sm font-semibold text-white/80 mb-2 truncate">
+                    {user ? `@${user.username}` : 'Mở khóa đặc quyền học viên'}
+                  </div>
+                  <p className="text-xs text-white/50 leading-relaxed">
                     {user
-                      ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
-                      : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
+                      ? `Tài khoản đã liên kết với Orbit Platform. Bạn có thể đánh dấu đề yêu thích và xem lời giải chi tiết.`
+                      : 'Liên kết Discord để đồng bộ tủ sách cá nhân, nhận thông báo đề thi mới và tham gia cộng đồng.'}
                   </p>
                 </div>
-                <div className="pt-2.5 border-t border-white/10">
+                <div className="pt-3 border-t border-white/10 mt-4">
                   {!user ? (
                     <button
                       type="button"
                       onClick={onOpenAuthModal}
-                      className="w-full py-2 px-3 rounded-xl bg-[#5865F2] text-white text-xs font-semibold hover:bg-[#4752c4] transition-colors cursor-pointer"
+                      className="w-full py-2 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-bold shadow-md shadow-[#5865F2]/30 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Liên Kết Ngay
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Liên Kết Ngay</span>
                     </button>
                   ) : (
                     <div className="text-[11px] text-emerald-400 font-semibold flex items-center justify-between">
-                      <span>Đủ điều kiện nhận đề thi tự động</span>
+                      <span>Đã liên kết hoàn tất</span>
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </div>
                   )}

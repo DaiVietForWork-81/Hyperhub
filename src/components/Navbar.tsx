@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, ArrowLeft } from 'lucide-react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getTursoStorageUsage } from '../utils/tursoClient';
@@ -254,17 +254,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Area: Discord User / Link CTA */}
           <div className="hidden md:flex items-center gap-2.5 shrink-0">
-            {activeView === 'dashboard' && (
-              <button
-                type="button"
-                onClick={() => handleNavClick('home')}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white/70 hover:text-white hover:bg-white/[0.08] transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
-                title="Quay lại trang chủ"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Về Trang Chủ</span>
-              </button>
-            )}
             {user ? (
               <button
                 type="button"
