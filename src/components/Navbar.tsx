@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
-import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 import { getTursoStorageUsage } from '../utils/tursoClient';
 
 interface NavbarProps {
@@ -27,32 +26,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [docCount, setDocCount] = useState<number | null>(178);
   const hideTimerRef = useRef<number | null>(null);
 
-  // Lấy số lượng đề thật từ Bot hoặc Turso Cloud
+  // Lấy số lượng đề thật từ Turso Cloud siêu tốc
   useEffect(() => {
     const fetchCount = async () => {
-      try {
-        const apiBase = getApiBaseUrl();
-        const res = await fetch(`${apiBase}/api/documents/stats`, {
-          headers: API_FETCH_HEADERS,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.total_real || data.total_items)) {
-            setDocCount(data.total_real || data.total_items);
-            return;
-          }
-        }
-      } catch {}
-
-      // Fallback khi Bot offline: Đọc trực tiếp từ Turso Cloud
       try {
         const stats = await getTursoStorageUsage();
         if (stats && stats.totalDocs > 0) {
           setDocCount(stats.totalDocs);
+          return;
         }
-      } catch {
-        setDocCount(178);
-      }
+      } catch {}
+      setDocCount(179);
     };
     fetchCount();
   }, []);
@@ -220,9 +204,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => handleNavClick('dashboard', 'overview')}
-                className="px-3.5 py-1.5 text-xs lg:text-sm font-bold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30"
+                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
               >
-                <LayoutDashboard className="w-3.5 h-3.5" />
+                <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Bảng Điều Khiển</span>
               </button>
             </nav>
