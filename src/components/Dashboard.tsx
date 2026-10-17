@@ -1254,15 +1254,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const renderFilterControls = (showRollButton: boolean = true) => (
-    <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-sm space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-            <Filter className="w-4 h-4" />
+    <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/10 shadow-xl space-y-7">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 shadow-inner">
+            <Filter className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base sm:text-lg">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
-            <p className="text-xs text-slate-400 dark:text-white/40">
+            <h3 className="font-black text-lg sm:text-2xl text-white tracking-tight">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
+            <p className="text-xs sm:text-sm text-slate-300 dark:text-white/60 mt-0.5">
               {showRollButton
                 ? 'Chọn tiêu chí để bot bốc ngẫu nhiên hoặc lọc đề thi bên dưới'
                 : 'Lọc danh sách đề thi theo khối lớp, thể loại, môn học và từ khóa'}
@@ -1271,36 +1271,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs">
             {documentsList.length} đề thi phù hợp
           </span>
         </div>
       </div>
 
       {examError && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in duration-200">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <span>{examError}</span>
+        <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-3 animate-in fade-in duration-200">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400" />
+          <span className="font-medium">{examError}</span>
         </div>
       )}
 
-      <form onSubmit={handleFilterSubmit} className="space-y-6">
+      <form onSubmit={handleFilterSubmit} className="space-y-7">
         {/* 0. BẬC GIÁO DỤC: CHUNG, CẤP 2, CẤP 3 */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-purple-500" />
+            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-400" />
               <span>Bậc Giáo Dục & Cấp Học</span>
             </label>
-            <span className="text-[11px] text-slate-400 dark:text-white/40">
+            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
               Đang chọn:{' '}
-              <strong className="text-purple-600 dark:text-purple-400">
+              <strong className="text-purple-400 font-bold">
                 {EDUCATION_LEVEL_OPTIONS.find((e) => e.id === selectedEducationLevel)?.label}
               </strong>
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {EDUCATION_LEVEL_OPTIONS.map((opt) => {
               const isSelected = selectedEducationLevel === opt.id;
               return (
@@ -1308,30 +1308,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={opt.id}
                   type="button"
                   onClick={() => handleEducationLevelChange(opt.id)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 group ${
+                  className={`p-4 sm:p-5 rounded-3xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 group ${
                     isSelected
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30 scale-[1.02] border-purple-400 ring-2 ring-purple-500/40'
-                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-white/[0.06]'
+                      ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-xl shadow-purple-900/30 scale-[1.02] border-purple-400 ring-2 ring-purple-500/40'
+                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-purple-400/50 hover:bg-white/[0.06]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{opt.icon}</span>
-                      <span className="font-extrabold text-sm sm:text-base">{opt.label}</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl">{opt.icon}</span>
+                      <span className="font-black text-base sm:text-lg">{opt.label}</span>
                     </div>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                      className={`text-xs px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider ${
                         isSelected
                           ? 'bg-white/20 text-white'
-                          : 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20'
+                          : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                       }`}
                     >
                       {opt.badge}
                     </span>
                   </div>
                   <span
-                    className={`text-[11px] leading-tight ${
-                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/40'
+                    className={`text-xs sm:text-sm leading-relaxed ${
+                      isSelected ? 'text-purple-100 font-medium' : 'text-slate-400 dark:text-white/50'
                     }`}
                   >
                     {opt.desc}
@@ -1343,10 +1343,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 1. KHỐI LỚP */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-purple-500" />
+            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-400" />
               <span>
                 1. Khối Lớp Học Sinh{' '}
                 {selectedEducationLevel === 'CAP_2'
@@ -1356,9 +1356,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : '(Toàn Bộ Khối 6 - 12)'}
               </span>
             </label>
-            <span className="text-[11px] text-slate-400 dark:text-white/40">
+            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
               Đang chọn:{' '}
-              <strong className="text-purple-600 dark:text-purple-400">
+              <strong className="text-purple-400 font-bold">
                 {(selectedEducationLevel === 'CAP_2'
                   ? CAP2_GRADE_OPTIONS
                   : selectedEducationLevel === 'CAP_3'
@@ -1370,7 +1370,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div
-            className={`grid gap-2 ${
+            className={`grid gap-2.5 sm:gap-3 ${
               selectedEducationLevel === 'CAP_2'
                 ? 'grid-cols-2 sm:grid-cols-5'
                 : selectedEducationLevel === 'CAP_3'
@@ -1393,24 +1393,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   style={{
                     borderColor: isSelected ? g.color : undefined,
                   }}
-                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 group relative overflow-hidden ${
+                  className={`p-3.5 sm:p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 group relative overflow-hidden ${
                     isSelected
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30 scale-[1.03] ring-2 ring-purple-500/40'
-                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-purple-300 dark:hover:border-purple-500/40 hover:bg-white/[0.06]'
+                      ? 'bg-purple-600 text-white shadow-xl shadow-purple-900/40 scale-[1.03] ring-2 ring-purple-500/50'
+                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-purple-400/50 hover:bg-white/[0.06]'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     {g.id !== 'ALL' && (
                       <span
-                        className="w-2 h-2 rounded-full shrink-0 shadow-xs"
+                        className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
                         style={{ backgroundColor: g.color }}
                       />
                     )}
-                    <span className="font-bold text-xs sm:text-sm">{g.label}</span>
+                    <span className="font-black text-sm sm:text-base">{g.label}</span>
                   </div>
                   <span
-                    className={`text-[10px] ${
-                      isSelected ? 'text-purple-100 font-medium' : 'text-slate-400 dark:text-white/40'
+                    className={`text-xs font-semibold ${
+                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/50'
                     }`}
                   >
                     {g.subtitle}
@@ -1422,21 +1422,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 2. LOẠI ĐỀ THI */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-pink-500" />
+            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-pink-400" />
               <span>2. Thể Loại Đề Thi</span>
             </label>
-            <span className="text-[11px] text-slate-400 dark:text-white/40">
+            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
               Đang chọn:{' '}
-              <strong className="text-pink-600 dark:text-pink-400">
+              <strong className="text-pink-400 font-bold">
                 {EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label}
               </strong>
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {EXAM_TYPE_OPTIONS.map((t) => {
               const isSelected = selectedExamType === t.id;
               return (
@@ -1444,21 +1444,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={t.id}
                   type="button"
                   onClick={() => handleExamTypeChange(t.id)}
-                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                  className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-pink-600 to-rose-600 border-pink-500 text-white shadow-lg shadow-pink-900/30 scale-[1.01]'
-                      : 'liquid-glass border-white/10 text-slate-700 dark:text-white/70 hover:border-pink-300 dark:hover:border-pink-500/30 hover:bg-white/[0.06]'
+                      ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-rose-700 border-pink-400 text-white shadow-xl shadow-pink-900/40 scale-[1.01]'
+                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-pink-400/50 hover:bg-white/[0.06]'
                   }`}
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <span className="text-base shrink-0">{t.icon}</span>
-                    <span className="font-bold text-xs truncate">{t.label}</span>
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <span className="text-xl shrink-0">{t.icon}</span>
+                    <span className="font-black text-sm sm:text-base truncate">{t.label}</span>
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-md shrink-0 font-semibold ${
+                    className={`text-xs px-2.5 py-1 rounded-lg shrink-0 font-bold uppercase tracking-wider ${
                       isSelected
                         ? 'bg-white/20 text-white'
-                        : 'bg-white/10 text-slate-300 dark:text-white/60'
+                        : 'bg-white/10 text-slate-300 dark:text-white/70'
                     }`}
                   >
                     {t.badge}
@@ -1469,14 +1469,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Ghi chú độ khó và 5 thể loại */}
-          <div className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 text-xs text-slate-600 dark:text-white/70 space-y-1">
-            <div className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5 flex-wrap">
+          <div className="p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 text-xs sm:text-sm text-slate-300 dark:text-white/75 space-y-1.5">
+            <div className="font-black text-purple-300 flex items-center gap-2 flex-wrap">
               <span>⚖️ Thang độ khó học thuật:</span>
-              <span className="font-mono text-[11px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-lg border border-purple-500/20">
+              <span className="font-mono text-xs font-black bg-purple-500/20 text-purple-200 px-2.5 py-1 rounded-lg border border-purple-500/30">
                 Đề thường &lt; Đề HSG &lt; Đề chuyên
               </span>
             </div>
-            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-white/50">
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-400 dark:text-white/60">
               • <strong>Đề quốc tế:</strong> Kỳ thi quốc tế (IMO, AMC, Kangaroo/IKMC, SASMO, TIMO, SAT...) cả bản dịch tiếng Việt & quốc tế.<br />
               • <strong>Đề chung:</strong> Đề cương, lý thuyết tổng hợp chung (dễ gây hiểu lầm nếu coi là một đề thi cụ thể).
             </p>
@@ -1484,10 +1484,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 3. MÔN HỌC */}
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-emerald-500" />
+            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-400" />
               <span>
                 3. Môn Học Ôn Tập{' '}
                 {selectedEducationLevel === 'CAP_2'
@@ -1497,9 +1497,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : '(Gộp Cả Cấp 2 & Cấp 3)'}
               </span>
             </label>
-            <span className="text-[11px] text-slate-400 dark:text-white/40">
+            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
               Đang chọn:{' '}
-              <strong className="text-emerald-600 dark:text-emerald-400">
+              <strong className="text-emerald-400 font-bold">
                 {(selectedEducationLevel === 'CAP_2'
                   ? CAP2_SUBJECT_OPTIONS
                   : selectedEducationLevel === 'CAP_3'
@@ -1511,29 +1511,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {selectedEducationLevel === 'CAP_3' ? (
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               {/* Nút Chọn Tất Cả Môn Cấp 3 */}
               <div>
                 <button
                   type="button"
                   onClick={() => handleSubjectChange('ALL')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-5 py-3 rounded-2xl text-sm font-black transition-all cursor-pointer flex items-center gap-2 shadow-sm ${
                     selectedSubject === 'ALL'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-105'
-                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40 scale-105'
+                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-300 dark:text-white/80 hover:bg-emerald-950/20 hover:text-emerald-300 border border-slate-200 dark:border-white/10'
                   }`}
                 >
-                  <span>🌐</span>
+                  <span className="text-lg">🌐</span>
                   <span>Tất Cả Môn Cấp 3 (8 Bắt buộc + 7 Tự chọn)</span>
                 </button>
               </div>
 
               {/* Nhóm 1: 8 Môn Bắt Buộc */}
-              <div className="p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+              <div className="p-4 sm:p-5 rounded-3xl liquid-glass border border-white/10 space-y-3">
+                <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
                   <span>📌 8 Môn Học Bắt Buộc (Chuẩn Cấp 3):</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {CAP3_MANDATORY_SUBJECTS.map((s) => {
                     const isSelected = selectedSubject === s.id;
                     return (
@@ -1541,13 +1541,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         key={s.id}
                         type="button"
                         onClick={() => handleSubjectChange(s.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        className={`px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                           isSelected
-                            ? 'bg-purple-600 text-white shadow-md shadow-purple-900/30 scale-105'
-                            : 'bg-white dark:bg-white/[0.05] text-slate-700 dark:text-white/80 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:text-purple-600 dark:hover:text-purple-300 border border-slate-200 dark:border-white/10'
+                            ? 'bg-purple-600 text-white shadow-xl shadow-purple-900/40 scale-105 ring-2 ring-purple-500/40'
+                            : 'bg-white dark:bg-white/[0.05] text-slate-300 dark:text-white/80 hover:bg-purple-950/30 hover:text-purple-300 border border-slate-200 dark:border-white/10'
                         }`}
                       >
-                        <span>{s.icon}</span>
+                        <span className="text-base">{s.icon}</span>
                         <span>{s.label}</span>
                       </button>
                     );
@@ -1556,11 +1556,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Nhóm 2: 7 Môn Tự Chọn */}
-              <div className="p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 flex items-center gap-1.5">
+              <div className="p-4 sm:p-5 rounded-3xl liquid-glass border border-white/10 space-y-3">
+                <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-pink-400 flex items-center gap-2">
                   <span>🎨 7 Môn Học Tự Chọn (Chuẩn Cấp 3):</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {CAP3_ELECTIVE_SUBJECTS.map((s) => {
                     const isSelected = selectedSubject === s.id;
                     return (
@@ -1568,13 +1568,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         key={s.id}
                         type="button"
                         onClick={() => handleSubjectChange(s.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        className={`px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                           isSelected
-                            ? 'bg-pink-600 text-white shadow-md shadow-pink-900/30 scale-105'
-                            : 'bg-white dark:bg-white/[0.05] text-slate-700 dark:text-white/80 hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-300 border border-slate-200 dark:border-white/10'
+                            ? 'bg-pink-600 text-white shadow-xl shadow-pink-900/40 scale-105 ring-2 ring-pink-500/40'
+                            : 'bg-white dark:bg-white/[0.05] text-slate-300 dark:text-white/80 hover:bg-pink-950/30 hover:text-pink-300 border border-slate-200 dark:border-white/10'
                         }`}
                       >
-                        <span>{s.icon}</span>
+                        <span className="text-base">{s.icon}</span>
                         <span>{s.label}</span>
                       </button>
                     );
@@ -1583,7 +1583,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {(selectedEducationLevel === 'CAP_2' ? CAP2_SUBJECT_OPTIONS : ALL_SUBJECT_OPTIONS).map((s) => {
                 const isSelected = selectedSubject === s.id;
                 return (
@@ -1591,13 +1591,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     key={s.id}
                     type="button"
                     onClick={() => handleSubjectChange(s.id)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                       isSelected
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-105'
-                        : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-white/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                        ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40 scale-105 ring-2 ring-emerald-500/40'
+                        : 'bg-slate-100 dark:bg-white/[0.04] text-slate-300 dark:text-white/80 hover:bg-emerald-950/20 hover:text-emerald-300 border border-slate-200 dark:border-white/10'
                     }`}
                   >
-                    <span>{s.icon}</span>
+                    <span className="text-base">{s.icon}</span>
                     <span>{s.label}</span>
                   </button>
                 );
@@ -1607,21 +1607,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 4. TỪ KHÓA MÔ TẢ */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-              <Search className="w-4 h-4 text-purple-500" />
+            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
+              <Search className="w-5 h-5 text-purple-400" />
               <span>4. Tìm Kiếm & Từ Khóa Nội Dung</span>
             </label>
             {descriptionKeyword && (
-              <span className="text-[11px] text-purple-500 dark:text-purple-400">
+              <span className="text-xs sm:text-sm text-purple-400 font-bold">
                 Đang tìm: "{descriptionKeyword}"
               </span>
             )}
           </div>
 
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-400" />
+            <Search className="w-5 h-5 absolute left-4 top-4 text-slate-400" />
             <input
               type="text"
               value={descriptionKeyword}
@@ -1630,7 +1630,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 fetchDocuments(selectedGrade, selectedExamType, selectedSubject, e.target.value);
               }}
               placeholder="VD: hàm số mũ, wordform, quy hoạch động, phân tích thơ, đề có lời giải, chuyên KHTN..."
-              className="w-full pl-11 pr-10 py-3 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-white/30"
+              className="w-full pl-12 pr-12 py-3.5 sm:py-4 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm sm:text-base focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-white/35 font-medium"
             />
             {descriptionKeyword && (
               <button
@@ -1639,7 +1639,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   setDescriptionKeyword('');
                   fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
                 }}
-                className="absolute right-3.5 top-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 title="Xóa nội dung"
               >
                 <X className="w-4 h-4" />
@@ -1648,12 +1648,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Gợi Ý Nhanh 1 Chạm */}
-          <div className="space-y-1.5 pt-1">
-            <div className="text-[11px] font-semibold text-slate-400 dark:text-white/40 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-pink-400" />
+          <div className="space-y-2 pt-1">
+            <div className="text-xs font-semibold text-slate-400 dark:text-white/50 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
               <span>Gợi ý từ khóa nhanh (bấm để lọc ngay):</span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {QUICK_KEYWORD_TAGS.map((tag) => (
                 <button
                   key={tag}
@@ -1662,7 +1662,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     setDescriptionKeyword(tag);
                     fetchDocuments(selectedGrade, selectedExamType, selectedSubject, tag);
                   }}
-                  className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                  className="text-xs sm:text-sm font-bold px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                 >
                   <span>+ {tag}</span>
                 </button>
@@ -1672,22 +1672,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* NÚT THAO TÁC */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+        <div className="pt-3 flex flex-col sm:flex-row items-center gap-4">
           {showRollButton && (
             <button
               type="button"
               onClick={handlePickRandomExam}
               disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-xl shadow-purple-900/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-4.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-base sm:text-lg shadow-2xl shadow-purple-900/40 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2.5"
             >
               {isLoadingExam ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <RefreshCw className="w-5 h-5 animate-spin" />
                   <span>Bot Đang Bốc Đề...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                  <Sparkles className="w-5 h-5 text-yellow-300" />
                   <span>🎲 Bốc Ngẫu Nhiên 1 Đề Thi</span>
                 </>
               )}
@@ -1696,9 +1696,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <button
             type="submit"
-            className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-7 sm:px-8 py-4 sm:py-4.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-black text-base transition-all cursor-pointer flex items-center justify-center gap-2.5"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-5 h-5" />
             <span>Lọc Danh Sách Đề</span>
           </button>
         </div>
@@ -1716,43 +1716,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
       {/* ========================================================================= */}
       {/* ========================================================================= */}
-      {/* MOBILE APP HEADER (Độc lập của Hub, không vướng navbar trang chủ)           */}
+      {/* MOBILE APP HEADER (Độc lập của Hub, kích thước to rõ ràng)                 */}
       {/* ========================================================================= */}
       <div className="lg:hidden w-full sticky top-0 z-40 bg-[#070812]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg">
-        <div className="px-3.5 py-2.5 flex items-center justify-between gap-3 border-b border-white/[0.06]">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-white/[0.06]">
           <button
             type="button"
             onClick={onBackToHome}
-            className="flex items-center gap-2 group cursor-pointer text-left"
+            className="flex items-center gap-2.5 group cursor-pointer text-left"
           >
-            <img src="/logo.png" alt="HyperHub Logo" className="w-7 h-7 rounded-lg object-cover ring-1 ring-white/10" />
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm text-white">HyperHub</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
+            <img src="/logo.png" alt="HyperHub Logo" className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10" />
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-base text-white">HyperHub</span>
+              <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
             </div>
           </button>
 
           <button
             type="button"
             onClick={onBackToHome}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.05] hover:bg-white/10 border border-white/10 flex items-center gap-1 cursor-pointer transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/10 border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Về Trang Chủ</span>
           </button>
         </div>
 
         {/* Mobile Tab Pills */}
-        <div className="px-3 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <div className="px-3.5 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => handleTabChange('overview')}
-            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
               activeTab === 'overview'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
                 : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+            <LayoutDashboard className="w-4 h-4 shrink-0" />
             <span>Trang chính</span>
           </button>
 
@@ -1761,15 +1761,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
               handleTabChange('vault');
               setShowBookmarksOnly(false);
             }}
-            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
               activeTab === 'vault' && !showBookmarksOnly
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
                 : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <BookOpen className="w-4 h-4 text-purple-400 shrink-0" />
             <span>Kho Đề</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
               {totalDocsCount}
             </span>
           </button>
@@ -1779,42 +1779,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
               handleTabChange('vault');
               setShowBookmarksOnly(true);
             }}
-            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
               activeTab === 'vault' && showBookmarksOnly
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-sm'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-md'
                 : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+            <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
             <span>Tủ Sách</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
               {bookmarkedIds.size}
             </span>
           </button>
 
           <button
             onClick={() => handleTabChange('get_exam')}
-            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
               activeTab === 'get_exam'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
                 : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <Dices className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+            <Dices className="w-4 h-4 text-pink-400 shrink-0" />
             <span>Lấy Đề</span>
           </button>
 
           <button
             onClick={() => handleTabChange('submit_doc')}
-            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
               activeTab === 'submit_doc'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
                 : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <UploadCloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <UploadCloud className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Kho Nộp Đề</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
               Bot AI
             </span>
           </button>
@@ -1823,13 +1823,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {(isAdmin || readCachedAdmin()) && (
             <button
               onClick={() => handleTabChange('admin')}
-              className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
                 activeTab === 'admin'
-                  ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-sm font-bold'
+                  ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md'
                   : 'text-rose-400 hover:text-rose-300 bg-rose-500/10'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Quản Trị</span>
             </button>
           )}
@@ -1837,40 +1837,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP SIDEBAR (Full Height h-screen, Top 0, Tách biệt hoàn toàn)         */}
+      {/* DESKTOP SIDEBAR (Rộng rãi lg:w-72 xl:w-80, Kích thước to rõ ràng)          */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-60 sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-3 z-30 overflow-hidden shadow-2xl">
+      <aside className="hidden lg:flex lg:w-72 xl:w-80 sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 overflow-hidden shadow-2xl">
         {/* Top: Section Header & Nav items */}
-        <div className="space-y-2 flex-1 min-h-0 flex flex-col">
+        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
           {/* Hub Workspace Brand & Back to Home */}
-          <div className="flex items-center justify-between pb-3 mb-1 border-b border-white/[0.08]">
+          <div className="flex items-center justify-between pb-3.5 mb-1 border-b border-white/[0.08]">
             <button
               type="button"
               onClick={onBackToHome}
-              className="flex items-center gap-2.5 group cursor-pointer text-left"
+              className="flex items-center gap-3 group cursor-pointer text-left"
               title="Quay lại Trang Chủ"
             >
               <img
                 src="/logo.png"
                 alt="HyperHub Logo"
-                className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all"
+                className="w-10 h-10 rounded-2xl object-cover ring-2 ring-white/10 group-hover:ring-purple-500/60 transition-all shadow-md"
               />
               <div>
-                <div className="text-sm font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1">
+                <div className="text-base sm:text-lg font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
                   <span>HyperHub</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_#ec4899] animate-pulse" />
                 </div>
-                <div className="text-[10px] text-white/40 font-mono">Bảng Điều Khiển</div>
+                <div className="text-xs text-purple-300/80 font-mono font-medium">Bảng Điều Khiển Học Thuật</div>
               </div>
             </button>
 
             <button
               type="button"
               onClick={onBackToHome}
-              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
               title="Về Trang Chủ"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
           </div>
 
@@ -1878,37 +1878,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <button
             type="button"
             onClick={onBackToHome}
-            className="w-full px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white/60 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-between transition-all cursor-pointer group mb-1"
+            className="w-full px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white/70 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-between transition-all cursor-pointer group mb-1 shadow-sm"
           >
-            <span className="flex items-center gap-1.5">
-              <Home className="w-3.5 h-3.5 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
-              <span>Về Trang Chủ</span>
+            <span className="flex items-center gap-2">
+              <Home className="w-4 h-4 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Về Trang Chủ HyperHub</span>
             </span>
-            <span className="text-[10px] text-white/30 font-mono">← Home</span>
+            <span className="text-xs text-white/40 font-mono">← Home</span>
           </button>
 
           {/* Nav Section Title */}
-          <div className="flex items-center justify-between px-1.5 pt-1 pb-0.5">
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-              Chức năng
+          <div className="flex items-center justify-between px-2 pt-2 pb-1">
+            <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
+              Không gian làm việc
             </span>
-            <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Turso Live
+            <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Turso Cloud Live
             </span>
           </div>
 
-          {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
-          <nav className="flex flex-col gap-1 overflow-y-auto no-scrollbar flex-1 py-0.5">
+          {/* Navigation Sidebar Buttons (To rõ, dễ nhìn, font lớn) */}
+          <nav className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar flex-1 py-1">
             <button
               onClick={() => handleTabChange('overview')}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
-                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <LayoutDashboard className="w-5 h-5 shrink-0" />
               <span>Trang chính</span>
             </button>
 
@@ -1917,15 +1917,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 handleTabChange('vault');
                 setShowBookmarksOnly(false);
               }}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && !showBookmarksOnly
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
-                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5 shrink-0" />
-              <span>Kho Đề</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+              <BookOpen className="w-5 h-5 shrink-0" />
+              <span>Kho Đề Thi</span>
+              <span className="ml-auto text-xs px-2.5 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 font-black border border-pink-500/30">
                 {totalDocsCount} Đề
               </span>
             </button>
@@ -1935,42 +1935,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 handleTabChange('vault');
                 setShowBookmarksOnly(true);
               }}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'vault' && showBookmarksOnly
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/20'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
-              <span>Tủ Sách</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+              <Star className={`w-5 h-5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+              <span>Tủ Sách Cá Nhân</span>
+              <span className="ml-auto text-xs px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-black border border-amber-500/30">
                 {bookmarkedIds.size}
               </span>
             </button>
 
             <button
               onClick={() => handleTabChange('get_exam')}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'get_exam'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
-                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <Dices className="w-3.5 h-3.5 shrink-0" />
-              <span>Lấy Đề</span>
+              <Dices className="w-5 h-5 shrink-0 text-pink-400" />
+              <span>Lấy Đề Nhanh</span>
             </button>
 
             <button
               onClick={() => handleTabChange('submit_doc')}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                 activeTab === 'submit_doc'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30 font-bold'
-                  : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
               }`}
             >
-              <UploadCloud className="w-3.5 h-3.5 shrink-0" />
+              <UploadCloud className="w-5 h-5 shrink-0 text-emerald-400" />
               <span>Kho Nộp Đề</span>
-              <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+              <span className="ml-auto text-xs px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                 Bot AI
               </span>
             </button>
@@ -1979,93 +1979,86 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(isAdmin || readCachedAdmin()) && (
               <button
                 onClick={() => handleTabChange('admin')}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md shadow-rose-900/30 font-bold'
+                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30'
                     : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                <span>Quản Trị</span>
+                <ShieldCheck className="w-5 h-5 shrink-0 text-amber-400" />
+                <span>Quản Trị Hệ Thống</span>
                 {hasSystemUpdate && (
-                  <span className="animate-pulse px-1 py-0.2 rounded-md bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
+                  <span className="animate-pulse px-1.5 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-black uppercase tracking-wider">
                     Update
                   </span>
                 )}
-                <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                <span className="ml-auto text-xs px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
                   {adminInfo?.role_name || 'ADMIN'}
                 </span>
               </button>
             )}
-
-            <button
-              onClick={onBackToHome}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer mt-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
-              <span>Về Trang Chủ</span>
-            </button>
           </nav>
         </div>
 
-        {/* Bottom: Discord User Profile Card (Gọn nhẹ, luôn hiện, không bao giờ phải cuộn) */}
-        <div className="pt-2 mt-auto border-t border-white/10 shrink-0">
+        {/* Bottom: Discord User Profile Card (To rõ, dễ thao tác) */}
+        <div className="pt-3 mt-auto border-t border-white/[0.08] shrink-0">
           {user ? (
-            <div className="p-2 rounded-xl liquid-glass border border-white/10 space-y-1.5">
-              <div className="flex items-center gap-2">
+            <div className="p-3 sm:p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
+              <div className="flex items-center gap-2.5">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-purple-500/30 shrink-0"
+                  className="w-9 h-9 rounded-xl object-cover ring-2 ring-purple-500/40 shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src =
                       'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
                 />
                 <div className="overflow-hidden flex-1 min-w-0">
-                  <div className="font-bold text-xs truncate text-white leading-tight">
+                  <div className="font-bold text-sm truncate text-white leading-tight">
                     {user.global_name || user.username}
                   </div>
-                  <div className="text-[10px] text-white/40 truncate">
+                  <div className="text-xs text-white/50 truncate">
                     @{user.username}
                   </div>
                 </div>
               </div>
 
               {/* Status & Logout */}
-              <div className="flex items-center justify-between text-[10px] pt-0.5">
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-white/[0.06]">
                 {user.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
-                    <CheckCircle2 className="w-3 h-3 shrink-0" />
-                    <span>Xác minh</span>
+                  <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>Đã xác minh</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-rose-400 font-medium">
-                    <XCircle className="w-3 h-3 shrink-0" />
+                  <span className="inline-flex items-center gap-1.5 text-rose-400 font-semibold">
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>Chưa xác minh</span>
                   </span>
                 )}
 
                 <button
                   onClick={onLogout}
-                  className="flex items-center gap-1 text-[10px] text-white/50 hover:text-rose-400 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-xs text-white/60 hover:text-rose-400 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-white/[0.05]"
                   title="Đăng xuất tài khoản"
                 >
-                  <LogOut className="w-3 h-3" />
-                  <span>Thoát</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Đăng xuất</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-2 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1">
-              <div className="text-[10px] text-white/70">
-                Chưa liên kết Discord
+            <div className="p-3.5 rounded-2xl liquid-glass border border-[#5865F2]/40 text-center space-y-2 shadow-lg">
+              <div className="text-xs text-white/80 font-medium">
+                Khách vãng lai • Chưa kết nối
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-1 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                Liên Kết Ngay
+                <UserCheck className="w-4 h-4" />
+                <span>Liên Kết Discord Ngay</span>
               </button>
             </div>
           )}
@@ -2075,13 +2068,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 min-w-0 p-4 sm:p-8 lg:p-10 xl:p-12 max-w-[1680px] mx-auto w-full">
         {/* Workspace Top Command Bar (Desktop: Độc lập, không dùng chung mẫu Landing) */}
-        <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2 text-xs">
+        <div className="hidden lg:flex items-center justify-between pb-5 mb-8 border-b border-white/[0.08]">
+          <div className="flex items-center gap-2.5 text-sm font-semibold">
             <span className="text-white/40">HyperHub</span>
             <span className="text-white/20">/</span>
-            <span className="font-bold text-white flex items-center gap-1.5">
+            <span className="font-extrabold text-white flex items-center gap-2 text-base">
               {activeTab === 'overview' && 'Trang chính'}
               {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ Sách Yêu Thích' : 'Kho Đề Thi')}
               {activeTab === 'get_exam' && 'Bốc Đề Nhanh'}
@@ -2090,10 +2083,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] font-mono text-white/60">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Turso Cloud // {totalDocsCount || 179} Đề</span>
+          <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-white/70">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+              <span className="font-bold">Turso Cloud // {totalDocsCount || 179} Đề</span>
             </div>
 
             <button
@@ -2102,31 +2095,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 sound.playClick();
                 setIsCommandPaletteOpen(true);
               }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/60 hover:text-white text-xs transition-all cursor-pointer shadow-sm group"
+              className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.09] text-white/70 hover:text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-sm group"
             >
-              <Search className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+              <Search className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
               <span>Tìm kiếm nhanh...</span>
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white/10 rounded border border-white/10 text-white/40">Ctrl K</kbd>
+              <kbd className="px-2 py-0.5 text-xs font-mono bg-white/10 rounded-md border border-white/15 text-white/50">Ctrl K</kbd>
             </button>
           </div>
         </div>
         {/* Banner Thông Báo Bản Cập Nhật GitHub Dành Cho Admin */}
         {hasSystemUpdate && activeTab !== 'admin' && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-950/20">
-            <div className="flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 text-base">🚀</span>
+          <div className="mb-8 p-5 rounded-3xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-amber-950/20">
+            <div className="flex items-center gap-3.5">
+              <span className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 text-lg">🚀</span>
               <div>
-                <div className="text-xs sm:text-sm font-bold text-amber-300">
+                <div className="text-sm sm:text-base font-black text-amber-300">
                   Phát hiện bản cập nhật mới trên GitHub!
                 </div>
-                <div className="text-[11px] text-slate-300 dark:text-white/70">
+                <div className="text-xs sm:text-sm text-slate-300 dark:text-white/70">
                   Mã nguồn mới đã sẵn sàng. Bạn có thể cài đặt và nạp lại hệ thống chỉ với 1 cú click.
                 </div>
               </div>
             </div>
             <button
               onClick={() => setActiveTab('admin')}
-              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs cursor-pointer shadow-md shadow-amber-950/40 shrink-0"
+              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs sm:text-sm cursor-pointer shadow-lg shadow-amber-950/40 shrink-0"
             >
               Mở Hub Cập Nhật (1-Click)
             </button>
@@ -2134,31 +2127,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
 
         {activeTab === 'overview' && (
-          <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+          <div className="space-y-8 sm:space-y-10 animate-in fade-in duration-300">
             {/* Header Greeting */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
               <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 mb-2.5">
-                  <Sparkles className="w-3.5 h-3.5 text-pink-500" />
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-3 shadow-xs">
+                  <Sparkles className="w-4 h-4 text-pink-400" />
                   <span>Hệ Thống Quản Trị Học Thuật & Phát Đề</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                   Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
                   Bảng điều khiển kết nối trực tiếp với Discord Bot HyperHub và kho lưu trữ đề thi tự động.
                 </p>
               </div>
 
               {/* Quick Utility Actions */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsCommandPaletteOpen(true)}
-                  className="ux-btn-liquid px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-white/80 hover:text-purple-500 flex items-center gap-1.5 cursor-pointer"
+                  className="ux-btn-liquid px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-200 dark:text-white/90 hover:text-purple-400 flex items-center gap-2 cursor-pointer"
                   title="Mở thanh tìm kiếm siêu tốc (Ctrl+K)"
                 >
-                  <Search className="w-3.5 h-3.5 text-purple-400" />
+                  <Search className="w-4 h-4 text-purple-400" />
                   <span>Tìm kiếm (Ctrl+K)</span>
                 </button>
                 <button
@@ -2169,7 +2162,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     fetchDocuments();
                     showInfo('Đang làm mới dữ liệu...');
                   }}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-white/60 transition-colors cursor-pointer"
+                  className="p-2.5 rounded-2xl border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
                   title="Làm mới trạng thái"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -2178,20 +2171,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Quick Action Toolbar (Lucian UX/UI Micro-Interactions) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => setActiveTab('get_exam')}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Dices className="w-4 h-4" />
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                  <Dices className="w-6 h-6" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-400 transition-colors truncate">
+                  <div className="text-sm sm:text-base font-black text-white group-hover:text-purple-300 transition-colors truncate">
                     Bốc Đề Nhanh
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
                     Bốc ngẫu nhiên theo môn
                   </div>
                 </div>
@@ -2203,16 +2196,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   setActiveTab('vault');
                   setShowBookmarksOnly(false);
                 }}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-xl bg-pink-500/15 text-pink-500 dark:text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <BookOpen className="w-4 h-4" />
+                <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                  <BookOpen className="w-6 h-6" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-pink-400 transition-colors truncate">
+                  <div className="text-sm sm:text-base font-black text-white group-hover:text-pink-300 transition-colors truncate">
                     Mở Kho Đề Thi
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
                     {totalDocsCount} đề thi có sẵn
                   </div>
                 </div>
@@ -2221,16 +2214,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('submit_doc')}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <UploadCloud className="w-4 h-4" />
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                  <UploadCloud className="w-6 h-6" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-400 transition-colors truncate">
+                  <div className="text-sm sm:text-base font-black text-white group-hover:text-blue-300 transition-colors truncate">
                     Nộp Đề Mới
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
                     AI thẩm định tức thì
                   </div>
                 </div>
@@ -2242,16 +2235,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   setActiveTab('vault');
                   setShowBookmarksOnly(true);
                 }}
-                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Star className="w-4 h-4 fill-amber-400/30" />
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                  <Star className="w-6 h-6 fill-amber-400/30" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-400 transition-colors truncate">
+                  <div className="text-sm sm:text-base font-black text-white group-hover:text-amber-300 transition-colors truncate">
                     Tủ Sách Yêu Thích
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
                     {bookmarkedIds.size} đề đã đánh dấu
                   </div>
                 </div>
@@ -2259,42 +2252,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Status Grid Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {/* Card 1: Discord Bot Live Status */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
-                      <Bot className="w-5 h-5" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shadow-inner">
+                      <Bot className="w-6 h-6" />
                     </div>
                     <span
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 ${
                         botStatus.online
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
                       }`}
                     >
                       <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          botStatus.online ? 'bg-emerald-500 shadow-[0_0_6px_#10b981]' : 'bg-rose-500'
+                        className={`w-2 h-2 rounded-full ${
+                          botStatus.online ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
                         }`}
                       />
                       {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
+                  <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
                     Bot Discord HyperHub
                   </h3>
-                  <p className="text-xs text-white/50 mb-3">
+                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
                     {botStatus.online
                       ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
                       : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
                   </p>
                 </div>
-                <div className="text-[11px] font-mono text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                <div className="text-xs font-mono text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
                   <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
                   {botStatus.online && (
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="text-emerald-400 font-bold flex items-center gap-1.5">
                       ● Live
                     </span>
                   )}
@@ -2302,32 +2295,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Card 2: Kho Tài Liệu */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shadow-inner">
+                      <BookOpen className="w-6 h-6" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                    <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
                       Đã Thẩm Định
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-300 dark:text-white/70 mb-1">
                     Kho Đề Thi Sẵn Sàng
                   </h3>
-                  <div className="text-2xl sm:text-3xl font-black text-white mb-2">
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2.5">
                     {totalDocsCount} Đề
                   </div>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
                     Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
                   </p>
                 </div>
-                <div className="text-[11px] text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                <div className="text-xs text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
                   <span>Độc bản: {stats.unique_items || 0}</span>
                   <button
                     type="button"
                     onClick={() => setActiveTab('vault')}
-                    className="text-pink-400 hover:text-pink-300 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm"
                   >
                     Xem kho →
                   </button>
@@ -2335,44 +2328,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Card 3: Tài Khoản Liên Kết */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center">
-                      <UserCheck className="w-5 h-5" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center shadow-inner">
+                      <UserCheck className="w-6 h-6" />
                     </div>
                     {user ? (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                         Đã Kết Nối
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                         Chưa Kết Nối
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
+                  <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
                     Xác Thực Discord
                   </h3>
-                  <p className="text-xs text-white/50 mb-3">
+                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
                     {user
                       ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
                       : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
                   </p>
                 </div>
-                <div className="pt-2.5 border-t border-white/10">
+                <div className="pt-3 border-t border-white/10">
                   {!user ? (
                     <button
                       type="button"
                       onClick={onOpenAuthModal}
-                      className="w-full py-2 px-3 rounded-xl bg-[#5865F2] text-white text-xs font-semibold hover:bg-[#4752c4] transition-colors cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-[#5865F2] text-white text-xs sm:text-sm font-bold hover:bg-[#4752c4] transition-colors cursor-pointer"
                     >
                       Liên Kết Ngay
                     </button>
                   ) : (
-                    <div className="text-[11px] text-emerald-400 font-semibold flex items-center justify-between">
+                    <div className="text-xs sm:text-sm text-emerald-400 font-bold flex items-center justify-between">
                       <span>Đủ điều kiện nhận đề thi tự động</span>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="w-4 h-4" />
                     </div>
                   )}
                 </div>
@@ -2380,17 +2373,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Recent Exams Feed */}
-            <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg space-y-4">
+            <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/10 shadow-xl space-y-5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
-                    <FileText className="w-4 h-4" />
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                    <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    <h3 className="font-black text-base sm:text-lg text-white">
                       Đề Thi Mới Nhất Vừa Cập Nhật
                     </h3>
-                    <p className="text-[11px] text-slate-400 dark:text-white/50">
+                    <p className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
                       Top 5 đề thi mới nhất được thẩm định tự động từ Discord
                     </p>
                   </div>
@@ -2399,19 +2392,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('vault')}
-                  className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-500 flex items-center gap-1 cursor-pointer"
+                  className="text-xs sm:text-sm font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Xem tất cả ({documentsList.length})</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
               {documentsList.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400 dark:text-white/40">
+                <div className="py-10 text-center text-sm text-slate-400 dark:text-white/40">
                   {isLoadingDocs ? 'Đang tải danh sách đề thi...' : 'Chưa có tài liệu nào trong kho.'}
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {documentsList.slice(0, 5).map((doc) => {
                     const isBookmarked = bookmarkedIds.has(doc.id);
                     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
@@ -2421,25 +2414,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={doc.id}
-                        className="p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.015] hover:bg-slate-100/70 dark:hover:bg-white/[0.04] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                        className="p-4 sm:p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                       >
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30">
                               {doc.subject}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${eduBadge.badgeClass}`}>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${eduBadge.badgeClass}`}>
                               <span>{eduBadge.shortLabel}</span>
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${trackInfo.badgeClass}`}>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${trackInfo.badgeClass}`}>
                               <span>{trackInfo.label}</span>
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${gradeStyle.badgeClass}`}>
-                              <span className={`w-1 h-1 rounded-full ${gradeStyle.dotColor}`} />
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
                               <span>{gradeStyle.label}</span>
                             </span>
                             {doc.academic_year && (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                                 📅 {doc.academic_year}
                               </span>
                             )}
@@ -2450,14 +2443,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               setSelectedDossierDoc(doc);
                               setIsDossierOpen(true);
                             }}
-                            className="font-bold text-xs sm:text-sm text-slate-800 dark:text-white/90 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-1 cursor-pointer"
+                            className="font-bold text-sm sm:text-base text-white group-hover:text-purple-300 transition-colors line-clamp-1 cursor-pointer"
                           >
                             {doc.title || doc.file_name}
                           </h4>
 
-                          <div className="flex items-center gap-3 text-[10px] text-slate-400 dark:text-white/40">
+                          <div className="flex items-center gap-3.5 text-xs text-slate-400 dark:text-white/50">
                             {doc.school_or_department && (
-                              <span className="truncate max-w-[200px]">🏫 {doc.school_or_department}</span>
+                              <span className="truncate max-w-[240px]">🏫 {doc.school_or_department}</span>
                             )}
                             <span>{formatFileSize(doc.file_size_bytes)}</span>
                             {doc.page_count ? <span>{doc.page_count} trang</span> : null}
@@ -2465,17 +2458,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                           <button
                             type="button"
                             onClick={() => {
                               setSelectedDossierDoc(doc);
                               setIsDossierOpen(true);
                             }}
-                            className="p-2 rounded-lg text-slate-500 hover:text-purple-500 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                            className="p-2.5 rounded-xl text-slate-300 hover:text-purple-300 hover:bg-purple-500/15 transition-colors cursor-pointer"
                             title="Xem chi tiết hồ sơ đề thi"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-4 h-4" />
                           </button>
 
                           <button
@@ -2494,14 +2487,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 showInfo('Đã bỏ lưu đề thi.');
                               }
                             }}
-                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                            className={`p-2.5 rounded-xl transition-colors cursor-pointer ${
                               isBookmarked
-                                ? 'text-amber-400 bg-amber-400/10'
-                                : 'text-slate-400 hover:text-amber-400 hover:bg-amber-400/10'
+                                ? 'text-amber-400 bg-amber-400/15'
+                                : 'text-slate-400 hover:text-amber-400 hover:bg-amber-400/15'
                             }`}
                             title={isBookmarked ? 'Bỏ lưu đề thi' : 'Lưu vào Tủ Sách'}
                           >
-                            <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400' : ''}`} />
+                            <Star className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
                           </button>
 
                           {(doc.download_url || doc.jump_url) && (
@@ -2509,10 +2502,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               href={getSafeExternalUrl(doc.download_url || doc.jump_url)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                              className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors shadow-sm"
                               title="Tải tệp đề thi"
                             >
-                              <Download className="w-3 h-3" />
+                              <Download className="w-3.5 h-3.5" />
                               <span>Tải về</span>
                             </a>
                           )}
@@ -2533,27 +2526,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 mb-3">
-                <Dices className="w-3.5 h-3.5 text-purple-500" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-3 shadow-xs">
+                <Dices className="w-4 h-4 text-purple-400" />
                 <span>Trạm Phát Đề Tự Động</span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                 Lấy Đề Thi Ngẫu Nhiên
               </h1>
-              <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1">
+              <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
                 Chọn khối lớp, môn học và nhấn nút "🎲 Bốc Ngẫu Nhiên 1 Đề Thi" để Bot bốc đề thi thích hợp nhất cho bạn từ kho dữ liệu.
               </p>
             </div>
 
             {/* 1. Bot Offline Warning Barrier */}
             {!botStatus.online && (
-              <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-4 text-rose-600 dark:text-rose-400">
-                <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm sm:text-base">
+              <div className="p-6 sm:p-7 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-4 text-rose-300 shadow-lg">
+                <AlertTriangle className="w-7 h-7 shrink-0 mt-0.5 text-rose-400" />
+                <div className="space-y-2">
+                  <h4 className="font-black text-base sm:text-lg text-rose-200">
                     DISCORD BOT HIỆN ĐANG KHÔNG HOẠT ĐỘNG (OFFLINE)
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70">
+                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/75 leading-relaxed">
                     Bot đang ngoại tuyến nên tính năng bốc đề tạm dừng. Bạn vẫn xem kho đề
                     và nộp đề mới bình thường — đề nộp lúc này được lưu tạm và tự gửi khi
                     bot hoạt động trở lại.
@@ -2561,9 +2554,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="pt-2">
                     <button
                       onClick={checkBotStatus}
-                      className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-500 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs sm:text-sm hover:bg-rose-500 transition-colors flex items-center gap-2 cursor-pointer shadow-md"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className="w-4 h-4" />
                       <span>Thử Kiểm Tra Lại Trạng Thái Bot</span>
                     </button>
                   </div>
@@ -2573,9 +2566,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Bot vừa bật lại: báo đã tự nhận diện + đồng bộ */}
             {justReconnected && botStatus.online && (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <p className="text-xs sm:text-sm font-semibold">
+              <div className="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-300 shadow-md">
+                <CheckCircle2 className="w-6 h-6 shrink-0 text-emerald-400" />
+                <p className="text-xs sm:text-sm font-bold">
                   Bot đã online trở lại — danh sách đề và kho lưu tạm đang tự đồng bộ.
                 </p>
               </div>
@@ -2583,20 +2576,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 2. User Unverified Email Warning Barrier */}
             {(!user || !user.verified) && (
-              <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
-                <div className="space-y-2">
-                  <h4 className="font-bold text-sm sm:text-base">
+              <div className="p-6 sm:p-7 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-300 shadow-lg">
+                <AlertTriangle className="w-7 h-7 shrink-0 mt-0.5 text-amber-400" />
+                <div className="space-y-2.5">
+                  <h4 className="font-black text-base sm:text-lg text-amber-200">
                     BỐC ĐỀ CẦN TÀI KHOẢN DISCORD ĐÃ XÁC MINH EMAIL
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60">
+                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
                     {!user
                       ? 'Xem kho đề và nộp đề mới thì không cần đăng nhập. Chỉ khi bốc đề làm bài mới cần liên kết Discord đã verify email.'
                       : 'Xem và nộp đề không cần verify. Chỉ khi bốc đề làm bài mới cần email Discord đã xác minh.'}
                   </p>
                   <button
                     onClick={onOpenAuthModal}
-                    className="py-2 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                    className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm transition-colors cursor-pointer shadow-md"
                   >
                     {!user ? 'Liên Kết Discord Ngay' : 'Xác Minh / Đổi Tài Khoản'}
                   </button>
@@ -2609,7 +2602,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
             {currentExam && (
-              <div className="p-6 sm:p-7 rounded-2xl liquid-glass border-2 border-amber-500/40 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
+              <div className="p-6 sm:p-8 rounded-3xl liquid-glass border-2 border-amber-500/40 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40">
@@ -2821,27 +2814,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 mb-3">
-                <BookOpen className="w-3.5 h-3.5 text-pink-500" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30 mb-3 shadow-xs">
+                <BookOpen className="w-4 h-4 text-pink-400" />
                 <span>Kho Lưu Trữ Đề Thi Đã Thẩm Định</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                 <div>
-                  <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white flex flex-wrap items-center gap-3.5">
                     <span>Kho Đề Thi</span>
-                    <span className="text-sm sm:text-base font-bold px-3 py-1 rounded-md bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-900/30">
+                    <span className="text-base sm:text-lg font-black px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30">
                       {stats.total_real} Đề
                     </span>
                   </h1>
-                  <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                  <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
                     Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button
                     onClick={() => setIsCommandPaletteOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm"
                   >
                     <Search className="w-4 h-4 text-purple-400" />
                     <span>Tìm Siêu Tốc (Ctrl+K)</span>
@@ -2849,7 +2842,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   <button
                     onClick={() => handleTabChange('submit_doc')}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-blue-900/40 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                   >
                     <UploadCloud className="w-4 h-4" />
                     <span>+ Nộp Đề Mới Vào Kho</span>
@@ -2859,22 +2852,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Thước Đo Phân Bố Tài Liệu Theo 7 Khối Lớp */}
-            <div className="p-4 sm:p-5 rounded-2xl liquid-glass border border-white/10 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700 dark:text-white/80 flex items-center gap-1.5">
-                  <GraduationCap className="w-4 h-4 text-purple-400" />
+            <div className="p-5 sm:p-7 rounded-3xl liquid-glass border border-white/10 space-y-4 shadow-lg">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-black text-white flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-purple-400" />
                   Phân Bố Tài Liệu 7 Khối Lớp (Đồng Bộ Mã Màu Discord Roles)
                 </span>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-xs text-slate-400 font-mono font-bold">
                   Tổng {documentsList.length} đề thi
                 </span>
               </div>
 
               {/* Multi-segmented visual bar */}
-              <div className="w-full h-3 rounded-md bg-white/5 overflow-hidden flex">
+              <div className="w-full h-4 rounded-xl bg-white/5 overflow-hidden flex shadow-inner">
                 {gradeDistribution['12'] > 0 && (
                   <div
-                    className="h-full bg-red-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-red-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['12'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 12: ${gradeDistribution['12']} đề`}
                     onClick={() => handleGradeChange('GRADE_12')}
@@ -2882,7 +2875,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['11'] > 0 && (
                   <div
-                    className="h-full bg-orange-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-orange-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['11'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 11: ${gradeDistribution['11']} đề`}
                     onClick={() => handleGradeChange('GRADE_11')}
@@ -2890,7 +2883,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['10'] > 0 && (
                   <div
-                    className="h-full bg-amber-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-amber-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['10'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 10: ${gradeDistribution['10']} đề`}
                     onClick={() => handleGradeChange('GRADE_10')}
@@ -2898,7 +2891,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['9'] > 0 && (
                   <div
-                    className="h-full bg-emerald-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-emerald-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['9'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 9: ${gradeDistribution['9']} đề`}
                     onClick={() => handleGradeChange('GRADE_9')}
@@ -2906,7 +2899,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['8'] > 0 && (
                   <div
-                    className="h-full bg-cyan-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-cyan-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['8'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 8: ${gradeDistribution['8']} đề`}
                     onClick={() => handleGradeChange('GRADE_8')}
@@ -2914,7 +2907,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['7'] > 0 && (
                   <div
-                    className="h-full bg-blue-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-blue-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['7'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 7: ${gradeDistribution['7']} đề`}
                     onClick={() => handleGradeChange('GRADE_7')}
@@ -2922,7 +2915,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {gradeDistribution['6'] > 0 && (
                   <div
-                    className="h-full bg-purple-500 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="h-full bg-purple-500 hover:opacity-85 transition-opacity cursor-pointer"
                     style={{ width: `${(gradeDistribution['6'] / Math.max(1, documentsList.length)) * 100}%` }}
                     title={`Lớp 6: ${gradeDistribution['6']} đề`}
                     onClick={() => handleGradeChange('GRADE_6')}
@@ -2931,61 +2924,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Legend labels */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+              <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_12')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 cursor-pointer hover:bg-red-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/15 text-red-300 border border-red-500/30 cursor-pointer hover:bg-red-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
                   <span>Lớp 12 ({gradeDistribution['12']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_11')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 cursor-pointer hover:bg-orange-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/30 cursor-pointer hover:bg-orange-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-orange-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                   <span>Lớp 11 ({gradeDistribution['11']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_10')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-pointer hover:bg-amber-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 cursor-pointer hover:bg-amber-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                   <span>Lớp 10 ({gradeDistribution['10']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_9')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 cursor-pointer hover:bg-emerald-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <span>Lớp 9 ({gradeDistribution['9']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_8')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 cursor-pointer hover:bg-cyan-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
                   <span>Lớp 8 ({gradeDistribution['8']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_7')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-blue-500/15 text-blue-300 border border-blue-500/30 cursor-pointer hover:bg-blue-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                   <span>Lớp 7 ({gradeDistribution['7']})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleGradeChange('GRADE_6')}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 cursor-pointer hover:bg-purple-500/20"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 cursor-pointer hover:bg-purple-500/25 font-bold"
                 >
-                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
                   <span>Lớp 6 ({gradeDistribution['6']})</span>
                 </button>
               </div>
@@ -2997,17 +2990,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* ========================================================================= */}
             {/* DANH SÁCH TẤT CẢ CÁC ĐỀ THI TRONG KHO (FULL CATALOG LIST)                 */}
             {/* ========================================================================= */}
-            <div className="space-y-5 pt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="space-y-6 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 shadow-inner">
                     <BookOpen className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base sm:text-lg">
+                    <h3 className="font-black text-lg sm:text-2xl text-white tracking-tight">
                       {showBookmarksOnly ? '⭐ Tủ Sách Ôn Luyện Của Tôi' : 'Danh Sách Tất Cả Các Đề Thi Trong Kho'}
                     </h3>
-                    <p className="text-xs text-slate-400 dark:text-white/40">
+                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/60 mt-0.5">
                       {showBookmarksOnly
                         ? `Hiển thị ${displayedDocuments.length} đề thi bạn đã đánh dấu ⭐ yêu thích`
                         : `Hiển thị ${displayedDocuments.length} đề thi • ${stats.unique_items} đề độc bản • ${stats.duplicate_items} đề trùng lặp`}
@@ -3016,7 +3009,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Bộ Lọc Trùng Lặp & Tủ Sách (Tất cả, Đề độc bản, Đề trùng lặp, ⭐ Tủ Sách) */}
-                <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 self-start sm:self-auto">
+                <div className="inline-flex p-1.5 rounded-2xl bg-white/[0.05] border border-white/10 self-start sm:self-auto flex-wrap gap-1 shadow-sm">
                   <button
                     type="button"
                     onClick={() => {
@@ -3024,10 +3017,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       setFilterDup('all');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'all');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                       !showBookmarksOnly && filterDup === 'all'
-                        ? 'bg-purple-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-900/40'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Tất Cả ({stats.total_real})
@@ -3039,14 +3032,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       setFilterDup('unique');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'unique');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                       !showBookmarksOnly && filterDup === 'unique'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-300'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40'
+                        : 'text-slate-400 hover:text-emerald-300'
                     }`}
                   >
                     <span>Đề Độc Bản</span>
-                    <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300">
+                    <span className="px-1.5 py-0.5 rounded-md text-xs bg-emerald-500/20 text-emerald-300 font-mono">
                       {stats.unique_items}
                     </span>
                   </button>
@@ -3057,31 +3050,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       setFilterDup('duplicate');
                       fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'duplicate');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                       !showBookmarksOnly && filterDup === 'duplicate'
-                        ? 'bg-amber-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-300'
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-900/40'
+                        : 'text-slate-400 hover:text-amber-300'
                     }`}
                   >
                     <span>Đề Trùng Lặp</span>
-                    <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-amber-500/20 text-amber-300">
+                    <span className="px-1.5 py-0.5 rounded-md text-xs bg-amber-500/20 text-amber-300 font-mono">
                       {stats.duplicate_items}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowBookmarksOnly((prev) => !prev)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                       showBookmarksOnly
-                        ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-300'
+                        ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                        : 'text-slate-400 hover:text-amber-300'
                     }`}
                     title="Xem các đề thi bạn đã bấm ⭐ lưu vào tủ sách cá nhân"
                   >
-                    <Star className={`w-3.5 h-3.5 ${showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+                    <Star className={`w-4 h-4 ${showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
                     <span>Tủ Sách</span>
-                    <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
-                      showBookmarksOnly ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-500 dark:text-amber-300'
+                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-mono font-bold ${
+                      showBookmarksOnly ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
                     }`}>
                       {bookmarkedIds.size}
                     </span>
@@ -3089,14 +3082,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Sắp Xếp Nâng Cao */}
-                <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-3 py-1 rounded-xl">
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                <div className="flex items-center gap-2.5 self-start sm:self-auto bg-white/[0.05] border border-white/10 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-sm">
+                  <span className="text-xs sm:text-sm text-slate-400 font-bold whitespace-nowrap">
                     Sắp xếp:
                   </span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-transparent text-xs font-bold text-slate-800 dark:text-white focus:outline-none cursor-pointer"
+                    className="bg-transparent text-xs sm:text-sm font-extrabold text-white focus:outline-none cursor-pointer"
                   >
                     <option value="newest" className="bg-slate-900 text-white">Mới Nhất</option>
                     <option value="pages" className="bg-slate-900 text-white">Nhiều Trang Nhất</option>
@@ -3115,49 +3108,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   activeAdvancedFilterCount > 0) && (
                   <button
                     onClick={handleResetAllFilters}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer flex items-center gap-1.5 w-fit border border-purple-500/20"
+                    className="text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition-all cursor-pointer flex items-center gap-2 w-fit border border-purple-500/30"
                     title="Khôi phục trạng thái xem toàn bộ kho đề"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
+                    <RefreshCw className="w-4 h-4" />
                     <span>Đặt Lại Bộ Lọc ({stats.total_real} đề)</span>
                   </button>
                 )}
               </div>
 
               {/* BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN BỘ GD&ĐT 2025, ĐÁP ÁN) */}
-              <div className="p-4 sm:p-5 rounded-2xl liquid-glass border border-white/10 space-y-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
+              <div className="p-5 sm:p-7 rounded-3xl liquid-glass border border-white/10 space-y-4 shadow-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-2.5 text-xs sm:text-sm font-black text-white uppercase tracking-wider">
                     <SlidersHorizontal className="w-4 h-4 text-purple-400" />
                     <span>Bộ Lọc Chuyên Sâu (Năm Học, Nguồn Ra Đề, Cấu Trúc 2025 & Đáp Án)</span>
                     {activeAdvancedFilterCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-pink-500 text-white animate-pulse">
+                      <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-pink-500 text-white animate-pulse shadow-sm">
                         {activeAdvancedFilterCount} đang chọn
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
                     <span>Tìm thấy:</span>
-                    <span className="text-white font-bold px-2 py-0.5 rounded-lg bg-white/10 font-mono">
+                    <span className="text-white font-black px-2.5 py-0.5 rounded-lg bg-white/10 font-mono">
                       {displayedDocuments.length} / {documentsList.length} đề
                     </span>
                   </div>
                 </div>
 
                 {/* Hàng 1: Chọn Năm Học & Trường / Sở GD&ĐT Ra Đề */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Lọc Năm Học */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
                       <span>Năm Học Ra Đề:</span>
                     </label>
                     <div className="relative">
                       <select
                         value={selectedAcademicYear}
                         onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs font-medium text-white focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-950/80 border border-white/10 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-indigo-400 cursor-pointer appearance-none"
                       >
                         <option value="ALL">Mọi Năm Học (Toàn bộ)</option>
                         {availableAcademicYears.map(({ year, count }) => (
@@ -3166,23 +3159,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </option>
                         ))}
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 text-xs">
                         ▼
                       </div>
                     </div>
                   </div>
 
                   {/* Lọc Trường / Sở GD&ĐT Ra Đề */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                      <School className="w-3.5 h-3.5 text-violet-400" />
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <School className="w-4 h-4 text-violet-400" />
                       <span>Trường / Sở GD&ĐT Ra Đề:</span>
                     </label>
                     <div className="relative">
                       <select
                         value={selectedSchool}
                         onChange={(e) => setSelectedSchool(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs font-medium text-white focus:outline-none focus:border-violet-500 cursor-pointer appearance-none"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-950/80 border border-white/10 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-violet-400 cursor-pointer appearance-none"
                       >
                         <option value="ALL">Tất Cả Trường & Sở GD&ĐT</option>
                         {availableSchools.map(({ school, count }) => (
@@ -3191,7 +3184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </option>
                         ))}
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 text-xs">
                         ▼
                       </div>
                     </div>
@@ -3199,8 +3192,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Hàng 2: Các Toggle Pills Chuyên Sâu */}
-                <div className="pt-1 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold text-slate-400 shrink-0">
+                <div className="pt-1.5 flex flex-wrap items-center gap-2.5">
+                  <span className="text-xs font-bold text-slate-400 shrink-0">
                     Đặc điểm đề thi:
                   </span>
 
@@ -3208,13 +3201,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setFilterMoet2025((prev) => !prev)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                       filterMoet2025
-                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-900/30 font-black'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-900/40 font-black'
                         : 'bg-white/5 text-slate-300 hover:bg-cyan-950/30 hover:text-cyan-300 border border-white/10'
                     }`}
                   >
-                    <Sparkles className={`w-3.5 h-3.5 ${filterMoet2025 ? 'text-slate-950' : 'text-cyan-400'}`} />
+                    <Sparkles className={`w-4 h-4 ${filterMoet2025 ? 'text-slate-950' : 'text-cyan-400'}`} />
                     <span>✨ Chuẩn Bộ GD&ĐT 2025 (3 Phần)</span>
                   </button>
 
@@ -3222,13 +3215,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setFilterHasAnswers((prev) => !prev)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                       filterHasAnswers
-                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-900/30 font-black'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-900/40 font-black'
                         : 'bg-white/5 text-slate-300 hover:bg-emerald-950/30 hover:text-emerald-300 border border-white/10'
                     }`}
                   >
-                    <FileCheck className={`w-3.5 h-3.5 ${filterHasAnswers ? 'text-slate-950' : 'text-emerald-400'}`} />
+                    <FileCheck className={`w-4 h-4 ${filterHasAnswers ? 'text-slate-950' : 'text-emerald-400'}`} />
                     <span>📝 Có Bảng Đáp Án</span>
                   </button>
 
@@ -3236,13 +3229,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setFilterHasSolutions((prev) => !prev)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                       filterHasSolutions
-                        ? 'bg-purple-500 text-white shadow-md shadow-purple-900/30 font-black'
+                        ? 'bg-purple-500 text-white shadow-md shadow-purple-900/40 font-black'
                         : 'bg-white/5 text-slate-300 hover:bg-purple-950/30 hover:text-purple-300 border border-white/10'
                     }`}
                   >
-                    <Sparkles className={`w-3.5 h-3.5 ${filterHasSolutions ? 'text-white' : 'text-purple-400'}`} />
+                    <Sparkles className={`w-4 h-4 ${filterHasSolutions ? 'text-white' : 'text-purple-400'}`} />
                     <span>💡 Có Lời Giải Chi Tiết</span>
                   </button>
 
@@ -3250,13 +3243,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setFilterHasDiscordLink((prev) => !prev)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                       filterHasDiscordLink
-                        ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/30 font-black'
+                        ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/40 font-black'
                         : 'bg-white/5 text-slate-300 hover:bg-[#5865F2]/20 hover:text-indigo-300 border border-white/10'
                     }`}
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                    <ExternalLink className="w-4 h-4 text-indigo-400" />
                     <span>🚀 Đã Đồng Bộ Kênh Discord</span>
                   </button>
 
@@ -3272,7 +3265,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         setFilterHasSolutions(false);
                         setFilterHasDiscordLink(false);
                       }}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer ml-auto"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 transition-all cursor-pointer ml-auto"
                     >
                       ✕ Bỏ {activeAdvancedFilterCount} bộ lọc
                     </button>
@@ -3329,7 +3322,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : displayedDocuments.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6">
                     {paginatedDocuments.map((doc) => {
                     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
                     const trackInfo = getExamTrackInfo(doc);
@@ -3337,16 +3330,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={doc.id}
-                        className={`p-5 rounded-2xl liquid-glass border transition-all shadow-sm space-y-3.5 flex flex-col justify-between group ${
+                        className={`p-6 sm:p-7 rounded-3xl liquid-glass border transition-all shadow-md space-y-4 flex flex-col justify-between group ${
                           doc.is_duplicate_copy
                             ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-500/70'
                             : 'border-white/10 hover:border-purple-500/50'
                         }`}
                       >
                         {/* Top Badges */}
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                        <div className="flex flex-wrap items-center justify-between gap-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs sm:text-sm font-black px-3 py-1 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30">
                               {doc.subject}
                             </span>
                             {/* Bậc giáo dục: Chung, Cấp 2, Cấp 3 */}
@@ -3354,7 +3347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               const eduBadge = getEducationLevelBadgeInfo(doc);
                               return (
                                 <span
-                                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${eduBadge.badgeClass}`}
+                                  className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-1.5 ${eduBadge.badgeClass}`}
                                 >
                                   <span>{eduBadge.icon}</span>
                                   <span>{eduBadge.shortLabel}</span>
@@ -3362,7 +3355,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               );
                             })()}
                             <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${trackInfo.badgeClass}`}
+                              className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-1.5 ${trackInfo.badgeClass}`}
                               title={`${trackInfo.description} (${trackInfo.difficultyNote})`}
                             >
                               <span>{trackInfo.icon}</span>
@@ -3370,22 +3363,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </span>
                             {/* Khối lớp chuẩn 7 Role Discord Server */}
                             <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}
+                              className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-2 ${gradeStyle.badgeClass}`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
+                              <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
                               <span>{gradeStyle.label}</span>
                             </span>
                             {/* Duplicate badge */}
                             {doc.is_duplicate_copy ? (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 ⚠️ Bản Trùng (#{doc.id})
                               </span>
                             ) : doc.is_duplicate ? (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30">
                                 📌 Bản Gốc
                               </span>
                             ) : (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                                 ✨ Độc Bản
                               </span>
                             )}
@@ -3397,7 +3390,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                   e.stopPropagation();
                                   setSelectedAcademicYear(doc.academic_year || 'ALL');
                                 }}
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 flex items-center gap-1 transition-all cursor-pointer"
+                                className="text-xs font-bold px-2.5 py-1 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 flex items-center gap-1.5 transition-all cursor-pointer"
                                 title={`Lọc nhanh các đề thuộc năm học ${doc.academic_year}`}
                               >
                                 <span>📅</span>
@@ -3412,18 +3405,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                   e.stopPropagation();
                                   setSelectedSchool(doc.school_or_department || 'ALL');
                                 }}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:border-violet-400 flex items-center gap-1 truncate max-w-[170px] transition-all cursor-pointer"
+                                className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:border-violet-400 flex items-center gap-1.5 truncate max-w-[210px] transition-all cursor-pointer"
                                 title={`Lọc nhanh các đề thuộc ${doc.school_or_department}`}
                               >
                                 <span>🏫</span>
                                 <span className="truncate">{doc.school_or_department}</span>
                               </button>
                             )}
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-pink-500/15 text-pink-300 border border-pink-500/30 uppercase font-bold">
+                            <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-pink-500/15 text-pink-300 border border-pink-500/30 uppercase font-black">
                               {doc.file_type || 'PDF'}
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-400 dark:text-white/40 font-mono">
+                          <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50 font-mono">
                             {formatFileSize(doc.file_size_bytes)}
                           </span>
                         </div>
@@ -3434,33 +3427,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             setSelectedDossierDoc(doc);
                             setIsDossierOpen(true);
                           }}
-                          className="cursor-pointer"
+                          className="cursor-pointer space-y-1.5"
                         >
-                          <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
+                          <h4 className="font-black text-base sm:text-lg text-white group-hover:text-purple-300 transition-colors line-clamp-2 leading-relaxed">
                             {doc.title || doc.file_name}
                           </h4>
-                          <div className="text-[11px] text-slate-400 dark:text-white/40 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="text-xs sm:text-sm text-slate-300 dark:text-white/60 flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span>{doc.page_count} trang</span>
                             {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
                             <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
                           </div>
                           {doc.notes && (
-                            <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-300 flex items-start gap-1.5">
-                              <span className="font-bold shrink-0">📝 Ghi chú:</span>
+                            <div className="mt-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
+                              <span className="font-black shrink-0">📝 Ghi chú:</span>
                               <span className="line-clamp-2">{doc.notes}</span>
                             </div>
                           )}
                           {(doc.verdict || doc.exam_track || doc.confidence != null) && (
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
                               {doc.verdict && (
                                 <span
                                   title="Kết quả thẩm định quét kỹ của Bot"
-                                  className={`font-bold px-1.5 py-0.5 rounded-md border ${
+                                  className={`font-black px-2.5 py-1 rounded-xl border ${
                                     doc.verdict === 'XAC_MINH'
-                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                                       : doc.verdict === 'KO_XAC_MINH'
-                                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                   }`}
                                 >
                                   {doc.verdict === 'XAC_MINH'
@@ -3477,7 +3470,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {doc.exam_track && (
                                 <span
                                   title="Thể loại đề (thường < hsg < chuyên)"
-                                  className="font-bold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 uppercase"
+                                  className="font-bold px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-300 border border-sky-500/30 uppercase"
                                 >
                                   {doc.exam_track === 'thuong'
                                     ? '📚 Thường'
@@ -3493,7 +3486,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {doc.confidence != null && (
                                 <span
                                   title="Độ tin cậy phân loại của Bot"
-                                  className="font-mono px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+                                  className="font-mono px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-bold"
                                 >
                                   {Math.round(Number(doc.confidence) * 100)}%
                                 </span>
@@ -3501,7 +3494,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
                                 <span
                                   title="Đề thi cấu trúc chuẩn mới Bộ GD&ĐT 2025 (3 phần: Trắc nghiệm 4 lựa chọn, Đúng/Sai, Trả lời ngắn)"
-                                  className="font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30"
+                                  className="font-black px-2.5 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
                                 >
                                   ✨ Chuẩn 2025
                                 </span>
@@ -3509,7 +3502,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {doc.has_answer_keys && (
                                 <span
                                   title="Đề thi đã kèm bảng đáp án"
-                                  className="font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20"
+                                  className="font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                                 >
                                   📝 Có đáp án
                                 </span>
@@ -3517,7 +3510,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {doc.has_detailed_solutions && (
                                 <span
                                   title="Đề thi có hướng dẫn giải / lời giải chi tiết"
-                                  className="font-semibold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20"
+                                  className="font-bold px-2.5 py-1 rounded-xl bg-violet-500/15 text-violet-300 border border-violet-500/30"
                                 >
                                   ✨ Lời giải chi tiết
                                 </span>
@@ -3527,7 +3520,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </div>
 
                         {/* Nút thao tác trên từng đề */}
-                        <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
+                        <div className="pt-3 flex items-center gap-2.5 border-t border-white/10">
                           {/* Nút ⭐ Bookmark / Lưu vào tủ sách */}
                           <button
                             type="button"
@@ -3552,14 +3545,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 ? 'Bỏ lưu đề thi khỏi tủ sách cá nhân'
                                 : 'Lưu đề thi vào tủ sách cá nhân'
                             }
-                            className={`p-2.5 rounded-xl font-bold text-xs border flex items-center justify-center transition-all cursor-pointer ${
+                            className={`p-3 rounded-2xl font-bold text-sm border flex items-center justify-center transition-all cursor-pointer ${
                               bookmarkedIds.has(doc.id)
                                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
-                                : 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
+                                : 'bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
                             }`}
                             title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
                           >
-                            <Star className={`w-3.5 h-3.5 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
+                            <Star className={`w-4 h-4 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
                           </button>
 
                           {/* Nút Xem Hồ Sơ Kiểm Định AI */}
@@ -3569,10 +3562,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               setSelectedDossierDoc(doc);
                               setIsDossierOpen(true);
                             }}
-                            className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                            className="p-3 sm:px-4 rounded-2xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
                             title="Xem hồ sơ phân tích kiểm định chi tiết của AI"
                           >
-                            <FileText className="w-3.5 h-3.5" />
+                            <FileText className="w-4 h-4" />
                             <span className="hidden sm:inline">Hồ Sơ</span>
                           </button>
 
@@ -3581,10 +3574,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-xs transition-all cursor-pointer"
+                            className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl bg-purple-600/15 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs sm:text-sm transition-all cursor-pointer"
                             title="Mở xem trực tiếp tệp trong tab mới"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-4 h-4" />
                             <span>Mở Tệp</span>
                           </a>
 
@@ -3593,9 +3586,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             download={doc.file_name || 'de_thi.pdf'}
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 active:scale-95 transition-all cursor-pointer"
+                            className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-950/30 active:scale-95 transition-all cursor-pointer"
                           >
-                            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <Download className="w-4 h-4 stroke-[2.5]" />
                             <span>Tải Về</span>
                           </a>
 
@@ -3604,10 +3597,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               href={getSafeExternalUrl(doc.jump_url)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-600 dark:text-white/70 transition-all cursor-pointer"
+                              className="p-3 rounded-2xl bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-300 transition-all cursor-pointer"
                               title="Mở bài đăng trên Discord"
                             >
-                              <ExternalLink className="w-3.5 h-3.5" />
+                              <ExternalLink className="w-4 h-4" />
                             </a>
                           )}
                         </div>
@@ -3760,14 +3753,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 mb-3">
-                <UploadCloud className="w-3.5 h-3.5 text-blue-500" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 mb-3 shadow-xs">
+                <UploadCloud className="w-4 h-4 text-blue-400" />
                 <span>Trạm Nộp Đề & Thẩm Định Tài Liệu</span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                 Kho Nộp Đề Thi
               </h1>
-              <p className="text-sm sm:text-base text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+              <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
                 Kéo thả hoặc tải lên tài liệu / đề thi (PDF, DOCX). Bot sẽ tự động phân tích môn học, khối lớp, loại đề, số câu hỏi và kiểm tra chống trùng lặp.
               </p>
             </div>
