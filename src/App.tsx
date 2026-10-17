@@ -122,21 +122,21 @@ export const App: React.FC = () => {
       {activeView !== 'dashboard' && <SpaceCubeBackground />}
       <MouseAura />
 
-      {/* Header Navigation: Hiển thị thanh Dock Liquid Glass trên toàn bộ giao diện */}
-      <Navbar
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        activeView={activeView}
-        activeTab={dashboardTab}
-        onSelectView={(view, tab) => navigateTo(view, tab)}
-        user={discordUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-      />
+      {activeView === 'home' ? (
+        <>
+          {/* Header Navigation: Chỉ hiển thị thanh Dock Liquid Glass trên Trang Chủ */}
+          <Navbar
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            activeView={activeView}
+            activeTab={dashboardTab}
+            onSelectView={(view, tab) => navigateTo(view, tab)}
+            user={discordUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          />
 
-      {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ và Bảng Điều Khiển (/hub) */}
-      <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
-        {activeView === 'home' ? (
-          <>
+          {/* Landing Page Content: Mẫu trang chủ tiếp thị giới thiệu hệ sinh thái */}
+          <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />
 
             {/* 1. Thời Gian Tuyển Sinh & Kỳ Thi (Đếm ngược THPT & Tuyển sinh vào 10) */}
@@ -158,8 +158,16 @@ export const App: React.FC = () => {
 
             {/* 5. Đồng Sáng Lập (Dai Viet, GithuZ, Nguyễn Duy, Lê Minh) */}
             <CoFounders />
-          </>
-        ) : (
+          </main>
+
+          {/* Footer (Chỉ hiển thị ở Trang Chủ) */}
+          <Footer />
+        </>
+      ) : (
+        /* ========================================================================= */
+        /* HUB / BẢNG ĐIỀU KHIỂN: GIAO DIỆN WORKSPACE RIÊNG BIỆT (KHÔNG DÙNG MẪU TRANG CHỦ) */
+        /* ========================================================================= */
+        <div className="relative z-10 w-full min-h-screen">
           <Dashboard
             user={discordUser}
             initialTab={dashboardTab}
@@ -168,11 +176,8 @@ export const App: React.FC = () => {
             onLogout={handleLogout}
             onBackToHome={() => navigateTo('home')}
           />
-        )}
-      </main>
-
-      {/* Footer (Hiển thị ở Trang Chủ) */}
-      {activeView === 'home' && <Footer />}
+        </div>
+      )}
 
       {/* Discord OAuth2 & Account Link Modal */}
       <DiscordAuthModal

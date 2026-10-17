@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
+  Home,
   ArrowLeft,
   Bot,
   CheckCircle2,
@@ -47,6 +48,7 @@ import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
 import { fetchDocsFromTurso } from '../utils/tursoClient';
+import { sound } from '../utils/audio';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -1714,120 +1716,186 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
       {/* ========================================================================= */}
       {/* ========================================================================= */}
-      {/* MOBILE TABS DOCK (Lucian UX/UI Sliding Pill Tabs - Gọn nhẹ, không thừa thãi)*/}
+      {/* MOBILE APP HEADER (Độc lập của Hub, không vướng navbar trang chủ)           */}
       {/* ========================================================================= */}
-      <div className="lg:hidden w-full px-3 py-2 liquid-glass border-b border-white/10 sticky top-16 z-30 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-md">
-        <button
-          onClick={() => handleTabChange('overview')}
-          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-            activeTab === 'overview'
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-              : 'text-white/70 hover:text-white bg-white/[0.04]'
-          }`}
-        >
-          <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-          <span>Trang chính</span>
-        </button>
-
-        <button
-          onClick={() => {
-            handleTabChange('vault');
-            setShowBookmarksOnly(false);
-          }}
-          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-            activeTab === 'vault' && !showBookmarksOnly
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-              : 'text-white/70 hover:text-white bg-white/[0.04]'
-          }`}
-        >
-          <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-          <span>Kho Đề</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
-            {totalDocsCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            handleTabChange('vault');
-            setShowBookmarksOnly(true);
-          }}
-          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-            activeTab === 'vault' && showBookmarksOnly
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-sm'
-              : 'text-white/70 hover:text-white bg-white/[0.04]'
-          }`}
-        >
-          <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
-          <span>Tủ Sách</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-            {bookmarkedIds.size}
-          </span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('get_exam')}
-          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-            activeTab === 'get_exam'
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-              : 'text-white/70 hover:text-white bg-white/[0.04]'
-          }`}
-        >
-          <Dices className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-          <span>Lấy Đề</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('submit_doc')}
-          className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-            activeTab === 'submit_doc'
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-              : 'text-white/70 hover:text-white bg-white/[0.04]'
-          }`}
-        >
-          <UploadCloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span>Kho Nộp Đề</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
-            Bot AI
-          </span>
-        </button>
-
-        {/* Nút Admin trên Mobile nếu có quyền */}
-        {(isAdmin || readCachedAdmin()) && (
+      <div className="lg:hidden w-full sticky top-0 z-40 bg-[#070812]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg">
+        <div className="px-3.5 py-2.5 flex items-center justify-between gap-3 border-b border-white/[0.06]">
           <button
-            onClick={() => handleTabChange('admin')}
+            type="button"
+            onClick={onBackToHome}
+            className="flex items-center gap-2 group cursor-pointer text-left"
+          >
+            <img src="/logo.png" alt="HyperHub Logo" className="w-7 h-7 rounded-lg object-cover ring-1 ring-white/10" />
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-sm text-white">HyperHub</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.05] hover:bg-white/10 border border-white/10 flex items-center gap-1 cursor-pointer transition-all"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Về Trang Chủ</span>
+          </button>
+        </div>
+
+        {/* Mobile Tab Pills */}
+        <div className="px-3 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => handleTabChange('overview')}
             className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-              activeTab === 'admin'
-                ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-sm font-bold'
-                : 'text-rose-400 hover:text-rose-300 bg-rose-500/10'
+              activeTab === 'overview'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                : 'text-white/70 hover:text-white bg-white/[0.04]'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Quản Trị</span>
+            <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+            <span>Trang chính</span>
           </button>
-        )}
 
-        <button
-          onClick={onBackToHome}
-          className="px-3 py-1.5 rounded-xl font-medium text-xs text-white/50 hover:text-white bg-white/[0.03] transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-auto"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Về Trang Chủ</span>
-        </button>
+          <button
+            onClick={() => {
+              handleTabChange('vault');
+              setShowBookmarksOnly(false);
+            }}
+            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              activeTab === 'vault' && !showBookmarksOnly
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                : 'text-white/70 hover:text-white bg-white/[0.04]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <span>Kho Đề</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+              {totalDocsCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              handleTabChange('vault');
+              setShowBookmarksOnly(true);
+            }}
+            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              activeTab === 'vault' && showBookmarksOnly
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-sm'
+                : 'text-white/70 hover:text-white bg-white/[0.04]'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
+            <span>Tủ Sách</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+              {bookmarkedIds.size}
+            </span>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('get_exam')}
+            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              activeTab === 'get_exam'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                : 'text-white/70 hover:text-white bg-white/[0.04]'
+            }`}
+          >
+            <Dices className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+            <span>Lấy Đề</span>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('submit_doc')}
+            className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+              activeTab === 'submit_doc'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                : 'text-white/70 hover:text-white bg-white/[0.04]'
+            }`}
+          >
+            <UploadCloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Kho Nộp Đề</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+              Bot AI
+            </span>
+          </button>
+
+          {/* Nút Admin trên Mobile nếu có quyền */}
+          {(isAdmin || readCachedAdmin()) && (
+            <button
+              onClick={() => handleTabChange('admin')}
+              className={`px-3 py-1.5 rounded-xl font-semibold text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                activeTab === 'admin'
+                  ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-sm font-bold'
+                  : 'text-rose-400 hover:text-rose-300 bg-rose-500/10'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Quản Trị</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP SIDEBAR (Sleek, Compact w-56, Liquid Glass, Profile Card Luôn Hiện) */}
+      {/* DESKTOP SIDEBAR (Full Height h-screen, Top 0, Tách biệt hoàn toàn)         */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-56 sticky top-20 h-[calc(100dvh-5.5rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
+      <aside className="hidden lg:flex lg:w-60 sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-3 z-30 overflow-hidden shadow-2xl">
         {/* Top: Section Header & Nav items */}
-        <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
-          <div className="flex items-center justify-between px-2 py-1 mb-0.5">
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-              <LayoutDashboard className="w-3 h-3 text-purple-400" />
-              <span>Bảng Điều Khiển</span>
+        <div className="space-y-2 flex-1 min-h-0 flex flex-col">
+          {/* Hub Workspace Brand & Back to Home */}
+          <div className="flex items-center justify-between pb-3 mb-1 border-b border-white/[0.08]">
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="flex items-center gap-2.5 group cursor-pointer text-left"
+              title="Quay lại Trang Chủ"
+            >
+              <img
+                src="/logo.png"
+                alt="HyperHub Logo"
+                className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all"
+              />
+              <div>
+                <div className="text-sm font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1">
+                  <span>HyperHub</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899] animate-pulse" />
+                </div>
+                <div className="text-[10px] text-white/40 font-mono">Bảng Điều Khiển</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+              title="Về Trang Chủ"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Quick Action: Back to Landing */}
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="w-full px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white/60 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-between transition-all cursor-pointer group mb-1"
+          >
+            <span className="flex items-center gap-1.5">
+              <Home className="w-3.5 h-3.5 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Về Trang Chủ</span>
             </span>
-            <span className="text-[10px] text-white/30 font-mono">v2.5</span>
+            <span className="text-[10px] text-white/30 font-mono">← Home</span>
+          </button>
+
+          {/* Nav Section Title */}
+          <div className="flex items-center justify-between px-1.5 pt-1 pb-0.5">
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+              Chức năng
+            </span>
+            <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Turso Live
+            </span>
           </div>
 
           {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
@@ -2007,7 +2075,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        {/* Workspace Top Command Bar (Desktop: Độc lập, không dùng chung mẫu Landing) */}
+        <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-white/[0.08]">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-white/40">HyperHub</span>
+            <span className="text-white/20">/</span>
+            <span className="font-bold text-white flex items-center gap-1.5">
+              {activeTab === 'overview' && 'Trang chính'}
+              {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ Sách Yêu Thích' : 'Kho Đề Thi')}
+              {activeTab === 'get_exam' && 'Bốc Đề Nhanh'}
+              {activeTab === 'submit_doc' && 'Kho Nộp Đề'}
+              {activeTab === 'admin' && 'Quản Trị Hệ Thống'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] font-mono text-white/60">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Turso Cloud // {totalDocsCount || 179} Đề</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setIsCommandPaletteOpen(true);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/60 hover:text-white text-xs transition-all cursor-pointer shadow-sm group"
+            >
+              <Search className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+              <span>Tìm kiếm nhanh...</span>
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white/10 rounded border border-white/10 text-white/40">Ctrl K</kbd>
+            </button>
+          </div>
+        </div>
         {/* Banner Thông Báo Bản Cập Nhật GitHub Dành Cho Admin */}
         {hasSystemUpdate && activeTab !== 'admin' && (
           <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-950/20">
