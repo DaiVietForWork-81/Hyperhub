@@ -719,7 +719,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* 2. DESKTOP SIDEBAR DOCK (Cyber Space Aesthetic, w-60)                       */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-60 sticky top-16 h-[calc(100dvh-4rem)] bg-[#0B0D14]/95 border-r border-white/[0.08] backdrop-blur-xl flex-col justify-between shrink-0 p-3.5 z-20 shadow-2xl">
+      <aside className="hidden lg:flex lg:w-60 sticky top-14 h-[calc(100dvh-3.5rem)] bg-[#0B0D14]/95 border-r border-white/[0.08] backdrop-blur-xl flex-col justify-between shrink-0 p-3.5 z-20 shadow-2xl">
         <div className="space-y-3 flex-1 flex flex-col">
           {/* Brand & Cloud Status */}
           <div className="flex items-center justify-between px-2 pb-3 border-b border-white/[0.08]">
@@ -901,15 +901,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* 3. MAIN WORKSPACE VIEW AREA                                               */}
       {/* ========================================================================= */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto w-full space-y-8">
+      <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pt-3 pb-10 w-full max-w-[1600px] space-y-6">
         
         {/* ======================================================================= */}
         {/* TAB 1: OVERVIEW (Tổng Quan)                                             */}
         {/* ======================================================================= */}
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in duration-200">
+          <div className="space-y-6 animate-in fade-in duration-200">
             {/* Top Greeting Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#EC4899]/10 text-[#EC4899] border border-[#EC4899]/30 mb-2">
                   <Sparkles className="w-3 h-3" />
@@ -1092,11 +1092,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* TAB 2: VAULT (Kho Đề Thi)                                               */}
         {/* ======================================================================= */}
         {activeTab === 'vault' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-200">
             {/* Header & Result Count */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                   <span>Kho Đề Thi & Chuyên Đề</span>
                   {showBookmarksOnly && (
                     <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -1139,7 +1139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Filter Controls Row */}
-            <div className="p-4 rounded-2xl bg-[#0F121E] border border-white/[0.08] space-y-4">
+            <div className="p-3.5 rounded-2xl bg-[#0F121E] border border-white/[0.08] space-y-3">
               {/* Search input + Grade + Sort */}
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <div className="relative flex-1 w-full">
@@ -1243,7 +1243,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             ) : viewMode === 'grid' ? (
               /* Grid View */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {paginatedDocuments.map((doc) => {
                   const meta = getSubjectMeta(doc.subject);
                   const isBookmarked = bookmarkedIds.has(doc.id);
