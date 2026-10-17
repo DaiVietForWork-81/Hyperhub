@@ -49,6 +49,13 @@ import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
 import { fetchDocsFromTurso } from '../utils/tursoClient';
 import { sound } from '../utils/audio';
+import {
+  HubLayoutProvider,
+  useHubLayout,
+  ResizableCard,
+  SidebarResizeDivider,
+  HubStudioToolbar,
+} from './HubResizable';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -417,7 +424,7 @@ const getSafeExternalUrl = (url?: string): string => {
   return '';
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({
+const DashboardContent: React.FC<DashboardProps> = ({
   user,
   initialTab,
   onTabChange,
@@ -425,6 +432,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
   onBackToHome,
 }) => {
+  const { config } = useHubLayout();
   const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
     initialTab || 'overview'
   );
@@ -1837,9 +1845,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP SIDEBAR (Rộng rãi lg:w-72 xl:w-80, Kích thước to rõ ràng)          */}
+      {/* DESKTOP SIDEBAR (Kéo chỉnh kích thước rộng hẹp tùy ý, lưu tự động)         */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-72 xl:w-80 sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 overflow-hidden shadow-2xl">
+      <aside
+        style={{ width: `${config.sidebarWidth}px` }}
+        className="hidden lg:flex sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 overflow-hidden shadow-2xl"
+      >
         {/* Top: Section Header & Nav items */}
         <div className="space-y-3 flex-1 min-h-0 flex flex-col">
           {/* Hub Workspace Brand & Back to Home */}
@@ -2065,6 +2076,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </aside>
 
+      {/* Draggable Divider để kéo co giãn thanh bên Sidebar */}
+      <SidebarResizeDivider />
+
       {/* ========================================================================= */}
       {/* MAIN VIEW CONTENT AREA                                                    */}
       {/* ========================================================================= */}
@@ -2170,206 +2184,220 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* Quick Action Toolbar (Lucian UX/UI Micro-Interactions) */}
+            {/* Quick Action Toolbar (Kéo thả & chỉnh kích thước trực tiếp) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <button
-                type="button"
-                onClick={() => setActiveTab('get_exam')}
-                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                  <Dices className="w-6 h-6" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm sm:text-base font-black text-white group-hover:text-purple-300 transition-colors truncate">
-                    Bốc Đề Nhanh
+              <ResizableCard id="quick_action_exam" allowResizeWidth={false}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('get_exam')}
+                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                    <Dices className="w-6 h-6" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                    Bốc ngẫu nhiên theo môn
+                  <div className="min-w-0">
+                    <div className="text-sm sm:text-base font-black text-white group-hover:text-purple-300 transition-colors truncate">
+                      Bốc Đề Nhanh
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
+                      Bốc ngẫu nhiên theo môn
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </ResizableCard>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('vault');
-                  setShowBookmarksOnly(false);
-                }}
-                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm sm:text-base font-black text-white group-hover:text-pink-300 transition-colors truncate">
-                    Mở Kho Đề Thi
+              <ResizableCard id="quick_action_vault" allowResizeWidth={false}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('vault');
+                    setShowBookmarksOnly(false);
+                  }}
+                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                    <BookOpen className="w-6 h-6" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                    {totalDocsCount} đề thi có sẵn
+                  <div className="min-w-0">
+                    <div className="text-sm sm:text-base font-black text-white group-hover:text-pink-300 transition-colors truncate">
+                      Mở Kho Đề Thi
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
+                      {totalDocsCount} đề thi có sẵn
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </ResizableCard>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('submit_doc')}
-                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                  <UploadCloud className="w-6 h-6" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm sm:text-base font-black text-white group-hover:text-blue-300 transition-colors truncate">
-                    Nộp Đề Mới
+              <ResizableCard id="quick_action_submit" allowResizeWidth={false}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('submit_doc')}
+                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                    <UploadCloud className="w-6 h-6" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                    AI thẩm định tức thì
+                  <div className="min-w-0">
+                    <div className="text-sm sm:text-base font-black text-white group-hover:text-blue-300 transition-colors truncate">
+                      Nộp Đề Mới
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
+                      AI thẩm định tức thì
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </ResizableCard>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('vault');
-                  setShowBookmarksOnly(true);
-                }}
-                className="ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                  <Star className="w-6 h-6 fill-amber-400/30" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm sm:text-base font-black text-white group-hover:text-amber-300 transition-colors truncate">
-                    Tủ Sách Yêu Thích
+              <ResizableCard id="quick_action_bookmarks" allowResizeWidth={false}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('vault');
+                    setShowBookmarksOnly(true);
+                  }}
+                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                    <Star className="w-6 h-6 fill-amber-400/30" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                    {bookmarkedIds.size} đề đã đánh dấu
+                  <div className="min-w-0">
+                    <div className="text-sm sm:text-base font-black text-white group-hover:text-amber-300 transition-colors truncate">
+                      Tủ Sách Yêu Thích
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
+                      {bookmarkedIds.size} đề đã đánh dấu
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </ResizableCard>
             </div>
 
-            {/* Status Grid Cards */}
+            {/* Status Grid Cards (Kéo thả chỉnh kích thước) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {/* Card 1: Discord Bot Live Status */}
-              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shadow-inner">
-                      <Bot className="w-6 h-6" />
-                    </div>
-                    <span
-                      className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 ${
-                        botStatus.online
-                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
-                      }`}
-                    >
+              <ResizableCard id="status_bot" allowResizeWidth={false} className="h-full">
+                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shadow-inner">
+                        <Bot className="w-6 h-6" />
+                      </div>
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          botStatus.online ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
+                        className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 ${
+                          botStatus.online
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
                         }`}
-                      />
-                      {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
-                    </span>
-                  </div>
-                  <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
-                    Bot Discord HyperHub
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
-                    {botStatus.online
-                      ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
-                      : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
-                  </p>
-                </div>
-                <div className="text-xs font-mono text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
-                  <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
-                  {botStatus.online && (
-                    <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                      ● Live
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: Kho Tài Liệu */}
-              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shadow-inner">
-                      <BookOpen className="w-6 h-6" />
-                    </div>
-                    <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
-                      Đã Thẩm Định
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm sm:text-base text-slate-300 dark:text-white/70 mb-1">
-                    Kho Đề Thi Sẵn Sàng
-                  </h3>
-                  <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2.5">
-                    {totalDocsCount} Đề
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
-                    Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
-                  </p>
-                </div>
-                <div className="text-xs text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
-                  <span>Độc bản: {stats.unique_items || 0}</span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('vault')}
-                    className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm"
-                  >
-                    Xem kho →
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 3: Tài Khoản Liên Kết */}
-              <div className="p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center shadow-inner">
-                      <UserCheck className="w-6 h-6" />
-                    </div>
-                    {user ? (
-                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                        Đã Kết Nối
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            botStatus.online ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
+                          }`}
+                        />
+                        {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
                       </span>
-                    ) : (
-                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        Chưa Kết Nối
+                    </div>
+                    <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
+                      Bot Discord HyperHub
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
+                      {botStatus.online
+                        ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
+                        : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
+                    </p>
+                  </div>
+                  <div className="text-xs font-mono text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
+                    {botStatus.online && (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                        ● Live
                       </span>
                     )}
                   </div>
-                  <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
-                    Xác Thực Discord
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
-                    {user
-                      ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
-                      : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
-                  </p>
                 </div>
-                <div className="pt-3 border-t border-white/10">
-                  {!user ? (
+              </ResizableCard>
+
+              {/* Card 2: Kho Tài Liệu */}
+              <ResizableCard id="status_vault" allowResizeWidth={false} className="h-full">
+                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shadow-inner">
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                        Đã Thẩm Định
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-sm sm:text-base text-slate-300 dark:text-white/70 mb-1">
+                      Kho Đề Thi Sẵn Sàng
+                    </h3>
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2.5">
+                      {totalDocsCount} Đề
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
+                      Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
+                    </p>
+                  </div>
+                  <div className="text-xs text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <span>Độc bản: {stats.unique_items || 0}</span>
                     <button
                       type="button"
-                      onClick={onOpenAuthModal}
-                      className="w-full py-2.5 px-4 rounded-xl bg-[#5865F2] text-white text-xs sm:text-sm font-bold hover:bg-[#4752c4] transition-colors cursor-pointer"
+                      onClick={() => setActiveTab('vault')}
+                      className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm"
                     >
-                      Liên Kết Ngay
+                      Xem kho →
                     </button>
-                  ) : (
-                    <div className="text-xs sm:text-sm text-emerald-400 font-bold flex items-center justify-between">
-                      <span>Đủ điều kiện nhận đề thi tự động</span>
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              </ResizableCard>
+
+              {/* Card 3: Tài Khoản Liên Kết */}
+              <ResizableCard id="status_account" allowResizeWidth={false} className="h-full">
+                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center shadow-inner">
+                        <UserCheck className="w-6 h-6" />
+                      </div>
+                      {user ? (
+                        <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          Đã Kết Nối
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          Chưa Kết Nối
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
+                      Xác Thực Discord
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
+                      {user
+                        ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
+                        : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
+                    </p>
+                  </div>
+                  <div className="pt-3 border-t border-white/10">
+                    {!user ? (
+                      <button
+                        type="button"
+                        onClick={onOpenAuthModal}
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#5865F2] text-white text-xs sm:text-sm font-bold hover:bg-[#4752c4] transition-colors cursor-pointer"
+                      >
+                        Liên Kết Ngay
+                      </button>
+                    ) : (
+                      <div className="text-xs sm:text-sm text-emerald-400 font-bold flex items-center justify-between">
+                        <span>Đủ điều kiện nhận đề thi tự động</span>
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </ResizableCard>
             </div>
 
             {/* Recent Exams Feed */}
@@ -3322,20 +3350,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : displayedDocuments.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6">
+                  <div
+                    className={`grid gap-5 sm:gap-6 ${
+                      config.vaultGridCols === '1'
+                        ? 'grid-cols-1'
+                        : config.vaultGridCols === '3'
+                        ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                        : 'grid-cols-1 xl:grid-cols-2'
+                    }`}
+                  >
                     {paginatedDocuments.map((doc) => {
                     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
                     const trackInfo = getExamTrackInfo(doc);
 
                     return (
-                      <div
-                        key={doc.id}
-                        className={`p-6 sm:p-7 rounded-3xl liquid-glass border transition-all shadow-md space-y-4 flex flex-col justify-between group ${
-                          doc.is_duplicate_copy
-                            ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-500/70'
-                            : 'border-white/10 hover:border-purple-500/50'
-                        }`}
-                      >
+                      <ResizableCard key={doc.id} id={`doc_${doc.id}`} allowResizeWidth={false} className="h-full">
+                        <div
+                          className={`h-full p-6 sm:p-7 rounded-3xl liquid-glass border transition-all shadow-md space-y-4 flex flex-col justify-between group ${
+                            doc.is_duplicate_copy
+                              ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-500/70'
+                              : 'border-white/10 hover:border-purple-500/50'
+                          }`}
+                        >
                         {/* Top Badges */}
                         <div className="flex flex-wrap items-center justify-between gap-2.5">
                           <div className="flex flex-wrap items-center gap-2">
@@ -3604,7 +3640,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </a>
                           )}
                         </div>
-                      </div>
+                        </div>
+                      </ResizableCard>
                     );
                   })}
                   </div>
@@ -3835,6 +3872,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onNavigateHome={onBackToHome}
         onTriggerRandomExam={handlePickRandomExam}
       />
+
+      {/* Bảng Điều Khiển Bố Cục Nổi (Interactive Layout Studio Toolbar) */}
+      <HubStudioToolbar />
     </div>
+  );
+};
+
+export const Dashboard: React.FC<DashboardProps> = (props) => {
+  return (
+    <HubLayoutProvider>
+      <DashboardContent {...props} />
+    </HubLayoutProvider>
   );
 };
