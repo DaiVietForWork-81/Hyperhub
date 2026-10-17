@@ -41,3 +41,4 @@ Thumbs.db
 .vercel/
 coverage/
 .nyc_output/
+.backup/
