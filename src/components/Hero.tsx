@@ -83,12 +83,12 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
             {/* 2D Orbit Server Icon Badge */}
             <div className="mb-4 sm:mb-6 relative group cursor-pointer inline-flex items-center justify-center">
               {/* Soft Cosmic Aura Glow */}
-              <div className="absolute -inset-4 bg-gradient-to-tr from-purple-600/40 via-fuchsia-600/35 to-pink-500/35 rounded-full blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
+              <div className="absolute -inset-8 bg-gradient-to-tr from-purple-600/50 via-fuchsia-600/40 to-pink-500/40 rounded-full blur-3xl opacity-75 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
               <img
                 src="/server_icon.png"
                 alt="Orbit Server Icon"
-                className="relative z-10 w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 object-contain filter drop-shadow-[0_12px_28px_rgba(168,85,247,0.45)] group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
+                className="relative z-10 w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 object-contain filter drop-shadow-[0_16px_36px_rgba(168,85,247,0.55)] group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/logo.png';
                 }}
