@@ -70,7 +70,7 @@ export const CommunityIntro: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-semibold tracking-wide uppercase shadow-[0_0_20px_rgba(168,85,247,0.15)]">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>Mái Nhà Chung • Giới Thiệu Orbit</span>
+            <span>Mái Nhà Chung • Giới Thiệu HyperHub</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
@@ -81,7 +81,7 @@ export const CommunityIntro: React.FC = () => {
           </h2>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Được sáng lập và xây dựng bởi thế hệ học sinh - sinh viên Việt Nam, Orbit là không gian học tập trực tuyến 
+            Được sáng lập và xây dựng bởi thế hệ học sinh - sinh viên Việt Nam, HyperHub là không gian học tập trực tuyến 
             hoàn toàn mở, văn minh và phi lợi nhuận, nơi mọi sĩ tử đều tìm thấy tài liệu quý giá và những người bạn cùng chung chí hướng.
           </p>
         </div>
@@ -126,7 +126,7 @@ export const CommunityIntro: React.FC = () => {
         })}
       </div>
 
-      {/* Tôn chỉ & Lời nhắn gửi từ Orbit */}
+      {/* Tôn chỉ & Lời nhắn gửi từ HyperHub */}
       <ScrollReveal delay={200}>
         <div className="p-8 sm:p-10 rounded-3xl border border-purple-500/25 bg-gradient-to-r from-purple-950/30 via-black/40 to-pink-950/30 backdrop-blur-xl space-y-6">
           <div className="max-w-3xl mx-auto text-center space-y-3">
@@ -135,7 +135,7 @@ export const CommunityIntro: React.FC = () => {
             </h3>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               Dù bạn đang là học sinh lớp 9 ôn thi vào 10 chuyên, hay sĩ tử lớp 12 chuẩn bị bước vào kỳ thi Tốt nghiệp THPT 
-              lịch sử; dù bạn có thế mạnh về Tin học, hay đang tìm kiếm tài liệu Toán, Văn, Ngoại ngữ — Orbit luôn có sẵn 
+              lịch sử; dù bạn có thế mạnh về Tin học, hay đang tìm kiếm tài liệu Toán, Văn, Ngoại ngữ — HyperHub luôn có sẵn 
               kho tài liệu được tuyển chọn kỹ lưỡng và một môi trường tích cực chào đón bạn.
             </p>
           </div>

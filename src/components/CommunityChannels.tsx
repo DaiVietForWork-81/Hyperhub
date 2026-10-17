@@ -31,7 +31,7 @@ export const CommunityChannels: React.FC = () => {
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
             Gia Nhập{' '}
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Cộng Đồng Orbit
+              Cộng Đồng HyperHub
             </span>
           </h2>
 
@@ -69,7 +69,7 @@ export const CommunityChannels: React.FC = () => {
               {/* Title & Description */}
               <div className="space-y-2">
                 <h3 className="text-2xl font-black text-white group-hover:text-[#a5b4fc] transition-colors">
-                  Máy Chủ Discord Orbit
+                  Máy Chủ Discord HyperHub
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   Trung tâm học tập sôi động với bot thẩm định tự động, phòng học Lo-fi voice 24/7, 
@@ -178,7 +178,7 @@ export const CommunityChannels: React.FC = () => {
       <ScrollReveal delay={300}>
         <div className="mt-12 text-center">
           <p className="text-xs text-slate-400 italic">
-            💡 <span className="font-semibold text-slate-300">Lưu ý:</span> Hiện tại Orbit tập trung kết nối học tập chất lượng qua <strong>Discord</strong> và <strong>Messenger</strong> để đảm bảo sự tương tác nhanh chóng và hỗ trợ kịp thời nhất cho sĩ tử.
+            💡 <span className="font-semibold text-slate-300">Lưu ý:</span> Hiện tại HyperHub tập trung kết nối học tập chất lượng qua <strong>Discord</strong> và <strong>Messenger</strong> để đảm bảo sự tương tác nhanh chóng và hỗ trợ kịp thời nhất cho sĩ tử.
           </p>
         </div>
       </ScrollReveal>

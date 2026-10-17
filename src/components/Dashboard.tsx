@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspens
 import {
   LayoutDashboard,
   ArrowLeft,
+  Bot,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -45,7 +46,7 @@ import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStora
 import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
-import { fetchDocsFromTurso, getTursoStorageUsage } from '../utils/tursoClient';
+import { fetchDocsFromTurso } from '../utils/tursoClient';
 
 interface DashboardProps {
   user: DiscordUser | null;
@@ -580,12 +581,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Danh Sách Đề Thi Trong Kho (Full Catalog List)
   const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(178);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(29);
   const [stats, setStats] = useState<{
     total_real: number;
     unique_items: number;
     duplicate_items: number;
-  }>({ total_real: 178, unique_items: 178, duplicate_items: 0 });
+  }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'newest' | 'pages' | 'size' | 'confidence'>('newest');
@@ -901,8 +902,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           uptime_seconds: data.uptime_seconds,
           guilds_count: data.guilds_count,
         });
+        if (!isOnline) {
+          setDocumentsList([]);
+          setTotalDocsCount(0);
+        }
       } else {
         setBotStatus({ online: false });
+        setDocumentsList([]);
+        setTotalDocsCount(0);
       }
     } catch {
       // Trường hợp kết nối thất bại (lỗi mạng, URL tùy biến cũ bị chết), thử lại với DEFAULT_TUNNEL_URL
@@ -928,10 +935,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         } catch {}
       }
       setBotStatus({ online: false });
+      setDocumentsList([]);
+      setTotalDocsCount(0);
     }
   }, []);
 
-  // 2. Lấy danh sách tất cả đề thi (Ưu tiên Turso Cloud siêu tốc <50ms, hoặc Bot khi online)
+  // 2. Lấy danh sách tất cả đề thi từ Kho Discord (Không giới hạn - Full List)
   const fetchDocuments = useCallback(
     async (
       gradeOverride?: string,
@@ -940,100 +949,130 @@ export const Dashboard: React.FC<DashboardProps> = ({
       searchOverride?: string,
       dupOverride?: 'all' | 'unique' | 'duplicate'
     ) => {
-      // Nếu đã có danh sách đề và bot offline, displayedDocuments (useMemo) tự động lọc tức thì client-side
-      if (documentsList.length > 0 && !botStatus.online) {
-        return;
-      }
-
       setIsLoadingDocs(true);
       try {
-        // Nếu Bot online, có thể gọi API bot (timeout ngắn 2.5s để không bao giờ treo UI)
-        if (botStatus.online) {
+        let apiBase = getApiBaseUrl();
+        const q = new URLSearchParams();
+        // Không giới hạn số lượng đề thi khi Bot online (lấy toàn bộ từ CSDL Discord)
+        q.set('limit', '5000');
+
+        const g = gradeOverride !== undefined ? gradeOverride : selectedGrade;
+        const t = typeOverride !== undefined ? typeOverride : selectedExamType;
+        const s = subjectOverride !== undefined ? subjectOverride : selectedSubject;
+        const search = searchOverride !== undefined ? searchOverride : descriptionKeyword;
+        const dup = dupOverride !== undefined ? dupOverride : filterDup;
+
+        if (g && g !== 'ALL') q.set('grade', g);
+        if (t && t !== 'ALL') q.set('exam_type', t);
+        if (s && s !== 'ALL') q.set('subject', s);
+        if (search && search.trim()) q.set('search', search.trim());
+        if (dup) q.set('filter_dup', dup);
+
+        let res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
+          headers: API_FETCH_HEADERS,
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
           try {
-            const apiBase = getApiBaseUrl();
-            const q = new URLSearchParams();
-            q.set('limit', '5000');
-            const g = gradeOverride !== undefined ? gradeOverride : selectedGrade;
-            const t = typeOverride !== undefined ? typeOverride : selectedExamType;
-            const s = subjectOverride !== undefined ? subjectOverride : selectedSubject;
-            const search = searchOverride !== undefined ? searchOverride : descriptionKeyword;
-            const dup = dupOverride !== undefined ? dupOverride : filterDup;
-
-            if (g && g !== 'ALL') q.set('grade', g);
-            if (t && t !== 'ALL') q.set('exam_type', t);
-            if (s && s !== 'ALL') q.set('subject', s);
-            if (search && search.trim()) q.set('search', search.trim());
-            if (dup) q.set('filter_dup', dup);
-
-            const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
+            const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents?${q.toString()}`, {
               headers: API_FETCH_HEADERS,
-              signal: AbortSignal.timeout(2500),
+              signal: AbortSignal.timeout(8000),
             });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.documents && data.documents.length > 0) {
-                setDocumentsList(data.documents);
-                setTotalDocsCount(data.total ?? data.documents.length);
-                return;
-              }
+            if (fbRes.ok) {
+              res = fbRes;
+              apiBase = DEFAULT_TUNNEL_URL;
+              setCustomApiUrl(null);
             }
           } catch {}
         }
 
-        // Tải tức thì từ Turso libSQL Cloud (<50ms)
-        const tursoDocs = await fetchDocsFromTurso(5000);
-        if (tursoDocs && tursoDocs.length > 0) {
-          setDocumentsList(tursoDocs as any);
-          setTotalDocsCount(tursoDocs.length);
-          setStats((prev) => ({
-            ...prev,
-            total_real: tursoDocs.length,
-            unique_items: tursoDocs.length,
-          }));
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.documents) {
+            setDocumentsList(data.documents);
+            setTotalDocsCount(data.total ?? data.documents.length);
+          }
+        } else {
+          // Khi bot tắt: Tự động fallback sang Turso libSQL Cloud (5GB)
+          const tursoDocs = await fetchDocsFromTurso(100);
+          if (tursoDocs && tursoDocs.length > 0) {
+            setDocumentsList(tursoDocs as any);
+            setTotalDocsCount(tursoDocs.length);
+          } else {
+            setDocumentsList([]);
+            setTotalDocsCount(0);
+          }
         }
-      } catch (err) {
-        console.warn("Lỗi tải đề thi:", err);
+      } catch {
+        // Khi bot tắt / mất kết nối: Tự động fallback sang Turso libSQL Cloud
+        try {
+          const tursoDocs = await fetchDocsFromTurso(100);
+          if (tursoDocs && tursoDocs.length > 0) {
+            setDocumentsList(tursoDocs as any);
+            setTotalDocsCount(tursoDocs.length);
+          } else {
+            setDocumentsList([]);
+            setTotalDocsCount(0);
+          }
+        } catch {
+          setDocumentsList([]);
+          setTotalDocsCount(0);
+        }
       } finally {
         setIsLoadingDocs(false);
       }
     },
-    [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, filterDup, documentsList.length, botStatus.online]
+    [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, filterDup]
   );
 
   // 3. Lấy thống kê số lượng tài liệu
   const fetchDocStats = useCallback(async () => {
     try {
-      if (botStatus.online) {
+      let apiBase = getApiBaseUrl();
+      let res = await fetch(`${apiBase}/api/documents/stats`, {
+        headers: API_FETCH_HEADERS,
+        signal: AbortSignal.timeout(4000),
+      });
+
+      if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
         try {
-          const apiBase = getApiBaseUrl();
-          const res = await fetch(`${apiBase}/api/documents/stats`, {
+          const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents/stats`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(2000),
+            signal: AbortSignal.timeout(4000),
           });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-              setStats({
-                total_real: data.total_real || data.total_items || 0,
-                unique_items: data.unique_items || 0,
-                duplicate_items: data.duplicate_items || 0,
-              });
-              setTotalDocsCount(data.total_real || data.total_items || 0);
-              return;
-            }
+          if (fbRes.ok) {
+            res = fbRes;
+            apiBase = DEFAULT_TUNNEL_URL;
+            setCustomApiUrl(null);
           }
         } catch {}
       }
 
-      const tursoStats = await getTursoStorageUsage();
-      const total = tursoStats?.totalDocs || 179;
-      setStats({ total_real: total, unique_items: total, duplicate_items: 0 });
-      if (total > 0) setTotalDocsCount(total);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setStats({
+            total_real: data.total_real || data.total_items || 0,
+            unique_items: data.unique_items || 0,
+            duplicate_items: data.duplicate_items || 0,
+          });
+          setTotalDocsCount(data.total_real || data.total_items || 0);
+        }
+      } else {
+        setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
+        setTotalDocsCount(0);
+      }
     } catch {
-      setStats({ total_real: 179, unique_items: 179, duplicate_items: 0 });
-      setTotalDocsCount(179);
+      // Khi bot offline: reset thống kê về 0
+      setStats({
+        total_real: 0,
+        unique_items: 0,
+        duplicate_items: 0,
+      });
+      setTotalDocsCount(0);
     }
-  }, [botStatus.online]);
+  }, []);
 
   useEffect(() => {
     checkBotStatus();
@@ -1097,71 +1136,81 @@ export const Dashboard: React.FC<DashboardProps> = ({
     fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword);
   };
 
-  // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick: Trực tiếp từ Turso Cloud hoặc Bot)
+  // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick)
   const handlePickRandomExam = async () => {
     setExamError('');
     setCurrentExam(null);
+
+    // Kiểm tra Bot online
+    if (!botStatus.online) {
+      setExamError(
+        'Discord Bot hiện đang không hoạt động (Offline). Vui lòng khởi động Bot Discord để hệ thống có thể bốc đề thi!'
+      );
+      return;
+    }
+
+    // Kiểm tra đăng nhập
+    if (!user) {
+      setExamError('Bạn cần liên kết tài khoản Discord trước khi bốc đề thi.');
+      onOpenAuthModal();
+      return;
+    }
+
+    if (!user.verified) {
+      setExamError(
+        'Tài khoản Discord của bạn chưa xác minh Email (Unverified). Discord Bot chỉ phát đề cho tài khoản đã xác minh email.'
+      );
+      return;
+    }
+
     setIsLoadingExam(true);
-
     try {
-      // 1. Nếu Bot online, thử gọi bot qua API
-      if (botStatus.online) {
-        try {
-          const queryParams = new URLSearchParams({
-            grade: selectedGrade,
-            exam_type: selectedExamType,
-            subject: selectedSubject,
-            description: descriptionKeyword.trim(),
-          });
+      // Luôn bốc qua server để Bot kiểm tra: đã vào server + verify email
+      // (không bốc client-side để tránh lách gate thành viên)
+      // Fallback gọi API request_exam
+      const queryParams = new URLSearchParams({
+        grade: selectedGrade,
+        exam_type: selectedExamType,
+        subject: selectedSubject,
+        description: descriptionKeyword.trim(),
+      });
 
-          const apiBase = getApiBaseUrl();
-          const examHeaders: Record<string, string> = { ...API_FETCH_HEADERS };
-          const token = user?.accessToken || getDiscordAccessToken();
-          if (token) {
-            examHeaders['Authorization'] = `Bearer ${token}`;
-          }
-
-          const res = await fetch(`${apiBase}/api/documents/request_exam?${queryParams.toString()}`, {
-            headers: examHeaders,
-            signal: AbortSignal.timeout(3000),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.document) {
-              setCurrentExam(data.document);
-              showSuccess(`Đã bốc đề: ${data.document.title || data.document.file_name}`, 'Bốc Đề Thành Công');
-              window.scrollTo({ top: 350, behavior: 'smooth' });
-              return;
-            }
-          }
-        } catch {}
+      const apiBase = getApiBaseUrl();
+      const examHeaders: Record<string, string> = {
+        ...API_FETCH_HEADERS,
+      };
+      const token = user?.accessToken || getDiscordAccessToken();
+      if (token) {
+        examHeaders['Authorization'] = `Bearer ${token}`;
       }
 
-      // 2. Chế độ Tự Phục Vụ (Turso Cloud): Bốc ngẫu nhiên trực tiếp từ 179 đề thi đã tải
-      let pool = displayedDocuments.length > 0 ? displayedDocuments : documentsList;
-      if (pool.length === 0) {
-        const tursoDocs = await fetchDocsFromTurso(5000);
-        if (tursoDocs && tursoDocs.length > 0) {
-          setDocumentsList(tursoDocs as any);
-          pool = tursoDocs;
+      const res = await fetch(`${apiBase}/api/documents/request_exam?${queryParams.toString()}`, {
+        headers: examHeaders,
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        if (res.status === 403 && errorData?.message) {
+          throw new Error(errorData.message);
         }
+        throw new Error(`Bot phản hồi mã lỗi HTTP ${res.status}`);
       }
 
-      if (!pool || pool.length === 0) {
-        const msg = 'Không tìm thấy đề thi phù hợp với tiêu chí hiện tại. Hãy thử chọn môn học hoặc khối lớp khác!';
+      const data = await res.json();
+      if (data.success && data.document) {
+        setCurrentExam(data.document);
+        showSuccess(`Đã bốc đề: ${data.document.title || data.document.file_name}`, 'Bốc Đề Thành Công');
+        window.scrollTo({ top: 350, behavior: 'smooth' });
+      } else {
+        const msg =
+          data.message ||
+          'Không tìm thấy đề thi phù hợp với tiêu chí hiện tại. Hãy thử chọn môn học hoặc loại đề khác!';
         setExamError(msg);
         showError(msg, 'Bốc Đề');
-        return;
       }
-
-      const randomIndex = Math.floor(Math.random() * pool.length);
-      const pickedDoc = pool[randomIndex];
-      setCurrentExam(pickedDoc);
-      showSuccess(`Đã bốc đề: ${pickedDoc.title || pickedDoc.file_name}`, 'Bốc Đề Thành Công');
-      window.scrollTo({ top: 350, behavior: 'smooth' });
     } catch (err: any) {
-      const errMsg = `Lỗi bốc đề: ${err?.message || 'Không thể lấy đề thi lúc này'}`;
+      const errMsg = `Lỗi kết nối tới Bot phát đề: ${err.message || 'Hết thời gian chờ phản hồi'}`;
       setExamError(errMsg);
       showError(errMsg, 'Bốc Đề');
     } finally {
@@ -1182,12 +1231,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Tự nhận diện bot vừa bật (offline → online): tải lại toàn bộ dữ liệu
   const prevOnlineRef = useRef<boolean>(false);
+  const [justReconnected, setJustReconnected] = useState<boolean>(false);
   useEffect(() => {
     const wasOnline = prevOnlineRef.current;
     prevOnlineRef.current = botStatus.online;
     if (!wasOnline && botStatus.online) {
       fetchDocStats();
       fetchDocuments();
+      setJustReconnected(true);
+      const t = setTimeout(() => setJustReconnected(false), 8000);
+      return () => clearTimeout(t);
     }
   }, [botStatus.online, fetchDocStats, fetchDocuments]);
 
@@ -1766,15 +1819,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* DESKTOP SIDEBAR (Sleek, Compact w-56, Liquid Glass, Profile Card Luôn Hiện) */}
       {/* ========================================================================= */}
-      <aside className="hidden lg:flex lg:w-56 sticky top-16 h-[calc(100dvh-4rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
+      <aside className="hidden lg:flex lg:w-56 sticky top-20 h-[calc(100dvh-5.5rem)] liquid-glass border-r border-white/10 flex-col justify-between shrink-0 p-2.5 z-20 overflow-hidden shadow-2xl shadow-purple-950/10">
         {/* Top: Section Header & Nav items */}
         <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
-          <div className="flex items-center justify-between px-2.5 py-1 mb-1 border-b border-white/[0.08] pb-2">
-            <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899] animate-pulse" />
-              <span>Orbit Platform</span>
+          <div className="flex items-center justify-between px-2 py-1 mb-0.5">
+            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+              <LayoutDashboard className="w-3 h-3 text-purple-400" />
+              <span>Bảng Điều Khiển</span>
             </span>
-            <span className="text-[10px] text-white/40 font-mono px-1.5 py-0.5 rounded-md bg-white/[0.05] border border-white/10">v2.5</span>
+            <span className="text-[10px] text-white/30 font-mono">v2.5</span>
           </div>
 
           {/* Navigation Sidebar Buttons (Vừa vặn, thanh thoát, góc bo rounded-xl) */}
@@ -1803,9 +1856,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
-              <span>Kho Đề Thi</span>
+              <span>Kho Đề</span>
               <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
-                {totalDocsCount || 179} Đề
+                {totalDocsCount} Đề
               </span>
             </button>
 
@@ -1836,7 +1889,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <Dices className="w-3.5 h-3.5 shrink-0" />
-              <span>Bốc Đề Nhanh</span>
+              <span>Lấy Đề</span>
             </button>
 
             <button
@@ -1848,7 +1901,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5 shrink-0" />
-              <span>Nộp Đề Mới</span>
+              <span>Kho Nộp Đề</span>
               <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                 Bot AI
               </span>
@@ -1936,25 +1989,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-2.5 rounded-xl liquid-glass border border-[#5865F2]/30 space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#5865F2]/20 text-[#5865F2] flex items-center justify-center shrink-0">
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <div className="overflow-hidden flex-1 min-w-0">
-                  <div className="font-bold text-xs truncate text-white leading-tight">
-                    Khách vãng lai
-                  </div>
-                  <div className="text-[10px] text-white/50 truncate">
-                    Chưa đăng nhập
-                  </div>
-                </div>
+            <div className="p-2 rounded-xl liquid-glass border border-[#5865F2]/30 text-center space-y-1">
+              <div className="text-[10px] text-white/70">
+                Chưa liên kết Discord
               </div>
               <button
                 onClick={onOpenAuthModal}
-                className="w-full py-1.5 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-1 px-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
               >
-                <span>Liên Kết Ngay</span>
+                Liên Kết Ngay
               </button>
             </div>
           )}
@@ -1990,35 +2033,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {activeTab === 'overview' && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-            {/* Header Greeting (Sleek Orbit Aesthetic) */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-6">
+            {/* Header Greeting */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-500/15 to-pink-500/15 text-pink-300 border border-pink-500/30 mb-2.5 shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-[0_0_8px_#ec4899] animate-pulse" />
-                  <span className="font-bold tracking-wide">ORBIT ACADEMIC CLOUD</span>
-                  <span className="text-white/30">•</span>
-                  <span className="text-white/70">LEARN • GROW • CONNECT</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 mb-2.5">
+                  <Sparkles className="w-3.5 h-3.5 text-pink-500" />
+                  <span>Hệ Thống Quản Trị Học Thuật & Phát Đề</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-                  <span>Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!</span>
-                  <span className="text-xl sm:text-2xl">✨</span>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-400 dark:text-white/60 mt-1 max-w-2xl leading-relaxed">
-                  Different paths. One orbit. Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 mt-1 max-w-2xl">
+                  Bảng điều khiển kết nối trực tiếp với Discord Bot HyperHub và kho lưu trữ đề thi tự động.
                 </p>
               </div>
 
               {/* Quick Utility Actions */}
-              <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsCommandPaletteOpen(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white/90 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-purple-500/40 flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+                  className="ux-btn-liquid px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-white/80 hover:text-purple-500 flex items-center gap-1.5 cursor-pointer"
                   title="Mở thanh tìm kiếm siêu tốc (Ctrl+K)"
                 >
                   <Search className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Tìm kiếm đề thi...</span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-white/40 bg-white/10 rounded">Ctrl+K</kbd>
+                  <span>Tìm kiếm (Ctrl+K)</span>
                 </button>
                 <button
                   type="button"
@@ -2028,7 +2067,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     fetchDocuments();
                     showInfo('Đang làm mới dữ liệu...');
                   }}
-                  className="p-2.5 rounded-xl border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                  className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-white/60 transition-colors cursor-pointer"
                   title="Làm mới trạng thái"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -2036,116 +2075,201 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
+            {/* Quick Action Toolbar (Lucian UX/UI Micro-Interactions) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('get_exam')}
+                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Dices className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-400 transition-colors truncate">
+                    Bốc Đề Nhanh
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                    Bốc ngẫu nhiên theo môn
+                  </div>
+                </div>
+              </button>
 
-            {/* Bento Metric Cards (Tập trung vào số liệu thực và tính thẩm mỹ cao cấp) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('vault');
+                  setShowBookmarksOnly(false);
+                }}
+                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-pink-500/15 text-pink-500 dark:text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-pink-400 transition-colors truncate">
+                    Mở Kho Đề Thi
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                    {totalDocsCount} đề thi có sẵn
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('submit_doc')}
+                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <UploadCloud className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-400 transition-colors truncate">
+                    Nộp Đề Mới
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                    AI thẩm định tức thì
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('vault');
+                  setShowBookmarksOnly(true);
+                }}
+                className="ux-btn-liquid p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 text-left group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Star className="w-4 h-4 fill-amber-400/30" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-400 transition-colors truncate">
+                    Tủ Sách Yêu Thích
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-white/50 truncate">
+                    {bookmarkedIds.size} đề đã đánh dấu
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Status Grid Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {/* Card 1: Kho Đề Thi Trực Tuyến */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-pink-500/40 transition-all duration-300">
-                <div className="absolute top-0 right-0 w-36 h-36 bg-pink-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-pink-500/20 transition-all" />
+              {/* Card 1: Discord Bot Live Status */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center ring-1 ring-pink-500/30">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
+                        botStatus.online
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          botStatus.online ? 'bg-emerald-500 shadow-[0_0_6px_#10b981]' : 'bg-rose-500'
+                        }`}
+                      />
+                      {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
+                    Bot Discord HyperHub
+                  </h3>
+                  <p className="text-xs text-white/50 mb-3">
+                    {botStatus.online
+                      ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
+                      : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
+                  </p>
+                </div>
+                <div className="text-[11px] font-mono text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                  <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
+                  {botStatus.online && (
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      ● Live
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 2: Kho Tài Liệu */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center">
                       <BookOpen className="w-5 h-5" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
-                      Đã Thẩm Định AI
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                      Đã Thẩm Định
                     </span>
                   </div>
                   <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
-                    Kho Đề Thi Học Thuật
+                    Kho Đề Thi Sẵn Sàng
                   </h3>
-                  <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-pink-400 mb-2">
-                    {totalDocsCount || 179} Đề Thi
+                  <div className="text-2xl sm:text-3xl font-black text-white mb-2">
+                    {totalDocsCount} Đề
                   </div>
-                  <p className="text-xs text-white/50 leading-relaxed">
-                    Bao gồm các môn Toán, Văn, Anh, KHTN... bóc tách và phân loại theo chuẩn GDPT 2018 & 2025.
+                  <p className="text-xs text-white/50">
+                    Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
                   </p>
                 </div>
-                <div className="text-[11px] text-white/40 pt-3 border-t border-white/10 flex items-center justify-between mt-4">
-                  <span>Độc bản: {stats.unique_items || totalDocsCount || 179} đề</span>
+                <div className="text-[11px] text-white/40 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                  <span>Độc bản: {stats.unique_items || 0}</span>
                   <button
                     type="button"
                     onClick={() => setActiveTab('vault')}
-                    className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-pink-400 hover:text-pink-300 font-semibold flex items-center gap-1 cursor-pointer"
                   >
-                    <span>Mở kho đề thi</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    Xem kho →
                   </button>
                 </div>
               </div>
 
-              {/* Card 2: Hạ Tầng Dữ Liệu & Điện Toán */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-purple-500/40 transition-all duration-300">
-                <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
+              {/* Card 3: Tài Khoản Liên Kết */}
+              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center ring-1 ring-purple-500/30">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
-                      <span>Turso Cloud Live</span>
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
-                    Hạ Tầng Điện Toán Mây
-                  </h3>
-                  <div className="text-xl sm:text-2xl font-black text-white mb-2 flex items-center gap-2">
-                    <span>5.0 GB Storage</span>
-                  </div>
-                  <p className="text-xs text-white/50 leading-relaxed">
-                    Đồng bộ tự động qua libSQL Pipeline độ trễ thấp (&lt;50ms). Dữ liệu kho đề luôn sẵn sàng 24/7.
-                  </p>
-                </div>
-                <div className="text-[11px] font-mono text-white/40 pt-3 border-t border-white/10 flex items-center justify-between mt-4">
-                  <span>Bot Discord: {botStatus.online ? 'Trực tuyến' : 'Sẵn sàng'}</span>
-                  <span className="text-purple-300 font-semibold">Tự phục vụ</span>
-                </div>
-              </div>
-
-              {/* Card 3: Tài Khoản Học Viên */}
-              <div className="p-5 sm:p-6 rounded-2xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-[#5865F2]/40 transition-all duration-300">
-                <div className="absolute top-0 right-0 w-36 h-36 bg-[#5865F2]/10 rounded-full blur-3xl pointer-events-none group-hover:bg-[#5865F2]/20 transition-all" />
-                <div>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center ring-1 ring-[#5865F2]/30">
+                    <div className="w-10 h-10 rounded-xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center">
                       <UserCheck className="w-5 h-5" />
                     </div>
                     {user ? (
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         Đã Kết Nối
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                        Khách Vãng Lai
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        Chưa Kết Nối
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold text-sm sm:text-base text-white mb-0.5">
-                    {user ? (user.global_name || user.username) : 'Xác Thực Discord'}
+                  <h3 className="font-bold text-sm sm:text-base text-white mb-1">
+                    Xác Thực Discord
                   </h3>
-                  <div className="text-sm font-semibold text-white/80 mb-2 truncate">
-                    {user ? `@${user.username}` : 'Mở khóa đặc quyền học viên'}
-                  </div>
-                  <p className="text-xs text-white/50 leading-relaxed">
+                  <p className="text-xs text-white/50 mb-3">
                     {user
-                      ? `Tài khoản đã liên kết với Orbit Platform. Bạn có thể đánh dấu đề yêu thích và xem lời giải chi tiết.`
-                      : 'Liên kết Discord để đồng bộ tủ sách cá nhân, nhận thông báo đề thi mới và tham gia cộng đồng.'}
+                      ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
+                      : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
                   </p>
                 </div>
-                <div className="pt-3 border-t border-white/10 mt-4">
+                <div className="pt-2.5 border-t border-white/10">
                   {!user ? (
                     <button
                       type="button"
                       onClick={onOpenAuthModal}
-                      className="w-full py-2 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-bold shadow-md shadow-[#5865F2]/30 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2 px-3 rounded-xl bg-[#5865F2] text-white text-xs font-semibold hover:bg-[#4752c4] transition-colors cursor-pointer"
                     >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>Liên Kết Ngay</span>
+                      Liên Kết Ngay
                     </button>
                   ) : (
                     <div className="text-[11px] text-emerald-400 font-semibold flex items-center justify-between">
-                      <span>Đã liên kết hoàn tất</span>
+                      <span>Đủ điều kiện nhận đề thi tự động</span>
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </div>
                   )}
@@ -2319,29 +2443,64 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </p>
             </div>
 
-            {/* Trạng thái hệ thống: Tự phục vụ 24/7 qua Turso Cloud */}
-            <div className="p-4 rounded-2xl liquid-glass border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse shrink-0" />
-                <span className="font-semibold text-white/90">
-                  {botStatus.online ? 'Discord Bot Online • Tự động gửi kết quả qua tin nhắn riêng Discord' : 'Orbit Engine Live • Bốc đề tự phục vụ 24/7 từ kho dữ liệu mây'}
-                </span>
+            {/* 1. Bot Offline Warning Barrier */}
+            {!botStatus.online && (
+              <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-4 text-rose-600 dark:text-rose-400">
+                <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-bold text-sm sm:text-base">
+                    DISCORD BOT HIỆN ĐANG KHÔNG HOẠT ĐỘNG (OFFLINE)
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/70">
+                    Bot đang ngoại tuyến nên tính năng bốc đề tạm dừng. Bạn vẫn xem kho đề
+                    và nộp đề mới bình thường — đề nộp lúc này được lưu tạm và tự gửi khi
+                    bot hoạt động trở lại.
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={checkBotStatus}
+                      className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-500 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Thử Kiểm Tra Lại Trạng Thái Bot</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[11px] font-mono text-purple-300 px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30">
-                  {displayedDocuments.length || totalDocsCount || 179} Đề Sẵn Sàng
-                </span>
-                {!user && (
+            )}
+
+            {/* Bot vừa bật lại: báo đã tự nhận diện + đồng bộ */}
+            {justReconnected && botStatus.online && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <p className="text-xs sm:text-sm font-semibold">
+                  Bot đã online trở lại — danh sách đề và kho lưu tạm đang tự đồng bộ.
+                </p>
+              </div>
+            )}
+
+            {/* 2. User Unverified Email Warning Barrier */}
+            {(!user || !user.verified) && (
+              <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <h4 className="font-bold text-sm sm:text-base">
+                    BỐC ĐỀ CẦN TÀI KHOẢN DISCORD ĐÃ XÁC MINH EMAIL
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60">
+                    {!user
+                      ? 'Xem kho đề và nộp đề mới thì không cần đăng nhập. Chỉ khi bốc đề làm bài mới cần liên kết Discord đã verify email.'
+                      : 'Xem và nộp đề không cần verify. Chỉ khi bốc đề làm bài mới cần email Discord đã xác minh.'}
+                  </p>
                   <button
-                    type="button"
                     onClick={onOpenAuthModal}
-                    className="text-xs text-[#5865F2] hover:text-white font-bold transition-colors cursor-pointer"
+                    className="py-2 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors cursor-pointer"
                   >
-                    Liên kết Discord →
+                    {!user ? 'Liên Kết Discord Ngay' : 'Xác Minh / Đổi Tài Khoản'}
                   </button>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 3. BỘ LỌC ĐỀ THI VỚI NÚT BỐC ĐỀ NGẪU NHIÊN */}
             {renderFilterControls(true)}

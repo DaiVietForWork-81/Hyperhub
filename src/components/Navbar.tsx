@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
-import { getTursoStorageUsage } from '../utils/tursoClient';
+import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
 
 interface NavbarProps {
   theme?: string;
@@ -23,20 +23,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNearTop, setIsNearTop] = useState(true);
-  const [docCount, setDocCount] = useState<number | null>(178);
+  const [docCount, setDocCount] = useState<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
 
-  // Lấy số lượng đề thật từ Turso Cloud siêu tốc
+  // Lấy số lượng đề thật từ Bot
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const stats = await getTursoStorageUsage();
-        if (stats && stats.totalDocs > 0) {
-          setDocCount(stats.totalDocs);
-          return;
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/api/documents/stats`, {
+          headers: API_FETCH_HEADERS,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.total_real || data.total_items)) {
+            setDocCount(data.total_real || data.total_items);
+          } else {
+            setDocCount(null);
+          }
+        } else {
+          setDocCount(null);
         }
-      } catch {}
-      setDocCount(179);
+      } catch {
+        setDocCount(null);
+      }
     };
     fetchCount();
   }, []);
@@ -143,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img
               src="/logo.png"
-              alt="Orbit Logo"
+              alt="HyperHub Logo"
               className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
@@ -151,90 +161,84 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
             <div className="flex items-center">
               <span className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
-                Orbit
+                HyperHub
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse"></span>
             </div>
           </button>
 
-          {/* Desktop Nav: Chỉ hiện Nav Dock khi ở Trang Chủ, khi vào Dashboard chuyển sang Breadcrumb thanh lịch tránh trùng lặp */}
-          {activeView === 'home' ? (
-            <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-2xl border border-white/[0.1] liquid-glass shadow-inner">
-              <button
-                type="button"
-                onClick={() => handleNavClick('home')}
-                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer bg-white/15 text-white shadow-sm"
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span>Trang Chủ</span>
-              </button>
+          {/* Desktop Nav Dock */}
+          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-2xl border border-white/[0.1] liquid-glass shadow-inner">
+            <button
+              type="button"
+              onClick={() => handleNavClick('home')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'home'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Trang Chủ</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'vault')}
-                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                <span>Kho Đề</span>
-                {docCount !== null && docCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                    {docCount} Đề
-                  </span>
-                )}
-              </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'vault')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'vault'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+              <span>Kho Đề</span>
+              {docCount !== null && docCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  {docCount} Đề
+                </span>
+              )}
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'get_exam')}
-                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
-              >
-                <Dices className="w-3.5 h-3.5 text-pink-400" />
-                <span>Lấy Đề</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'get_exam')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'get_exam'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
+            >
+              <Dices className="w-3.5 h-3.5 text-pink-400" />
+              <span>Lấy Đề</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'submit_doc')}
-                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Kho Nộp Đề</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'submit_doc')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && activeTab === 'submit_doc'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Kho Nộp Đề</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'overview')}
-                className="px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer text-white/75 hover:text-white hover:bg-white/[0.05]"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Bảng Điều Khiển</span>
-              </button>
-            </nav>
-          ) : (
-            <div className="hidden md:flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleNavClick('home')}
-                className="text-white/50 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-white/[0.05]"
-              >
-                <Home className="w-3.5 h-3.5 text-purple-400" />
-                <span>Trang Chủ</span>
-              </button>
-              <span className="text-white/20">/</span>
-              <span className="text-white/70 font-medium flex items-center gap-1.5">
-                <LayoutDashboard className="w-3.5 h-3.5 text-pink-400" />
-                <span>Bảng Điều Khiển</span>
-              </span>
-              <span className="text-white/20">/</span>
-              <span className="text-white font-bold px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-[11px] text-purple-200">
-                {activeTab === 'overview' && 'Trang chính'}
-                {activeTab === 'vault' && 'Kho Đề Thi'}
-                {activeTab === 'get_exam' && 'Lấy Đề Nhanh'}
-                {activeTab === 'submit_doc' && 'Kho Nộp Đề'}
-                {activeTab === 'admin' && 'Quản Trị Hệ Thống'}
-              </span>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard', 'overview')}
+              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'dashboard' && (activeTab === 'overview' || activeTab === 'admin')
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
+                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Bảng Điều Khiển</span>
+            </button>
+          </nav>
 
           {/* Action Area: Discord User / Link CTA */}
           <div className="hidden md:flex items-center gap-2.5 shrink-0">

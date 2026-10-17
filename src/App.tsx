@@ -134,10 +134,10 @@ export const App: React.FC = () => {
       />
 
       {/* Main Experience: Chuyển đổi mượt mà giữa Trang Chủ và Bảng Điều Khiển (/hub) */}
-      <main className={`relative z-10 flex flex-col w-full overflow-x-hidden ${activeView === 'home' ? 'pt-16 sm:pt-20' : 'pt-14 sm:pt-16'}`}>
+      <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
         {activeView === 'home' ? (
           <>
-            <Hero onOpenDashboard={() => navigateTo('dashboard', 'overview')} />
+            <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />
 
             {/* 1. Thời Gian Tuyển Sinh & Kỳ Thi (Đếm ngược THPT & Tuyển sinh vào 10) */}
             <section
@@ -150,7 +150,7 @@ export const App: React.FC = () => {
             {/* 2. Ước Mơ (Nuôi Dưỡng Khát Vọng & Nguyện Vọng 1) */}
             <DreamAspirations />
 
-            {/* 3. Giới Thiệu Cộng Đồng (Hệ sinh thái Orbit) */}
+            {/* 3. Giới Thiệu Cộng Đồng (Hệ sinh thái HyperHub) */}
             <CommunityIntro />
 
             {/* 4. Cộng Đồng (Kênh Messenger & Discord - Tạm thời chưa thêm Facebook) */}
