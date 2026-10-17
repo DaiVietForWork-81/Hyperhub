@@ -80,7 +80,7 @@ export const CoFounders: React.FC = () => {
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
             Đội Ngũ Sáng Lập{' '}
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-              HyperHub
+              Orbit
             </span>
           </h2>
 
@@ -140,7 +140,7 @@ export const CoFounders: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
-                  <span className="font-mono text-slate-400">HyperHub Foundation</span>
+                  <span className="font-mono text-slate-400">Orbit Foundation</span>
                   <span className="inline-flex items-center gap-1 font-bold text-purple-400">
                     <Star className="w-3.5 h-3.5 fill-current" />
                     <span>Founder</span>
@@ -192,7 +192,7 @@ export const CoFounders: React.FC = () => {
                   </div>
 
                   <div className="pt-3 mt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
-                    <span className="font-mono text-slate-400">HyperHub Team</span>
+                    <span className="font-mono text-slate-400">Orbit Team</span>
                     <span className="text-slate-400 font-semibold">Co-Founder</span>
                   </div>
                 </SpotlightCard>

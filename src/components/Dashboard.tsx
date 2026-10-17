@@ -1733,9 +1733,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
             onClick={onBackToHome}
             className="flex items-center gap-2.5 group cursor-pointer text-left"
           >
-            <img src="/logo.png" alt="HyperHub Logo" className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10" />
+            <img src="/logo.png" alt="Orbit Logo" className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10" />
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base text-white">HyperHub</span>
+              <span className="font-extrabold text-base text-white">Orbit</span>
               <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
             </div>
           </button>
@@ -1863,12 +1863,12 @@ const DashboardContent: React.FC<DashboardProps> = ({
             >
               <img
                 src="/logo.png"
-                alt="HyperHub Logo"
+                alt="Orbit Logo"
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-white/10 group-hover:ring-purple-500/60 transition-all shadow-md"
               />
               <div>
                 <div className="text-base sm:text-lg font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
-                  <span>HyperHub</span>
+                  <span>Orbit</span>
                   <span className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_#ec4899] animate-pulse" />
                 </div>
                 <div className="text-xs text-purple-300/80 font-mono font-medium">Bảng Điều Khiển Học Thuật</div>
@@ -1893,7 +1893,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
           >
             <span className="flex items-center gap-2">
               <Home className="w-4 h-4 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
-              <span>Về Trang Chủ HyperHub</span>
+              <span>Về Trang Chủ Orbit</span>
             </span>
             <span className="text-xs text-white/40 font-mono">← Home</span>
           </button>
@@ -2086,7 +2086,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         {/* Workspace Top Command Bar (Desktop: Độc lập, không dùng chung mẫu Landing) */}
         <div className="hidden lg:flex items-center justify-between pb-5 mb-8 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5 text-sm font-semibold">
-            <span className="text-white/40">HyperHub</span>
+            <span className="text-white/40">Orbit</span>
             <span className="text-white/20">/</span>
             <span className="font-extrabold text-white flex items-center gap-2 text-base">
               {activeTab === 'overview' && 'Trang chính'}
@@ -2153,7 +2153,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
                 </h1>
                 <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
-                  Bảng điều khiển kết nối trực tiếp với Discord Bot HyperHub và kho lưu trữ đề thi tự động.
+                  Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
                 </p>
               </div>
 
@@ -2299,7 +2299,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
-                      Bot Discord HyperHub
+                      Bot Discord Orbit
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
                       {botStatus.online
@@ -2308,7 +2308,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     </p>
                   </div>
                   <div className="text-xs font-mono text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <span>User: {botStatus.bot_user || 'HyperHub#0594'}</span>
+                    <span>User: {botStatus.bot_user || 'Orbit#0594'}</span>
                     {botStatus.online && (
                       <span className="text-emerald-400 font-bold flex items-center gap-1.5">
                         ● Live

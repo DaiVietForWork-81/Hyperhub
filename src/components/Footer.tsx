@@ -7,11 +7,11 @@ export const Footer: React.FC = () => {
         {/* Brand & Slogan */}
         <div className="flex flex-col items-center sm:items-start gap-1">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-white">HyperHub</span>
-            <span className="text-xs text-purple-400 font-mono tracking-widest font-semibold">• LEARN • CODE • CHILL</span>
+            <span className="text-lg font-bold tracking-tight text-white">Orbit</span>
+            <span className="text-xs text-purple-400 font-mono tracking-widest font-semibold">• LEARN • GROW • CONNECT</span>
           </div>
           <p className="text-xs text-white/40 text-center sm:text-left">
-            Cộng đồng học tập, thuật toán lập trình & công nghệ tại Việt Nam.
+            Different paths. One orbit. Không gian học hỏi & cùng tiến xa hơn.
           </p>
           <div className="text-[11px] text-purple-300/60 mt-1">
             Đồng sáng lập: <strong className="text-purple-300 font-semibold">Dai Viet, GithuZ, Nguyễn Duy, Lê Minh</strong>
@@ -30,7 +30,7 @@ export const Footer: React.FC = () => {
 
         {/* Copyright */}
         <div className="text-xs text-white/40 text-center sm:text-right">
-          © 2026 HyperHub. All rights reserved.
+          © 2026 Orbit. All rights reserved.
           <div className="text-[10px] text-white/25 mt-0.5">
             Phụng sự thế hệ sĩ tử Việt Nam với niềm tự hào & nhiệt huyết 💜
           </div>

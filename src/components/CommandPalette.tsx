@@ -91,7 +91,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     },
     {
       id: 'action-home',
-      title: 'Về Trang Chủ HyperHub',
+      title: 'Về Trang Chủ Orbit',
       category: 'Điều hướng',
       icon: <Home className="w-4 h-4 text-blue-400" />,
       action: () => {
@@ -261,7 +261,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
           <span className="flex items-center gap-1 text-purple-400 font-semibold">
             <Sparkles className="w-3 h-3" />
-            HyperHub AI Command Engine
+            Orbit AI Command Engine
           </span>
         </div>
       </div>

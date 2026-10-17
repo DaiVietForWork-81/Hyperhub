@@ -54,7 +54,7 @@ const INSPIRATION_PILLARS = [
   {
     icon: Heart,
     title: 'Đồng Hành Không Đơn Độc',
-    desc: 'HyperHub luôn ở đây để chia sẻ tài liệu, lắng nghe và đồng hành cùng bạn trên từng chặng đường nước rút.',
+    desc: 'Orbit luôn ở đây để chia sẻ tài liệu, lắng nghe và đồng hành cùng bạn trên từng chặng đường nước rút.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/20',
@@ -129,7 +129,7 @@ export const DreamAspirations: React.FC = () => {
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto">
             Mỗi ngọn đèn bạn thắp sáng trong đêm, mỗi bài toán bạn kiên trì tìm lời giải đều đang vẽ nên cánh cổng ngôi trường mơ ước. 
-            Đừng bao giờ từ bỏ ước mơ của mình, bởi HyperHub luôn sẵn sàng tiếp lửa cho bạn!
+            Đừng bao giờ từ bỏ ước mơ của mình, bởi Orbit luôn sẵn sàng tiếp lửa cho bạn!
           </p>
         </div>
       </ScrollReveal>
@@ -142,7 +142,7 @@ export const DreamAspirations: React.FC = () => {
               <div className="space-y-6 text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <BookmarkCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Ước mơ của bạn đã được ghi danh trên HyperHub</span>
+                  <span>Ước mơ của bạn đã được ghi danh trên Orbit</span>
                 </div>
 
                 <div className="space-y-2">
@@ -182,7 +182,7 @@ export const DreamAspirations: React.FC = () => {
                   <div>
                     <h3 className="text-lg font-bold text-white">Khắc Ghi Ngôi Trường Mơ Ước</h3>
                     <p className="text-xs text-slate-400">
-                      Ghi lại mục tiêu để mỗi lần vào HyperHub, bạn được nhắc nhở về lý do mình nỗ lực!
+                      Ghi lại mục tiêu để mỗi lần vào Orbit, bạn được nhắc nhở về lý do mình nỗ lực!
                     </p>
                   </div>
                 </div>

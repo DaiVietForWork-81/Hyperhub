@@ -150,7 +150,7 @@ export const App: React.FC = () => {
             {/* 2. Ước Mơ (Nuôi Dưỡng Khát Vọng & Nguyện Vọng 1) */}
             <DreamAspirations />
 
-            {/* 3. Giới Thiệu Cộng Đồng (Hệ sinh thái HyperHub) */}
+            {/* 3. Giới Thiệu Cộng Đồng (Hệ sinh thái Orbit) */}
             <CommunityIntro />
 
             {/* 4. Cộng Đồng (Kênh Messenger & Discord - Tạm thời chưa thêm Facebook) */}

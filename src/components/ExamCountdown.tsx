@@ -51,7 +51,7 @@ const INSPIRATIONAL_QUOTES = [
   },
   {
     quote: 'Mỗi bài tập bạn giải hôm nay là một bước tiến gần hơn đến cánh cổng Đại học mơ ước!',
-    author: 'HyperHub Mentor',
+    author: 'Orbit Mentor',
     tag: 'Quyết tâm',
   },
   {
@@ -81,7 +81,7 @@ const INSPIRATIONAL_QUOTES = [
   },
   {
     quote: 'Mỗi giờ bạn tập trung cao độ hôm nay sẽ đổi lại sự tự tin tuyệt đối trong phòng thi.',
-    author: 'HyperHub Community',
+    author: 'Orbit Community',
     tag: 'Tập trung',
   },
 ];

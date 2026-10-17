@@ -478,7 +478,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'hyperhub-one.vercel.app'];
         const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
         if (!isAllowed) {
-          setEndpointMsg('⚠️ Chỉ chấp nhận máy chủ chính thức của HyperHub hoặc Localhost.');
+          setEndpointMsg('⚠️ Chỉ chấp nhận máy chủ chính thức của Orbit hoặc Localhost.');
           return;
         }
       } catch {
@@ -917,7 +917,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               BẢNG ĐIỀU KHIỂN QUẢN TRỊ (ADMIN PORTAL)
             </h2>
             <p className="text-xs text-slate-400">
-              Đồng bộ trực tiếp hai chiều với HyperHub Discord Bot & Máy chủ
+              Đồng bộ trực tiếp hai chiều với Orbit Discord Bot & Máy chủ
             </p>
           </div>
         </div>
