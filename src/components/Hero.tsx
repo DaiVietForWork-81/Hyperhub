@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
+import { OrbitLogo3D } from './OrbitLogo3D';
 
 const ROW1_SUBJECTS = [
   { name: "Toán Học", icon: Calculator, color: "text-blue-400", border: "border-blue-500/20" },
@@ -80,19 +81,9 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         {/* Orbit Big Main Title - With Server Icon On Top */}
         <ScrollReveal delay={200}>
           <div className="relative mb-4 sm:mb-6 select-none flex flex-col items-center">
-            {/* Server Icon Badge placed directly above Orbit */}
-            <div className="mb-4 sm:mb-5 relative group cursor-pointer inline-flex items-center justify-center">
-              <div className="absolute -inset-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-500 rounded-3xl blur-2xl opacity-50 group-hover:opacity-90 animate-pulse transition duration-500" />
-              <div className="relative p-1.5 sm:p-2 rounded-3xl bg-black/60 backdrop-blur-xl border border-white/20 shadow-2xl shadow-purple-950/80 group-hover:border-purple-400/60 transition-all duration-300">
-                <img
-                  src="/server_icon.png"
-                  alt="Orbit Server Icon"
-                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl object-cover ring-1 ring-white/10 group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/logo.png';
-                  }}
-                />
-              </div>
+            {/* Interactive 3D Orbit Logo / Server Icon */}
+            <div className="mb-4 sm:mb-5 relative flex items-center justify-center">
+              <OrbitLogo3D size={210} className="mb-2" />
             </div>
 
             <div className="text-aura-halo">
