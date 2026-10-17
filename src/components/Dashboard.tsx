@@ -566,8 +566,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* 1. TOP BENTO COMMAND DOCK (Full Width Control Bar)                        */}
       {/* ========================================================================= */}
-      <header className="sticky top-13 sm:top-14 z-40 w-full bg-[#07080D]/90 backdrop-blur-xl border-b border-white/[0.08] shadow-2xl">
-        <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-6 pt-3 pb-1">
+        <div className="w-full p-2 sm:p-2.5 rounded-2xl bg-[#0B0D15] border border-white/[0.08] shadow-lg flex flex-wrap items-center justify-between gap-3">
           
           {/* Left: Live Status & Search Command Trigger */}
           <div className="flex items-center gap-3">
@@ -715,7 +715,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ========================================================================= */}
       {/* 2. MAIN BENTO WORKSPACE                                                   */}
