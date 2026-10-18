@@ -71,7 +71,7 @@ export const DreamAspirations: React.FC = () => {
   // Nạp ước mơ đã lưu từ localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('hyperhub_user_dream');
+      const stored = localStorage.getItem('orbit_user_dream') || localStorage.getItem('hyperhub_user_dream');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.school) {
@@ -94,7 +94,7 @@ export const DreamAspirations: React.FC = () => {
       score: dreamScore.trim() || 'Thủ Khoa / Nguyện Vọng 1',
     };
     try {
-      localStorage.setItem('hyperhub_user_dream', JSON.stringify(dreamObj));
+      localStorage.setItem('orbit_user_dream', JSON.stringify(dreamObj));
       setSavedDream(dreamObj);
       setIsEditing(false);
       setSaveSuccess(true);

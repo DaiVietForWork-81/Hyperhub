@@ -337,7 +337,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
   // 1. Chế độ kỳ thi: Tốt nghiệp THPT hoặc Tuyển sinh Vào 10
   const [selectedMode, setSelectedMode] = useState<ExamMode>(() => {
     try {
-      const saved = localStorage.getItem('hyperhub-exam-mode');
+      const saved = localStorage.getItem('orbit-exam-mode') || localStorage.getItem('hyperhub-exam-mode');
       if (saved === 'thpt' || saved === 'grade10') return saved;
     } catch {}
     return 'thpt';
@@ -346,7 +346,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
   // 2. Khóa học: Duy nhất 2 khóa: Khóa 2027 - 2028 và Khóa 2028 - 2029
   const [selectedCohort, setSelectedCohort] = useState<ExamCohort>(() => {
     try {
-      const saved = localStorage.getItem('hyperhub-exam-cohort');
+      const saved = localStorage.getItem('orbit-exam-cohort') || localStorage.getItem('hyperhub-exam-cohort');
       if (saved === '2027-2028' || saved === '2028-2029') return saved;
     } catch {}
     return '2027-2028';
@@ -381,14 +381,14 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
   const handleModeChange = (mode: ExamMode) => {
     setSelectedMode(mode);
     try {
-      localStorage.setItem('hyperhub-exam-mode', mode);
+      localStorage.setItem('orbit-exam-mode', mode);
     } catch {}
   };
 
   const handleCohortChange = (cohort: ExamCohort) => {
     setSelectedCohort(cohort);
     try {
-      localStorage.setItem('hyperhub-exam-cohort', cohort);
+      localStorage.setItem('orbit-exam-cohort', cohort);
     } catch {}
   };
 

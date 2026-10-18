@@ -32,7 +32,8 @@ export interface HubLayoutConfig {
   widgetOrder: Record<string, string[]>; // e.g. { overview_quick: [...], overview_status: [...] }
 }
 
-const STORAGE_KEY = 'hyperhub_layout_customizer_v1';
+const STORAGE_KEY = 'orbit_layout_customizer_v1';
+const LEGACY_STORAGE_KEY = 'hyperhub_layout_customizer_v1';
 
 const DEFAULT_CONFIG: HubLayoutConfig = {
   sidebarWidth: 320,
@@ -77,7 +78,7 @@ export const useHubLayout = () => {
 export const HubLayoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<HubLayoutConfig>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -91,7 +92,7 @@ export const HubLayoutProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         };
       }
     } catch (e) {
-      console.warn('Failed to load hyperhub layout config:', e);
+      console.warn('Failed to load orbit layout config:', e);
     }
     return DEFAULT_CONFIG;
   });

@@ -154,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <img
               src="/logo.png"
               alt="Orbit Logo"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-200"
+              className="h-8 w-8 sm:h-9 sm:w-9 object-contain drop-shadow-[0_0_12px_rgba(168,85,247,0.5)] group-hover:scale-110 group-hover:drop-shadow-[0_0_18px_rgba(236,72,153,0.6)] transition-all duration-300"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}

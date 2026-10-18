@@ -1733,7 +1733,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             onClick={onBackToHome}
             className="flex items-center gap-2.5 group cursor-pointer text-left"
           >
-            <img src="/logo.png" alt="Orbit Logo" className="w-8 h-8 rounded-xl object-cover ring-1 ring-white/10" />
+            <img src="/logo.png" alt="Orbit Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_10px_rgba(168,85,247,0.5)] group-hover:scale-105 transition-transform" />
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base text-white">Orbit</span>
               <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
@@ -1864,7 +1864,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <img
                 src="/logo.png"
                 alt="Orbit Logo"
-                className="w-10 h-10 rounded-2xl object-cover ring-2 ring-white/10 group-hover:ring-purple-500/60 transition-all shadow-md"
+                className="w-10 h-10 object-contain drop-shadow-[0_0_14px_rgba(168,85,247,0.55)] group-hover:scale-110 transition-transform"
               />
               <div>
                 <div className="text-base sm:text-lg font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
