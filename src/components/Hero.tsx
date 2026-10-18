@@ -60,35 +60,35 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
   return (
     <section 
       id="hero" 
-      className="relative min-h-[calc(100dvh-5rem)] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 sm:py-24 md:py-28 overflow-hidden text-center w-full"
+      className="relative min-h-[calc(100dvh-3.5rem)] flex flex-col justify-start items-center px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 pb-8 overflow-hidden text-center w-full"
     >
-      {/* Central Content Box - Fluid & Perfectly Centered */}
-      <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto z-10 w-full">
+      {/* Central Content Box - Fluid & Lifted Upwards (To-Vừa) with Viewport Height Adaptability */}
+      <div className="flex flex-col items-center max-w-5xl lg:max-w-6xl mx-auto z-10 w-full">
         
         {/* Top Community Pill Badge */}
-        <ScrollReveal delay={100}>
-          <div className="group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-950/30 backdrop-blur-md mb-6 sm:mb-8 shadow-[0_0_25px_rgba(139,92,246,0.2)]">
-            <Sparkles className="relative z-10 w-3.5 h-3.5 text-pink-400" />
-            <span className="relative z-10 text-xs tracking-wide text-purple-300 font-semibold">
+        <ScrollReveal initialVisible={true} delay={50}>
+          <div className="group relative inline-flex items-center gap-1.5 sm:gap-2 px-3 py-0.5 sm:px-3.5 sm:py-1 rounded-full border border-purple-500/30 bg-purple-950/30 backdrop-blur-md mb-2 sm:mb-2.5 shadow-[0_0_20px_rgba(139,92,246,0.2)]">
+            <Sparkles className="relative z-10 w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-400" />
+            <span className="relative z-10 text-[10px] sm:text-xs tracking-wide text-purple-300 font-semibold">
               Cộng Đồng Học Tập & Công Nghệ
             </span>
             <span className="relative z-10 h-1 w-1 rounded-full bg-purple-500/60"></span>
-            <span className="relative z-10 text-xs font-bold text-pink-400">Việt Nam</span>
+            <span className="relative z-10 text-[10px] sm:text-xs font-bold text-pink-400">Việt Nam</span>
           </div>
         </ScrollReveal>
 
         {/* Orbit Big Main Title - With Server Icon On Top */}
-        <ScrollReveal delay={200}>
-          <div className="relative mb-4 sm:mb-6 select-none flex flex-col items-center">
-            {/* 2D Orbit Server Icon Badge */}
-            <div className="mb-4 sm:mb-6 relative group cursor-pointer inline-flex items-center justify-center">
+        <ScrollReveal initialVisible={true} delay={100}>
+          <div className="relative mb-1 sm:mb-2 select-none flex flex-col items-center">
+            {/* 2D Orbit Server Icon Badge - Fluidly Sized to fit viewport adaptively across all ratios */}
+            <div className="mb-1 sm:mb-1.5 relative group cursor-pointer inline-flex items-center justify-center">
               {/* Soft Cosmic Aura Glow */}
-              <div className="absolute -inset-8 bg-gradient-to-tr from-purple-600/50 via-fuchsia-600/40 to-pink-500/40 rounded-full blur-3xl opacity-75 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              <div className="absolute -inset-4 sm:-inset-6 bg-gradient-to-tr from-purple-600/50 via-fuchsia-600/40 to-pink-500/40 rounded-full blur-xl sm:blur-2xl opacity-75 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
               <img
                 src="/server_icon.png"
                 alt="Orbit Server Icon"
-                className="relative z-10 w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 object-contain filter drop-shadow-[0_16px_36px_rgba(168,85,247,0.55)] group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
+                className="relative z-10 h-[clamp(65px,11vh,115px)] w-[clamp(65px,11vh,115px)] sm:h-[clamp(75px,13vh,135px)] sm:w-[clamp(75px,13vh,135px)] object-contain filter drop-shadow-[0_12px_28px_rgba(168,85,247,0.55)] group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/logo.png';
                 }}
@@ -96,7 +96,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
             </div>
 
             <div className="text-aura-halo">
-              <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black tracking-tight leading-none drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+              <h1 className="text-[clamp(2.1rem,5vh,3.8rem)] font-black tracking-tight leading-none drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]">
                 <span className="cosmic-text-flow">
                   Orbit
                 </span>
@@ -106,8 +106,8 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         </ScrollReveal>
 
         {/* Slogan: LEARN • GROW • CONNECT with Animated Gradient Texture */}
-        <ScrollReveal delay={300}>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 text-sm sm:text-xl md:text-2xl lg:text-3xl font-black tracking-[0.1em] sm:tracking-[0.18em] uppercase mb-3 sm:mb-4 text-white">
+        <ScrollReveal initialVisible={true} delay={150}>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 text-[clamp(0.72rem,1.7vh,1.1rem)] font-black tracking-[0.1em] sm:tracking-[0.15em] uppercase mb-1 sm:mb-1.5 text-white">
             <span className="inline-block transform-gpu transition-all duration-200 hover:scale-110 hover:-translate-y-0.5 active:scale-95 cursor-default">
               <span className="cosmic-text-flow">LEARN</span>
             </span>
@@ -120,7 +120,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
               <span className="cosmic-text-flow">CONNECT</span>
             </span>
           </div>
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs sm:text-sm text-purple-300 font-medium mb-6 sm:mb-8">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] sm:text-[11px] text-purple-300 font-medium mb-2.5 sm:mb-3">
             <span className="font-semibold text-white">Different paths. One orbit.</span>
             <span className="text-pink-400">•</span>
             <span className="text-purple-200/80">Những con đường khác nhau. Cùng một quỹ đạo.</span>
@@ -128,19 +128,19 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         </ScrollReveal>
 
         {/* Dual Animated Moving Stream of Subjects & Programming */}
-        <ScrollReveal delay={400}>
-          <div className="w-full max-w-4xl lg:max-w-5xl mx-auto mb-8 sm:mb-10 px-2 overflow-hidden select-none pointer-events-none">
-            <div className="relative space-y-2 sm:space-y-2.5 py-1 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+        <ScrollReveal initialVisible={true} delay={200}>
+          <div className="w-full max-w-5xl lg:max-w-6xl mx-auto mb-2.5 sm:mb-3.5 px-2 overflow-hidden select-none pointer-events-none">
+            <div className="relative space-y-1.5 py-0.5 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
               {/* Row 1: Leftward Stream */}
-              <div className="animate-marquee-left flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
+              <div className="animate-marquee-left flex items-center gap-2 transform-gpu will-change-transform">
                 {[...ROW1_SUBJECTS, ...ROW1_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={`row1-${item.name}-${idx}`}
-                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-[#12131f]/95 border ${item.border} text-white/90 shadow-sm`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium whitespace-nowrap shrink-0 bg-[#12131f]/95 border ${item.border} text-white/90 shadow-sm`}
                     >
-                      <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.color} shrink-0`} />
+                      <Icon className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${item.color} shrink-0`} />
                       <span>{item.name}</span>
                     </div>
                   );
@@ -148,15 +148,15 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
               </div>
 
               {/* Row 2: Rightward Stream */}
-              <div className="animate-marquee-right flex items-center gap-2 sm:gap-2.5 transform-gpu will-change-transform">
+              <div className="animate-marquee-right flex items-center gap-2 transform-gpu will-change-transform">
                 {[...ROW2_SUBJECTS, ...ROW2_SUBJECTS].map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={`row2-${item.name}-${idx}`}
-                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 bg-[#12131f]/95 border ${item.border} text-white/90 shadow-sm`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium whitespace-nowrap shrink-0 bg-[#12131f]/95 border ${item.border} text-white/90 shadow-sm`}
                     >
-                      <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.color} shrink-0`} />
+                      <Icon className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${item.color} shrink-0`} />
                       <span>{item.name}</span>
                     </div>
                   );
@@ -167,31 +167,31 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard }) => {
         </ScrollReveal>
 
         {/* Welcome Description */}
-        <ScrollReveal delay={500}>
-          <p className="text-sm sm:text-base md:text-lg text-white/75 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed text-balance px-4">
+        <ScrollReveal initialVisible={true} delay={250}>
+          <p className="text-[clamp(0.72rem,1.5vh,0.875rem)] text-white/75 max-w-xl mx-auto mb-3 sm:mb-4 leading-relaxed line-clamp-2 px-4">
             Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại <span className="text-white font-semibold">Orbit</span> để học hỏi, bứt phá năng lực và cùng nhau tiến xa hơn trên hành trình tri thức.
           </p>
         </ScrollReveal>
 
         {/* Action Buttons - Centered */}
-        <ScrollReveal delay={600}>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto px-4">
+        <ScrollReveal initialVisible={true} delay={300}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto px-4">
             <button
               type="button"
               onClick={onOpenDashboard}
-              className="ux-btn-liquid btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 min-h-[50px] rounded-full font-bold text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-900/40 hover:shadow-[0_0_35px_rgba(236,72,153,0.45)] cursor-pointer"
+              className="ux-btn-liquid btn-shimmer group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[44px] rounded-full font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-900/40 hover:shadow-[0_0_30px_rgba(236,72,153,0.45)] cursor-pointer"
             >
               <span>Vào Bảng Điều Khiển & Lấy Đề</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-200" />
             </button>
 
             <a
               href="https://discord.gg/D34HX87bGe"
               target="_blank"
               rel="noopener noreferrer"
-              className="ux-btn-liquid group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[50px] rounded-full font-medium text-sm text-white/90 hover:text-white bg-white/[0.04] border border-white/10 hover:border-purple-500/50 cursor-pointer"
+              className="ux-btn-liquid group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[44px] rounded-full font-medium text-xs sm:text-sm text-white/90 hover:text-white bg-white/[0.04] border border-white/10 hover:border-purple-500/50 cursor-pointer"
             >
-              <ExternalLink className="w-4 h-4 text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
+              <ExternalLink className="w-3.5 h-3.5 text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
               <span>Tham Gia Discord</span>
             </a>
           </div>

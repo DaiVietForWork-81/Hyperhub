@@ -42,8 +42,8 @@ export const CommunityChannels: React.FC = () => {
         </div>
       </ScrollReveal>
 
-      {/* 2 Kênh Kết Nối Chính: DISCORD & MESSENGER (Chưa thêm Facebook) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      {/* 2 Kênh Kết Nối Chính: DISCORD & MESSENGER (Chưa thêm Facebook) - Kích thước to-vừa */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-6xl mx-auto">
         
         {/* KÊNH 1: MÁY CHỦ DISCORD */}
         <ScrollReveal delay={100}>

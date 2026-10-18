@@ -91,7 +91,7 @@ export const CoFounders: React.FC = () => {
         </div>
       </ScrollReveal>
 
-      <div className="space-y-8 max-w-5xl mx-auto">
+      <div className="space-y-8 max-w-6xl mx-auto">
         {/* 1. SÁNG LẬP CHÍNH (DAI VIET - FEATURED PROMINENT HERO CARD) */}
         <ScrollReveal>
           <SpotlightCard

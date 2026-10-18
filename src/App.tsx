@@ -26,7 +26,8 @@ export const App: React.FC = () => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
+    const search = window.location.search.toLowerCase();
+    if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard' || search.includes('view=dashboard') || search.includes('hub')) {
       return 'dashboard';
     }
     return 'home';
@@ -136,7 +137,7 @@ export const App: React.FC = () => {
           />
 
           {/* Landing Page Content: Mẫu trang chủ tiếp thị giới thiệu hệ sinh thái */}
-          <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-16 sm:pt-20">
+          <main className="relative z-10 flex flex-col w-full overflow-x-hidden pt-12 sm:pt-14">
             <Hero onOpenDashboard={() => navigateTo('dashboard', 'get_exam')} />
 
             {/* 1. Thời Gian Tuyển Sinh & Kỳ Thi (Đếm ngược THPT & Tuyển sinh vào 10) */}
