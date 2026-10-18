@@ -53,6 +53,7 @@ import {
   HubLayoutProvider,
   useHubLayout,
   ResizableCard,
+  SidebarResizeDivider,
   HubStudioToolbar,
 } from './HubResizable';
 
@@ -1718,7 +1719,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
   const hubLocked = false;
 
   return (
-    <div className="min-h-screen w-full bg-[#070810] text-white">
+    <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
       {/* ========================================================================= */}
       {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
       {/* ========================================================================= */}
@@ -1844,15 +1845,12 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* HUB WORKSPACE: Kích thước TO-VỪA chuẩn, đồng bộ 100% với Trang Chính (max-w-7xl) */}
+      {/* DESKTOP SIDEBAR (Kéo chỉnh kích thước rộng hẹp tùy ý, lưu tự động)         */}
       {/* ========================================================================= */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="flex flex-col lg:flex-row gap-5 xl:gap-6 items-start">
-          {/* DESKTOP SIDEBAR (Floating Liquid Glass, gắn kết trong khung to-vừa) */}
-          <aside
-            style={{ width: `${Math.max(250, Math.min(config.sidebarWidth, 290))}px` }}
-            className="hidden lg:flex sticky top-6 max-h-[calc(100dvh-3rem)] rounded-3xl liquid-glass border border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 shadow-2xl overflow-y-auto no-scrollbar"
-          >
+      <aside
+        style={{ width: `${config.sidebarWidth}px` }}
+        className="hidden lg:flex sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 overflow-hidden shadow-2xl"
+      >
         {/* Top: Section Header & Nav items */}
         <div className="space-y-3 flex-1 min-h-0 flex flex-col">
           {/* Hub Workspace Brand & Back to Home */}
@@ -2078,10 +2076,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
         </div>
       </aside>
 
-          {/* ========================================================================= */}
-          {/* MAIN VIEW CONTENT AREA (Liquid Glass Card Đồng Bộ Khung To-Vừa)            */}
-          {/* ========================================================================= */}
-          <main className="flex-1 min-w-0 w-full rounded-3xl liquid-glass border border-white/[0.08] p-4 sm:p-6 lg:p-8 shadow-2xl">
+      {/* Draggable Divider để kéo co giãn thanh bên Sidebar */}
+      <SidebarResizeDivider />
+
+      {/* ========================================================================= */}
+      {/* MAIN VIEW CONTENT AREA                                                    */}
+      {/* ========================================================================= */}
+      <main className="flex-1 min-w-0 p-4 sm:p-8 lg:p-10 xl:p-12 max-w-[1680px] mx-auto w-full">
         {/* Workspace Top Command Bar (Desktop: Độc lập, không dùng chung mẫu Landing) */}
         <div className="hidden lg:flex items-center justify-between pb-5 mb-8 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5 text-sm font-semibold">
@@ -3836,8 +3837,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
           </div>
         )}
       </main>
-        </div>
-      </div>
 
       {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
 

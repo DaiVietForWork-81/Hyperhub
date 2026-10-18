@@ -136,7 +136,7 @@ export const DreamAspirations: React.FC = () => {
 
       {/* Bảng "Ước Mơ Của Bạn" (Interactive Student Dream Board) */}
       <ScrollReveal delay={150}>
-        <div className="max-w-5xl mx-auto mb-16">
+        <div className="max-w-4xl mx-auto mb-16">
           <div className="relative rounded-3xl p-6 sm:p-8 border border-pink-500/30 bg-gradient-to-b from-purple-950/30 via-black/50 to-pink-950/20 backdrop-blur-xl shadow-2xl shadow-purple-950/40">
             {savedDream && !isEditing ? (
               <div className="space-y-6 text-center">
