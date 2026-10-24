@@ -45,8 +45,8 @@ body {
 
 /* Theme color definitions */
 html.dark {
-  background-color: #050508;
-  color: #ffffff;
+  background-color: #08060e;
+  color: #f8f5ff;
   color-scheme: dark;
 }
 
@@ -57,22 +57,23 @@ html.light {
 }
 
 :root {
-  --bg-primary: #050508;
-  --bg-secondary: #08080d;
-  --bg-tertiary: #0c0d14;
-  --bg-card: #0e0f18;
-  --bg-card-hover: #141522;
+  --bg-primary: #08060e;
+  --bg-secondary: #100b1a;
+  --bg-tertiary: #161024;
+  --bg-card: #181127;
+  --bg-card-hover: #221838;
 
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.70);
-  --text-muted: rgba(255, 255, 255, 0.45);
+  --text-primary: #f8f5ff;
+  --text-secondary: rgba(248, 245, 255, 0.78);
+  --text-muted: rgba(232, 220, 250, 0.55);
 
-  --accent-purple: #8b5cf6;
-  --accent-pink: #ec4899;
-  --accent-violet: #a855f7;
+  --accent-purple: #9b5cff;
+  --accent-pink: #ff3ca6;
+  --accent-coral: #ffb396;
+  --accent-violet: #d61f79;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(139, 92, 246, 0.35);
+  --border-subtle: rgba(255, 190, 235, 0.10);
+  --border-hover: rgba(255, 60, 166, 0.42);
 
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -94,13 +95,13 @@ html.light {
   --border-hover: rgba(139, 92, 246, 0.5);
 }
 
-/* Modern Glassmorphism Technique (Liquid Glass) */
+/* Modern Glassmorphism Technique (Liquid Glass - Orbit Logo Plum-Velvet) */
 .liquid-glass {
-  background: rgba(14, 15, 24, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 25px -10px rgba(0, 0, 0, 0.5);
+  background: rgba(20, 14, 34, 0.84);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 190, 235, 0.11);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 245, 0.08), 0 12px 28px -10px rgba(4, 2, 10, 0.65);
   transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
@@ -232,15 +233,15 @@ p {
   }
 }
 
-/* Animated cosmic texture inside text */
+/* Animated cosmic texture inside text - Orbit Logo Spectrum (Violet -> Nebula Pink -> Dawn Peach) */
 .cosmic-text-flow {
   background: linear-gradient(
     135deg,
     #ffffff 0%,
-    #c084fc 20%,
-    #ec4899 40%,
-    #38bdf8 60%,
-    #a855f7 80%,
+    #e2ceff 18%,
+    #ff55b8 42%,
+    #ffb396 65%,
+    #9b5cff 85%,
     #ffffff 100%
   );
   background-size: 200% 200%;
@@ -255,9 +256,9 @@ html.light .cosmic-text-flow {
   background: linear-gradient(
     135deg,
     #7c3aed 0%,
-    #db2777 25%,
-    #0284c7 50%,
-    #9333ea 75%,
+    #d61f79 30%,
+    #ea580c 60%,
+    #9333ea 85%,
     #6d28d9 100%
   );
   background-size: 200% 200%;
@@ -280,10 +281,10 @@ html.light .cosmic-text-flow {
   inset: -20%;
   background: radial-gradient(
     ellipse at center,
-    rgba(168, 85, 247, 0.45) 0%,
-    rgba(236, 72, 153, 0.25) 35%,
-    rgba(56, 189, 248, 0.1) 60%,
-    transparent 80%
+    rgba(155, 92, 255, 0.45) 0%,
+    rgba(255, 60, 166, 0.30) 38%,
+    rgba(255, 158, 125, 0.16) 65%,
+    transparent 82%
   );
   border-radius: 9999px;
   pointer-events: none;

@@ -3,12 +3,10 @@ import {
   LayoutDashboard,
   Home,
   ArrowLeft,
-  Bot,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   RefreshCw,
-  Sparkles,
   BookOpen,
   GraduationCap,
   FileText,
@@ -29,6 +27,12 @@ import {
   FileCheck,
   Eye,
   ArrowRight,
+  Scale,
+  Clock,
+  Play,
+  Pause,
+  RotateCcw,
+  Target,
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import {
@@ -37,7 +41,9 @@ import {
   DEFAULT_TUNNEL_URL,
   setCustomApiUrl,
 } from '../utils/apiConfig';
-import { DocUploadZone } from './DocUploadZone';
+const DocUploadZone = lazy(() =>
+  import('./DocUploadZone').then((m) => ({ default: m.DocUploadZone }))
+);
 // AdminPanel tải lười (lazy): người thường không bao giờ tải code admin
 const AdminPanel = lazy(() =>
   import('./AdminPanel').then((m) => ({ default: m.AdminPanel }))
@@ -47,14 +53,15 @@ import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStora
 import { useToast } from '../context/ToastContext';
 import { ExamDossierModal } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
-import { fetchDocsFromTurso } from '../utils/tursoClient';
+import { fetchDocsFromTurso, getTursoStorageUsage } from '../utils/tursoClient';
 import { sound } from '../utils/audio';
+import { PixelMark } from './hh/PixelMark';
+import { PixelButton, SpotSurface } from './hh/Controls';
+import { getNextThptExamInfo } from './ExamCountdown';
 import {
   HubLayoutProvider,
   useHubLayout,
   ResizableCard,
-  SidebarResizeDivider,
-  HubStudioToolbar,
 } from './HubResizable';
 
 interface DashboardProps {
@@ -106,6 +113,9 @@ export interface ExamDocument {
   original_id?: number | null;
   duplicate_count?: number;
   educational_level?: 'CHUNG' | 'CAP_2' | 'CAP_3' | string;
+  quorum_status?: string | null;
+  quorum_arbitration?: any;
+  draft_dossier_markdown?: string | null;
 }
 
 // ============================================================================
@@ -396,7 +406,7 @@ export function getEducationLevelBadgeInfo(doc: { estimated_level?: string; subj
     label: 'Chung (Cả 2 cấp)',
     shortLabel: 'Chung',
     icon: '🌐',
-    badgeClass: 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/70 border-slate-200 dark:border-white/15',
+    badgeClass: 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/70 border-slate-200 dark:border-[#241a38]',
     dotColor: 'bg-slate-400',
   };
 }
@@ -578,7 +588,16 @@ const DashboardContent: React.FC<DashboardProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
   const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
   const [selectedExamType, setSelectedExamType] = useState<string>('ALL');
-  const [descriptionKeyword, setDescriptionKeyword] = useState<string>('');
+  const [descriptionKeyword, setDescriptionKeyword] = useState<string>(() => {
+    try {
+      const prefill = sessionStorage.getItem('orbit_subject_filter');
+      if (prefill) {
+        sessionStorage.removeItem('orbit_subject_filter');
+        return prefill;
+      }
+    } catch {}
+    return '';
+  });
 
   // BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN 2025, ĐÁP ÁN & LỜI GIẢI)
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('ALL');
@@ -884,7 +903,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
     try {
       let res = await fetch(`${apiBase}/api/status`, {
         headers: API_FETCH_HEADERS,
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(2500),
       });
 
       // Nếu endpoint hiện tại lỗi, tự động thử DEFAULT_TUNNEL_URL (trên môi trường HTTPS)
@@ -892,7 +911,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         try {
           const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(2500),
           });
           if (fallbackRes.ok) {
             res = fallbackRes;
@@ -912,14 +931,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
           uptime_seconds: data.uptime_seconds,
           guilds_count: data.guilds_count,
         });
-        if (!isOnline) {
-          setDocumentsList([]);
-          setTotalDocsCount(0);
-        }
       } else {
         setBotStatus({ online: false });
-        setDocumentsList([]);
-        setTotalDocsCount(0);
       }
     } catch {
       // Trường hợp kết nối thất bại (lỗi mạng, URL tùy biến cũ bị chết), thử lại với DEFAULT_TUNNEL_URL
@@ -927,7 +940,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         try {
           const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(2500),
           });
           if (fallbackRes.ok) {
             const data = await fallbackRes.json();
@@ -945,12 +958,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
         } catch {}
       }
       setBotStatus({ online: false });
-      setDocumentsList([]);
-      setTotalDocsCount(0);
     }
   }, []);
 
-  // 2. Lấy danh sách tất cả đề thi từ Kho Discord (Không giới hạn - Full List)
+  // 2. Lấy danh sách tất cả đề thi từ Kho Discord hoặc Turso Cloud (Full List)
   const fetchDocuments = useCallback(
     async (
       gradeOverride?: string,
@@ -960,6 +971,25 @@ const DashboardContent: React.FC<DashboardProps> = ({
       dupOverride?: 'all' | 'unique' | 'duplicate'
     ) => {
       setIsLoadingDocs(true);
+      let apiResolved = false;
+
+      // Chạy song song Turso Cloud (~95ms) để giao diện hiển thị ngay 179 đề mà không bị kẹt chờ timeout localhost:8080
+      const tursoPromise = fetchDocsFromTurso(500)
+        .then((tursoDocs) => {
+          if (!apiResolved && tursoDocs && tursoDocs.length > 0) {
+            setDocumentsList(tursoDocs as any);
+            setTotalDocsCount(tursoDocs.length);
+            setStats({
+              total_real: tursoDocs.length,
+              unique_items: tursoDocs.length,
+              duplicate_items: 0,
+            });
+            setIsLoadingDocs(false);
+          }
+          return tursoDocs;
+        })
+        .catch(() => null);
+
       try {
         let apiBase = getApiBaseUrl();
         const q = new URLSearchParams();
@@ -980,14 +1010,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         let res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
           headers: API_FETCH_HEADERS,
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(2500),
         });
 
         if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
           try {
             const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents?${q.toString()}`, {
               headers: API_FETCH_HEADERS,
-              signal: AbortSignal.timeout(8000),
+              signal: AbortSignal.timeout(2500),
             });
             if (fbRes.ok) {
               res = fbRes;
@@ -1000,35 +1030,17 @@ const DashboardContent: React.FC<DashboardProps> = ({
         if (res.ok) {
           const data = await res.json();
           if (data && data.documents) {
+            apiResolved = true;
             setDocumentsList(data.documents);
             setTotalDocsCount(data.total ?? data.documents.length);
+          } else {
+            await tursoPromise;
           }
         } else {
-          // Khi bot tắt: Tự động fallback sang Turso libSQL Cloud (5GB)
-          const tursoDocs = await fetchDocsFromTurso(100);
-          if (tursoDocs && tursoDocs.length > 0) {
-            setDocumentsList(tursoDocs as any);
-            setTotalDocsCount(tursoDocs.length);
-          } else {
-            setDocumentsList([]);
-            setTotalDocsCount(0);
-          }
+          await tursoPromise;
         }
       } catch {
-        // Khi bot tắt / mất kết nối: Tự động fallback sang Turso libSQL Cloud
-        try {
-          const tursoDocs = await fetchDocsFromTurso(100);
-          if (tursoDocs && tursoDocs.length > 0) {
-            setDocumentsList(tursoDocs as any);
-            setTotalDocsCount(tursoDocs.length);
-          } else {
-            setDocumentsList([]);
-            setTotalDocsCount(0);
-          }
-        } catch {
-          setDocumentsList([]);
-          setTotalDocsCount(0);
-        }
+        await tursoPromise;
       } finally {
         setIsLoadingDocs(false);
       }
@@ -1036,20 +1048,35 @@ const DashboardContent: React.FC<DashboardProps> = ({
     [selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, filterDup]
   );
 
-  // 3. Lấy thống kê số lượng tài liệu
+  // 3. Lấy thống kê số lượng tài liệu (tự động chạy song song Turso Cloud khi Bot offline)
   const fetchDocStats = useCallback(async () => {
+    let apiStatsResolved = false;
+    const tursoStatsPromise = getTursoStorageUsage()
+      .then((tursoStats) => {
+        if (!apiStatsResolved && tursoStats && tursoStats.totalDocs > 0) {
+          setStats({
+            total_real: tursoStats.totalDocs,
+            unique_items: tursoStats.totalDocs,
+            duplicate_items: 0,
+          });
+          setTotalDocsCount(tursoStats.totalDocs);
+        }
+        return tursoStats;
+      })
+      .catch(() => null);
+
     try {
       let apiBase = getApiBaseUrl();
       let res = await fetch(`${apiBase}/api/documents/stats`, {
         headers: API_FETCH_HEADERS,
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(2500),
       });
 
       if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
         try {
           const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents/stats`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(2500),
           });
           if (fbRes.ok) {
             res = fbRes;
@@ -1062,25 +1089,21 @@ const DashboardContent: React.FC<DashboardProps> = ({
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
+          apiStatsResolved = true;
           setStats({
             total_real: data.total_real || data.total_items || 0,
             unique_items: data.unique_items || 0,
             duplicate_items: data.duplicate_items || 0,
           });
           setTotalDocsCount(data.total_real || data.total_items || 0);
+        } else {
+          await tursoStatsPromise;
         }
       } else {
-        setStats({ total_real: 0, unique_items: 0, duplicate_items: 0 });
-        setTotalDocsCount(0);
+        await tursoStatsPromise;
       }
     } catch {
-      // Khi bot offline: reset thống kê về 0
-      setStats({
-        total_real: 0,
-        unique_items: 0,
-        duplicate_items: 0,
-      });
-      setTotalDocsCount(0);
+      await tursoStatsPromise;
     }
   }, []);
 
@@ -1093,6 +1116,21 @@ const DashboardContent: React.FC<DashboardProps> = ({
     }, 15000);
     return () => clearInterval(timer);
   }, [checkBotStatus, fetchDocStats]);
+
+  // Giải quyết link mở/tải tệp an toàn (khi Bot offline thì ưu tiên link gốc Discord hoặc mở Hồ Sơ AI)
+  const resolveExamFileUrl = useCallback(
+    (doc: ExamDocument): string => {
+      if (botStatus.online) {
+        return `${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`;
+      }
+      const dl = getSafeExternalUrl(doc.download_url);
+      if (dl) return dl;
+      const jump = getSafeExternalUrl(doc.jump_url);
+      if (jump && !jump.includes('#vault')) return jump;
+      return '';
+    },
+    [botStatus.online]
+  );
 
   // Cập nhật Bậc Giáo Dục: Chung, Cấp 2, Cấp 3
   const handleEducationLevelChange = (level: EducationLevel) => {
@@ -1121,29 +1159,39 @@ const DashboardContent: React.FC<DashboardProps> = ({
       setSelectedSubject('ALL');
     }
 
-    fetchDocuments(nextGrade, selectedExamType, nextSubject, descriptionKeyword);
+    if (botStatus.online) {
+      fetchDocuments(nextGrade, selectedExamType, nextSubject, descriptionKeyword);
+    }
   };
 
   // Cập nhật danh sách khi đổi filter
   const handleGradeChange = (gradeId: string) => {
     setSelectedGrade(gradeId);
-    fetchDocuments(gradeId, selectedExamType, selectedSubject, descriptionKeyword);
+    if (botStatus.online) {
+      fetchDocuments(gradeId, selectedExamType, selectedSubject, descriptionKeyword);
+    }
   };
 
   const handleExamTypeChange = (typeId: string) => {
     setSelectedExamType(typeId);
-    fetchDocuments(selectedGrade, typeId, selectedSubject, descriptionKeyword);
+    if (botStatus.online) {
+      fetchDocuments(selectedGrade, typeId, selectedSubject, descriptionKeyword);
+    }
   };
 
   const handleSubjectChange = (subjectId: string) => {
     setSelectedSubject(subjectId);
-    fetchDocuments(selectedGrade, selectedExamType, subjectId, descriptionKeyword);
+    if (botStatus.online) {
+      fetchDocuments(selectedGrade, selectedExamType, subjectId, descriptionKeyword);
+    }
   };
 
   // 4. Xử lý Lọc / Tìm kiếm form
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword);
+    if (botStatus.online) {
+      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword);
+    }
   };
 
   // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick)
@@ -1261,54 +1309,202 @@ const DashboardContent: React.FC<DashboardProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const renderFilterControls = (showRollButton: boolean = true) => (
-    <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/10 shadow-xl space-y-7">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 shadow-inner">
-            <Filter className="w-5 h-5" />
+  // ============================================================================
+  // POMODORO FOCUS & CHILL TIMER (LEARN • CHILL • CONNECT TRONG HUB)
+  // ============================================================================
+  const [pomoMode, setPomoMode] = useState<'focus' | 'chill'>('focus');
+  const [pomoSeconds, setPomoSeconds] = useState<number>(25 * 60);
+  const [pomoRunning, setPomoRunning] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!pomoRunning) return;
+    const timer = window.setInterval(() => {
+      setPomoSeconds((prev) => {
+        if (prev <= 1) {
+          setPomoRunning(false);
+          sound.playClick();
+          const nextMode = pomoMode === 'focus' ? 'chill' : 'focus';
+          setPomoMode(nextMode);
+          showInfo(
+            nextMode === 'chill'
+              ? 'Đã hoàn thành 25 phút tập trung! Nghỉ ngơi 5 phút nhé 🌸'
+              : 'Hết giờ nghỉ! Bắt đầu phiên tập trung mới nhé ⚡',
+            'Pomodoro Hub'
+          );
+          return nextMode === 'chill' ? 5 * 60 : 25 * 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pomoRunning, pomoMode, showInfo]);
+
+  const togglePomoMode = (mode: 'focus' | 'chill') => {
+    setPomoRunning(false);
+    setPomoMode(mode);
+    setPomoSeconds(mode === 'focus' ? 25 * 60 : 5 * 60);
+  };
+
+  const formatPomo = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const pomoTotal = pomoMode === 'focus' ? 25 * 60 : 5 * 60;
+  const pomoProgress = Math.max(0, Math.min(1, 1 - pomoSeconds / pomoTotal));
+
+  // ============================================================================
+  // MỤC TIÊU TRƯỜNG MƠ ƯỚC (ĐỒNG BỘ VỚI TRANG CHỦ HYPERHUB)
+  // ============================================================================
+  const [dreamGoal, setDreamGoal] = useState<{ school: string; score: string } | null>(null);
+  const [isEditingDream, setIsEditingDream] = useState<boolean>(false);
+  const [dreamSchoolInput, setDreamSchoolInput] = useState<string>('');
+  const [dreamScoreInput, setDreamScoreInput] = useState<string>('');
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('orbit_user_dream') || localStorage.getItem('hyperhub_user_dream');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.school) {
+          setDreamGoal({ school: parsed.school, score: parsed.score || '' });
+          setDreamSchoolInput(parsed.school);
+          setDreamScoreInput(parsed.score || '');
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleSaveDreamInHub = (e: React.FormEvent) => {
+    e.preventDefault();
+    const school = dreamSchoolInput.trim();
+    const score = dreamScoreInput.trim();
+    if (!school) return;
+    const payload = { school, score, updatedAt: new Date().toISOString() };
+    try {
+      const serialized = JSON.stringify(payload);
+      localStorage.setItem('orbit_user_dream', serialized);
+      localStorage.setItem('hyperhub_user_dream', serialized);
+      setDreamGoal({ school, score });
+      setIsEditingDream(false);
+      showSuccess(`Đã ghim mục tiêu: ${school}`, 'Mục Tiêu Học Tập');
+    } catch {
+      showError('Không thể lưu mục tiêu vào trình duyệt.');
+    }
+  };
+
+  // ============================================================================
+  // MÁY BỐC ĐỀ VOXEL (SLOT REEL ANIMATION + BỐC THỬ TỨC THÌ TỪ KHO WEB)
+  // ============================================================================
+  const [isRollingReel, setIsRollingReel] = useState<boolean>(false);
+  const [reelTick, setReelTick] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isRollingReel && !isLoadingExam) return;
+    const id = window.setInterval(() => {
+      setReelTick((t) => (t + 1) % 12);
+    }, 75);
+    return () => window.clearInterval(id);
+  }, [isRollingReel, isLoadingExam]);
+
+  const handleInstantPracticePick = useCallback(() => {
+    setExamError('');
+    const pool = displayedDocuments.length > 0 ? displayedDocuments : documentsList;
+    if (pool.length === 0) {
+      setExamError('Hiện chưa có đề thi nào khớp với bộ lọc để bốc thử. Hãy thử đặt lại bộ lọc!');
+      return;
+    }
+    sound.playClick();
+    setIsRollingReel(true);
+    window.setTimeout(() => {
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      setCurrentExam(picked);
+      setIsRollingReel(false);
+      showSuccess(`Đã bốc đề luyện tập: ${picked.title || picked.file_name}`, 'Máy Phát Đề Orbit');
+    }, 520);
+  }, [displayedDocuments, documentsList, showSuccess]);
+
+  // Thống kê phân bố theo môn học thực tế trong kho (sắp xếp giảm dần theo số lượng đề thật)
+  const subjectBreakdown = useMemo(() => {
+    const catalog = [
+      { id: 'ENGLISH', label: 'Ngoại ngữ (Tiếng Anh)', tone: '#9B5CFF' },
+      { id: 'LITERATURE', label: 'Ngữ văn', tone: '#FF4FCB' },
+      { id: 'GENERAL', label: 'Tài liệu & Chuyên đề chung', tone: '#9B5CFF' },
+      { id: 'MATHEMATICS', label: 'Toán học', tone: '#9B5CFF' },
+      { id: 'INFORMATICS', label: 'Tin học & Thuật toán', tone: '#FF4FCB' },
+      { id: 'PHYSICS', label: 'Vật lí', tone: '#9B5CFF' },
+      { id: 'CHEMISTRY', label: 'Hóa học', tone: '#9B5CFF' },
+    ];
+    const withCounts = catalog.map((item) => {
+      const count = documentsList.filter((d) =>
+        item.id === 'GENERAL'
+          ? (d.subject || '').toUpperCase() === 'GENERAL' || !d.subject
+          : isDocMatchingSubject(d.subject, item.id)
+      ).length;
+      return { ...item, count };
+    });
+    withCounts.sort((a, b) => b.count - a.count);
+    return withCounts.slice(0, 4);
+  }, [documentsList]);
+
+  // Đồng bộ ngày đếm ngược kỳ thi THPT Quốc Gia với Trang chủ
+  const nextThptExam = useMemo(() => getNextThptExamInfo(), []);
+
+  const [showAdvancedDrawer, setShowAdvancedDrawer] = useState<boolean>(false);
+
+  // ============================================================================
+  // BÀN LỌC CHIẾN THUẬT GỌN GÀNG (TACTICAL FILTER CONSOLE)
+  // ============================================================================
+  const renderFilterControls = (showRollButton: boolean = true) => {
+    const gradeOptions =
+      selectedEducationLevel === 'CAP_2'
+        ? CAP2_GRADE_OPTIONS
+        : selectedEducationLevel === 'CAP_3'
+        ? CAP3_GRADE_OPTIONS
+        : ALL_GRADE_OPTIONS;
+
+    const subjectOptions =
+      selectedEducationLevel === 'CAP_2'
+        ? CAP2_SUBJECT_OPTIONS
+        : selectedEducationLevel === 'CAP_3'
+        ? CAP3_SUBJECT_OPTIONS
+        : ALL_SUBJECT_OPTIONS;
+
+    const hasAnyFilter =
+      selectedEducationLevel !== 'ALL' ||
+      selectedGrade !== 'ALL' ||
+      selectedExamType !== 'ALL' ||
+      selectedSubject !== 'ALL' ||
+      Boolean(descriptionKeyword.trim()) ||
+      showBookmarksOnly ||
+      activeAdvancedFilterCount > 0;
+
+    return (
+      <SpotSurface className="hh-hub-surface p-5 sm:p-6 space-y-5">
+        {/* HÀNG 1: TIÊU ĐỀ CONSOLE + CHUYỂN CẤP HỌC + ĐẾM KẾT QUẢ */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#241a38]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#9B5CFF]/15 border border-[#9B5CFF]/35 text-[#FFB8E6] flex items-center justify-center shrink-0">
+              <Filter className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="hh-pixel text-[13px] text-[#FF4FCB] uppercase">FILTER // CONSOLE</span>
+                <span className="text-[13px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+                  {displayedDocuments.length} / {documentsList.length || stats.total_real} đề
+                </span>
+              </div>
+              <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
+                Bộ Lọc Chiến Thuật & Định Vị Đề Thi
+              </h3>
+            </div>
           </div>
-          <div>
-            <h3 className="font-black text-lg sm:text-2xl text-white tracking-tight">Bộ Lọc & Tìm Kiếm Đề Thi</h3>
-            <p className="text-xs sm:text-sm text-slate-300 dark:text-white/60 mt-0.5">
-              {showRollButton
-                ? 'Chọn tiêu chí để bot bốc ngẫu nhiên hoặc lọc đề thi bên dưới'
-                : 'Lọc danh sách đề thi theo khối lớp, thể loại, môn học và từ khóa'}
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs">
-            {documentsList.length} đề thi phù hợp
-          </span>
-        </div>
-      </div>
-
-      {examError && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-3 animate-in fade-in duration-200">
-          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400" />
-          <span className="font-medium">{examError}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleFilterSubmit} className="space-y-7">
-        {/* 0. BẬC GIÁO DỤC: CHUNG, CẤP 2, CẤP 3 */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-purple-400" />
-              <span>Bậc Giáo Dục & Cấp Học</span>
-            </label>
-            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
-              Đang chọn:{' '}
-              <strong className="text-purple-400 font-bold">
-                {EDUCATION_LEVEL_OPTIONS.find((e) => e.id === selectedEducationLevel)?.label}
-              </strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Segmented Switcher: Bậc Giáo Dục (Chung / Cấp 2 / Cấp 3) */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#0B0911]/90 border border-[#241a38]">
             {EDUCATION_LEVEL_OPTIONS.map((opt) => {
               const isSelected = selectedEducationLevel === opt.id;
               return (
@@ -1316,33 +1512,16 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   key={opt.id}
                   type="button"
                   onClick={() => handleEducationLevelChange(opt.id)}
-                  className={`p-4 sm:p-5 rounded-3xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 group ${
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-xl shadow-purple-900/30 scale-[1.02] border-purple-400 ring-2 ring-purple-500/40'
-                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-purple-400/50 hover:bg-white/[0.06]'
+                      ? 'bg-[#d61f79] text-white shadow-[0_4px_14px_rgba(255,79,203,0.35)]'
+                      : 'text-white/65 hover:text-white hover:bg-white/[0.05]'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-2xl">{opt.icon}</span>
-                      <span className="font-black text-base sm:text-lg">{opt.label}</span>
-                    </div>
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider ${
-                        isSelected
-                          ? 'bg-white/20 text-white'
-                          : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                      }`}
-                    >
-                      {opt.badge}
-                    </span>
-                  </div>
-                  <span
-                    className={`text-xs sm:text-sm leading-relaxed ${
-                      isSelected ? 'text-purple-100 font-medium' : 'text-slate-400 dark:text-white/50'
-                    }`}
-                  >
-                    {opt.desc}
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                  <span className={`hidden sm:inline text-[13px] font-mono ${isSelected ? 'text-white/90' : 'text-white/40'}`}>
+                    ({opt.id === 'ALL' ? '6–12' : opt.id === 'CAP_2' ? '6–9' : '10–12'})
                   </span>
                 </button>
               );
@@ -1350,494 +1529,728 @@ const DashboardContent: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* 1. KHỐI LỚP */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-purple-400" />
-              <span>
-                1. Khối Lớp Học Sinh{' '}
-                {selectedEducationLevel === 'CAP_2'
-                  ? '(Cấp 2: Lớp 6 - 9)'
-                  : selectedEducationLevel === 'CAP_3'
-                  ? '(Cấp 3: Lớp 10 - 12)'
-                  : '(Toàn Bộ Khối 6 - 12)'}
-              </span>
-            </label>
-            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
-              Đang chọn:{' '}
-              <strong className="text-purple-400 font-bold">
-                {(selectedEducationLevel === 'CAP_2'
-                  ? CAP2_GRADE_OPTIONS
-                  : selectedEducationLevel === 'CAP_3'
-                  ? CAP3_GRADE_OPTIONS
-                  : ALL_GRADE_OPTIONS
-                ).find((g) => g.id === selectedGrade)?.label || 'Mọi Khối'}
-              </strong>
-            </span>
+        {examError && (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-[13px] sm:text-sm flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span className="font-medium">{examError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleInstantPracticePick}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-bold text-[13px] shrink-0 cursor-pointer"
+            >
+              ⚡ Bốc thử từ kho Web
+            </button>
           </div>
+        )}
 
-          <div
-            className={`grid gap-2.5 sm:gap-3 ${
-              selectedEducationLevel === 'CAP_2'
-                ? 'grid-cols-2 sm:grid-cols-5'
-                : selectedEducationLevel === 'CAP_3'
-                ? 'grid-cols-2 sm:grid-cols-4'
-                : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-8'
-            }`}
-          >
-            {(selectedEducationLevel === 'CAP_2'
-              ? CAP2_GRADE_OPTIONS
-              : selectedEducationLevel === 'CAP_3'
-              ? CAP3_GRADE_OPTIONS
-              : ALL_GRADE_OPTIONS
-            ).map((g) => {
-              const isSelected = selectedGrade === g.id;
-              return (
+        <form onSubmit={handleFilterSubmit} className="space-y-4">
+          {/* HÀNG 2: THANH TÌM KIẾM ĐA TỪ KHÓA + SẮP XẾP + NÚT MỞ LỌC CHUYÊN SÂU */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            <div className="lg:col-span-7 relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C4A6FF]" />
+              <input
+                type="text"
+                value={descriptionKeyword}
+                onChange={(e) => {
+                  setDescriptionKeyword(e.target.value);
+                  fetchDocuments(selectedGrade, selectedExamType, selectedSubject, e.target.value);
+                }}
+                placeholder="Tìm theo tên đề, chuyên đề (hàm số, quy hoạch động, wordform, HSG Tỉnh...)"
+                className="w-full h-11 pl-10 pr-9 rounded-xl bg-[#0D0A14]/90 border border-[#241a38] focus:border-[#FF4FCB] text-white text-[13px] sm:text-sm placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FF4FCB]/20 transition-all"
+              />
+              {descriptionKeyword && (
                 <button
-                  key={g.id}
                   type="button"
-                  onClick={() => handleGradeChange(g.id)}
-                  style={{
-                    borderColor: isSelected ? g.color : undefined,
+                  onClick={() => {
+                    setDescriptionKeyword('');
+                    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
                   }}
-                  className={`p-3.5 sm:p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 group relative overflow-hidden ${
-                    isSelected
-                      ? 'bg-purple-600 text-white shadow-xl shadow-purple-900/40 scale-[1.03] ring-2 ring-purple-500/50'
-                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-purple-400/50 hover:bg-white/[0.06]'
-                  }`}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 cursor-pointer"
+                  title="Xóa từ khóa"
                 >
-                  <div className="flex items-center gap-2">
-                    {g.id !== 'ALL' && (
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
-                        style={{ backgroundColor: g.color }}
-                      />
-                    )}
-                    <span className="font-black text-sm sm:text-base">{g.label}</span>
-                  </div>
-                  <span
-                    className={`text-xs font-semibold ${
-                      isSelected ? 'text-purple-100' : 'text-slate-400 dark:text-white/50'
-                    }`}
-                  >
-                    {g.subtitle}
-                  </span>
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 2. LOẠI ĐỀ THI */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-pink-400" />
-              <span>2. Thể Loại Đề Thi</span>
-            </label>
-            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
-              Đang chọn:{' '}
-              <strong className="text-pink-400 font-bold">
-                {EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label}
-              </strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-            {EXAM_TYPE_OPTIONS.map((t) => {
-              const isSelected = selectedExamType === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => handleExamTypeChange(t.id)}
-                  className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-rose-700 border-pink-400 text-white shadow-xl shadow-pink-900/40 scale-[1.01]'
-                      : 'liquid-glass border-white/10 text-slate-300 dark:text-white/80 hover:border-pink-400/50 hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <span className="text-xl shrink-0">{t.icon}</span>
-                    <span className="font-black text-sm sm:text-base truncate">{t.label}</span>
-                  </div>
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-lg shrink-0 font-bold uppercase tracking-wider ${
-                      isSelected
-                        ? 'bg-white/20 text-white'
-                        : 'bg-white/10 text-slate-300 dark:text-white/70'
-                    }`}
-                  >
-                    {t.badge}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Ghi chú độ khó và 5 thể loại */}
-          <div className="p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 text-xs sm:text-sm text-slate-300 dark:text-white/75 space-y-1.5">
-            <div className="font-black text-purple-300 flex items-center gap-2 flex-wrap">
-              <span>⚖️ Thang độ khó học thuật:</span>
-              <span className="font-mono text-xs font-black bg-purple-500/20 text-purple-200 px-2.5 py-1 rounded-lg border border-purple-500/30">
-                Đề thường &lt; Đề HSG &lt; Đề chuyên
-              </span>
+              )}
             </div>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-400 dark:text-white/60">
-              • <strong>Đề quốc tế:</strong> Kỳ thi quốc tế (IMO, AMC, Kangaroo/IKMC, SASMO, TIMO, SAT...) cả bản dịch tiếng Việt & quốc tế.<br />
-              • <strong>Đề chung:</strong> Đề cương, lý thuyết tổng hợp chung (dễ gây hiểu lầm nếu coi là một đề thi cụ thể).
-            </p>
-          </div>
-        </div>
 
-        {/* 3. MÔN HỌC */}
-        <div className="space-y-3.5">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-emerald-400" />
-              <span>
-                3. Môn Học Ôn Tập{' '}
-                {selectedEducationLevel === 'CAP_2'
-                  ? '(9 Môn Chuẩn GDPT 2018 THCS)'
-                  : selectedEducationLevel === 'CAP_3'
-                  ? '(8 Môn Bắt Buộc + 7 Môn Tự Chọn)'
-                  : '(Gộp Cả Cấp 2 & Cấp 3)'}
-              </span>
-            </label>
-            <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
-              Đang chọn:{' '}
-              <strong className="text-emerald-400 font-bold">
-                {(selectedEducationLevel === 'CAP_2'
-                  ? CAP2_SUBJECT_OPTIONS
-                  : selectedEducationLevel === 'CAP_3'
-                  ? CAP3_SUBJECT_OPTIONS
-                  : ALL_SUBJECT_OPTIONS
-                ).find((s) => s.id === selectedSubject)?.label || 'Tất Cả Các Môn'}
-              </strong>
-            </span>
-          </div>
-
-          {selectedEducationLevel === 'CAP_3' ? (
-            <div className="space-y-4">
-              {/* Nút Chọn Tất Cả Môn Cấp 3 */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => handleSubjectChange('ALL')}
-                  className={`px-5 py-3 rounded-2xl text-sm font-black transition-all cursor-pointer flex items-center gap-2 shadow-sm ${
-                    selectedSubject === 'ALL'
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40 scale-105'
-                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-300 dark:text-white/80 hover:bg-emerald-950/20 hover:text-emerald-300 border border-slate-200 dark:border-white/10'
-                  }`}
-                >
-                  <span className="text-lg">🌐</span>
-                  <span>Tất Cả Môn Cấp 3 (8 Bắt buộc + 7 Tự chọn)</span>
-                </button>
-              </div>
-
-              {/* Nhóm 1: 8 Môn Bắt Buộc */}
-              <div className="p-4 sm:p-5 rounded-3xl liquid-glass border border-white/10 space-y-3">
-                <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
-                  <span>📌 8 Môn Học Bắt Buộc (Chuẩn Cấp 3):</span>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  {CAP3_MANDATORY_SUBJECTS.map((s) => {
-                    const isSelected = selectedSubject === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleSubjectChange(s.id)}
-                        className={`px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                          isSelected
-                            ? 'bg-purple-600 text-white shadow-xl shadow-purple-900/40 scale-105 ring-2 ring-purple-500/40'
-                            : 'bg-white dark:bg-white/[0.05] text-slate-300 dark:text-white/80 hover:bg-purple-950/30 hover:text-purple-300 border border-slate-200 dark:border-white/10'
-                        }`}
-                      >
-                        <span className="text-base">{s.icon}</span>
-                        <span>{s.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Nhóm 2: 7 Môn Tự Chọn */}
-              <div className="p-4 sm:p-5 rounded-3xl liquid-glass border border-white/10 space-y-3">
-                <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-pink-400 flex items-center gap-2">
-                  <span>🎨 7 Môn Học Tự Chọn (Chuẩn Cấp 3):</span>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  {CAP3_ELECTIVE_SUBJECTS.map((s) => {
-                    const isSelected = selectedSubject === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleSubjectChange(s.id)}
-                        className={`px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                          isSelected
-                            ? 'bg-pink-600 text-white shadow-xl shadow-pink-900/40 scale-105 ring-2 ring-pink-500/40'
-                            : 'bg-white dark:bg-white/[0.05] text-slate-300 dark:text-white/80 hover:bg-pink-950/30 hover:text-pink-300 border border-slate-200 dark:border-white/10'
-                        }`}
-                      >
-                        <span className="text-base">{s.icon}</span>
-                        <span>{s.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="lg:col-span-3 flex items-center gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sắp xếp danh sách đề thi"
+                className="w-full h-11 px-3.5 rounded-xl bg-[#0D0A14]/90 border border-[#241a38] focus:border-[#9B5CFF] text-[13px] sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
+              >
+                <option value="newest">⚡ Mới cập nhật nhất</option>
+                <option value="confidence">🛡️ Độ tin cậy AI cao nhất</option>
+                <option value="pages">📄 Nhiều trang nhất</option>
+                <option value="size">📦 Dung lượng lớn nhất</option>
+              </select>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2.5">
-              {(selectedEducationLevel === 'CAP_2' ? CAP2_SUBJECT_OPTIONS : ALL_SUBJECT_OPTIONS).map((s) => {
-                const isSelected = selectedSubject === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => handleSubjectChange(s.id)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40 scale-105 ring-2 ring-emerald-500/40'
-                        : 'bg-slate-100 dark:bg-white/[0.04] text-slate-300 dark:text-white/80 hover:bg-emerald-950/20 hover:text-emerald-300 border border-slate-200 dark:border-white/10'
-                    }`}
-                  >
-                    <span className="text-base">{s.icon}</span>
-                    <span>{s.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {/* 4. TỪ KHÓA MÔ TẢ */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-black uppercase tracking-wider text-slate-200 dark:text-white/90 flex items-center gap-2">
-              <Search className="w-5 h-5 text-purple-400" />
-              <span>4. Tìm Kiếm & Từ Khóa Nội Dung</span>
-            </label>
-            {descriptionKeyword && (
-              <span className="text-xs sm:text-sm text-purple-400 font-bold">
-                Đang tìm: "{descriptionKeyword}"
-              </span>
-            )}
-          </div>
-
-          <div className="relative">
-            <Search className="w-5 h-5 absolute left-4 top-4 text-slate-400" />
-            <input
-              type="text"
-              value={descriptionKeyword}
-              onChange={(e) => {
-                setDescriptionKeyword(e.target.value);
-                fetchDocuments(selectedGrade, selectedExamType, selectedSubject, e.target.value);
-              }}
-              placeholder="VD: hàm số mũ, wordform, quy hoạch động, phân tích thơ, đề có lời giải, chuyên KHTN..."
-              className="w-full pl-12 pr-12 py-3.5 sm:py-4 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm sm:text-base focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-white/35 font-medium"
-            />
-            {descriptionKeyword && (
+            <div className="lg:col-span-2 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setDescriptionKeyword('');
-                  fetchDocuments(selectedGrade, selectedExamType, selectedSubject, '');
-                }}
-                className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                title="Xóa nội dung"
+                onClick={() => setShowAdvancedDrawer((prev) => !prev)}
+                aria-expanded={showAdvancedDrawer || activeAdvancedFilterCount > 0}
+                className={`w-full h-11 px-3.5 rounded-xl border text-[13px] font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                  showAdvancedDrawer || activeAdvancedFilterCount > 0
+                    ? 'bg-[#FF4FCB]/15 border-[#FF4FCB]/50 text-[#FFB8E6]'
+                    : 'bg-[#0D0A14]/90 border-[#241a38] text-white/75 hover:text-white hover:border-white/20'
+                }`}
               >
-                <X className="w-4 h-4" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                <span>Lọc sâu</span>
+                {activeAdvancedFilterCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-[#FF4FCB] text-[#0E0C14] font-mono text-[13px] font-black">
+                    {activeAdvancedFilterCount}
+                  </span>
+                )}
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Gợi Ý Nhanh 1 Chạm */}
-          <div className="space-y-2 pt-1">
-            <div className="text-xs font-semibold text-slate-400 dark:text-white/50 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-              <span>Gợi ý từ khóa nhanh (bấm để lọc ngay):</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_KEYWORD_TAGS.map((tag) => (
+          {/* Gợi ý từ khóa 1 chạm (Compact chips) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <span className="hh-pixel text-[13px] text-white/40 shrink-0 mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3 text-[#FF4FCB]" /> Từ khóa:
+            </span>
+            {QUICK_KEYWORD_TAGS.map((tag) => {
+              const active = descriptionKeyword.toLowerCase() === tag.toLowerCase();
+              return (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => {
-                    setDescriptionKeyword(tag);
-                    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, tag);
+                    const next = active ? '' : tag;
+                    setDescriptionKeyword(next);
+                    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, next);
                   }}
-                  className="text-xs sm:text-sm font-bold px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  className={`text-[13px] font-semibold px-2.5 py-1 rounded-lg border whitespace-nowrap transition-all cursor-pointer ${
+                    active
+                      ? 'bg-[#FF4FCB]/20 border-[#FF4FCB]/60 text-white'
+                      : 'bg-white/[0.025] border-[#241a38] text-white/60 hover:text-white hover:border-white/20'
+                  }`}
                 >
-                  <span>+ {tag}</span>
+                  #{tag}
                 </button>
-              ))}
+              );
+            })}
+          </div>
+
+          {/* HÀNG 3: DẢI KHỐI LỚP KÈM THƯỚC ĐO TỶ LỆ MÀU ROLE DISCORD */}
+          <div className="p-3.5 rounded-xl bg-[#0B0911]/70 border border-[#241a38] space-y-2.5">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold text-white/80 flex items-center gap-1.5">
+                <GraduationCap className="w-4 h-4 text-[#C4A6FF]" />
+                <span>Khối Lớp</span>
+              </span>
+              {/* Thanh phân bố 7 khối lớp */}
+              <div className="flex items-center gap-2 flex-1 max-w-xs ml-4">
+                <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden flex">
+                  {(['12', '11', '10', '9', '8', '7', '6'] as const).map((gKey) => {
+                    const cnt = gradeDistribution[gKey] || 0;
+                    if (cnt <= 0) return null;
+                    const colorMap: Record<string, string> = {
+                      '12': '#EF4444',
+                      '11': '#F97316',
+                      '10': '#F59E0B',
+                      '9': '#10B981',
+                      '8': '#06B6D4',
+                      '7': '#3B82F6',
+                      '6': '#8B5CF6',
+                    };
+                    return (
+                      <div
+                        key={gKey}
+                        onClick={() => handleGradeChange(gKey)}
+                        style={{
+                          width: `${(cnt / Math.max(1, documentsList.length)) * 100}%`,
+                          backgroundColor: colorMap[gKey],
+                        }}
+                        className="h-full hover:opacity-80 cursor-pointer transition-opacity"
+                        title={`Lớp ${gKey}: ${cnt} đề`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {gradeOptions.map((g) => {
+                const isSelected = selectedGrade === g.id;
+                const count = g.id === 'ALL' ? documentsList.length : gradeDistribution[g.id] ?? 0;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => handleGradeChange(g.id)}
+                    data-active={isSelected}
+                    className="hh-hub-chip"
+                  >
+                    {g.id !== 'ALL' && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: g.color }}
+                      />
+                    )}
+                    <span>{g.label}</span>
+                    <span className="text-[13px] font-mono opacity-60">({count})</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
 
-        {/* NÚT THAO TÁC */}
-        <div className="pt-3 flex flex-col sm:flex-row items-center gap-4">
-          {showRollButton && (
-            <button
-              type="button"
-              onClick={handlePickRandomExam}
-              disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
-              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-4.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-base sm:text-lg shadow-2xl shadow-purple-900/40 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2.5"
-            >
-              {isLoadingExam ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Bot Đang Bốc Đề...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 text-yellow-300" />
-                  <span>🎲 Bốc Ngẫu Nhiên 1 Đề Thi</span>
-                </>
-              )}
-            </button>
+          {/* HÀNG 4: THỂ LOẠI ĐỀ & MÔN HỌC (COMPACT CHIPS) */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
+            {/* Thể loại đề */}
+            <div className="xl:col-span-5 p-3.5 rounded-xl bg-[#0B0911]/70 border border-[#241a38] space-y-2">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-bold text-white/80 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                  <span>Thể Loại Đề</span>
+                </span>
+                <span className="font-mono text-[13px] text-white/45">Thường &lt; HSG &lt; Chuyên</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {EXAM_TYPE_OPTIONS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleExamTypeChange(t.id)}
+                    data-active={selectedExamType === t.id}
+                    className="hh-hub-chip"
+                    title={t.desc}
+                  >
+                    <span>{t.icon}</span>
+                    <span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Môn học */}
+            <div className="xl:col-span-7 p-3.5 rounded-xl bg-[#0B0911]/70 border border-[#241a38] space-y-2">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-bold text-white/80 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-[#6FE3B0]" />
+                  <span>Môn Học ({subjectOptions.length - 1} môn)</span>
+                </span>
+                {selectedSubject !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSubjectChange('ALL')}
+                    className="text-[13px] text-[#FFB8E6] hover:underline cursor-pointer"
+                  >
+                    Chọn tất cả môn
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                {subjectOptions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSubjectChange(s.id)}
+                    data-active={selectedSubject === s.id}
+                    className="hh-hub-chip"
+                  >
+                    <span>{s.icon}</span>
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* HÀNG 5 (DRAWER): BỘ LỌC CHUYÊN SÂU (NĂM HỌC, TRƯỜNG, CHUẨN 2025, ĐÁP ÁN) */}
+          {(showAdvancedDrawer || activeAdvancedFilterCount > 0) && (
+            <div className="p-4 rounded-xl bg-[#141022]/90 border border-[#9B5CFF]/30 space-y-3 animate-in fade-in duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[13px] font-bold text-white/70 flex items-center gap-1.5 mb-1">
+                    <Calendar className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                    <span>Năm Học Ra Đề</span>
+                  </label>
+                  <select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg bg-[#0B0911] border border-[#241a38] text-[13px] font-bold text-white focus:outline-none focus:border-[#9B5CFF]"
+                  >
+                    <option value="ALL">Mọi năm học</option>
+                    {availableAcademicYears.map(({ year, count }) => (
+                      <option key={year} value={year}>
+                        Năm học {year} ({count} đề)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[13px] font-bold text-white/70 flex items-center gap-1.5 mb-1">
+                    <School className="w-3.5 h-3.5 text-[#FFB8E6]" />
+                    <span>Trường / Sở GD&ĐT</span>
+                  </label>
+                  <select
+                    value={selectedSchool}
+                    onChange={(e) => setSelectedSchool(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg bg-[#0B0911] border border-[#241a38] text-[13px] font-bold text-white focus:outline-none focus:border-[#FF4FCB]"
+                  >
+                    <option value="ALL">Tất cả Trường & Sở GD&ĐT</option>
+                    {availableSchools.map(({ school, count }) => (
+                      <option key={school} value={school}>
+                        {school} ({count} đề)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFilterMoet2025((p) => !p)}
+                  data-active={filterMoet2025}
+                  className="hh-hub-chip"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Chuẩn Bộ GD&ĐT 2025 (3 phần)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterHasAnswers((p) => !p)}
+                  data-active={filterHasAnswers}
+                  className="hh-hub-chip"
+                >
+                  <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Có Bảng Đáp Án</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterHasSolutions((p) => !p)}
+                  data-active={filterHasSolutions}
+                  className="hh-hub-chip"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Có Lời Giải Chi Tiết</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterHasDiscordLink((p) => !p)}
+                  data-active={filterHasDiscordLink}
+                  className="hh-hub-chip"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Đã Đồng Bộ Discord</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextDup = filterDup === 'unique' ? 'all' : 'unique';
+                    setFilterDup(nextDup);
+                    fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, nextDup);
+                  }}
+                  data-active={filterDup === 'unique'}
+                  className="hh-hub-chip"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Chỉ Đề Độc Bản</span>
+                </button>
+              </div>
+            </div>
           )}
 
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-7 sm:px-8 py-4 sm:py-4.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-black text-base transition-all cursor-pointer flex items-center justify-center gap-2.5"
-          >
-            <Search className="w-5 h-5" />
-            <span>Lọc Danh Sách Đề</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+          {/* HÀNG CUỐI: NÚT BỐC ĐỀ / ĐẶT LẠI BỘ LỌC */}
+          {(showRollButton || hasAnyFilter) && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              {showRollButton ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <PixelButton
+                    variant="primary"
+                    magnetic
+                    loading={isLoadingExam}
+                    onClick={handlePickRandomExam}
+                    disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
+                    icon={<Dices className="w-4 h-4" />}
+                  >
+                    {isLoadingExam ? 'Bot Đang Bốc Đề...' : 'Bốc Ngẫu Nhiên Qua Bot Discord'}
+                  </PixelButton>
 
-  // Hub mở cho mọi người (kể cả khi bot offline): xem + nộp đề tự do.
-  // Bốc đề và Admin vẫn giữ cổng riêng. Biến giữ lại để khỏi sửa nhiều chỗ.
+                  <PixelButton
+                    variant="ghost"
+                    onClick={handleInstantPracticePick}
+                    icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
+                  >
+                    Bốc Thử Tức Thì ({displayedDocuments.length} đề)
+                  </PixelButton>
+                </div>
+              ) : (
+                <div className="text-[13px] text-white/55">
+                  Đang lọc trực tiếp trên <strong className="text-white">{documentsList.length}</strong> hồ sơ đề thi.
+                </div>
+              )}
+
+              {hasAnyFilter && (
+                <button
+                  type="button"
+                  onClick={handleResetAllFilters}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-200 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Đặt lại toàn bộ lọc</span>
+                </button>
+              )}
+            </div>
+          )}
+        </form>
+      </SpotSurface>
+    );
+  };
+
+  // ============================================================================
+  // RENDER CARD ĐỀ THI CHUẨN DOSSIER PIXEL BLOOM
+  // ============================================================================
+  const renderExamDossierCard = (doc: ExamDocument) => {
+    const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
+    const trackInfo = getExamTrackInfo(doc);
+    const eduBadge = getEducationLevelBadgeInfo(doc);
+    const isBookmarked = bookmarkedIds.has(doc.id);
+    const confPct = doc.confidence != null ? Math.round(Number(doc.confidence) * 100) : 95;
+
+    return (
+      <ResizableCard key={doc.id} id={`doc_${doc.id}`} allowResizeWidth={false} className="h-full">
+        <SpotSurface
+          as="article"
+          className={`hh-hub-surface hh-hub-surface--interactive h-full p-5 sm:p-6 flex flex-col justify-between gap-4 group ${
+            doc.is_duplicate_copy ? 'border-amber-500/40' : ''
+          }`}
+        >
+          {/* Top Metadata Strip */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[13px] font-black px-2.5 py-1 rounded-lg bg-[#9B5CFF]/20 text-[#E2D4FF] border border-[#9B5CFF]/40">
+                  {doc.subject}
+                </span>
+                <span className={`text-[13px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${eduBadge.badgeClass}`}>
+                  <span>{eduBadge.icon}</span>
+                  <span>{eduBadge.shortLabel}</span>
+                </span>
+                <span
+                  className={`text-[13px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${trackInfo.badgeClass}`}
+                  title={`${trackInfo.description} (${trackInfo.difficultyNote})`}
+                >
+                  <span>{trackInfo.icon}</span>
+                  <span>{trackInfo.label}</span>
+                </span>
+                <span className={`text-[13px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
+                  <span>{gradeStyle.label}</span>
+                </span>
+                {doc.quorum_status && (
+                  <span
+                    className={`text-[13px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 ${
+                      doc.quorum_status.includes('UNANIMOUS')
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    }`}
+                  >
+                    {doc.quorum_status.includes('UNANIMOUS') ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                        <span>3/3 Quorum</span>
+                      </>
+                    ) : (
+                      <>
+                        <Scale className="w-3 h-3 text-amber-400" />
+                        <span>3+1 Trọng Tài</span>
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 font-mono text-[13px] text-white/50">
+                <span className="px-2 py-0.5 rounded-md bg-white/[0.06] text-[#FFB8E6] uppercase font-bold">
+                  {doc.file_type || 'PDF'}
+                </span>
+                <span>{formatFileSize(doc.file_size_bytes)}</span>
+              </div>
+            </div>
+
+            {/* Title & Click to Open Dossier */}
+            <div
+              onClick={() => {
+                setSelectedDossierDoc(doc);
+                setIsDossierOpen(true);
+              }}
+              className="cursor-pointer space-y-2"
+            >
+              <h4 className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-2 leading-snug">
+                {doc.title || doc.file_name}
+              </h4>
+
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-white/55">
+                <span>📄 {doc.page_count || 1} trang</span>
+                {doc.question_count > 0 && <span>• {doc.question_count} câu hỏi</span>}
+                <span>• Nộp bởi {doc.author_name || 'Orbit Bot'}</span>
+              </div>
+            </div>
+
+            {/* Interactive School / Year / Feature Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              {doc.academic_year && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedAcademicYear(doc.academic_year || 'ALL');
+                  }}
+                  className="text-[13px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 flex items-center gap-1 cursor-pointer"
+                >
+                  <Clock className="w-3 h-3 text-indigo-400" />
+                  <span>{doc.academic_year}</span>
+                </button>
+              )}
+              {doc.school_or_department && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSchool(doc.school_or_department || 'ALL');
+                  }}
+                  className="text-[13px] font-semibold px-2.5 py-0.5 rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:border-violet-400 flex items-center gap-1 truncate max-w-[220px] cursor-pointer"
+                  title={doc.school_or_department}
+                >
+                  <School className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{doc.school_or_department}</span>
+                </button>
+              )}
+              {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
+                <span className="text-[13px] font-extrabold px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                  ✨ Chuẩn 2025
+                </span>
+              )}
+              {doc.has_answer_keys && (
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  📝 Đáp án
+                </span>
+              )}
+              {doc.has_detailed_solutions && (
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                  💡 Lời giải
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Confidence Meter + Action Footer */}
+          <div className="space-y-3 pt-3 border-t border-[#241a38]">
+            <div className="flex items-center justify-between gap-3 text-[13px]">
+              <span className="text-white/45 font-mono">AI CONFIDENCE // QUORUM</span>
+              <div className="flex items-center gap-2 flex-1 max-w-[150px]">
+                <div className="w-full h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                  <div
+                    className="h-full bg-[#d61f79]"
+                    style={{ width: `${Math.min(100, Math.max(50, confPct))}%` }}
+                  />
+                </div>
+                <span className="font-mono font-bold text-[#FFB8E6]">{confPct}%</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const wasBookmarked = bookmarkedIds.has(doc.id);
+                  toggleBookmarkExam(doc.id);
+                  setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                  if (!wasBookmarked) {
+                    showSuccess(`Đã lưu "${doc.title || doc.file_name}" vào Tủ Sách! ⭐`, 'Tủ Sách');
+                  } else {
+                    showInfo('Đã gỡ đề thi khỏi Tủ Sách.', 'Tủ Sách');
+                  }
+                }}
+                aria-label={isBookmarked ? 'Bỏ lưu khỏi tủ sách' : 'Lưu vào tủ sách'}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                  isBookmarked
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                    : 'bg-white/[0.04] text-white/50 border-[#241a38] hover:text-amber-300 hover:border-amber-500/30'
+                }`}
+                title={isBookmarked ? 'Bỏ lưu' : 'Lưu vào Tủ Sách'}
+              >
+                <Star className={`w-4 h-4 ${isBookmarked ? 'fill-current text-amber-400' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDossierDoc(doc);
+                  setIsDossierOpen(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-[#241a38] text-white font-bold text-[13px] transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Eye className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                <span>Chi Tiết Đề</span>
+              </button>
+
+              <a
+                href={resolveExamFileUrl(doc) || '#vault'}
+                target={resolveExamFileUrl(doc) ? '_blank' : undefined}
+                rel={resolveExamFileUrl(doc) ? 'noopener noreferrer' : undefined}
+                onClick={(e) => {
+                  if (!resolveExamFileUrl(doc)) {
+                    e.preventDefault();
+                    setSelectedDossierDoc(doc);
+                    setIsDossierOpen(true);
+                  }
+                }}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#9B5CFF]/15 hover:bg-[#9B5CFF]/30 border border-[#9B5CFF]/35 text-[#E2D4FF] font-bold text-[13px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Mở Tệp</span>
+              </a>
+
+              <a
+                href={resolveExamFileUrl(doc) || '#vault'}
+                target={resolveExamFileUrl(doc) ? '_blank' : undefined}
+                rel={resolveExamFileUrl(doc) ? 'noopener noreferrer' : undefined}
+                download={botStatus.online ? doc.file_name || 'de_thi.pdf' : undefined}
+                onClick={(e) => {
+                  if (!resolveExamFileUrl(doc)) {
+                    e.preventDefault();
+                    setSelectedDossierDoc(doc);
+                    setIsDossierOpen(true);
+                  }
+                }}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-1.5 shadow-[0_6px_20px_-6px_rgba(255,79,203,0.6)] transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Tải Về</span>
+              </a>
+
+              {getSafeExternalUrl(doc.jump_url) && (
+                <a
+                  href={getSafeExternalUrl(doc.jump_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-xl bg-white/[0.04] hover:bg-[#5865F2] text-white/60 hover:text-white border border-[#241a38] transition-all cursor-pointer"
+                  title="Mở bài đăng gốc trên Discord"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        </SpotSurface>
+      </ResizableCard>
+    );
+  };
+
   const hubLocked = false;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#070810] text-white">
+    <div className="hh-hub-shell">
       {/* ========================================================================= */}
-      {/* SIDEBAR BÊN HÔNG TRÁI (Sleek, Compact, Liquid Glass, Không Phải Scroll)   */}
+      {/* MOBILE TOP COMMAND HEADER                                                 */}
       {/* ========================================================================= */}
-      {/* ========================================================================= */}
-      {/* MOBILE APP HEADER (Độc lập của Hub, kích thước to rõ ràng)                 */}
-      {/* ========================================================================= */}
-      <div className="lg:hidden w-full sticky top-0 z-40 bg-[#070812]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg">
-        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-white/[0.06]">
+      <div className="lg:hidden w-full sticky top-0 z-40 hh-hub-mobile-bar">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-[#241a38]">
           <button
             type="button"
             onClick={onBackToHome}
             className="flex items-center gap-2.5 group cursor-pointer text-left"
           >
-            <img src="/logo.png" alt="Orbit Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_10px_rgba(168,85,247,0.5)] group-hover:scale-105 transition-transform" />
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base text-white">Orbit</span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold">Hub</span>
+            <PixelMark className="w-7 h-7" />
+            <div>
+              <div className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                <span>Orbit</span>
+                <span className="hh-pixel text-[13px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6] border border-[#FF4FCB]/35">
+                  HUB
+                </span>
+              </div>
             </div>
           </button>
 
-          <button
-            type="button"
-            onClick={onBackToHome}
-            className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/10 border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Về Trang Chủ</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="p-2 rounded-lg bg-white/[0.06] border border-[#241a38] text-white/80"
+              aria-label="Tìm kiếm nhanh"
+            >
+              <Search className="w-4 h-4 text-[#FFB8E6]" />
+            </button>
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="px-3 py-1.5 rounded-lg text-[13px] font-bold text-white/85 bg-white/[0.06] border border-[#241a38] flex items-center gap-1.5 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Trang chủ</span>
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Tab Pills */}
-        <div className="px-3.5 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        {/* Mobile Navigation Pills */}
+        <div className="px-4 py-2.5 flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => handleTabChange('overview')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-              activeTab === 'overview'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                : 'text-white/70 hover:text-white bg-white/[0.04]'
-            }`}
+            data-active={activeTab === 'overview'}
+            className="hh-hub-chip whitespace-nowrap"
           >
-            <LayoutDashboard className="w-4 h-4 shrink-0" />
-            <span>Trang chính</span>
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Tổng Quan</span>
           </button>
-
           <button
             onClick={() => {
               handleTabChange('vault');
               setShowBookmarksOnly(false);
             }}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-              activeTab === 'vault' && !showBookmarksOnly
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                : 'text-white/70 hover:text-white bg-white/[0.04]'
-            }`}
+            data-active={activeTab === 'vault' && !showBookmarksOnly}
+            className="hh-hub-chip whitespace-nowrap tabular-nums"
           >
-            <BookOpen className="w-4 h-4 text-purple-400 shrink-0" />
-            <span>Kho Đề</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
-              {totalDocsCount}
-            </span>
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Kho Đề ({totalDocsCount})</span>
           </button>
-
           <button
             onClick={() => {
               handleTabChange('vault');
               setShowBookmarksOnly(true);
             }}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-              activeTab === 'vault' && showBookmarksOnly
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold shadow-md'
-                : 'text-white/70 hover:text-white bg-white/[0.04]'
-            }`}
+            data-active={activeTab === 'vault' && showBookmarksOnly}
+            className="hh-hub-chip whitespace-nowrap tabular-nums"
           >
-            <Star className={`w-4 h-4 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
-            <span>Tủ Sách</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-              {bookmarkedIds.size}
-            </span>
+            <Star className="w-3.5 h-3.5 text-amber-400" />
+            <span>Tủ Sách ({bookmarkedIds.size})</span>
           </button>
-
           <button
             onClick={() => handleTabChange('get_exam')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-              activeTab === 'get_exam'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                : 'text-white/70 hover:text-white bg-white/[0.04]'
-            }`}
+            data-active={activeTab === 'get_exam'}
+            className="hh-hub-chip whitespace-nowrap"
           >
-            <Dices className="w-4 h-4 text-pink-400 shrink-0" />
-            <span>Lấy Đề</span>
+            <Dices className="w-3.5 h-3.5 text-[#FF4FCB]" />
+            <span>Máy Bốc Đề</span>
           </button>
-
           <button
             onClick={() => handleTabChange('submit_doc')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-              activeTab === 'submit_doc'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                : 'text-white/70 hover:text-white bg-white/[0.04]'
-            }`}
+            data-active={activeTab === 'submit_doc'}
+            className="hh-hub-chip whitespace-nowrap"
           >
-            <UploadCloud className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Kho Nộp Đề</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
-              Bot AI
-            </span>
+            <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Đóng Góp Đề</span>
           </button>
-
-          {/* Nút Admin trên Mobile nếu có quyền */}
           {(isAdmin || readCachedAdmin()) && (
             <button
               onClick={() => handleTabChange('admin')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95 ${
-                activeTab === 'admin'
-                  ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-md'
-                  : 'text-rose-400 hover:text-rose-300 bg-rose-500/10'
-              }`}
+              data-active={activeTab === 'admin'}
+              className="hh-hub-chip whitespace-nowrap"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
               <span>Quản Trị</span>
             </button>
           )}
@@ -1845,1990 +2258,1277 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP SIDEBAR (Kéo chỉnh kích thước rộng hẹp tùy ý, lưu tự động)         */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.9x COMPACT FULL VIEW)                   */}
       {/* ========================================================================= */}
       <aside
         style={{ width: `${config.sidebarWidth}px` }}
-        className="hidden lg:flex sticky top-0 h-screen bg-[#070812]/95 backdrop-blur-xl border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 xl:p-5 z-30 overflow-hidden shadow-2xl"
+        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.9)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
       >
-        {/* Top: Section Header & Nav items */}
-        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
-          {/* Hub Workspace Brand & Back to Home */}
-          <div className="flex items-center justify-between pb-3.5 mb-1 border-b border-white/[0.08]">
+        <div className="space-y-3">
+          {/* Brand Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-[#241a38]">
             <button
               type="button"
               onClick={onBackToHome}
-              className="flex items-center gap-3 group cursor-pointer text-left"
-              title="Quay lại Trang Chủ"
+              className="flex items-center gap-2.5 group cursor-pointer text-left"
+              title="Quay về Trang Chủ Orbit"
             >
-              <img
-                src="/logo.png"
-                alt="Orbit Logo"
-                className="w-10 h-10 object-contain drop-shadow-[0_0_14px_rgba(168,85,247,0.55)] group-hover:scale-110 transition-transform"
-              />
+              <PixelMark className="w-7 h-7 shrink-0" />
               <div>
-                <div className="text-base sm:text-lg font-black text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
+                <div className="text-base font-black text-white group-hover:text-[#FFB8E6] transition-colors flex items-center gap-2">
                   <span>Orbit</span>
-                  <span className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_#ec4899] animate-pulse" />
+                  <span className="hh-pixel text-[13px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6] border border-[#FF4FCB]/40">
+                    HUB
+                  </span>
                 </div>
-                <div className="text-xs text-purple-300/80 font-mono font-medium">Bảng Điều Khiển Học Thuật</div>
+                <div className="text-[13px] text-white/60 mt-0.5">
+                  Different paths. One orbit.
+                </div>
               </div>
             </button>
 
             <button
               type="button"
               onClick={onBackToHome}
-              className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
               title="Về Trang Chủ"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <Home className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Quick Action: Back to Landing */}
+          {/* Quick Command Search Bar */}
           <button
             type="button"
-            onClick={onBackToHome}
-            className="w-full px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white/70 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-between transition-all cursor-pointer group mb-1 shadow-sm"
+            onClick={() => {
+              sound.playClick();
+              setIsCommandPaletteOpen(true);
+            }}
+            className="w-full px-3 py-2 rounded-xl bg-[#0B0911]/90 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/50 flex items-center justify-between gap-2 text-[13px] text-white/70 hover:text-white transition-all cursor-pointer group"
           >
             <span className="flex items-center gap-2">
-              <Home className="w-4 h-4 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
-              <span>Về Trang Chủ Orbit</span>
+              <Search className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
+              <span>Tìm nhanh đề thi, lệnh...</span>
             </span>
-            <span className="text-xs text-white/40 font-mono">← Home</span>
+            <kbd className="text-[13px] px-1.5 py-0.5 rounded bg-white/[0.07] border border-[#241a38] text-white/65 whitespace-nowrap shrink-0">
+              Ctrl K
+            </kbd>
           </button>
 
-          {/* Nav Section Title */}
-          <div className="flex items-center justify-between px-2 pt-2 pb-1">
-            <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
-              Không gian làm việc
-            </span>
-            <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Turso Cloud Live
-            </span>
-          </div>
-
-          {/* Navigation Sidebar Buttons (To rõ, dễ nhìn, font lớn) */}
-          <nav className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar flex-1 py-1">
-            <button
-              onClick={() => handleTabChange('overview')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                activeTab === 'overview'
-                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <LayoutDashboard className="w-5 h-5 shrink-0" />
-              <span>Trang chính</span>
-            </button>
-
-            <button
-              onClick={() => {
-                handleTabChange('vault');
-                setShowBookmarksOnly(false);
-              }}
-              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                activeTab === 'vault' && !showBookmarksOnly
-                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <BookOpen className="w-5 h-5 shrink-0" />
-              <span>Kho Đề Thi</span>
-              <span className="ml-auto text-xs px-2.5 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 font-black border border-pink-500/30">
-                {totalDocsCount} Đề
+          {/* Navigation Deck */}
+          <div className="space-y-1">
+            <div className="px-2 pb-1 flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-white/55">Điều hướng</span>
+              <span className="text-[13px] text-emerald-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-xs bg-emerald-400" />
+                <span>{botStatus.online ? 'Bot Trực tuyến' : 'Trực tuyến'}</span>
               </span>
-            </button>
+            </div>
 
-            <button
-              onClick={() => {
-                handleTabChange('vault');
-                setShowBookmarksOnly(true);
-              }}
-              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                activeTab === 'vault' && showBookmarksOnly
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/20'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <Star className={`w-5 h-5 shrink-0 ${activeTab === 'vault' && showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
-              <span>Tủ Sách Cá Nhân</span>
-              <span className="ml-auto text-xs px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-black border border-amber-500/30">
-                {bookmarkedIds.size}
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('get_exam')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                activeTab === 'get_exam'
-                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <Dices className="w-5 h-5 shrink-0 text-pink-400" />
-              <span>Lấy Đề Nhanh</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('submit_doc')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                activeTab === 'submit_doc'
-                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg shadow-purple-900/30'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <UploadCloud className="w-5 h-5 shrink-0 text-emerald-400" />
-              <span>Kho Nộp Đề</span>
-              <span className="ml-auto text-xs px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
-                Bot AI
-              </span>
-            </button>
-
-            {/* Nút Admin - CHỈ HIỂN THỊ KHI CÓ QUYỀN ADMIN */}
-            {(isAdmin || readCachedAdmin()) && (
+            <nav className="space-y-1" aria-label="Điều hướng Hub">
               <button
-                onClick={() => handleTabChange('admin')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 xl:py-3 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-                  activeTab === 'admin'
-                    ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-rose-900/30'
-                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
-                }`}
+                type="button"
+                onClick={() => handleTabChange('overview')}
+                data-active={activeTab === 'overview'}
+                className="hh-hub-nav-item"
               >
-                <ShieldCheck className="w-5 h-5 shrink-0 text-amber-400" />
-                <span>Quản Trị Hệ Thống</span>
-                {hasSystemUpdate && (
-                  <span className="animate-pulse px-1.5 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-black uppercase tracking-wider">
-                    Update
-                  </span>
-                )}
-                <span className="ml-auto text-xs px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                  {adminInfo?.role_name || 'ADMIN'}
+                <LayoutDashboard className="w-4 h-4 shrink-0 text-[#C4A6FF]" />
+                <span>Bàn Điều Khiển</span>
+                <span className="ml-auto text-[13px] text-white/45 font-medium">Tổng quan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleTabChange('vault');
+                  setShowBookmarksOnly(false);
+                }}
+                data-active={activeTab === 'vault' && !showBookmarksOnly}
+                className="hh-hub-nav-item"
+              >
+                <BookOpen className="w-4 h-4 shrink-0 text-[#FF4FCB]" />
+                <span>Kho Đề Thẩm Định</span>
+                <span className="ml-auto tabular-nums text-[13px] px-2 py-0.5 rounded-md bg-[#FF4FCB]/15 text-[#FFB8E6] border border-[#FF4FCB]/30">
+                  {totalDocsCount}
                 </span>
               </button>
-            )}
-          </nav>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleTabChange('vault');
+                  setShowBookmarksOnly(true);
+                }}
+                data-active={activeTab === 'vault' && showBookmarksOnly}
+                className="hh-hub-nav-item"
+              >
+                <Star className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Tủ Sách Cá Nhân</span>
+                <span className="ml-auto tabular-nums text-[13px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  {bookmarkedIds.size}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange('get_exam')}
+                data-active={activeTab === 'get_exam'}
+                className="hh-hub-nav-item"
+              >
+                <Dices className="w-4 h-4 shrink-0 text-[#5CE1E6]" />
+                <span>Máy Phát Đề</span>
+                <span className="ml-auto text-[13px] text-white/45 font-medium">Ngẫu nhiên</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange('submit_doc')}
+                data-active={activeTab === 'submit_doc'}
+                className="hh-hub-nav-item"
+              >
+                <UploadCloud className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>Đóng Góp Đề Thi</span>
+                <span className="ml-auto text-[13px] text-emerald-300/75 font-medium">3+1 Quorum</span>
+              </button>
+
+              {(isAdmin || readCachedAdmin()) && (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('admin')}
+                  data-active={activeTab === 'admin'}
+                  className="hh-hub-nav-item"
+                >
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>Quản Trị ({adminInfo?.role_name || 'ADMIN'})</span>
+                  {hasSystemUpdate && (
+                    <span className="ml-auto text-[13px] px-1.5 py-0.5 rounded bg-amber-400 text-black font-bold">
+                      Mới
+                    </span>
+                  )}
+                  {justReconnected && !hasSystemUpdate && (
+                    <span className="ml-auto w-2 h-2 rounded-xs bg-emerald-400" />
+                  )}
+                </button>
+              )}
+            </nav>
+          </div>
+
+          {/* CHILL // POMODORO FOCUS WIDGET NGAY TRONG SIDEBAR */}
+          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                <span>{pomoMode === 'focus' ? 'Pomodoro · 25p' : 'Nghỉ giải lao · 5p'}</span>
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => togglePomoMode('focus')}
+                  className={`px-2 py-0.5 rounded text-[13px] font-bold cursor-pointer ${
+                    pomoMode === 'focus' ? 'bg-[#9B5CFF] text-white' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Học
+                </button>
+                <button
+                  type="button"
+                  onClick={() => togglePomoMode('chill')}
+                  className={`px-2 py-0.5 rounded text-[13px] font-bold cursor-pointer ${
+                    pomoMode === 'chill' ? 'bg-[#FF4FCB] text-white' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Nghỉ
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <div className="hh-pixel text-xl text-white tracking-wider tabular-nums">
+                {formatPomo(pomoSeconds)}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setPomoRunning((r) => !r);
+                  }}
+                  aria-label={pomoRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu đồng hồ'}
+                  className="px-2.5 py-1 rounded-lg bg-[#d61f79] text-white text-[13px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  {pomoRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  <span>{pomoRunning ? 'Dừng' : 'Chạy'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPomoRunning(false);
+                    setPomoSeconds(pomoMode === 'focus' ? 25 * 60 : 5 * 60);
+                  }}
+                  aria-label="Đặt lại đồng hồ"
+                  className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 8-block Voxel Progress Bar */}
+            <div className="grid grid-cols-8 gap-1 pt-0.5" aria-hidden="true">
+              {Array.from({ length: 8 }).map((_, i) => {
+                const lit = pomoProgress >= (i + 1) / 8 || (pomoRunning && i === Math.floor(pomoProgress * 8));
+                return (
+                  <span
+                    key={i}
+                    className={`h-1.5 rounded-xs transition-colors ${
+                      lit ? 'bg-[#d61f79]' : 'bg-white/[0.08]'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* NHỊP ĐỘ MÙA THI & MỤC TIÊU CÁ NHÂN TRONG SIDEBAR */}
+          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold text-[#E2CEFF] flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[#FFA8DC]" />
+                <span>Kỳ thi THPT {nextThptExam.examYear}</span>
+              </span>
+              <span className="font-mono font-bold text-[#FFB396] tabular-nums text-[13px]">
+                Còn {nextThptExam.daysLeft} ngày
+              </span>
+            </div>
+            <div className="pt-1.5 border-t border-[#241a38] flex items-center justify-between gap-2 text-[13px]">
+              <span className="text-white/60 flex items-center gap-1.5 truncate">
+                <Target className="w-3.5 h-3.5 text-[#FF3CA6] shrink-0" />
+                <span className="truncate">
+                  {dreamGoal ? dreamGoal.school : 'Chưa ghim trường mục tiêu'}
+                </span>
+              </span>
+              {dreamGoal?.score && (
+                <span className="px-1.5 py-0.5 rounded bg-[#FF3CA6]/15 text-[#FFA8DC] font-mono font-bold text-[13px] shrink-0">
+                  {dreamGoal.score}đ
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Bottom: Discord User Profile Card (To rõ, dễ thao tác) */}
-        <div className="pt-3 mt-auto border-t border-white/[0.08] shrink-0">
+        {/* Bottom: Discord Identity & Back to Home */}
+        <div className="pt-2.5 mt-2 border-t border-[#241a38] space-y-2">
           {user ? (
-            <div className="p-3 sm:p-3.5 rounded-2xl liquid-glass border border-white/10 space-y-2">
+            <div className="p-2.5 rounded-xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
               <div className="flex items-center gap-2.5">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-9 h-9 rounded-xl object-cover ring-2 ring-purple-500/40 shrink-0"
+                  className="w-8 h-8 rounded-lg object-cover ring-2 ring-[#9B5CFF]/50 shrink-0"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://cdn.discordapp.com/embed/avatars/0.png';
+                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
                 />
                 <div className="overflow-hidden flex-1 min-w-0">
-                  <div className="font-bold text-sm truncate text-white leading-tight">
+                  <div className="font-bold text-[13px] truncate text-white">
                     {user.global_name || user.username}
                   </div>
-                  <div className="text-xs text-white/50 truncate">
-                    @{user.username}
-                  </div>
+                  <div className="text-[13px] text-white/45 truncate font-mono">@{user.username}</div>
                 </div>
               </div>
-
-              {/* Status & Logout */}
-              <div className="flex items-center justify-between text-xs pt-1 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between text-[13px] pt-1.5 border-t border-[#241a38]">
                 {user.verified ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Đã xác minh</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 text-rose-400 font-semibold">
-                    <XCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>Chưa xác minh</span>
+                  <span className="inline-flex items-center gap-1 text-amber-300 font-bold">
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Chưa verify</span>
                   </span>
                 )}
-
                 <button
                   onClick={onLogout}
-                  className="flex items-center gap-1 text-xs text-white/60 hover:text-rose-400 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-white/[0.05]"
-                  title="Đăng xuất tài khoản"
+                  className="text-white/55 hover:text-rose-300 flex items-center gap-1 cursor-pointer"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Đăng xuất</span>
+                  <LogOut className="w-3 h-3" />
+                  <span>Thoát</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-3.5 rounded-2xl liquid-glass border border-[#5865F2]/40 text-center space-y-2 shadow-lg">
-              <div className="text-xs text-white/80 font-medium">
-                Khách vãng lai • Chưa kết nối
+            <div className="p-2.5 rounded-xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-white/80 font-semibold">Tài khoản Discord</span>
+                <span className="text-[13px] text-[#FFB8E6] font-semibold">Khách</span>
               </div>
-              <button
+              <p className="text-[13px] text-white/50 leading-snug">
+                Đồng bộ tủ sách &amp; nhận đề tự động qua Bot Orbit.
+              </p>
+              <PixelButton
+                variant="discord"
+                block
+                className="!min-h-[40px] !text-[13px]"
                 onClick={onOpenAuthModal}
-                className="w-full py-2 px-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                icon={<UserCheck className="w-4 h-4" />}
               >
-                <UserCheck className="w-4 h-4" />
-                <span>Liên Kết Discord Ngay</span>
-              </button>
+                Liên Kết Discord
+              </PixelButton>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="w-full py-2 px-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-[#241a38] text-[13px] font-bold text-white/75 hover:text-white flex items-center justify-between cursor-pointer transition-all"
+          >
+            <span className="flex items-center gap-2">
+              <ArrowLeft className="w-3.5 h-3.5 text-[#FF4FCB]" />
+              <span>Về Trang Chủ Orbit</span>
+            </span>
+          </button>
         </div>
       </aside>
 
-      {/* Draggable Divider để kéo co giãn thanh bên Sidebar */}
-      <SidebarResizeDivider />
-
       {/* ========================================================================= */}
-      {/* MAIN VIEW CONTENT AREA                                                    */}
+      {/* MAIN WORKSPACE CONTENT                                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 min-w-0 p-4 sm:p-8 lg:p-10 xl:p-12 max-w-[1680px] mx-auto w-full">
-        {/* Workspace Top Command Bar (Desktop: Độc lập, không dùng chung mẫu Landing) */}
-        <div className="hidden lg:flex items-center justify-between pb-5 mb-8 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2.5 text-sm font-semibold">
-            <span className="text-white/40">Orbit</span>
-            <span className="text-white/20">/</span>
-            <span className="font-extrabold text-white flex items-center gap-2 text-base">
-              {activeTab === 'overview' && 'Trang chính'}
-              {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ Sách Yêu Thích' : 'Kho Đề Thi')}
-              {activeTab === 'get_exam' && 'Bốc Đề Nhanh'}
-              {activeTab === 'submit_doc' && 'Kho Nộp Đề'}
-              {activeTab === 'admin' && 'Quản Trị Hệ Thống'}
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1640px] mx-auto w-full">
+        {/* Desktop Top Telemetry Bar */}
+        <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-[#241a38]">
+          <div className="flex items-center gap-2.5 text-sm">
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="text-[13px] font-bold text-white/55 hover:text-[#FFB8E6] transition-colors cursor-pointer"
+            >
+              Orbit
+            </button>
+            <span className="text-white/25">/</span>
+            <span className="text-[13px] font-bold text-[#FFB8E6]">
+              {activeTab === 'overview' && 'Bàn điều khiển'}
+              {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
+              {activeTab === 'get_exam' && 'Máy phát đề'}
+              {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
+              {activeTab === 'admin' && 'Quản trị hệ thống'}
             </span>
           </div>
 
-          <div className="flex items-center gap-3.5">
-            <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-white/70">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="font-bold">Turso Cloud // {totalDocsCount || 179} Đề</span>
+          <div className="flex items-center gap-2.5">
+            {/* Live Bot Status Pill */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#120F1D]/90 border border-[#241a38] text-[13px] tabular-nums">
+              <span
+                className={`w-2 h-2 rounded-xs ${
+                  botStatus.online
+                    ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]'
+                    : 'bg-amber-400'
+                }`}
+              />
+              <span className="text-white/80 font-semibold">
+                {botStatus.online ? `Bot trực tuyến (${botStatus.ping_ms || 24}ms)` : 'Kho đề Cloud trực tuyến'}
+              </span>
+              <span className="text-white/30">|</span>
+              <span className="text-[#FFB8E6] font-bold tabular-nums">{totalDocsCount} đề</span>
             </div>
 
             <button
               type="button"
               onClick={() => {
-                sound.playClick();
-                setIsCommandPaletteOpen(true);
+                checkBotStatus();
+                fetchDocStats();
+                fetchDocuments();
+                showInfo('Đã đồng bộ lại dữ liệu kho đề.');
               }}
-              className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.09] text-white/70 hover:text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-sm group"
+              className="p-2 rounded-xl bg-[#120F1D]/90 hover:bg-white/[0.08] border border-[#241a38] text-white/70 hover:text-white transition-colors cursor-pointer"
+              title="Làm mới dữ liệu"
             >
-              <Search className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
-              <span>Tìm kiếm nhanh...</span>
-              <kbd className="px-2 py-0.5 text-xs font-mono bg-white/10 rounded-md border border-white/15 text-white/50">Ctrl K</kbd>
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
-        {/* Banner Thông Báo Bản Cập Nhật GitHub Dành Cho Admin */}
+
+        {/* Admin Update Banner */}
         {hasSystemUpdate && activeTab !== 'admin' && (
-          <div className="mb-8 p-5 rounded-3xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-amber-950/20">
-            <div className="flex items-center gap-3.5">
-              <span className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 text-lg">🚀</span>
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-transparent border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="hh-pixel text-[13px] px-2.5 py-1 rounded bg-amber-400 text-black font-bold">
+                UPDATE
+              </span>
               <div>
-                <div className="text-sm sm:text-base font-black text-amber-300">
+                <div className="text-sm font-black text-amber-200">
                   Phát hiện bản cập nhật mới trên GitHub!
                 </div>
-                <div className="text-xs sm:text-sm text-slate-300 dark:text-white/70">
-                  Mã nguồn mới đã sẵn sàng. Bạn có thể cài đặt và nạp lại hệ thống chỉ với 1 cú click.
+                <div className="text-[13px] text-white/70">
+                  Nạp lại hệ thống 1-Click trong bảng Quản Trị.
                 </div>
               </div>
             </div>
             <button
-              onClick={() => setActiveTab('admin')}
-              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs sm:text-sm cursor-pointer shadow-lg shadow-amber-950/40 shrink-0"
+              onClick={() => handleTabChange('admin')}
+              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-[13px] cursor-pointer"
             >
-              Mở Hub Cập Nhật (1-Click)
+              Mở Quản Trị
             </button>
           </div>
         )}
 
+        {/* TAB 01: OVERVIEW */}
         {activeTab === 'overview' && (
-          <div className="space-y-8 sm:space-y-10 animate-in fade-in duration-300">
-            {/* Header Greeting */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-3 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-pink-400" />
-                  <span>Hệ Thống Quản Trị Học Thuật & Phát Đề</span>
-                </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-                  Chào mừng trở lại{user ? `, ${user.global_name || user.username}` : ''}!
-                </h1>
-                <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
-                  Bảng điều khiển kết nối trực tiếp với Discord Bot Orbit và kho lưu trữ đề thi tự động.
-                </p>
-              </div>
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* HÀNG 1: BÀN ĐIỀU KHIỂN (7/12) + BẢN ĐỒ MÔN HỌC (5/12) */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+              {/* Cột Trái (7/12): Lời chào, Mục tiêu nguyện vọng 1 & Đếm ngược mùa thi */}
+              <SpotSurface className="xl:col-span-7 hh-hub-surface hh-voxel-frame p-6 sm:p-7 flex flex-col justify-between gap-5 h-full">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[13px] font-semibold text-[#FFB8E6] flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-xs bg-[#FF4FCB]" />
+                      <span>Không gian học thuật &amp; kho đề thực chiến</span>
+                    </span>
 
-              {/* Quick Utility Actions */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsCommandPaletteOpen(true)}
-                  className="ux-btn-liquid px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-200 dark:text-white/90 hover:text-purple-400 flex items-center gap-2 cursor-pointer"
-                  title="Mở thanh tìm kiếm siêu tốc (Ctrl+K)"
-                >
-                  <Search className="w-4 h-4 text-purple-400" />
-                  <span>Tìm kiếm (Ctrl+K)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    checkBotStatus();
-                    fetchDocStats();
-                    fetchDocuments();
-                    showInfo('Đang làm mới dữ liệu...');
-                  }}
-                  className="p-2.5 rounded-2xl border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
-                  title="Làm mới trạng thái"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+                    <div className="flex items-center gap-2 text-[13px] px-3 py-1 rounded-lg bg-white/[0.04] border border-[#241a38] tabular-nums">
+                      <Calendar className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                      <span className="text-white/70">THPT {nextThptExam.examYear}:</span>
+                      <strong className="text-[#FFB8E6] tabular-nums">{nextThptExam.daysLeft} ngày</strong>
+                    </div>
+                  </div>
 
-            {/* Quick Action Toolbar (Kéo thả & chỉnh kích thước trực tiếp) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <ResizableCard id="quick_action_exam" allowResizeWidth={false}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('get_exam')}
-                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                    <Dices className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-black text-white group-hover:text-purple-300 transition-colors truncate">
-                      Bốc Đề Nhanh
-                    </div>
-                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                      Bốc ngẫu nhiên theo môn
-                    </div>
-                  </div>
-                </button>
-              </ResizableCard>
-
-              <ResizableCard id="quick_action_vault" allowResizeWidth={false}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('vault');
-                    setShowBookmarksOnly(false);
-                  }}
-                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-black text-white group-hover:text-pink-300 transition-colors truncate">
-                      Mở Kho Đề Thi
-                    </div>
-                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                      {totalDocsCount} đề thi có sẵn
-                    </div>
-                  </div>
-                </button>
-              </ResizableCard>
-
-              <ResizableCard id="quick_action_submit" allowResizeWidth={false}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('submit_doc')}
-                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-black text-white group-hover:text-blue-300 transition-colors truncate">
-                      Nộp Đề Mới
-                    </div>
-                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                      AI thẩm định tức thì
-                    </div>
-                  </div>
-                </button>
-              </ResizableCard>
-
-              <ResizableCard id="quick_action_bookmarks" allowResizeWidth={false}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('vault');
-                    setShowBookmarksOnly(true);
-                  }}
-                  className="w-full h-full ux-btn-liquid p-4 sm:p-5 rounded-3xl flex items-center gap-3.5 text-left group cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
-                    <Star className="w-6 h-6 fill-amber-400/30" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-black text-white group-hover:text-amber-300 transition-colors truncate">
-                      Tủ Sách Yêu Thích
-                    </div>
-                    <div className="text-xs sm:text-sm text-slate-400 dark:text-white/50 truncate mt-0.5">
-                      {bookmarkedIds.size} đề đã đánh dấu
-                    </div>
-                  </div>
-                </button>
-              </ResizableCard>
-            </div>
-
-            {/* Status Grid Cards (Kéo thả chỉnh kích thước) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-              {/* Card 1: Discord Bot Live Status */}
-              <ResizableCard id="status_bot" allowResizeWidth={false} className="h-full">
-                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shadow-inner">
-                        <Bot className="w-6 h-6" />
-                      </div>
-                      <span
-                        className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 ${
-                          botStatus.online
-                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
-                        }`}
-                      >
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            botStatus.online ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
-                          }`}
-                        />
-                        {botStatus.online ? 'Đang Hoạt Động' : 'Đang Ngoại Tuyến'}
-                      </span>
-                    </div>
-                    <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
-                      Bot Discord Orbit
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
-                      {botStatus.online
-                        ? `Đang kết nối WebSocket (Độ trễ: ${botStatus.ping_ms || 0}ms)`
-                        : 'Bot Discord hiện không phản hồi. Các tính năng lấy đề sẽ tạm dừng.'}
+                    <h1 className="text-xl sm:text-2xl lg:text-[28px] font-extrabold tracking-tight text-white leading-snug">
+                      Chào {user ? user.global_name || user.username : 'bạn'}, sẵn sàng luyện đề hôm nay?
+                    </h1>
+                    <p className="text-sm text-white/65 mt-1.5 max-w-2xl leading-relaxed">
+                      Tra cứu nhanh <strong className="text-white tabular-nums">{totalDocsCount} đề thi</strong> đã qua kiểm duyệt cấu trúc và đáp án, bốc đề ngẫu nhiên theo đúng khối lớp hoặc ghim mục tiêu đại học để giữ nhịp ôn tập mỗi ngày.
                     </p>
                   </div>
-                  <div className="text-xs font-mono text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <span>User: {botStatus.bot_user || 'Orbit#0594'}</span>
-                    {botStatus.online && (
-                      <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                        ● Live
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </ResizableCard>
 
-              {/* Card 2: Kho Tài Liệu */}
-              <ResizableCard id="status_vault" allowResizeWidth={false} className="h-full">
-                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center shadow-inner">
-                        <BookOpen className="w-6 h-6" />
-                      </div>
-                      <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30">
-                        Đã Thẩm Định
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-sm sm:text-base text-slate-300 dark:text-white/70 mb-1">
-                      Kho Đề Thi Sẵn Sàng
-                    </h3>
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2.5">
-                      {totalDocsCount} Đề
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
-                      Đầy đủ các môn Toán, Tin, Văn, Anh, Lý, Hóa... bóc tách và phân loại tự động.
-                    </p>
-                  </div>
-                  <div className="text-xs text-white/50 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <span>Độc bản: {stats.unique_items || 0}</span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('vault')}
-                      className="text-pink-400 hover:text-pink-300 font-bold flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm"
-                    >
-                      Xem kho →
-                    </button>
-                  </div>
-                </div>
-              </ResizableCard>
-
-              {/* Card 3: Tài Khoản Liên Kết */}
-              <ResizableCard id="status_account" allowResizeWidth={false} className="h-full">
-                <div className="h-full p-6 sm:p-7 rounded-3xl liquid-glass border border-white/10 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#5865F2]/15 text-[#5865F2] flex items-center justify-center shadow-inner">
-                        <UserCheck className="w-6 h-6" />
-                      </div>
-                      {user ? (
-                        <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                          Đã Kết Nối
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                          Chưa Kết Nối
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="font-black text-base sm:text-lg text-white mb-1.5">
-                      Xác Thực Discord
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 mb-4 leading-relaxed">
-                      {user
-                        ? `Email: ${user.email || 'Ẩn'} (${user.verified ? 'Đã verify ✅' : 'Chưa verify ❌'})`
-                        : 'Yêu cầu liên kết tài khoản Discord để nhận phát đề.'}
-                    </p>
-                  </div>
-                  <div className="pt-3 border-t border-white/10">
-                    {!user ? (
-                      <button
-                        type="button"
-                        onClick={onOpenAuthModal}
-                        className="w-full py-2.5 px-4 rounded-xl bg-[#5865F2] text-white text-xs sm:text-sm font-bold hover:bg-[#4752c4] transition-colors cursor-pointer"
-                      >
-                        Liên Kết Ngay
-                      </button>
-                    ) : (
-                      <div className="text-xs sm:text-sm text-emerald-400 font-bold flex items-center justify-between">
-                        <span>Đủ điều kiện nhận đề thi tự động</span>
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </ResizableCard>
-            </div>
-
-            {/* Recent Exams Feed */}
-            <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/10 shadow-xl space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-base sm:text-lg text-white">
-                      Đề Thi Mới Nhất Vừa Cập Nhật
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-400 dark:text-white/50">
-                      Top 5 đề thi mới nhất được thẩm định tự động từ Discord
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('vault')}
-                  className="text-xs sm:text-sm font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Xem tất cả ({documentsList.length})</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-
-              {documentsList.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-400 dark:text-white/40">
-                  {isLoadingDocs ? 'Đang tải danh sách đề thi...' : 'Chưa có tài liệu nào trong kho.'}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {documentsList.slice(0, 5).map((doc) => {
-                    const isBookmarked = bookmarkedIds.has(doc.id);
-                    const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
-                    const trackInfo = getExamTrackInfo(doc);
-                    const eduBadge = getEducationLevelBadgeInfo(doc);
-
-                    return (
-                      <div
-                        key={doc.id}
-                        className="p-4 sm:p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
-                      >
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                              {doc.subject}
-                            </span>
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${eduBadge.badgeClass}`}>
-                              <span>{eduBadge.shortLabel}</span>
-                            </span>
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 ${trackInfo.badgeClass}`}>
-                              <span>{trackInfo.label}</span>
-                            </span>
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
-                              <span>{gradeStyle.label}</span>
-                            </span>
-                            {doc.academic_year && (
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                📅 {doc.academic_year}
-                              </span>
-                            )}
-                          </div>
-
-                          <h4
-                            onClick={() => {
-                              setSelectedDossierDoc(doc);
-                              setIsDossierOpen(true);
-                            }}
-                            className="font-bold text-sm sm:text-base text-white group-hover:text-purple-300 transition-colors line-clamp-1 cursor-pointer"
-                          >
-                            {doc.title || doc.file_name}
-                          </h4>
-
-                          <div className="flex items-center gap-3.5 text-xs text-slate-400 dark:text-white/50">
-                            {doc.school_or_department && (
-                              <span className="truncate max-w-[240px]">🏫 {doc.school_or_department}</span>
-                            )}
-                            <span>{formatFileSize(doc.file_size_bytes)}</span>
-                            {doc.page_count ? <span>{doc.page_count} trang</span> : null}
+                  {/* Mục tiêu Nguyện vọng 1 (Đồng bộ trực tiếp với Trang chủ) */}
+                  <div className="p-4 rounded-2xl bg-[#0B0911]/85 border border-[#241a38]">
+                    {!isEditingDream && dreamGoal ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <Target className="w-5 h-5 text-[#FF4FCB] shrink-0 mt-0.5" />
+                          <div>
+                            <div className="text-[13px] font-semibold text-[#FFB8E6]">
+                              Mục tiêu nguyện vọng 1 đã ghim
+                            </div>
+                            <div className="text-base sm:text-lg font-extrabold text-white">
+                              {dreamGoal.school}
+                              {dreamGoal.score && (
+                                <span className="ml-2 text-[13px] px-2 py-0.5 rounded bg-[#9B5CFF]/25 text-[#E2D4FF] border border-[#9B5CFF]/40 tabular-nums">
+                                  Mục tiêu: {dreamGoal.score}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedDossierDoc(doc);
-                              setIsDossierOpen(true);
-                            }}
-                            className="p-2.5 rounded-xl text-slate-300 hover:text-purple-300 hover:bg-purple-500/15 transition-colors cursor-pointer"
-                            title="Xem chi tiết hồ sơ đề thi"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextState = toggleBookmarkExam(doc.id);
-                              if (nextState) {
-                                setBookmarkedIds((prev) => new Set([...prev, doc.id]));
-                                showSuccess('Đã thêm vào Tủ Sách cá nhân!');
-                              } else {
-                                setBookmarkedIds((prev) => {
-                                  const next = new Set(prev);
-                                  next.delete(doc.id);
-                                  return next;
-                                });
-                                showInfo('Đã bỏ lưu đề thi.');
-                              }
-                            }}
-                            className={`p-2.5 rounded-xl transition-colors cursor-pointer ${
-                              isBookmarked
-                                ? 'text-amber-400 bg-amber-400/15'
-                                : 'text-slate-400 hover:text-amber-400 hover:bg-amber-400/15'
-                            }`}
-                            title={isBookmarked ? 'Bỏ lưu đề thi' : 'Lưu vào Tủ Sách'}
-                          >
-                            <Star className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
-                          </button>
-
-                          {(doc.download_url || doc.jump_url) && (
-                            <a
-                              href={getSafeExternalUrl(doc.download_url || doc.jump_url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-                              title="Tải tệp đề thi"
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingDream(true)}
+                          className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[13px] font-bold text-white/80 cursor-pointer self-start sm:self-center"
+                        >
+                          Đổi mục tiêu
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSaveDreamInHub} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5">
+                            <Target className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                            <span>Ghim mục tiêu trường mơ ước</span>
+                          </span>
+                          {dreamGoal && (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingDream(false)}
+                              className="text-[13px] text-white/50 hover:text-white cursor-pointer"
                             >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Tải về</span>
-                            </a>
+                              Hủy
+                            </button>
                           )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ===================================================================== */}
-        {/* TAB 2: LẤY ĐỀ & DANH SÁCH TẤT CẢ ĐỀ THI                              */}
-        {/* ===================================================================== */}
-        {activeTab === 'get_exam' && !hubLocked && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Header */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 mb-3 shadow-xs">
-                <Dices className="w-4 h-4 text-purple-400" />
-                <span>Trạm Phát Đề Tự Động</span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-                Lấy Đề Thi Ngẫu Nhiên
-              </h1>
-              <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
-                Chọn khối lớp, môn học và nhấn nút "🎲 Bốc Ngẫu Nhiên 1 Đề Thi" để Bot bốc đề thi thích hợp nhất cho bạn từ kho dữ liệu.
-              </p>
-            </div>
-
-            {/* 1. Bot Offline Warning Barrier */}
-            {!botStatus.online && (
-              <div className="p-6 sm:p-7 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-4 text-rose-300 shadow-lg">
-                <AlertTriangle className="w-7 h-7 shrink-0 mt-0.5 text-rose-400" />
-                <div className="space-y-2">
-                  <h4 className="font-black text-base sm:text-lg text-rose-200">
-                    DISCORD BOT HIỆN ĐANG KHÔNG HOẠT ĐỘNG (OFFLINE)
-                  </h4>
-                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/75 leading-relaxed">
-                    Bot đang ngoại tuyến nên tính năng bốc đề tạm dừng. Bạn vẫn xem kho đề
-                    và nộp đề mới bình thường — đề nộp lúc này được lưu tạm và tự gửi khi
-                    bot hoạt động trở lại.
-                  </p>
-                  <div className="pt-2">
-                    <button
-                      onClick={checkBotStatus}
-                      className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs sm:text-sm hover:bg-rose-500 transition-colors flex items-center gap-2 cursor-pointer shadow-md"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      <span>Thử Kiểm Tra Lại Trạng Thái Bot</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Bot vừa bật lại: báo đã tự nhận diện + đồng bộ */}
-            {justReconnected && botStatus.online && (
-              <div className="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-300 shadow-md">
-                <CheckCircle2 className="w-6 h-6 shrink-0 text-emerald-400" />
-                <p className="text-xs sm:text-sm font-bold">
-                  Bot đã online trở lại — danh sách đề và kho lưu tạm đang tự đồng bộ.
-                </p>
-              </div>
-            )}
-
-            {/* 2. User Unverified Email Warning Barrier */}
-            {(!user || !user.verified) && (
-              <div className="p-6 sm:p-7 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-4 text-amber-300 shadow-lg">
-                <AlertTriangle className="w-7 h-7 shrink-0 mt-0.5 text-amber-400" />
-                <div className="space-y-2.5">
-                  <h4 className="font-black text-base sm:text-lg text-amber-200">
-                    BỐC ĐỀ CẦN TÀI KHOẢN DISCORD ĐÃ XÁC MINH EMAIL
-                  </h4>
-                  <p className="text-xs sm:text-sm text-slate-300 dark:text-white/70 leading-relaxed">
-                    {!user
-                      ? 'Xem kho đề và nộp đề mới thì không cần đăng nhập. Chỉ khi bốc đề làm bài mới cần liên kết Discord đã verify email.'
-                      : 'Xem và nộp đề không cần verify. Chỉ khi bốc đề làm bài mới cần email Discord đã xác minh.'}
-                  </p>
-                  <button
-                    onClick={onOpenAuthModal}
-                    className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm transition-colors cursor-pointer shadow-md"
-                  >
-                    {!user ? 'Liên Kết Discord Ngay' : 'Xác Minh / Đổi Tài Khoản'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 3. BỘ LỌC ĐỀ THI VỚI NÚT BỐC ĐỀ NGẪU NHIÊN */}
-            {renderFilterControls(true)}
-
-            {/* 4. KHUNG KẾT QUẢ ĐỀ BỐC ĐƯỢC (NẾU CÓ BỐC NGẪU NHIÊN) */}
-            {currentExam && (
-              <div className="p-6 sm:p-8 rounded-3xl liquid-glass border-2 border-amber-500/40 shadow-2xl space-y-6 animate-in slide-in-from-bottom-6 duration-300">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40">
-                      Môn: {currentExam.subject}
-                    </span>
-                    {(() => {
-                      const eduBadge = getEducationLevelBadgeInfo(currentExam);
-                      return (
-                        <span className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 ${eduBadge.badgeClass}`}>
-                          <span>{eduBadge.icon}</span>
-                          <span>{eduBadge.label}</span>
-                        </span>
-                      );
-                    })()}
-                    {(() => {
-                      const gradeStyle = getGradeBadgeStyle(currentExam.estimated_level);
-                      return (
-                        <span className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 ${gradeStyle.badgeClass}`}>
-                          <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
-                          <span>{gradeStyle.label}</span>
-                        </span>
-                      );
-                    })()}
-                    {(() => {
-                      const tr = getExamTrackInfo(currentExam);
-                      return (
-                        <span
-                          className={`px-3 py-1 rounded-md text-xs font-bold border flex items-center gap-1 ${tr.badgeClass}`}
-                          title={`${tr.description} (${tr.difficultyNote})`}
-                        >
-                          <span>{tr.icon}</span>
-                          <span>{tr.label}</span>
-                        </span>
-                      );
-                    })()}
-                    {currentExam.academic_year && (
-                      <span className="px-3 py-1 rounded-md text-xs font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
-                        <span>📅</span>
-                        <span>{currentExam.academic_year}</span>
-                      </span>
-                    )}
-                    {currentExam.school_or_department && (
-                      <span className="px-3 py-1 rounded-md text-xs font-semibold bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30 flex items-center gap-1 truncate max-w-[220px]" title={currentExam.school_or_department}>
-                        <span>🏫</span>
-                        <span className="truncate">{currentExam.school_or_department}</span>
-                      </span>
-                    )}
-                    {currentExam.verdict && (
-                      <span
-                        className="px-3 py-1 rounded-md text-xs font-bold border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80"
-                        title="Kết quả thẩm định quét kỹ của Bot"
-                      >
-                        {currentExam.verdict === 'XAC_MINH'
-                          ? '✅ Xác minh'
-                          : currentExam.verdict === 'CHUA_RO_RANG'
-                            ? '⚠️ Chưa rõ ràng'
-                            : currentExam.verdict === 'KO_RO_RANG'
-                              ? '❓ Không rõ ràng'
-                              : currentExam.verdict === 'KO_XAC_MINH'
-                                ? '⛔ Không xác minh'
-                                : `🛡️ ${currentExam.verdict}`}
-                        {currentExam.confidence != null && ` • ${Math.round(Number(currentExam.confidence) * 100)}%`}
-                      </span>
-                    )}
-                    <span className="px-3 py-1 rounded-md text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80 border border-slate-300 dark:border-white/10">
-                      {currentExam.page_count} trang
-                    </span>
-                  </div>
-
-                  <span className="text-xs text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Đã bốc đề ngẫu nhiên thành công!</span>
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="text-lg sm:text-2xl font-black text-white leading-tight">
-                    {currentExam.title || currentExam.file_name}
-                  </h3>
-                  <div className="text-xs text-slate-400 dark:text-white/50 mt-1">
-                    Tên tệp gốc:{' '}
-                    <span className="font-mono text-purple-300">{currentExam.file_name}</span> (
-                    {formatFileSize(currentExam.file_size_bytes)})
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10 text-xs">
-                  <div>
-                    <span className="text-white/40 block">Người đóng góp:</span>
-                    <span className="font-semibold text-white/90">
-                      {currentExam.author_name || 'Admin'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-white/40 block">Số câu hỏi:</span>
-                    <span className="font-semibold text-white/90">
-                      {currentExam.question_count || 'N/A'} câu
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-white/40 block">Định dạng file:</span>
-                    <span className="font-semibold text-white/90 uppercase">
-                      {currentExam.file_type || 'PDF'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-white/40 block">Thời gian nộp:</span>
-                    <span className="font-semibold text-white/90">
-                      {currentExam.timestamp ? currentExam.timestamp.slice(0, 10) : 'Gần đây'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                  {/* Nút ⭐ Lưu Vào Tủ Sách */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const isBookmarked = bookmarkedIds.has(currentExam.id);
-                      toggleBookmarkExam(currentExam.id);
-                      setBookmarkedIds(new Set(getBookmarkedExamIds()));
-                      if (!isBookmarked) {
-                        showSuccess(
-                          `Đã lưu "${currentExam.title || currentExam.file_name}" vào Tủ Sách Cá Nhân! ⭐`,
-                          'Tủ Sách'
-                        );
-                      } else {
-                        showInfo(
-                          `Đã gỡ "${currentExam.title || currentExam.file_name}" khỏi Tủ Sách.`,
-                          'Tủ Sách'
-                        );
-                      }
-                    }}
-                    aria-label={
-                      bookmarkedIds.has(currentExam.id)
-                        ? 'Bỏ lưu đề thi khỏi tủ sách cá nhân'
-                        : 'Lưu đề thi vào tủ sách cá nhân'
-                    }
-                    className={`inline-flex items-center gap-2.5 px-5 py-3.5 rounded-2xl border font-bold text-xs sm:text-sm shadow-xl transition-all cursor-pointer ${
-                      bookmarkedIds.has(currentExam.id)
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
-                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
-                    }`}
-                  >
-                    <Star
-                      className={`w-4 h-4 shrink-0 ${
-                        bookmarkedIds.has(currentExam.id) ? 'fill-current text-amber-400' : ''
-                      }`}
-                    />
-                    <span>{bookmarkedIds.has(currentExam.id) ? 'Đã Lưu Vào Tủ Sách' : '⭐ Lưu Vào Tủ Sách'}</span>
-                  </button>
-
-                  {/* Nút Mở Tệp Trực Tiếp */}
-                  <a
-                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download?ngrok-skip-browser-warning=true`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ExternalLink className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>Mở Tệp Trực Tiếp</span>
-                  </a>
-
-                  {/* Nút 1: Tải Đề Trực Tiếp Về Máy */}
-                  <a
-                    href={`${getApiBaseUrl()}/api/documents/${currentExam.id}/download?ngrok-skip-browser-warning=true`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={currentExam.file_name || 'de_thi.pdf'}
-                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-emerald-950/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <Download className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>
-                      Tải Đề Trực Tiếp Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})
-                    </span>
-                  </a>
-
-                  {/* Nút 2: Mở Trên Discord */}
-                  {getSafeExternalUrl(currentExam.jump_url) && (
-                    <a
-                      href={getSafeExternalUrl(currentExam.jump_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-[#5865F2]/20 hover:-translate-y-0.5 active:scale-95 transition-all"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Xem Bài Đăng Discord</span>
-                    </a>
-                  )}
-
-                  {/* Nút 3: Bốc Đề Khác */}
-                  <button
-                    onClick={handlePickRandomExam}
-                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Bốc Đề Khác</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ===================================================================== */}
-        {/* TAB 2: KHO ĐỀ (TÁCH RIÊNG 28+ ĐỀ ĐANG CÓ)                             */}
-        {/* ===================================================================== */}
-        {activeTab === 'vault' && !hubLocked && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Header */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30 mb-3 shadow-xs">
-                <BookOpen className="w-4 h-4 text-pink-400" />
-                <span>Kho Lưu Trữ Đề Thi Đã Thẩm Định</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                <div>
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white flex flex-wrap items-center gap-3.5">
-                    <span>Kho Đề Thi</span>
-                    <span className="text-base sm:text-lg font-black px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/30">
-                      {stats.total_real} Đề
-                    </span>
-                  </h1>
-                  <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
-                    Duyệt toàn bộ tài liệu & đề thi đã qua thẩm định tự động. Hệ thống hỗ trợ lọc xem đề trùng lặp và đề độc bản.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    onClick={() => setIsCommandPaletteOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm"
-                  >
-                    <Search className="w-4 h-4 text-purple-400" />
-                    <span>Tìm Siêu Tốc (Ctrl+K)</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleTabChange('submit_doc')}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-blue-900/40 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    <UploadCloud className="w-4 h-4" />
-                    <span>+ Nộp Đề Mới Vào Kho</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Thước Đo Phân Bố Tài Liệu Theo 7 Khối Lớp */}
-            <div className="p-5 sm:p-7 rounded-3xl liquid-glass border border-white/10 space-y-4 shadow-lg">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-black text-white flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 text-purple-400" />
-                  Phân Bố Tài Liệu 7 Khối Lớp (Đồng Bộ Mã Màu Discord Roles)
-                </span>
-                <span className="text-xs text-slate-400 font-mono font-bold">
-                  Tổng {documentsList.length} đề thi
-                </span>
-              </div>
-
-              {/* Multi-segmented visual bar */}
-              <div className="w-full h-4 rounded-xl bg-white/5 overflow-hidden flex shadow-inner">
-                {gradeDistribution['12'] > 0 && (
-                  <div
-                    className="h-full bg-red-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['12'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 12: ${gradeDistribution['12']} đề`}
-                    onClick={() => handleGradeChange('GRADE_12')}
-                  />
-                )}
-                {gradeDistribution['11'] > 0 && (
-                  <div
-                    className="h-full bg-orange-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['11'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 11: ${gradeDistribution['11']} đề`}
-                    onClick={() => handleGradeChange('GRADE_11')}
-                  />
-                )}
-                {gradeDistribution['10'] > 0 && (
-                  <div
-                    className="h-full bg-amber-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['10'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 10: ${gradeDistribution['10']} đề`}
-                    onClick={() => handleGradeChange('GRADE_10')}
-                  />
-                )}
-                {gradeDistribution['9'] > 0 && (
-                  <div
-                    className="h-full bg-emerald-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['9'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 9: ${gradeDistribution['9']} đề`}
-                    onClick={() => handleGradeChange('GRADE_9')}
-                  />
-                )}
-                {gradeDistribution['8'] > 0 && (
-                  <div
-                    className="h-full bg-cyan-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['8'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 8: ${gradeDistribution['8']} đề`}
-                    onClick={() => handleGradeChange('GRADE_8')}
-                  />
-                )}
-                {gradeDistribution['7'] > 0 && (
-                  <div
-                    className="h-full bg-blue-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['7'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 7: ${gradeDistribution['7']} đề`}
-                    onClick={() => handleGradeChange('GRADE_7')}
-                  />
-                )}
-                {gradeDistribution['6'] > 0 && (
-                  <div
-                    className="h-full bg-purple-500 hover:opacity-85 transition-opacity cursor-pointer"
-                    style={{ width: `${(gradeDistribution['6'] / Math.max(1, documentsList.length)) * 100}%` }}
-                    title={`Lớp 6: ${gradeDistribution['6']} đề`}
-                    onClick={() => handleGradeChange('GRADE_6')}
-                  />
-                )}
-              </div>
-
-              {/* Legend labels */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_12')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/15 text-red-300 border border-red-500/30 cursor-pointer hover:bg-red-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <span>Lớp 12 ({gradeDistribution['12']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_11')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/30 cursor-pointer hover:bg-orange-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                  <span>Lớp 11 ({gradeDistribution['11']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_10')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 cursor-pointer hover:bg-amber-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span>Lớp 10 ({gradeDistribution['10']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_9')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 cursor-pointer hover:bg-emerald-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span>Lớp 9 ({gradeDistribution['9']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_8')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 cursor-pointer hover:bg-cyan-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
-                  <span>Lớp 8 ({gradeDistribution['8']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_7')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-blue-500/15 text-blue-300 border border-blue-500/30 cursor-pointer hover:bg-blue-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                  <span>Lớp 7 ({gradeDistribution['7']})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGradeChange('GRADE_6')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 cursor-pointer hover:bg-purple-500/25 font-bold"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-                  <span>Lớp 6 ({gradeDistribution['6']})</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Bộ Lọc Danh Sách Đề (Không hiển thị nút Bốc Đề Ngẫu Nhiên) */}
-            {renderFilterControls(false)}
-
-            {/* ========================================================================= */}
-            {/* DANH SÁCH TẤT CẢ CÁC ĐỀ THI TRONG KHO (FULL CATALOG LIST)                 */}
-            {/* ========================================================================= */}
-            <div className="space-y-6 pt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0 shadow-inner">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg sm:text-2xl text-white tracking-tight">
-                      {showBookmarksOnly ? '⭐ Tủ Sách Ôn Luyện Của Tôi' : 'Danh Sách Tất Cả Các Đề Thi Trong Kho'}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-300 dark:text-white/60 mt-0.5">
-                      {showBookmarksOnly
-                        ? `Hiển thị ${displayedDocuments.length} đề thi bạn đã đánh dấu ⭐ yêu thích`
-                        : `Hiển thị ${displayedDocuments.length} đề thi • ${stats.unique_items} đề độc bản • ${stats.duplicate_items} đề trùng lặp`}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bộ Lọc Trùng Lặp & Tủ Sách (Tất cả, Đề độc bản, Đề trùng lặp, ⭐ Tủ Sách) */}
-                <div className="inline-flex p-1.5 rounded-2xl bg-white/[0.05] border border-white/10 self-start sm:self-auto flex-wrap gap-1 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBookmarksOnly(false);
-                      setFilterDup('all');
-                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'all');
-                    }}
-                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                      !showBookmarksOnly && filterDup === 'all'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-900/40'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Tất Cả ({stats.total_real})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBookmarksOnly(false);
-                      setFilterDup('unique');
-                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'unique');
-                    }}
-                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                      !showBookmarksOnly && filterDup === 'unique'
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40'
-                        : 'text-slate-400 hover:text-emerald-300'
-                    }`}
-                  >
-                    <span>Đề Độc Bản</span>
-                    <span className="px-1.5 py-0.5 rounded-md text-xs bg-emerald-500/20 text-emerald-300 font-mono">
-                      {stats.unique_items}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBookmarksOnly(false);
-                      setFilterDup('duplicate');
-                      fetchDocuments(selectedGrade, selectedExamType, selectedSubject, descriptionKeyword, 'duplicate');
-                    }}
-                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                      !showBookmarksOnly && filterDup === 'duplicate'
-                        ? 'bg-amber-600 text-white shadow-md shadow-amber-900/40'
-                        : 'text-slate-400 hover:text-amber-300'
-                    }`}
-                  >
-                    <span>Đề Trùng Lặp</span>
-                    <span className="px-1.5 py-0.5 rounded-md text-xs bg-amber-500/20 text-amber-300 font-mono">
-                      {stats.duplicate_items}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowBookmarksOnly((prev) => !prev)}
-                    className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                      showBookmarksOnly
-                        ? 'bg-amber-500 text-slate-950 shadow-md font-black'
-                        : 'text-slate-400 hover:text-amber-300'
-                    }`}
-                    title="Xem các đề thi bạn đã bấm ⭐ lưu vào tủ sách cá nhân"
-                  >
-                    <Star className={`w-4 h-4 ${showBookmarksOnly ? 'fill-current text-slate-950' : 'text-amber-400'}`} />
-                    <span>Tủ Sách</span>
-                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-mono font-bold ${
-                      showBookmarksOnly ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
-                    }`}>
-                      {bookmarkedIds.size}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Sắp Xếp Nâng Cao */}
-                <div className="flex items-center gap-2.5 self-start sm:self-auto bg-white/[0.05] border border-white/10 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-sm">
-                  <span className="text-xs sm:text-sm text-slate-400 font-bold whitespace-nowrap">
-                    Sắp xếp:
-                  </span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-transparent text-xs sm:text-sm font-extrabold text-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="newest" className="bg-slate-900 text-white">Mới Nhất</option>
-                    <option value="pages" className="bg-slate-900 text-white">Nhiều Trang Nhất</option>
-                    <option value="size" className="bg-slate-900 text-white">Dung Lượng Lớn</option>
-                    <option value="confidence" className="bg-slate-900 text-white">Độ Tin Cậy AI</option>
-                  </select>
-                </div>
-
-                {/* Nút Xem Tất Cả / Reset Nhanh */}
-                {(selectedEducationLevel !== 'ALL' ||
-                  selectedGrade !== 'ALL' ||
-                  selectedExamType !== 'ALL' ||
-                  selectedSubject !== 'ALL' ||
-                  descriptionKeyword ||
-                  showBookmarksOnly ||
-                  activeAdvancedFilterCount > 0) && (
-                  <button
-                    onClick={handleResetAllFilters}
-                    className="text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition-all cursor-pointer flex items-center gap-2 w-fit border border-purple-500/30"
-                    title="Khôi phục trạng thái xem toàn bộ kho đề"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Đặt Lại Bộ Lọc ({stats.total_real} đề)</span>
-                  </button>
-                )}
-              </div>
-
-              {/* BỘ LỌC ĐỀ NÂNG CAO (NĂM HỌC, TRƯỜNG/SỞ RA ĐỀ, CHUẨN BỘ GD&ĐT 2025, ĐÁP ÁN) */}
-              <div className="p-5 sm:p-7 rounded-3xl liquid-glass border border-white/10 space-y-4 shadow-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/10">
-                  <div className="flex items-center gap-2.5 text-xs sm:text-sm font-black text-white uppercase tracking-wider">
-                    <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-                    <span>Bộ Lọc Chuyên Sâu (Năm Học, Nguồn Ra Đề, Cấu Trúc 2025 & Đáp Án)</span>
-                    {activeAdvancedFilterCount > 0 && (
-                      <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-pink-500 text-white animate-pulse shadow-sm">
-                        {activeAdvancedFilterCount} đang chọn
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
-                    <span>Tìm thấy:</span>
-                    <span className="text-white font-black px-2.5 py-0.5 rounded-lg bg-white/10 font-mono">
-                      {displayedDocuments.length} / {documentsList.length} đề
-                    </span>
-                  </div>
-                </div>
-
-                {/* Hàng 1: Chọn Năm Học & Trường / Sở GD&ĐT Ra Đề */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Lọc Năm Học */}
-                  <div className="space-y-2">
-                    <label className="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-indigo-400" />
-                      <span>Năm Học Ra Đề:</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedAcademicYear}
-                        onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-950/80 border border-white/10 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-indigo-400 cursor-pointer appearance-none"
-                      >
-                        <option value="ALL">Mọi Năm Học (Toàn bộ)</option>
-                        {availableAcademicYears.map(({ year, count }) => (
-                          <option key={year} value={year}>
-                            📅 Năm học {year} ({count} đề)
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 text-xs">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Lọc Trường / Sở GD&ĐT Ra Đề */}
-                  <div className="space-y-2">
-                    <label className="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <School className="w-4 h-4 text-violet-400" />
-                      <span>Trường / Sở GD&ĐT Ra Đề:</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedSchool}
-                        onChange={(e) => setSelectedSchool(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-950/80 border border-white/10 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-violet-400 cursor-pointer appearance-none"
-                      >
-                        <option value="ALL">Tất Cả Trường & Sở GD&ĐT</option>
-                        {availableSchools.map(({ school, count }) => (
-                          <option key={school} value={school}>
-                            🏫 {school} ({count} đề)
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 text-xs">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hàng 2: Các Toggle Pills Chuyên Sâu */}
-                <div className="pt-1.5 flex flex-wrap items-center gap-2.5">
-                  <span className="text-xs font-bold text-slate-400 shrink-0">
-                    Đặc điểm đề thi:
-                  </span>
-
-                  {/* Pill 1: Chuẩn Bộ GD&ĐT 2025 */}
-                  <button
-                    type="button"
-                    onClick={() => setFilterMoet2025((prev) => !prev)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                      filterMoet2025
-                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-900/40 font-black'
-                        : 'bg-white/5 text-slate-300 hover:bg-cyan-950/30 hover:text-cyan-300 border border-white/10'
-                    }`}
-                  >
-                    <Sparkles className={`w-4 h-4 ${filterMoet2025 ? 'text-slate-950' : 'text-cyan-400'}`} />
-                    <span>✨ Chuẩn Bộ GD&ĐT 2025 (3 Phần)</span>
-                  </button>
-
-                  {/* Pill 2: Có Bảng Đáp Án */}
-                  <button
-                    type="button"
-                    onClick={() => setFilterHasAnswers((prev) => !prev)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                      filterHasAnswers
-                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-900/40 font-black'
-                        : 'bg-white/5 text-slate-300 hover:bg-emerald-950/30 hover:text-emerald-300 border border-white/10'
-                    }`}
-                  >
-                    <FileCheck className={`w-4 h-4 ${filterHasAnswers ? 'text-slate-950' : 'text-emerald-400'}`} />
-                    <span>📝 Có Bảng Đáp Án</span>
-                  </button>
-
-                  {/* Pill 3: Có Lời Giải Chi Tiết */}
-                  <button
-                    type="button"
-                    onClick={() => setFilterHasSolutions((prev) => !prev)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                      filterHasSolutions
-                        ? 'bg-purple-500 text-white shadow-md shadow-purple-900/40 font-black'
-                        : 'bg-white/5 text-slate-300 hover:bg-purple-950/30 hover:text-purple-300 border border-white/10'
-                    }`}
-                  >
-                    <Sparkles className={`w-4 h-4 ${filterHasSolutions ? 'text-white' : 'text-purple-400'}`} />
-                    <span>💡 Có Lời Giải Chi Tiết</span>
-                  </button>
-
-                  {/* Pill 4: Đã Có Link Discord / CDN */}
-                  <button
-                    type="button"
-                    onClick={() => setFilterHasDiscordLink((prev) => !prev)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                      filterHasDiscordLink
-                        ? 'bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/40 font-black'
-                        : 'bg-white/5 text-slate-300 hover:bg-[#5865F2]/20 hover:text-indigo-300 border border-white/10'
-                    }`}
-                  >
-                    <ExternalLink className="w-4 h-4 text-indigo-400" />
-                    <span>🚀 Đã Đồng Bộ Kênh Discord</span>
-                  </button>
-
-                  {/* Clear All Advanced Filters */}
-                  {activeAdvancedFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedAcademicYear('ALL');
-                        setSelectedSchool('ALL');
-                        setFilterMoet2025(false);
-                        setFilterHasAnswers(false);
-                        setFilterHasSolutions(false);
-                        setFilterHasDiscordLink(false);
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 transition-all cursor-pointer ml-auto"
-                    >
-                      ✕ Bỏ {activeAdvancedFilterCount} bộ lọc
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid các đề thi */}
-              {isLoadingDocs ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[1, 2, 3, 4, 5, 6].map((idx) => (
-                    <div
-                      key={idx}
-                      className="p-5 rounded-2xl liquid-glass border border-white/10 space-y-4 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-5 rounded-md skeleton-shimmer" />
-                          <div className="w-20 h-5 rounded-md skeleton-shimmer" />
-                          <div className="w-14 h-5 rounded-md skeleton-shimmer" />
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                          <input
+                            type="text"
+                            value={dreamSchoolInput}
+                            onChange={(e) => setDreamSchoolInput(e.target.value)}
+                            placeholder="VD: ĐH Bách Khoa Hà Nội, THPT Chuyên KHTN..."
+                            className="sm:col-span-7 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#FF4FCB]"
+                          />
+                          <input
+                            type="text"
+                            value={dreamScoreInput}
+                            onChange={(e) => setDreamScoreInput(e.target.value)}
+                            placeholder="Điểm mục tiêu (VD: 28.5+)"
+                            className="sm:col-span-3 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#9B5CFF]"
+                          />
+                          <button
+                            type="submit"
+                            className="sm:col-span-2 h-10 px-3 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white font-bold text-[13px] cursor-pointer transition-colors"
+                          >
+                            Lưu
+                          </button>
                         </div>
-                        <div className="w-12 h-4 rounded-md skeleton-shimmer" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="w-5/6 h-5 rounded-lg skeleton-shimmer" />
-                        <div className="w-1/2 h-3.5 rounded-lg skeleton-shimmer" />
-                      </div>
-                      <div className="pt-2 flex items-center gap-2 border-t border-slate-100 dark:border-white/5">
-                        <div className="w-9 h-9 rounded-xl skeleton-shimmer" />
-                        <div className="flex-1 h-9 rounded-xl skeleton-shimmer" />
-                        <div className="flex-1 h-9 rounded-xl skeleton-shimmer" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : showBookmarksOnly && displayedDocuments.length === 0 ? (
-                <div className="p-12 rounded-3xl bg-amber-500/5 dark:bg-amber-500/[0.03] border border-dashed border-amber-500/30 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
-                    <Star className="w-6 h-6" />
+                      </form>
+                    )}
                   </div>
-                  <div className="text-base font-bold text-slate-800 dark:text-white">
-                    Tủ sách ôn luyện của bạn đang trống!
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-white/60 max-w-md mx-auto">
-                    Hãy bấm biểu tượng ngôi sao ⭐ trên các đề thi bạn quan tâm để lưu vào tủ sách cá nhân và ôn luyện lại bất kỳ lúc nào.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowBookmarksOnly(false)}
-                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    Xem Tất Cả {stats.total_real} Đề Thi
-                  </button>
                 </div>
-              ) : displayedDocuments.length > 0 ? (
-                <div className="space-y-4">
-                  <div
-                    className={`grid gap-5 sm:gap-6 ${
-                      config.vaultGridCols === '1'
-                        ? 'grid-cols-1'
-                        : config.vaultGridCols === '3'
-                        ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-                        : 'grid-cols-1 xl:grid-cols-2'
-                    }`}
-                  >
-                    {paginatedDocuments.map((doc) => {
-                    const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
-                    const trackInfo = getExamTrackInfo(doc);
 
+                {/* Primary CTA Row */}
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#241a38]">
+                  <PixelButton
+                    variant="primary"
+                    magnetic
+                    onClick={() => handleTabChange('get_exam')}
+                    icon={<Dices className="w-4 h-4" />}
+                    trailing={<ArrowRight className="w-4 h-4" />}
+                  >
+                    Mở Máy Phát Đề
+                  </PixelButton>
+
+                  <PixelButton
+                    variant="ghost"
+                    onClick={() => {
+                      handleTabChange('vault');
+                      setShowBookmarksOnly(false);
+                    }}
+                    icon={<BookOpen className="w-4 h-4" />}
+                  >
+                    Duyệt Kho Đề ({totalDocsCount})
+                  </PixelButton>
+
+                  <PixelButton
+                    variant="ghost"
+                    onClick={handleInstantPracticePick}
+                    icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
+                  >
+                    Bốc Thử 1 Đề Ngay
+                  </PixelButton>
+                </div>
+              </SpotSurface>
+
+              {/* Cột Phải (5/12): Ma Trận Telemetry & Radar Môn Học (Bấm để lọc ngay) */}
+              <SpotSurface className="xl:col-span-5 hh-hub-surface p-6 sm:p-7 flex flex-col justify-between gap-4 h-full">
+                <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+                  <div>
+                    <span className="text-[13px] font-semibold text-[#C4A6FF]">
+                      Phân bố tài liệu thực tế
+                    </span>
+                    <h2 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
+                      Bản Đồ Kho Đề Theo Môn Học
+                    </h2>
+                  </div>
+                  <span className="tabular-nums text-[13px] px-2.5 py-1 rounded-lg bg-[#9B5CFF]/15 text-[#E2D4FF] border border-[#9B5CFF]/30 font-bold">
+                    {stats.unique_items || totalDocsCount} độc bản
+                  </span>
+                </div>
+
+                {/* Interactive Subject Radar Bars */}
+                <div className="space-y-2.5">
+                  {subjectBreakdown.map((subj) => {
+                    const pct = Math.min(
+                      100,
+                      Math.round((subj.count / Math.max(1, documentsList.length)) * 100)
+                    );
                     return (
-                      <ResizableCard key={doc.id} id={`doc_${doc.id}`} allowResizeWidth={false} className="h-full">
-                        <div
-                          className={`h-full p-6 sm:p-7 rounded-3xl liquid-glass border transition-all shadow-md space-y-4 flex flex-col justify-between group ${
-                            doc.is_duplicate_copy
-                              ? 'border-amber-500/40 bg-amber-950/20 hover:border-amber-500/70'
-                              : 'border-white/10 hover:border-purple-500/50'
-                          }`}
-                        >
-                        {/* Top Badges */}
-                        <div className="flex flex-wrap items-center justify-between gap-2.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs sm:text-sm font-black px-3 py-1 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                              {doc.subject}
-                            </span>
-                            {/* Bậc giáo dục: Chung, Cấp 2, Cấp 3 */}
-                            {(() => {
-                              const eduBadge = getEducationLevelBadgeInfo(doc);
-                              return (
-                                <span
-                                  className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-1.5 ${eduBadge.badgeClass}`}
-                                >
-                                  <span>{eduBadge.icon}</span>
-                                  <span>{eduBadge.shortLabel}</span>
-                                </span>
-                              );
-                            })()}
-                            <span
-                              className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-1.5 ${trackInfo.badgeClass}`}
-                              title={`${trackInfo.description} (${trackInfo.difficultyNote})`}
-                            >
-                              <span>{trackInfo.icon}</span>
-                              <span>{trackInfo.label}</span>
-                            </span>
-                            {/* Khối lớp chuẩn 7 Role Discord Server */}
-                            <span
-                              className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-xl border flex items-center gap-2 ${gradeStyle.badgeClass}`}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${gradeStyle.dotColor}`} />
-                              <span>{gradeStyle.label}</span>
-                            </span>
-                            {/* Duplicate badge */}
-                            {doc.is_duplicate_copy ? (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                ⚠️ Bản Trùng (#{doc.id})
-                              </span>
-                            ) : doc.is_duplicate ? (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                                📌 Bản Gốc
-                              </span>
-                            ) : (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                                ✨ Độc Bản
-                              </span>
-                            )}
-                            {/* Năm học bóc tách (Bấm để lọc theo năm) */}
-                            {doc.academic_year && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAcademicYear(doc.academic_year || 'ALL');
-                                }}
-                                className="text-xs font-bold px-2.5 py-1 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 flex items-center gap-1.5 transition-all cursor-pointer"
-                                title={`Lọc nhanh các đề thuộc năm học ${doc.academic_year}`}
-                              >
-                                <span>📅</span>
-                                <span>{doc.academic_year}</span>
-                              </button>
-                            )}
-                            {/* Trường / Tỉnh bóc tách (Bấm để lọc theo trường) */}
-                            {doc.school_or_department && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSchool(doc.school_or_department || 'ALL');
-                                }}
-                                className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:border-violet-400 flex items-center gap-1.5 truncate max-w-[210px] transition-all cursor-pointer"
-                                title={`Lọc nhanh các đề thuộc ${doc.school_or_department}`}
-                              >
-                                <span>🏫</span>
-                                <span className="truncate">{doc.school_or_department}</span>
-                              </button>
-                            )}
-                            <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-pink-500/15 text-pink-300 border border-pink-500/30 uppercase font-black">
-                              {doc.file_type || 'PDF'}
-                            </span>
-                          </div>
-                          <span className="text-xs sm:text-sm text-slate-400 dark:text-white/50 font-mono">
-                            {formatFileSize(doc.file_size_bytes)}
+                      <button
+                        key={subj.id}
+                        type="button"
+                        onClick={() => {
+                          handleSubjectChange(subj.id);
+                          setShowBookmarksOnly(false);
+                          handleTabChange('vault');
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-white/[0.025] hover:bg-white/[0.06] border border-[#241a38] hover:border-[#FF4FCB]/40 transition-all cursor-pointer group text-left space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between text-[13px]">
+                          <span className="font-bold text-white group-hover:text-[#FFB8E6] flex items-center gap-2">
+                            <BookOpen className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                            <span>{subj.label}</span>
+                          </span>
+                          <span className="tabular-nums text-[13px] text-white/65 group-hover:text-white">
+                            {subj.count} đề ({pct}%)
                           </span>
                         </div>
-
-                        {/* Tiêu đề & Thông tin đề (Nhấn để mở Hồ Sơ Chi Tiết) */}
-                        <div
-                          onClick={() => {
-                            setSelectedDossierDoc(doc);
-                            setIsDossierOpen(true);
-                          }}
-                          className="cursor-pointer space-y-1.5"
-                        >
-                          <h4 className="font-black text-base sm:text-lg text-white group-hover:text-purple-300 transition-colors line-clamp-2 leading-relaxed">
-                            {doc.title || doc.file_name}
-                          </h4>
-                          <div className="text-xs sm:text-sm text-slate-300 dark:text-white/60 flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <span>{doc.page_count} trang</span>
-                            {doc.question_count > 0 && <span>• {doc.question_count} câu</span>}
-                            <span>• Nộp bởi {doc.author_name || 'Admin'}</span>
-                          </div>
-                          {doc.notes && (
-                            <div className="mt-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
-                              <span className="font-black shrink-0">📝 Ghi chú:</span>
-                              <span className="line-clamp-2">{doc.notes}</span>
-                            </div>
-                          )}
-                          {(doc.verdict || doc.exam_track || doc.confidence != null) && (
-                            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
-                              {doc.verdict && (
-                                <span
-                                  title="Kết quả thẩm định quét kỹ của Bot"
-                                  className={`font-black px-2.5 py-1 rounded-xl border ${
-                                    doc.verdict === 'XAC_MINH'
-                                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                                      : doc.verdict === 'KO_XAC_MINH'
-                                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                  }`}
-                                >
-                                  {doc.verdict === 'XAC_MINH'
-                                    ? '✅ Xác minh'
-                                    : doc.verdict === 'CHUA_RO_RANG'
-                                      ? '⚠️ Chưa rõ ràng'
-                                      : doc.verdict === 'KO_RO_RANG'
-                                        ? '❓ Không rõ ràng'
-                                        : doc.verdict === 'KO_XAC_MINH'
-                                          ? '⛔ Không xác minh'
-                                          : `🛡️ ${doc.verdict}`}
-                                </span>
-                              )}
-                              {doc.exam_track && (
-                                <span
-                                  title="Thể loại đề (thường < hsg < chuyên)"
-                                  className="font-bold px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-300 border border-sky-500/30 uppercase"
-                                >
-                                  {doc.exam_track === 'thuong'
-                                    ? '📚 Thường'
-                                    : doc.exam_track === 'hsg'
-                                      ? '🏅 HSG'
-                                      : doc.exam_track === 'chuyen'
-                                        ? '🏆 Chuyên'
-                                        : doc.exam_track === 'quoc_te'
-                                          ? '🌍 Quốc tế'
-                                          : `🏷️ ${doc.exam_track}`}
-                                </span>
-                              )}
-                              {doc.confidence != null && (
-                                <span
-                                  title="Độ tin cậy phân loại của Bot"
-                                  className="font-mono px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-bold"
-                                >
-                                  {Math.round(Number(doc.confidence) * 100)}%
-                                </span>
-                              )}
-                              {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
-                                <span
-                                  title="Đề thi cấu trúc chuẩn mới Bộ GD&ĐT 2025 (3 phần: Trắc nghiệm 4 lựa chọn, Đúng/Sai, Trả lời ngắn)"
-                                  className="font-black px-2.5 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-                                >
-                                  ✨ Chuẩn 2025
-                                </span>
-                              )}
-                              {doc.has_answer_keys && (
-                                <span
-                                  title="Đề thi đã kèm bảng đáp án"
-                                  className="font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                                >
-                                  📝 Có đáp án
-                                </span>
-                              )}
-                              {doc.has_detailed_solutions && (
-                                <span
-                                  title="Đề thi có hướng dẫn giải / lời giải chi tiết"
-                                  className="font-bold px-2.5 py-1 rounded-xl bg-violet-500/15 text-violet-300 border border-violet-500/30"
-                                >
-                                  ✨ Lời giải chi tiết
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Nút thao tác trên từng đề */}
-                        <div className="pt-3 flex items-center gap-2.5 border-t border-white/10">
-                          {/* Nút ⭐ Bookmark / Lưu vào tủ sách */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const isBookmarked = bookmarkedIds.has(doc.id);
-                              toggleBookmarkExam(doc.id);
-                              setBookmarkedIds(new Set(getBookmarkedExamIds()));
-                              if (!isBookmarked) {
-                                showSuccess(
-                                  `Đã lưu "${doc.title || doc.file_name}" vào Tủ Sách! ⭐`,
-                                  'Tủ Sách'
-                                );
-                              } else {
-                                showInfo(
-                                  `Đã gỡ "${doc.title || doc.file_name}" khỏi Tủ Sách.`,
-                                  'Tủ Sách'
-                                );
-                              }
+                        <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${Math.max(6, pct)}%`,
+                              backgroundColor: subj.tone,
                             }}
-                            aria-label={
-                              bookmarkedIds.has(doc.id)
-                                ? 'Bỏ lưu đề thi khỏi tủ sách cá nhân'
-                                : 'Lưu đề thi vào tủ sách cá nhân'
-                            }
-                            className={`p-3 rounded-2xl font-bold text-sm border flex items-center justify-center transition-all cursor-pointer ${
-                              bookmarkedIds.has(doc.id)
-                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
-                                : 'bg-white/[0.05] text-slate-400 border-transparent hover:text-amber-400 hover:bg-amber-500/10'
-                            }`}
-                            title={bookmarkedIds.has(doc.id) ? 'Bỏ lưu khỏi tủ sách cá nhân' : '⭐ Lưu vào tủ sách ôn luyện của tôi'}
-                          >
-                            <Star className={`w-4 h-4 ${bookmarkedIds.has(doc.id) ? 'fill-current text-amber-400' : ''}`} />
-                          </button>
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                          {/* Nút Xem Hồ Sơ Kiểm Định AI */}
-                          <button
-                            type="button"
+                {/* Quick 7-Grade Strip */}
+                <div className="pt-2 border-t border-[#241a38] flex items-center justify-between text-[13px] text-white/60">
+                  <span>Phân loại tự động chuẩn GDPT 2018</span>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('vault')}
+                    className="text-[#FFB8E6] hover:underline font-bold cursor-pointer"
+                  >
+                    Xem đủ 18 môn
+                  </button>
+                </div>
+              </SpotSurface>
+            </div>
+
+            {/* NẾU VỪA BỐC THỬ 1 ĐỀ NGAY TRÊN OVERVIEW THÌ HIỂN THỊ KẾT QUẢ TỨC THÌ */}
+            {currentExam && (
+              <SpotSurface className="hh-hub-surface hh-voxel-frame p-5 sm:p-6 border-[#FF4FCB]/50 animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] px-2 py-0.5 rounded bg-[#FF4FCB] text-[#0E0C14] font-bold">
+                        Đề vừa bốc
+                      </span>
+                      <span className="text-[13px] font-bold text-[#FFB8E6]">{currentExam.subject}</span>
+                      <span className="text-[13px] text-white/50">• {currentExam.estimated_level}</span>
+                    </div>
+                    <h3 className="text-base sm:text-xl font-black text-white">
+                      {currentExam.title || currentExam.file_name}
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDossierDoc(currentExam);
+                        setIsDossierOpen(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-[13px] font-bold text-white cursor-pointer"
+                    >
+                      Xem Chi Tiết Đề
+                    </button>
+                    <a
+                      href={resolveExamFileUrl(currentExam) || '#vault'}
+                      target={resolveExamFileUrl(currentExam) ? '_blank' : undefined}
+                      rel={resolveExamFileUrl(currentExam) ? 'noopener noreferrer' : undefined}
+                      onClick={(e) => {
+                        if (!resolveExamFileUrl(currentExam)) {
+                          e.preventDefault();
+                          setSelectedDossierDoc(currentExam);
+                          setIsDossierOpen(true);
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#9B5CFF] hover:bg-[#8A46FF] text-white text-[13px] font-extrabold"
+                    >
+                      Mở Đề Ngay
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentExam(null)}
+                      className="p-2 rounded-xl text-white/40 hover:text-white cursor-pointer"
+                      aria-label="Đóng đề vừa bốc"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </SpotSurface>
+            )}
+
+            {/* HÀNG 2: CỘT TRÁI (ĐỀ MỚI NHẤT, 8/12) + CỘT PHẢI (TỦ SÁCH & HẠ TẦNG, 4/12) */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+              {/* Đề thi mới thẩm định (8/12) */}
+              <SpotSurface className="xl:col-span-8 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
+                <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+                  <div>
+                    <span className="text-[13px] font-semibold text-[#FF4FCB]">Cập nhật mới nhất</span>
+                    <h3 className="font-extrabold text-base sm:text-lg text-white">
+                      Đề Thi Mới Thẩm Định Gần Đây
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBookmarksOnly(false);
+                      handleTabChange('vault');
+                    }}
+                    className="text-[13px] font-bold text-[#FFB8E6] hover:underline flex items-center gap-1 cursor-pointer tabular-nums"
+                  >
+                    <span>Mở toàn bộ ({documentsList.length})</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {documentsList.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-white/45">
+                    {isLoadingDocs ? 'Đang đồng bộ danh sách đề thi...' : 'Chưa có tài liệu nào.'}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {documentsList.slice(0, 4).map((doc) => {
+                      const isBookmarked = bookmarkedIds.has(doc.id);
+                      const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
+                      const trackInfo = getExamTrackInfo(doc);
+
+                      return (
+                        <div
+                          key={doc.id}
+                          className="p-3.5 rounded-xl bg-[#0B0911]/75 hover:bg-white/[0.04] border border-[#241a38] hover:border-[#9B5CFF]/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                        >
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[13px] font-bold px-2 py-0.5 rounded bg-[#9B5CFF]/20 text-[#E2D4FF] border border-[#9B5CFF]/35">
+                                {doc.subject}
+                              </span>
+                              <span className={`text-[13px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${trackInfo.badgeClass}`}>
+                                <span>{trackInfo.label}</span>
+                              </span>
+                              <span className={`text-[13px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${gradeStyle.badgeClass}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
+                                <span>{gradeStyle.label}</span>
+                              </span>
+                              {doc.academic_year && (
+                                <span className="text-[13px] tabular-nums text-white/55">
+                                  • {doc.academic_year}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4
+                              onClick={() => {
+                                setSelectedDossierDoc(doc);
+                                setIsDossierOpen(true);
+                              }}
+                              className="font-bold text-sm sm:text-base text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-1 cursor-pointer"
+                            >
+                              {doc.title || doc.file_name}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDossierDoc(doc);
+                                setIsDossierOpen(true);
+                              }}
+                              className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 cursor-pointer"
+                              title="Xem chi tiết đề thi"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleBookmarkExam(doc.id);
+                                setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                              }}
+                              className={`p-2 rounded-lg cursor-pointer ${
+                                isBookmarked ? 'text-amber-400 bg-amber-500/15' : 'text-white/45 hover:text-amber-300'
+                              }`}
+                              title="Lưu vào Tủ Sách"
+                            >
+                              <Star className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
+                            </button>
+                            <a
+                              href={resolveExamFileUrl(doc) || '#vault'}
+                              target={resolveExamFileUrl(doc) ? '_blank' : undefined}
+                              rel={resolveExamFileUrl(doc) ? 'noopener noreferrer' : undefined}
+                              onClick={(e) => {
+                                if (!resolveExamFileUrl(doc)) {
+                                  e.preventDefault();
+                                  setSelectedDossierDoc(doc);
+                                  setIsDossierOpen(true);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-[#9B5CFF]/25 hover:bg-[#9B5CFF]/40 border border-[#9B5CFF]/40 text-white text-[13px] font-bold flex items-center gap-1"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Tải</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </SpotSurface>
+
+              {/* Cột phải (4/12): Tủ Sách Đang Lưu + Trạng thái kết nối (Gộp trong 1 card đồng nhất chiều cao) */}
+              <SpotSurface className="xl:col-span-4 hh-hub-surface p-6 flex flex-col justify-between gap-5 h-full">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+                    <div>
+                      <span className="text-[13px] font-semibold text-amber-300">Lưu trữ cá nhân</span>
+                      <h3 className="font-extrabold text-base sm:text-lg text-white">Tủ Sách Của Bạn</h3>
+                    </div>
+                    <span className="tabular-nums text-[13px] px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                      {bookmarkedIds.size} đề
+                    </span>
+                  </div>
+
+                  {bookmarkedIds.size === 0 ? (
+                    <div className="py-5 px-4 rounded-xl bg-[#0B0911]/70 border border-[#241a38] text-center space-y-2">
+                      <p className="text-[13px] text-white/60 leading-relaxed">
+                        Bạn chưa đánh dấu đề thi nào. Bấm biểu tượng ngôi sao trên các đề cần luyện lại để ghim vào đây.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('vault')}
+                        className="text-[13px] font-bold text-[#FFB8E6] hover:underline cursor-pointer"
+                      >
+                        Mở Kho Đề Thi
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {documentsList
+                        .filter((d) => bookmarkedIds.has(d.id))
+                        .slice(0, 3)
+                        .map((doc) => (
+                          <div
+                            key={doc.id}
                             onClick={() => {
                               setSelectedDossierDoc(doc);
                               setIsDossierOpen(true);
                             }}
-                            className="p-3 sm:px-4 rounded-2xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                            title="Xem hồ sơ phân tích kiểm định chi tiết của AI"
+                            className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] cursor-pointer flex items-center justify-between gap-2"
                           >
-                            <FileText className="w-4 h-4" />
-                            <span className="hidden sm:inline">Hồ Sơ</span>
-                          </button>
-
-                          {/* Mở xem trực tiếp trong tab mới */}
-                          <a
-                            href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl bg-purple-600/15 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs sm:text-sm transition-all cursor-pointer"
-                            title="Mở xem trực tiếp tệp trong tab mới"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>Mở Tệp</span>
-                          </a>
-
-                          <a
-                            href={`${getApiBaseUrl()}/api/documents/${doc.id}/download?ngrok-skip-browser-warning=true`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={doc.file_name || 'de_thi.pdf'}
-                            className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-950/30 active:scale-95 transition-all cursor-pointer"
-                          >
-                            <Download className="w-4 h-4 stroke-[2.5]" />
-                            <span>Tải Về</span>
-                          </a>
-
-                          {getSafeExternalUrl(doc.jump_url) && (
-                            <a
-                              href={getSafeExternalUrl(doc.jump_url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-3 rounded-2xl bg-white/10 hover:bg-[#5865F2] hover:text-white text-slate-300 transition-all cursor-pointer"
-                              title="Mở bài đăng trên Discord"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          )}
-                        </div>
-                        </div>
-                      </ResizableCard>
-                    );
-                  })}
-                  </div>
-
-                  {/* Phân trang / Lazy load chống nghẽn DOM */}
-                  {visibleCount < displayedDocuments.length && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-900/10 border border-purple-500/20 backdrop-blur-md">
-                      <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        Đang hiển thị <span className="font-bold text-purple-600 dark:text-purple-400">{paginatedDocuments.length}</span> / <span className="font-bold">{displayedDocuments.length}</span> đề thi phù hợp
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setVisibleCount((prev) => Math.min(prev + 24, displayedDocuments.length))}
-                          className="ux-btn-liquid px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg shadow-purple-950/30 transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                          <span>⚡ Tải Thêm (+24 Đề)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setVisibleCount(displayedDocuments.length)}
-                          className="ux-btn-liquid px-4 py-2.5 rounded-2xl text-slate-700 dark:text-white/90 font-semibold text-xs transition-all cursor-pointer"
-                        >
-                          <span>Xem Toàn Bộ</span>
-                        </button>
-                      </div>
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-bold text-amber-300">{doc.subject}</div>
+                              <div className="text-[13px] font-bold text-white truncate">
+                                {doc.title || doc.file_name}
+                              </div>
+                            </div>
+                            <ArrowRight className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                          </div>
+                        ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBookmarksOnly(true);
+                          handleTabChange('vault');
+                        }}
+                        className="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[13px] font-bold cursor-pointer tabular-nums"
+                      >
+                        Mở Tủ Sách ({bookmarkedIds.size} đề)
+                      </button>
                     </div>
                   )}
                 </div>
-              ) : !botStatus.online ? (
-                <div className="p-10 rounded-3xl bg-rose-500/10 dark:bg-rose-500/[0.05] border border-rose-500/30 text-center space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center mx-auto shadow-lg shadow-rose-950/20">
-                    <AlertTriangle className="w-7 h-7" />
+
+                {/* Trạng thái Hạ tầng Bot & Turso */}
+                <div className="pt-4 border-t border-[#241a38] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-white/75">Hạ tầng dữ liệu</span>
+                    <span
+                      className={`text-[13px] font-bold px-2 py-0.5 rounded ${
+                        botStatus.online
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      }`}
+                    >
+                      {botStatus.online ? 'Bot trực tuyến' : 'Cloud trực tuyến'}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-base font-black text-slate-900 dark:text-white">
-                      🔴 Máy Chủ Bot Discord Đang Offline
+                  <div className="space-y-1.5 text-[13px] text-white/65">
+                    <div className="flex justify-between">
+                      <span>Discord Bot:</span>
+                      <span className="text-white font-semibold">{botStatus.bot_user || 'Orbit#0594'}</span>
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-white/70 max-w-md mx-auto leading-relaxed">
-                      Kho đề thi được đồng bộ trực tiếp thời gian thực từ Discord Server.
-                      Khi Discord Bot tắt, danh sách đề thi trên Web sẽ tạm ẩn để đảm bảo tính xác thực.
-                    </p>
-                  </div>
-                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        checkBotStatus();
-                        fetchDocStats();
-                        fetchDocuments();
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Kiểm Tra Lại Kết Nối</span>
-                    </button>
-                    <a
-                      href="https://discord.gg/D34HX87bGe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer flex items-center gap-2"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>Mở Máy Chủ Discord</span>
-                    </a>
+                    <div className="flex justify-between">
+                      <span>Cơ sở dữ liệu:</span>
+                      <span className="text-emerald-400 font-semibold">Turso libSQL Live</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Quy trình kiểm duyệt:</span>
+                      <span className="text-[#FFB8E6] font-semibold">Đối chiếu 3 bước</span>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center space-y-4">
-                  <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                  <div className="space-y-1">
-                    <div className="text-sm font-bold text-slate-800 dark:text-white">
-                      Không tìm thấy đề thi phù hợp với tiêu chí lọc
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm mx-auto">
-                      Hãy thử chọn "Mọi Khối", "Mọi Loại Đề" hoặc nhấn nút bên dưới để khôi phục toàn bộ danh sách đề thi.
-                    </p>
+              </SpotSurface>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 04: GET_EXAM */}
+        {activeTab === 'get_exam' && !hubLocked && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <SpotSurface className="hh-hub-surface p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#241a38] pb-5">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+                    Máy Phát Đề Ngẫu Nhiên Orbit
+                  </h1>
+                  <p className="text-[13px] sm:text-sm text-white/65 mt-1 max-w-2xl">
+                    Khóa 3 thông số Khối Lớp, Môn Học và Thể Loại Đề bên dưới, sau đó bốc ngẫu nhiên qua Bot Discord hoặc bốc thử tức thì từ bộ nhớ Kho Web.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <PixelButton
+                    variant="primary"
+                    magnetic
+                    loading={isLoadingExam}
+                    onClick={handlePickRandomExam}
+                    disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
+                    icon={<Dices className="w-4 h-4" />}
+                  >
+                    {isLoadingExam ? 'Đang Quay Đề...' : 'Bốc Qua Bot Discord'}
+                  </PixelButton>
+
+                  <PixelButton
+                    variant="ghost"
+                    onClick={handleInstantPracticePick}
+                    icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
+                  >
+                    Bốc Thử Tức Thì ({displayedDocuments.length} đề)
+                  </PixelButton>
+                </div>
+              </div>
+
+              {/* 3 ILLUMINATED TELEMETRY REELS */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Reel 1: Cấp & Khối Lớp */}
+                <div
+                  data-rolling={isRollingReel || isLoadingExam}
+                  className="hh-slot-window p-4 space-y-1.5"
+                >
+                  <div className="hh-slot-scanline" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[#C4A6FF]">Khối lớp</span>
+                    <span className="w-2 h-2 rounded-xs bg-[#9B5CFF]" />
                   </div>
+                  <div className="text-lg sm:text-xl font-black text-white truncate">
+                    {isRollingReel || isLoadingExam
+                      ? ALL_GRADE_OPTIONS[reelTick % ALL_GRADE_OPTIONS.length].label
+                      : ALL_GRADE_OPTIONS.find((g) => g.id === selectedGrade)?.label || 'Mọi Khối (6–12)'}
+                  </div>
+                  <div className="text-[13px] text-white/50">
+                    Bậc: {EDUCATION_LEVEL_OPTIONS.find((e) => e.id === selectedEducationLevel)?.badge}
+                  </div>
+                </div>
 
-                  {(activeAdvancedFilterCount > 0 || selectedGrade !== 'ALL' || selectedExamType !== 'ALL' || selectedSubject !== 'ALL' || selectedEducationLevel !== 'ALL' || descriptionKeyword) && (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-                      <span className="text-[11px] text-slate-400">Đang lọc theo:</span>
-                      {selectedEducationLevel !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-bold">
-                          {selectedEducationLevel === 'CAP_2' ? 'Cấp 2 (THCS)' : 'Cấp 3 (THPT)'}
-                        </span>
-                      )}
-                      {selectedGrade !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-[10px] font-bold">
-                          Lớp {selectedGrade}
-                        </span>
-                      )}
-                      {selectedExamType !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-                          {selectedExamType}
-                        </span>
-                      )}
-                      {selectedSubject !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                          {selectedSubject}
-                        </span>
-                      )}
-                      {selectedAcademicYear !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">
-                          Năm {selectedAcademicYear}
-                        </span>
-                      )}
-                      {selectedSchool !== 'ALL' && (
-                        <span className="px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 text-[10px] font-bold">
-                          {selectedSchool}
-                        </span>
-                      )}
-                      {filterMoet2025 && (
-                        <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold">
-                          Chuẩn 2025
-                        </span>
-                      )}
-                      {descriptionKeyword && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-500/20 text-slate-300 text-[10px] font-bold">
-                          "{descriptionKeyword}"
-                        </span>
-                      )}
-                    </div>
-                  )}
+                {/* Reel 2: Môn Học */}
+                <div
+                  data-rolling={isRollingReel || isLoadingExam}
+                  className="hh-slot-window p-4 space-y-1.5"
+                >
+                  <div className="hh-slot-scanline" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[#FFB8E6]">Môn học</span>
+                    <span className="w-2 h-2 rounded-xs bg-[#FF4FCB]" />
+                  </div>
+                  <div className="text-lg sm:text-xl font-black text-white truncate">
+                    {isRollingReel || isLoadingExam
+                      ? ALL_SUBJECT_OPTIONS[(reelTick * 2) % ALL_SUBJECT_OPTIONS.length].label
+                      : ALL_SUBJECT_OPTIONS.find((s) => s.id === selectedSubject)?.label || 'Tất Cả Các Môn'}
+                  </div>
+                  <div className="text-[13px] text-white/50 tabular-nums">
+                    Khớp: {displayedDocuments.length} đề khả dụng
+                  </div>
+                </div>
 
-                  <div>
+                {/* Reel 3: Độ Khó / Thể Loại */}
+                <div
+                  data-rolling={isRollingReel || isLoadingExam}
+                  className="hh-slot-window p-4 space-y-1.5"
+                >
+                  <div className="hh-slot-scanline" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[#5CE1E6]">Phân ban đề</span>
+                    <span className="w-2 h-2 rounded-xs bg-[#5CE1E6]" />
+                  </div>
+                  <div className="text-lg sm:text-xl font-black text-white truncate">
+                    {isRollingReel || isLoadingExam
+                      ? EXAM_TYPE_OPTIONS[reelTick % EXAM_TYPE_OPTIONS.length].label
+                      : EXAM_TYPE_OPTIONS.find((t) => t.id === selectedExamType)?.label || 'Mọi Thể Loại'}
+                  </div>
+                  <div className="text-[13px] text-white/50">
+                    Thang: Thường &lt; HSG &lt; Chuyên
+                  </div>
+                </div>
+              </div>
+
+              {/* Thông báo gọn nếu chưa liên kết Discord (không chặn trải nghiệm vì đã có Bốc Thử Tức Thì!) */}
+              {(!user || !user.verified || !botStatus.online) && (
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-[#241a38] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[13px]">
+                  <div className="flex items-center gap-2.5 text-white/75">
+                    <CheckCircle2 className="w-4 h-4 text-[#FFB8E6] shrink-0" />
+                    <span>
+                      {!botStatus.online
+                        ? 'Bot Discord đang tạm nghỉ, bạn có thể dùng nút "Bốc Thử Tức Thì" để lấy đề trực tiếp từ kho Cloud.'
+                        : 'Muốn Bot gửi đề qua Discord cá nhân? Hãy liên kết tài khoản Discord đã xác minh email (hoặc dùng "Bốc Thử Tức Thì" ngay trên web).'}
+                    </span>
+                  </div>
+                  {(!user || !user.verified) && (
                     <button
                       type="button"
-                      onClick={handleResetAllFilters}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+                      onClick={onOpenAuthModal}
+                      className="px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold shrink-0 cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Xem Toàn Bộ Kho Đề Thi ({documentsList.length || stats.total_real} Đề)</span>
+                      Liên kết Discord
                     </button>
-                  </div>
+                  )}
                 </div>
               )}
-            </div>
+            </SpotSurface>
+
+            {/* KẾT QUẢ ĐỀ THI VỪA QUAY ĐƯỢC */}
+            {currentExam && (
+              <SpotSurface className="hh-hub-surface hh-voxel-frame p-6 sm:p-8 border-[#FF4FCB]/50 space-y-5 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="hh-pixel text-[13px] px-2.5 py-1 rounded bg-emerald-400 text-black font-bold">
+                      Đề đã sẵn sàng
+                    </span>
+                    <span className="px-3 py-1 rounded-lg text-[13px] font-black bg-[#9B5CFF]/25 text-[#E2D4FF] border border-[#9B5CFF]/40">
+                      {currentExam.subject}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg text-[13px] font-bold bg-white/10 text-white">
+                      {currentExam.estimated_level}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg text-[13px] font-mono bg-white/[0.06] text-white/80">
+                      {currentExam.page_count || 1} trang • {formatFileSize(currentExam.file_size_bytes)}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleInstantPracticePick}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Quay đề khác</span>
+                  </button>
+                </div>
+
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white">
+                    {currentExam.title || currentExam.file_name}
+                  </h2>
+                  <p className="text-[13px] text-white/50 font-mono mt-1">
+                    Tệp gốc: {currentExam.file_name} • Đóng góp: {currentExam.author_name || 'Admin'}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <PixelButton
+                    variant="primary"
+                    href={resolveExamFileUrl(currentExam) || undefined}
+                    target={resolveExamFileUrl(currentExam) ? '_blank' : undefined}
+                    rel={resolveExamFileUrl(currentExam) ? 'noopener noreferrer' : undefined}
+                    onClick={() => {
+                      if (!resolveExamFileUrl(currentExam)) {
+                        setSelectedDossierDoc(currentExam);
+                        setIsDossierOpen(true);
+                      }
+                    }}
+                    icon={<ExternalLink className="w-4 h-4" />}
+                  >
+                    Mở Làm Bài Ngay
+                  </PixelButton>
+
+                  <PixelButton
+                    variant="ghost"
+                    href={resolveExamFileUrl(currentExam) || undefined}
+                    target={resolveExamFileUrl(currentExam) ? '_blank' : undefined}
+                    rel={resolveExamFileUrl(currentExam) ? 'noopener noreferrer' : undefined}
+                    download={botStatus.online ? currentExam.file_name || 'de_thi.pdf' : undefined}
+                    onClick={() => {
+                      if (!resolveExamFileUrl(currentExam)) {
+                        setSelectedDossierDoc(currentExam);
+                        setIsDossierOpen(true);
+                      }
+                    }}
+                    icon={<Download className="w-4 h-4" />}
+                  >
+                    Tải Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})
+                  </PixelButton>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDossierDoc(currentExam);
+                      setIsDossierOpen(true);
+                    }}
+                    className="px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-[#241a38] text-[13px] font-bold text-white cursor-pointer flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4 text-[#C4A6FF]" />
+                    <span>Xem Hồ Sơ Đề Thi</span>
+                  </button>
+                </div>
+              </SpotSurface>
+            )}
+
+            {/* Bàn lọc chiến thuật bên dưới để khóa tiêu chí bốc */}
+            {renderFilterControls(true)}
           </div>
         )}
 
-        {/* ===================================================================== */}
-        {/* TAB 4: KHO NỘP ĐỀ (DOC UPLOAD & AUTO-INSPECT)                         */}
-        {/* ===================================================================== */}
-        {activeTab === 'submit_doc' && !hubLocked && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Header */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 mb-3 shadow-xs">
-                <UploadCloud className="w-4 h-4 text-blue-400" />
-                <span>Trạm Nộp Đề & Thẩm Định Tài Liệu</span>
+        {/* TAB 02 & 03: VAULT */}
+        {activeTab === 'vault' && !hubLocked && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Vault Header */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight flex flex-wrap items-center gap-3">
+                  <span>{showBookmarksOnly ? 'Tủ Sách Ôn Luyện Của Tôi' : 'Kho Đề Thi Đã Thẩm Định'}</span>
+                  <span className="tabular-nums text-[13px] sm:text-sm px-3 py-1 rounded-xl bg-[#9B5CFF]/25 border border-[#9B5CFF]/45 text-[#E2D4FF]">
+                    {displayedDocuments.length} đề
+                  </span>
+                </h1>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-                Kho Nộp Đề Thi
-              </h1>
-              <p className="text-sm sm:text-base text-slate-300 dark:text-white/70 mt-2 max-w-3xl leading-relaxed">
-                Kéo thả hoặc tải lên tài liệu / đề thi (PDF, DOCX). Bot sẽ tự động phân tích môn học, khối lớp, loại đề, số câu hỏi và kiểm tra chống trùng lặp.
-              </p>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowBookmarksOnly((b) => !b)}
+                  data-active={showBookmarksOnly}
+                  className="hh-hub-chip"
+                >
+                  <Star className={`w-3.5 h-3.5 ${showBookmarksOnly ? 'fill-amber-400 text-amber-400' : 'text-amber-400'}`} />
+                  <span>{showBookmarksOnly ? 'Đang xem Tủ Sách' : `Tủ Sách (${bookmarkedIds.size})`}</span>
+                </button>
+
+                <PixelButton
+                  variant="primary"
+                  onClick={() => handleTabChange('submit_doc')}
+                  icon={<UploadCloud className="w-4 h-4" />}
+                >
+                  + Nộp Đề Mới
+                </PixelButton>
+              </div>
             </div>
 
-            {/* Upload Zone Component */}
-            <DocUploadZone
-              apiBase={getApiBaseUrl()}
-              user={user}
-              botOnline={botStatus.online}
-              onOpenAuthModal={onOpenAuthModal}
-              onUploadSuccess={() => {
-                fetchDocuments();
-                fetchDocStats();
-              }}
-            />
+            {/* Bàn Lọc Chiến Thuật Gọn Gàng */}
+            {renderFilterControls(false)}
+
+            {/* Lưới Hồ Sơ Đề Thi */}
+            {isLoadingDocs ? (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((idx) => (
+                  <div
+                    key={idx}
+                    className="p-6 rounded-2xl hh-hub-surface space-y-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-5 rounded skeleton-shimmer" />
+                      <div className="w-20 h-5 rounded skeleton-shimmer" />
+                    </div>
+                    <div className="w-4/5 h-6 rounded skeleton-shimmer" />
+                    <div className="w-1/2 h-4 rounded skeleton-shimmer" />
+                  </div>
+                ))}
+              </div>
+            ) : displayedDocuments.length > 0 ? (
+              <div className="space-y-5">
+                <div
+                  className={`grid gap-4 sm:gap-5 ${
+                    config.vaultGridCols === '1'
+                      ? 'grid-cols-1'
+                      : config.vaultGridCols === '3'
+                      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                      : 'grid-cols-1 xl:grid-cols-2'
+                  }`}
+                >
+                  {paginatedDocuments.map((doc) => renderExamDossierCard(doc))}
+                </div>
+
+                {visibleCount < displayedDocuments.length && (
+                  <div className="p-4 rounded-2xl hh-hub-surface flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-[13px] text-white/60">
+                      Đang hiển thị <strong className="text-white">{paginatedDocuments.length}</strong> /{' '}
+                      <strong className="text-[#FFB8E6]">{displayedDocuments.length}</strong> đề thi
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <PixelButton
+                        variant="primary"
+                        onClick={() => setVisibleCount((prev) => Math.min(prev + 24, displayedDocuments.length))}
+                      >
+                        Tải thêm +24 đề
+                      </PixelButton>
+                      <PixelButton
+                        variant="ghost"
+                        onClick={() => setVisibleCount(displayedDocuments.length)}
+                      >
+                        Mở toàn bộ
+                      </PixelButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <SpotSurface className="hh-hub-surface p-10 text-center space-y-4">
+                <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+                <div className="space-y-1">
+                  <div className="text-base font-extrabold text-white">
+                    {showBookmarksOnly
+                      ? 'Tủ sách cá nhân của bạn đang trống'
+                      : 'Không tìm thấy đề thi khớp với tiêu chí lọc'}
+                  </div>
+                  <p className="text-[13px] text-white/55 max-w-md mx-auto">
+                    {showBookmarksOnly
+                      ? 'Hãy nhấn biểu tượng ⭐ trên các thẻ đề thi để lưu vào Tủ Sách ôn luyện.'
+                      : 'Hãy thử đặt lại bộ lọc hoặc đổi từ khóa tìm kiếm để xem toàn bộ kho đề.'}
+                  </p>
+                </div>
+                <div>
+                  <PixelButton variant="primary" onClick={handleResetAllFilters}>
+                    Khôi phục toàn bộ kho đề ({documentsList.length || stats.total_real})
+                  </PixelButton>
+                </div>
+              </SpotSurface>
+            )}
           </div>
         )}
 
-        {/* ===================================================================== */}
-        {/* TAB 5: QUẢN TRỊ VIÊN DISCORD & KHO ĐỀ (ADMIN PORTAL)                  */}
-        {/* ===================================================================== */}
-        {activeTab === 'admin' && (isAdmin || readCachedAdmin()) && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+        {/* TAB 05: SUBMIT_DOC */}
+        {activeTab === 'submit_doc' && !hubLocked && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <SpotSurface className="hh-hub-surface p-6 sm:p-8 space-y-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+                    Đóng Góp &amp; Kiểm Duyệt Đề Thi
+                  </h1>
+                  <p className="text-[13px] sm:text-sm text-white/65 mt-1 max-w-2xl">
+                    Mỗi tài liệu tải lên (PDF, DOCX, TXT) hoặc liên kết Google Drive đều đi qua quy trình 5 bước kiểm định bảo mật và phân loại trước khi đồng bộ lên Kho Đề.
+                  </p>
+                </div>
+              </div>
+
+              {/* 5-Step Pipeline Visualizer */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2">
+                {[
+                  { step: 'Bước 1', name: 'Định danh tệp', desc: 'PDF / DOCX / Drive' },
+                  { step: 'Bước 2', name: 'Quét Magic Byte', desc: 'Chống mã độc' },
+                  { step: 'Bước 3', name: 'Băm SHA-256', desc: 'Chống trùng lặp' },
+                  { step: 'Bước 4', name: 'Đối chiếu 3 bước', desc: 'Phân loại Khối & Môn' },
+                  { step: 'Bước 5', name: 'Đồng bộ Cloud', desc: 'Discord + Turso DB' },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className="p-3 rounded-xl bg-[#0B0911]/85 border border-[#241a38] space-y-1"
+                  >
+                    <div className="text-[13px] font-semibold text-[#FFB8E6]">{item.step}</div>
+                    <div className="text-[13px] font-extrabold text-white">{item.name}</div>
+                    <div className="text-[13px] text-white/50">{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </SpotSurface>
+
             <Suspense
               fallback={
-                <div className="p-8 text-center text-xs text-slate-400">Đang tải Admin Hub...</div>
+                <div className="p-8 text-center text-[13px] text-white/50">Đang nạp Cổng Đóng Góp &amp; Kiểm Duyệt 5 Bước...</div>
               }
             >
-              <AdminPanel
-                onClose={() => setActiveTab('overview')}
-                onRefreshParentDocs={() => {
+              <DocUploadZone
+                apiBase={getApiBaseUrl()}
+                user={user}
+                botOnline={botStatus.online}
+                onOpenAuthModal={onOpenAuthModal}
+                onUploadSuccess={() => {
                   fetchDocuments();
                   fetchDocStats();
                 }}
@@ -3836,9 +3536,70 @@ const DashboardContent: React.FC<DashboardProps> = ({
             </Suspense>
           </div>
         )}
-      </main>
 
-      {/* [ARCHIVED]: Trình đọc PDF/Word modal đã chuyển vào src/archived/DocPreviewModal.tsx */}
+        {/* TAB 06: ADMIN */}
+        {activeTab === 'admin' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {isAdmin || readCachedAdmin() ? (
+              <Suspense
+                fallback={
+                  <div className="p-8 text-center text-[13px] text-white/50">Đang mở Bảng Quản Trị...</div>
+                }
+              >
+                <AdminPanel
+                  onClose={() => handleTabChange('overview')}
+                  onRefreshParentDocs={() => {
+                    fetchDocuments();
+                    fetchDocStats();
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <SpotSurface className="hh-panel rounded-2xl p-6 sm:p-10 text-center max-w-2xl mx-auto my-8 space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#FF3CA6]/12 border border-[#FF3CA6]/35 flex items-center justify-center text-[#FFA8DC] mx-auto">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-[13px] font-semibold text-[#FFA8DC]">
+                    Cổng quản trị nội bộ Orbit
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                    Yêu cầu quyền Quản trị viên Discord Orbit
+                  </h1>
+                  <p className="text-sm text-[#CEC4E8] max-w-lg mx-auto leading-relaxed">
+                    Bảng Quản Trị &amp; Giám Sát Độc Lập chỉ dành cho Ban Quản Trị máy chủ Discord Orbit. Vui lòng liên kết tài khoản Discord có quyền Quản trị viên (Administrator / Manage Guild) hoặc quay về Tổng quan Orbit Hub.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <PixelButton
+                    variant="primary"
+                    icon={<UserCheck className="w-4 h-4" aria-hidden="true" />}
+                    onClick={onOpenAuthModal}
+                  >
+                    {user ? 'Đổi tài khoản Discord' : 'Liên kết Discord Quản trị'}
+                  </PixelButton>
+                  {user && (
+                    <PixelButton
+                      variant="ghost"
+                      icon={<RefreshCw className="w-4 h-4" aria-hidden="true" />}
+                      onClick={() => checkAdminStatus()}
+                    >
+                      Kiểm tra lại quyền Admin
+                    </PixelButton>
+                  )}
+                  <PixelButton
+                    variant="ghost"
+                    icon={<ArrowLeft className="w-4 h-4" aria-hidden="true" />}
+                    onClick={() => handleTabChange('overview')}
+                  >
+                    Quay về Tổng quan Orbit Hub
+                  </PixelButton>
+                </div>
+              </SpotSurface>
+            )}
+          </div>
+        )}
+      </main>
 
       {/* Modal Hồ Sơ Kiểm Định Đề Thi Toàn Diện */}
       <ExamDossierModal
@@ -3857,6 +3618,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
           }
         }}
         apiBase={getApiBaseUrl()}
+        botOnline={botStatus.online}
       />
 
       {/* Thanh Tìm Kiếm Siêu Tốc & Lệnh Nhanh (Ctrl+K / ⌘K) */}
@@ -3868,13 +3630,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
           setSelectedDossierDoc(doc);
           setIsDossierOpen(true);
         }}
-        onNavigateTab={(tab) => setActiveTab(tab)}
+        onNavigateTab={(tab) => handleTabChange(tab)}
         onNavigateHome={onBackToHome}
-        onTriggerRandomExam={handlePickRandomExam}
+        onTriggerRandomExam={handleInstantPracticePick}
       />
-
-      {/* Bảng Điều Khiển Bố Cục Nổi (Interactive Layout Studio Toolbar) */}
-      <HubStudioToolbar />
     </div>
   );
 };

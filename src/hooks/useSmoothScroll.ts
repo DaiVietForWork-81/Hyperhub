@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Lenis from 'lenis';
+import { ANCHOR_OFFSET } from '../motion/scroll';
 
 declare global {
   interface Window {
@@ -53,7 +54,7 @@ export const useSmoothScroll = () => {
           if (el) {
             e.preventDefault();
             lenis.scrollTo(el as HTMLElement, {
-              offset: -70,
+              offset: -ANCHOR_OFFSET,
               duration: 1.1,
               easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             });

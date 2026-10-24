@@ -1,15 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Sparkles,
-  GraduationCap,
-  Target,
-  Heart,
-  Flame,
-  Star,
-  BookmarkCheck,
-} from 'lucide-react';
-import { ScrollReveal } from './ScrollReveal';
-import { SpotlightCard } from './SpotlightCard';
+import React, { useEffect, useId, useState } from 'react';
+import { BookmarkCheck, PencilLine, AlertTriangle, Check } from 'lucide-react';
+import { Reveal } from './hh/Reveal';
+import { PixelButton } from './hh/Controls';
+
+const DREAM_PILLARS = [
+  {
+    title: 'Xác định mục tiêu sớm',
+    desc: 'Biết rõ trường mơ ước và điểm chuẩn để tập trung đúng lộ trình.',
+  },
+  {
+    title: 'Ý chí vượt vũ môn',
+    desc: 'Mỗi đề giải xong, mỗi câu sai được sửa là một bước rèn bản lĩnh.',
+  },
+  {
+    title: 'Chạm tay tương lai',
+    desc: 'Khoảnh khắc cầm giấy báo trúng tuyển nguyện vọng 1 xứng đáng mọi nỗ lực.',
+  },
+  {
+    title: 'Đồng hành không đơn độc',
+    desc: 'Cộng đồng Orbit luôn chia sẻ tài liệu và tiếp lửa trên chặng nước rút.',
+  },
+];
+
+/**
+ * CHILL · Bảng ước mơ - tính năng thật: lưu mục tiêu Nguyện vọng 1 vào localStorage.
+ * Chuyển trạng thái form ↔ thẻ đã lưu bằng crossfade ngắn; phản hồi thành công/thất bại thật.
+ */
 
 const POPULAR_DREAM_SCHOOLS = [
   'ĐH Bách Khoa Hà Nội',
@@ -26,52 +42,24 @@ const POPULAR_DREAM_SCHOOLS = [
   'Học Viện Công Nghệ Bưu Chính Viễn Thông',
 ];
 
-const INSPIRATION_PILLARS = [
-  {
-    icon: Target,
-    title: 'Xác Định Mục Tiêu Sớm',
-    desc: 'Biết rõ ngôi trường mơ ước và số điểm mục tiêu giúp bạn có lộ trình học tập tập trung, không phân tâm trước biển tài liệu.',
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/20',
-  },
-  {
-    icon: Flame,
-    title: 'Ý Chí Vượt Vũ Môn',
-    desc: 'Mỗi đêm chong đèn giải đề, mỗi lần sửa lại câu sai là một bước tôi luyện bản lĩnh thép sẵn sàng đối mặt phòng thi.',
-    color: 'text-pink-400',
-    bg: 'bg-pink-500/10',
-    border: 'border-pink-500/20',
-  },
-  {
-    icon: GraduationCap,
-    title: 'Chạm Tay Tương Lai',
-    desc: 'Khoảnh khắc cầm giấy báo trúng tuyển nguyện vọng 1 sẽ là món quà xứng đáng nhất đền đáp mọi mồ hôi và nước mắt bạn đã đổ.',
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/20',
-  },
-  {
-    icon: Heart,
-    title: 'Đồng Hành Không Đơn Độc',
-    desc: 'Orbit luôn ở đây để chia sẻ tài liệu, lắng nghe và đồng hành cùng bạn trên từng chặng đường nước rút.',
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/20',
-  },
-];
+const STORAGE_KEY = 'hyperhub_user_dream';
+const LEGACY_KEYS = ['orbit_user_dream'];
+
+type Feedback = { kind: 'success' | 'error'; text: string } | null;
 
 export const DreamAspirations: React.FC = () => {
-  const [dreamSchool, setDreamSchool] = useState<string>('');
-  const [dreamScore, setDreamScore] = useState<string>('');
+  const [dreamSchool, setDreamSchool] = useState('');
+  const [dreamScore, setDreamScore] = useState('');
   const [savedDream, setSavedDream] = useState<{ school: string; score: string } | null>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const schoolId = useId();
+  const scoreId = useId();
 
-  // Nạp ước mơ đã lưu từ localStorage
+  // Nạp ước mơ đã lưu (hỗ trợ khóa cũ từ phiên bản trước)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('orbit_user_dream') || localStorage.getItem('hyperhub_user_dream');
+      const stored = [STORAGE_KEY, ...LEGACY_KEYS].map((k) => localStorage.getItem(k)).find(Boolean);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.school) {
@@ -81,228 +69,155 @@ export const DreamAspirations: React.FC = () => {
         }
       }
     } catch {
-      // Bỏ qua lỗi parse
+      // Bỏ qua dữ liệu hỏng
     }
   }, []);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const id = window.setTimeout(() => setFeedback(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [feedback]);
 
   const handleSaveDream = (e: React.FormEvent) => {
     e.preventDefault();
     if (!dreamSchool.trim()) return;
-
-    const dreamObj = {
-      school: dreamSchool.trim(),
-      score: dreamScore.trim() || 'Thủ Khoa / Nguyện Vọng 1',
-    };
+    const dreamObj = { school: dreamSchool.trim(), score: dreamScore.trim() || 'Thủ khoa / Nguyện vọng 1' };
     try {
-      localStorage.setItem('orbit_user_dream', JSON.stringify(dreamObj));
+      const serialized = JSON.stringify(dreamObj);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      localStorage.setItem('orbit_user_dream', serialized);
       setSavedDream(dreamObj);
       setIsEditing(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setFeedback({ kind: 'success', text: 'Đã lưu mục tiêu. Hãy quyết tâm biến nó thành hiện thực nhé!' });
     } catch {
-      // localStorage error
+      setFeedback({ kind: 'error', text: 'Không lưu được: trình duyệt đang chặn bộ nhớ cục bộ.' });
     }
   };
 
+  const showSaved = savedDream && !isEditing;
+
   return (
-    <section
-      id="dream-aspirations"
-      className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10 overflow-hidden"
-    >
-      {/* Background radial glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[450px] bg-gradient-to-tr from-pink-600/10 via-purple-600/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+    <section id="dream-aspirations" className="hh-section" aria-labelledby="dream-title">
+      <div className="hh-dream-layout">
+        <div className="hh-dream-copy">
+          <Reveal as="h3" id="dream-title" preset="fade" className="hh-section-title">
+            Khắc ghi ngôi trường mơ ước
+          </Reveal>
+          <Reveal as="p" preset="fade" delay={80} className="hh-section-sub">
+            Mỗi bài toán bạn kiên trì tìm lời giải đều đang vẽ nên cánh cổng ngôi trường mơ ước. Ghi lại mục tiêu để mỗi lần
+            quay lại Orbit, bạn nhớ vì sao mình bắt đầu.
+          </Reveal>
+          <Reveal as="ul" preset="fade" delay={140} className="hh-checks mt-5">
+            <li><Check aria-hidden="true" /> Xác định mục tiêu sớm &amp; đồng bộ trực tiếp lên Orbit Hub</li>
+            <li><Check aria-hidden="true" /> Ý chí vượt vũ môn cùng bộ đếm Pomodoro 25/5 tập trung</li>
+            <li><Check aria-hidden="true" /> Đồng hành không đơn độc, không ai phải bước vào phòng thi một mình</li>
+          </Reveal>
 
-      {/* Header Section */}
-      <ScrollReveal>
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-xs font-semibold tracking-wide uppercase shadow-[0_0_20px_rgba(236,72,153,0.15)]">
-            <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-            <span>Nuôi Dưỡng Khát Vọng • Ước Mơ Sĩ Tử</span>
-          </div>
-
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-            Nơi Chắp Cánh Cho{' '}
-            <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 bg-clip-text text-transparent">
-              Nguyện Vọng 1
-            </span>
-          </h2>
-
-          <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Mỗi ngọn đèn bạn thắp sáng trong đêm, mỗi bài toán bạn kiên trì tìm lời giải đều đang vẽ nên cánh cổng ngôi trường mơ ước. 
-            Đừng bao giờ từ bỏ ước mơ của mình, bởi Orbit luôn sẵn sàng tiếp lửa cho bạn!
-          </p>
+          <Reveal as="dl" preset="fade" delay={200} className="hh-dream-pillars" data-ui="dream-pillars">
+            {DREAM_PILLARS.map((item) => (
+              <div key={item.title} className="hh-dream-pillar-item">
+                <dt className="hh-dream-pillar-title">{item.title}</dt>
+                <dd className="hh-dream-pillar-desc">{item.desc}</dd>
+              </div>
+            ))}
+          </Reveal>
         </div>
-      </ScrollReveal>
 
-      {/* Bảng "Ước Mơ Của Bạn" (Interactive Student Dream Board) */}
-      <ScrollReveal delay={150}>
-        <div className="max-w-4xl mx-auto mb-16">
-          <div className="relative rounded-3xl p-6 sm:p-8 border border-pink-500/30 bg-gradient-to-b from-purple-950/30 via-black/50 to-pink-950/20 backdrop-blur-xl shadow-2xl shadow-purple-950/40">
-            {savedDream && !isEditing ? (
-              <div className="space-y-6 text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  <BookmarkCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Ước mơ của bạn đã được ghi danh trên Orbit</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-widest text-pink-400 font-mono font-semibold">
-                    MỤC TIÊU NGUYỆN VỌNG 1
-                  </div>
-                  <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                    🌟 {savedDream.school}
-                  </h3>
-                  {savedDream.score && (
-                    <div className="inline-block mt-1 px-4 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-200 text-sm font-bold">
-                      🎯 Mục tiêu điểm số: {savedDream.score}
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-xs sm:text-sm text-slate-300 italic max-w-lg mx-auto">
-                  "Hãy nhớ lý do bạn bắt đầu. Cánh cổng {savedDream.school} đang rộng mở chào đón bạn vào mùa thu tới!"
-                </p>
-
-                <div className="pt-2 flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all cursor-pointer"
-                  >
-                    ✏️ Đổi Mục Tiêu Khác
+        <Reveal preset="panel" delay={60} className="hh-dream-board-wrap">
+          <div className="hh-card hh-card--hero hh-dream-board" data-ui="dream-board">
+            <div key={showSaved ? 'saved' : 'form'} className="hh-swap">
+              {showSaved ? (
+                <div className="hh-dream-saved">
+                  <span className="hh-pill hh-pill--mint">
+                    <BookmarkCheck className="w-4 h-4" aria-hidden="true" />
+                    Ước mơ của bạn đã được ghi danh
+                  </span>
+                  <p className="hh-dream-label">Mục tiêu nguyện vọng 1</p>
+                  <p className="hh-dream-school">{savedDream.school}</p>
+                  {savedDream.score && <p className="hh-dream-score">Mục tiêu: {savedDream.score}</p>}
+                  <blockquote className="hh-dream-quote">
+                    Hãy nhớ lý do bạn bắt đầu. Cánh cổng {savedDream.school} đang chờ bạn vào mùa thu tới.
+                  </blockquote>
+                  <button type="button" onClick={() => setIsEditing(true)} className="hh-quiet-btn hh-press">
+                    <PencilLine className="w-4 h-4" aria-hidden="true" />
+                    Đổi mục tiêu khác
                   </button>
                 </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveDream} className="space-y-5">
-                <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                  <div className="w-10 h-10 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold">
-                    🎯
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Khắc Ghi Ngôi Trường Mơ Ước</h3>
-                    <p className="text-xs text-slate-400">
-                      Ghi lại mục tiêu để mỗi lần vào Orbit, bạn được nhắc nhở về lý do mình nỗ lực!
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 block">
-                      Nguyện vọng 1 / Trường THPT hoặc Đại học mơ ước:
-                    </label>
+              ) : (
+                <form onSubmit={handleSaveDream} className="hh-dream-form">
+                  <div className="hh-field hh-field--wide">
+                    <label htmlFor={schoolId}>Nguyện vọng 1 / trường THPT hoặc đại học mơ ước</label>
                     <input
+                      id={schoolId}
                       type="text"
                       value={dreamSchool}
                       onChange={(e) => setDreamSchool(e.target.value)}
-                      placeholder="Ví dụ: ĐH Bách Khoa, Chuyên Amsterdam, ĐH Y Hà Nội..."
+                      placeholder="Ví dụ: ĐH Bách Khoa, Chuyên Amsterdam, ĐH Y Hà Nội…"
                       required
-                      className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/15 focus:border-pink-500 focus:bg-black/50 text-white text-sm outline-none transition-all placeholder:text-slate-500"
+                      autoComplete="off"
                     />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 block">
-                      Mục tiêu điểm số / Chuyên ngành:
-                    </label>
+                  <div className="hh-field">
+                    <label htmlFor={scoreId}>Mục tiêu điểm số / chuyên ngành</label>
                     <input
+                      id={scoreId}
                       type="text"
                       value={dreamScore}
                       onChange={(e) => setDreamScore(e.target.value)}
-                      placeholder="Ví dụ: 28+ khối A00, IELTS 7.5+..."
-                      className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/15 focus:border-pink-500 focus:bg-black/50 text-white text-sm outline-none transition-all placeholder:text-slate-500"
+                      placeholder="Ví dụ: 28+ khối A00, IELTS 7.5+…"
+                      autoComplete="off"
                     />
                   </div>
-                </div>
 
-                {/* Gợi ý trường hot */}
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-400">
-                    💡 Gợi ý nhanh:
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                    {POPULAR_DREAM_SCHOOLS.map((school) => (
-                      <button
-                        key={school}
-                        type="button"
-                        onClick={() => setDreamSchool(school)}
-                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                          dreamSchool === school
-                            ? 'bg-pink-600 text-white border-pink-500 font-bold'
-                            : 'bg-white/[0.03] text-slate-400 border-white/5 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        {school}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                  <fieldset className="hh-suggest">
+                    <legend>Gợi ý nhanh</legend>
+                    <div className="hh-suggest-list">
+                      {POPULAR_DREAM_SCHOOLS.map((school) => (
+                        <button
+                          key={school}
+                          type="button"
+                          onClick={() => setDreamSchool(school)}
+                          className="hh-toggle-chip"
+                          aria-pressed={dreamSchool === school}
+                        >
+                          {school}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <p className="text-[11px] text-slate-400 italic">
-                    *Mục tiêu được lưu an toàn trong trình duyệt của bạn và truyền cảm hứng mỗi ngày.
-                  </p>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    {savedDream && (
-                      <button
-                        type="button"
-                        onClick={() => setIsEditing(false)}
-                        className="py-2.5 px-4 rounded-xl text-xs font-semibold bg-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
-                      >
-                        Hủy
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 shadow-lg shadow-pink-900/30 transition-all cursor-pointer active:scale-95"
-                    >
-                      ✨ Khắc Ghi Ước Mơ Ngay
-                    </button>
+                  <div className="hh-dream-actions">
+                    <p className="hh-fine">Mục tiêu chỉ được lưu trong trình duyệt của bạn.</p>
+                    <div className="hh-dream-buttons">
+                      {savedDream && (
+                        <button type="button" onClick={() => setIsEditing(false)} className="hh-quiet-btn hh-press">
+                          Hủy
+                        </button>
+                      )}
+                      <PixelButton type="submit" variant="primary" icon={<BookmarkCheck className="w-4 h-4" aria-hidden="true" />}>
+                        Khắc ghi ước mơ
+                      </PixelButton>
+                    </div>
                   </div>
-                </div>
-              </form>
-            )}
+                </form>
+              )}
+            </div>
 
-            {saveSuccess && (
-              <div className="mt-3 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold text-center animate-in fade-in">
-                🎉 Đã lưu ước mơ thành công! Hãy quyết tâm biến nó thành hiện thực nhé!
-              </div>
-            )}
+            <div className="hh-feedback-slot" role="status" aria-live="polite">
+              {feedback && (
+                <p className={`hh-feedback hh-feedback--${feedback.kind}`}>
+                  {feedback.kind === 'error' ? (
+                    <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+                  ) : (
+                    <BookmarkCheck className="w-4 h-4" aria-hidden="true" />
+                  )}
+                  {feedback.text}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </ScrollReveal>
-
-      {/* 4 Trụ Cột Nâng Cánh Ước Mơ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {INSPIRATION_PILLARS.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <ScrollReveal key={idx} delay={idx * 80}>
-              <SpotlightCard
-                className={`p-6 rounded-2xl border ${item.border} bg-white/[0.02] backdrop-blur-xl h-full flex flex-col justify-between hover:border-pink-500/40 transition-all duration-300`}
-                spotlightColor="rgba(236, 72, 153, 0.12)"
-              >
-                <div className="space-y-4">
-                  <div className={`w-12 h-12 rounded-2xl ${item.bg} ${item.color} border ${item.border} flex items-center justify-center`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-bold text-white tracking-tight">
-                    {item.title}
-                  </h4>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-white/5 flex items-center gap-1.5 text-xs font-semibold text-pink-400">
-                  <Star className="w-3.5 h-3.5 fill-current" />
-                  <span>Quyết tâm đỗ đạt</span>
-                </div>
-              </SpotlightCard>
-            </ScrollReveal>
-          );
-        })}
+        </Reveal>
       </div>
     </section>
   );

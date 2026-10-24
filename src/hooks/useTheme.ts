@@ -18,7 +18,7 @@ const applyDOMTheme = () => {
   root.setAttribute('data-theme', 'dark');
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
-    metaTheme.setAttribute('content', '#050508');
+    metaTheme.setAttribute('content', '#08060E');
   }
 };
 

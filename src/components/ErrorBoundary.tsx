@@ -51,8 +51,8 @@ export class ErrorBoundary extends Component<Props, State> {
   public render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#050508] text-white selection:bg-purple-500 selection:text-white">
-          <div className="w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-2xl shadow-purple-950/40 backdrop-blur-2xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-300">
+        <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#08060E] text-[#F8F5FF] selection:bg-[#FF3CA6] selection:text-white">
+          <div className="w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-[#100B1A]/95 border border-[#FF3CA6]/35 shadow-2xl shadow-black/80 backdrop-blur-2xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-300">
             {/* Holographic Icon */}
             <div className="w-16 h-16 mx-auto rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-950/30">
               <AlertOctagon className="w-8 h-8 stroke-[2.2]" />
@@ -60,10 +60,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Title & Desc */}
             <div className="space-y-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-[#F8F5FF] tracking-tight">
                 Đã Xảy Ra Gián Đoạn Giao Diện
               </h1>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#CEC4E8] leading-relaxed">
                 Ứng dụng gặp một ngoại lệ không mong muốn khi hiển thị. Bộ đệm và dữ liệu của bạn đã được bảo vệ an toàn.
               </p>
             </div>
@@ -73,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-purple-900/40 active:scale-95 transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#D61F79] to-[#FF3CA6] hover:from-[#FF3CA6] hover:to-[#FF55B8] text-white font-bold text-xs sm:text-sm shadow-lg shadow-[#D61F79]/30 active:scale-95 transition-all cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Tải Lại Trang</span>

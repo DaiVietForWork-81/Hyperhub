@@ -28,7 +28,6 @@ import {
   ChevronDown,
   GitBranch,
   ArrowUpCircle,
-  Zap,
   ExternalLink,
   Database,
   HardDrive,
@@ -465,7 +464,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(false);
   const [configError, setConfigError] = useState<string>('');
 
-  // Endpoint API (chuyển từ sidebar Dashboard vào Hub — chỉ Admin thấy)
+  // Endpoint API (chuyển từ sidebar Dashboard vào Hub · chỉ Admin thấy)
   const [endpointInput, setEndpointInput] = useState<string>('');
   const [endpointMsg, setEndpointMsg] = useState<string>('');
   const [endpointInit, setEndpointInit] = useState<boolean>(false);
@@ -1180,7 +1179,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         >
                           {memberResults.length === 0 && !isSearchingMembers ? (
                             <div className="px-3 py-3 text-[11px] text-slate-400">
-                              Không tìm thấy — có thể dán trực tiếp User ID rồi Xác Nhận.
+                              Không tìm thấy · có thể dán trực tiếp User ID rồi Xác Nhận.
                             </div>
                           ) : (
                             memberResults.map((m, idx) => {
@@ -1544,7 +1543,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
               <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
                 <div className="text-[11px] font-semibold text-cyan-300 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
                   <span>Chiến Lược Quota</span>
                 </div>
                 <div className="text-xs font-bold text-cyan-200">
@@ -1746,7 +1745,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   >
                     {discordChannels.map((ch) => (
                       <option key={ch.channel_id} value={ch.channel_id}>
-                        {ch.name} — {ch.category}
+                        {ch.name} · {ch.category}
                       </option>
                     ))}
                   </select>
@@ -1855,7 +1854,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <div className="rounded-2xl border border-white/10 bg-black/60 overflow-hidden">
             <div className="px-3 py-2 border-b border-white/10 text-[11px] text-slate-400 flex items-center gap-2">
               <Hash className="w-3.5 h-3.5" />
-              <span>bot.log — {logLines.length} dòng mới nhất {logLevel !== 'ALL' && `(lọc ${logLevel})`}</span>
+              <span>bot.log · {logLines.length} dòng mới nhất {logLevel !== 'ALL' && `(lọc ${logLevel})`}</span>
             </div>
             <pre data-lenis-prevent className="max-h-[450px] overflow-auto overscroll-contain p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words">
               {isLoadingLogs && logLines.length === 0
@@ -1894,7 +1893,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   disabled={isReloadingSystem}
                   className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Zap className={`w-3.5 h-3.5 ${isReloadingSystem ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isReloadingSystem ? 'animate-spin' : ''}`} />
                   <span>{isReloadingSystem ? 'Đang reload...' : 'Tối Ưu & Reload'}</span>
                 </button>
               </div>
@@ -2004,7 +2003,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             )}
           </div>
 
-          {/* Endpoint API — dời từ sidebar vào Hub */}
+          {/* Endpoint API · dời từ sidebar vào Hub */}
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-purple-400" />

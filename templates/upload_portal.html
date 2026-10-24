@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cổng Nộp Đề Trực Tuyến & Thẩm Định 3+1 • HyperHub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B0F19;
+            --bg-surface: #111827;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --border: rgba(255, 255, 255, 0.1);
+            --primary: #38BDF8;
+            --primary-glow: rgba(56, 189, 248, 0.3);
+            --accent: #A855F7;
+            --accent-glow: rgba(168, 85, 247, 0.25);
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            background: rgba(11, 15, 25, 0.85);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, #38BDF8, #A855F7);
+            color: white;
+            font-weight: 800;
+            font-size: 0.9rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 8px;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .logo-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-link:hover, .nav-link.active { color: var(--primary); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+            flex: 1;
+            width: 100%;
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            margin-bottom: 1rem;
+        }
+
+        .hero-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #FFFFFF, #CBD5E1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+            color: var(--text-muted);
+            font-size: 1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* GRID LAYOUT */
+        .portal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .portal-grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.3rem;
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #0B0F19;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
+        /* DROP ZONE */
+        .drop-zone {
+            border: 2px dashed rgba(56, 189, 248, 0.3);
+            border-radius: 14px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(56, 189, 248, 0.02);
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(56, 189, 248, 0.08);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .drop-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .drop-text-primary {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .drop-text-secondary {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* FORM INPUTS */
+        .form-group {
+            margin-top: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.65rem 0.9rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .btn-submit {
+            width: 100%;
+            margin-top: 1.25rem;
+            background: linear-gradient(135deg, #38BDF8, #0284C7);
+            color: #0B0F19;
+            font-weight: 700;
+            font-size: 0.95rem;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 3+1 QUORUM STATUS BOX */
+        .quorum-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 1.25rem;
+        }
+
+        .quorum-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .quorum-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        .badge-unanimous {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-arbitration {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .scan-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .scan-step:last-child { border-bottom: none; }
+
+        .step-icon {
+            font-size: 1rem;
+            margin-top: 0.1rem;
+        }
+
+        .step-content { flex: 1; }
+        .step-title { font-weight: 600; color: var(--text-main); }
+        .step-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        /* ALERT BANNER */
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .alert-duplicate {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #FCA5A5;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6EE7B7;
+        }
+
+        /* DOSSIER PANEL */
+        .dossier-preview {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #E2E8F0;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+        }
+
+        /* LIVE ARCHIVE SEARCH */
+        .archive-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        .archive-table th {
+            text-align: left;
+            padding: 0.6rem 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .archive-table td {
+            padding: 0.75rem 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .archive-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/" class="logo-group">
+            <span class="logo-badge">3+1 QUORUM</span>
+            <span class="logo-title">HyperHub • Cổng Nộp Đề</span>
+        </a>
+        <nav class="header-nav">
+            <a href="/" class="nav-link">Trang Chủ</a>
+            <a href="/portal" class="nav-link active">Cổng Nộp Đề</a>
+            <a href="#archive" class="nav-link">Kho Đề Chung</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="hero-section">
+            <div class="hero-badge">
+                <span>⚡</span> 100% Deterministic • Non-AI Intelligence • $0 Chi Phí API
+            </div>
+            <h1 class="hero-title">Cổng Nộp Đề Trực Tuyến & Thẩm Định 3+1</h1>
+            <p class="hero-desc">
+                Hệ thống thẩm định đề thi tự động qua Cơ chế Hội đồng Trọng tài 3+1 (Vùng Tiêu Đề, BM25 Toàn Thân, Cấu Trúc Đề & Trọng Tài Đối Soát Tương Phản) kết hợp Chống Nộp Trùng Tuyệt Đối 2 tầng.
+            </p>
+        </div>
+
+        <div class="portal-grid">
+            <!-- CỘT TRÁI: KHU VỰC TẢI LÊN -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>📤</span> Nộp Tài Liệu Mới
+                    </div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">PDF, DOCX, Google Drive</span>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" id="tab-file" onclick="switchTab('file')">📁 Tệp Máy Tính</button>
+                    <button class="tab-btn" id="tab-gdrive" onclick="switchTab('gdrive')">☁️ Google Drive Link</button>
+                </div>
+
+                <!-- TAB FILE UPLOAD -->
+                <div id="section-file">
+                    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                        <div class="drop-icon">📄</div>
+                        <div class="drop-text-primary" id="file-label">Kéo & thả đề thi PDF / Word vào đây</div>
+                        <div class="drop-text-secondary">hoặc nhấp chuột để chọn tệp từ máy (tối đa 50MB)</div>
+                    </div>
+                    <input type="file" id="file-input" style="display: none;" accept=".pdf,.docx,.doc" onchange="handleFileSelected(this)">
+                </div>
+
+                <!-- TAB GOOGLE DRIVE -->
+                <div id="section-gdrive" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Đường dẫn Google Drive / Google Docs</label>
+                        <input type="url" class="form-input" id="gdrive-url" placeholder="https://drive.google.com/file/d/.../view">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tên người nộp / Tác giả</label>
+                    <input type="text" class="form-input" id="uploader-name" placeholder="Thầy/Cô hoặc Học sinh">
+                </div>
+
+                <button class="btn-submit" id="btn-submit" onclick="submitDocument()">
+                    <span>🚀</span> Bắt Đầu Thẩm Định 3+1
+                </button>
+
+                <!-- KHUNG BÁO LỖI / TRÙNG LẶP -->
+                <div id="alert-box" style="display: none;"></div>
+            </div>
+
+            <!-- CỘT PHẢI: KẾT QUẢ THẨM ĐỊNH & DỰ THẢO HỘI ĐỒNG 3+1 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>🏛️</span> Dự Thảo Thẩm Định 3+1
+                    </div>
+                    <span id="quorum-pill" class="quorum-badge badge-unanimous" style="display: none;">ĐỒNG THUẬN 3/3</span>
+                </div>
+
+                <div id="result-placeholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.4;">⚖️</div>
+                    <p style="font-size: 0.9rem;">Chưa có tài liệu nào được gửi.<br>Hãy tải tệp hoặc dán link Google Drive bên cạnh để xem tiến trình 4 lần quét.</p>
+                </div>
+
+                <div id="result-content" style="display: none;">
+                    <div class="quorum-box">
+                        <div class="quorum-header">
+                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">TIẾN TRÌNH BIỂU QUYẾT 3+1</span>
+                            <span id="exec-time" style="font-size: 0.75rem; color: var(--text-muted);">0 ms</span>
+                        </div>
+                        <div id="scans-list"></div>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <span class="form-label">Biên Bản Thẩm Định Đầy Đủ</span>
+                        <div class="dossier-preview" id="dossier-markdown"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG KHO ĐỀ ĐỒNG BỘ THỜI GIAN THỰC -->
+        <div class="card" id="archive" style="margin-top: 2.5rem;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span>📚</span> Kho Đề Thi Đồng Bộ Thời Gian Thực (SQLite Shared DB)
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" class="form-input" id="search-query" placeholder="🔍 Tìm kiếm đề thi..." style="width: 250px; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onkeyup="debounceSearch()">
+                    <button class="tab-btn" onclick="loadArchive()" style="flex: none; padding: 0.4rem 0.8rem;">Làm mới</button>
+                </div>
+            </div>
+
+            <table class="archive-table">
+                <thead>
+                    <tr>
+                        <th>Tên Đề Thi</th>
+                        <th>Môn Học</th>
+                        <th>Khối Lớp</th>
+                        <th>Năm Học</th>
+                        <th>Người Nộp</th>
+                        <th>Thời Gian</th>
+                    </tr>
+                </thead>
+                <tbody id="archive-tbody">
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Đang tải dữ liệu kho đề...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'file';
+        let selectedFile = null;
+        let searchTimer = null;
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-file').className = 'tab-btn ' + (tab === 'file' ? 'active' : '');
+            document.getElementById('tab-gdrive').className = 'tab-btn ' + (tab === 'gdrive' ? 'active' : '');
+            document.getElementById('section-file').style.display = tab === 'file' ? 'block' : 'none';
+            document.getElementById('section-gdrive').style.display = tab === 'gdrive' ? 'block' : 'none';
+        }
+
+        // Drag & Drop
+        const dropZone = document.getElementById('drop-zone');
+        ['dragenter', 'dragover'].forEach(e => {
+            dropZone.addEventListener(e, (ev) => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+        });
+        ['dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, (ev) => { ev.preventDefault(); dropZone.classList.remove('dragover'); });
+        });
+        dropZone.addEventListener('drop', (ev) => {
+            if (ev.dataTransfer.files && ev.dataTransfer.files[0]) {
+                selectedFile = ev.dataTransfer.files[0];
+                document.getElementById('file-label').innerText = `📄 ${selectedFile.name} (${(selectedFile.size/1024).toFixed(1)} KB)`;
+            }
+        });
+
+        function handleFileSelected(input) {
+            if (input.files && input.files[0]) {
+                selectedFile = input.files[0];
+                document.getElementById('file-label').innerText = `📄 ${selectedFile.name} (${(selectedFile.size/1024).toFixed(1)} KB)`;
+            }
+        }
+
+        async function submitDocument() {
+            const btn = document.getElementById('btn-submit');
+            const alertBox = document.getElementById('alert-box');
+            alertBox.style.display = 'none';
+
+            let formData = new FormData();
+            const uploader = document.getElementById('uploader-name').value.trim() || 'Người dùng Web';
+            formData.append('uploader_name', uploader);
+
+            if (currentTab === 'file') {
+                if (!selectedFile) {
+                    showAlert('Vui lòng chọn hoặc kéo thả tệp đề thi!', 'duplicate');
+                    return;
+                }
+                formData.append('file', selectedFile);
+            } else {
+                const url = document.getElementById('gdrive-url').value.trim();
+                if (!url) {
+                    showAlert('Vui lòng nhập đường dẫn Google Drive hợp lệ!', 'duplicate');
+                    return;
+                }
+                formData.append('url', url);
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Đang thực hiện 3+1 lần quét thẩm định...';
+
+            try {
+                const resp = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await resp.json();
+
+                if (data.is_duplicate) {
+                    showAlert(`🔁 **TÀI LIỆU TRÙNG LẶP!**<br>${data.message}`, 'duplicate');
+                } else if (!data.success) {
+                    showAlert(`❌ Lỗi: ${data.error || data.message || 'Không thể xử lý tài liệu'}`, 'duplicate');
+                } else {
+                    showAlert(`✅ **TIẾP NHẬN THÀNH CÔNG!** Đề thi đã được thẩm định và lưu trữ vào kho.`, 'success');
+                    renderQuorumResult(data);
+                    loadArchive();
+                }
+            } catch (err) {
+                showAlert(`❌ Lỗi kết nối máy chủ: ${err.message}`, 'duplicate');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀</span> Bắt Đầu Thẩm Định 3+1';
+            }
+        }
+
+        function showAlert(msg, type) {
+            const box = document.getElementById('alert-box');
+            box.className = `alert alert-${type}`;
+            box.innerHTML = `<div>${msg}</div>`;
+            box.style.display = 'flex';
+        }
+
+        function renderQuorumResult(data) {
+            document.getElementById('result-placeholder').style.display = 'none';
+            document.getElementById('result-content').style.display = 'block';
+
+            const pill = document.getElementById('quorum-pill');
+            pill.style.display = 'inline-block';
+            if (data.quorum && data.quorum.is_unanimous) {
+                pill.className = 'quorum-badge badge-unanimous';
+                pill.innerText = '🟢 ĐỒNG THUẬN 3/3';
+            } else {
+                pill.className = 'quorum-badge badge-arbitration';
+                pill.innerText = '⚖️ TRỌNG TÀI 3+1';
+            }
+
+            document.getElementById('exec-time').innerText = `${data.execution_time_ms || 0} ms`;
+
+            // Scans list
+            const scansContainer = document.getElementById('scans-list');
+            scansContainer.innerHTML = '';
+            const scans = (data.quorum && data.quorum.scans) || [];
+            scans.forEach(s => {
+                const icon = s.pass_number === 4 ? '⚖️' : '🔹';
+                const div = document.createElement('div');
+                div.className = 'scan-step';
+                div.innerHTML = `
+                    <div class="step-icon">${icon}</div>
+                    <div class="step-content">
+                        <div class="step-title">${s.pass_name}: <span style="color: var(--primary);">${s.subject_vi}</span> (${(s.confidence*100).toFixed(0)}%)</div>
+                        <div class="step-desc">Khối: ${s.grade_vi} • ${s.rationale} (${s.execution_time_ms}ms)</div>
+                    </div>
+                `;
+                scansContainer.appendChild(div);
+            });
+
+            // Dossier markdown
+            document.getElementById('dossier-markdown').innerText = data.draft_dossier_markdown || data.summary || 'Không có dự thảo chi tiết.';
+        }
+
+        function debounceSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(loadArchive, 300);
+        }
+
+        async function loadArchive() {
+            const tbody = document.getElementById('archive-tbody');
+            const q = document.getElementById('search-query').value.trim();
+            try {
+                const url = q ? `/api/docs/archive?q=${encodeURIComponent(q)}` : '/api/docs/archive';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                const items = data.items || [];
+
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Không tìm thấy đề thi nào.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = items.map(it => `
+                    <tr>
+                        <td style="font-weight: 600;">${it.title || it.file_name}</td>
+                        <td><span style="background: rgba(56, 189, 248, 0.1); color: var(--primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${it.subject}</span></td>
+                        <td>${it.estimated_level || 'Chung'}</td>
+                        <td>${it.academic_year || 'N/A'}</td>
+                        <td>${it.author_name || 'Khách'}</td>
+                        <td style="font-size: 0.75rem; color: var(--text-muted);">${(it.timestamp || '').split('T')[0] || ''}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger);">Lỗi tải kho đề: ${e.message}</td></tr>`;
+            }
+        }
+
+        // Tự động tải kho đề khi mở trang
+        document.addEventListener('DOMContentLoaded', loadArchive);
+    </script>
+</body>
+</html>

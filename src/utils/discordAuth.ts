@@ -83,7 +83,7 @@ export function removeDiscordUser(): void {
 
 /**
  * Đồng bộ tài khoản đã liên kết lên database server (POST /api/account/link).
- * Chỉ gửi Bearer token để server verify 1 lần với Discord — không lưu token ở server.
+ * Chỉ gửi Bearer token để server verify 1 lần với Discord - không lưu token ở server.
  * Chạy nền, thất bại im lặng (dùng web bình thường).
  */
 export async function syncLinkedAccount(apiBaseUrl: string): Promise<boolean> {

@@ -1,43 +1,70 @@
 import React from 'react';
+import { ArrowRight } from 'lucide-react';
+import { PixelMark } from './hh/PixelMark';
+import { PixelButton } from './hh/Controls';
+import { Reveal } from './hh/Reveal';
+import { hubIntentProps } from '../hubLoader';
 
-export const Footer: React.FC = () => {
-  return (
-    <footer className="relative border-t border-white/[0.08] bg-black pt-12 pb-[calc(3rem+env(safe-area-inset-bottom))] px-4 sm:px-6 lg:px-8 z-10 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-        {/* Brand & Slogan */}
-        <div className="flex flex-col items-center sm:items-start gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-white">Orbit</span>
-            <span className="text-xs text-purple-400 font-mono tracking-widest font-semibold">• LEARN • GROW • CONNECT</span>
-          </div>
-          <p className="text-xs text-white/40 text-center sm:text-left">
-            Different paths. One orbit. Không gian học hỏi & cùng tiến xa hơn.
-          </p>
-          <div className="text-[11px] text-purple-300/60 mt-1">
-            Đồng sáng lập: <strong className="text-purple-300 font-semibold">Dai Viet, GithuZ, Nguyễn Duy, Lê Minh</strong>
-          </div>
-        </div>
+const LINKS = [
+  { href: '#hero', label: 'Trang chủ' },
+  { href: '#chapter-learn', label: 'Mùa thi & kho đề' },
+  { href: '#chapter-chill', label: 'Mục tiêu & ước mơ' },
+  { href: '#community-channels', label: 'Cộng đồng' },
+  { href: '#co-founders', label: 'Đồng sáng lập' },
+];
 
-        {/* Quick Nav Links */}
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/60">
-          <a href="#hero" className="btn-motion hover:text-white hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Trang Chủ</a>
-          <a href="#countdown-section" className="btn-motion hover:text-white hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Thời Gian Tuyển Sinh</a>
-          <a href="#dream-aspirations" className="btn-motion hover:text-pink-400 hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Ước Mơ</a>
-          <a href="#community-intro" className="btn-motion hover:text-purple-400 hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Giới Thiệu</a>
-          <a href="#community-channels" className="btn-motion hover:text-sky-400 hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Cộng Đồng</a>
-          <a href="#co-founders" className="btn-motion hover:text-white hover:-translate-y-0.5 active:scale-95 transition-all py-1.5 px-1">Đồng Sáng Lập</a>
-        </div>
-
-        {/* Copyright */}
-        <div className="text-xs text-white/40 text-center sm:text-right">
-          © 2026 Orbit. All rights reserved.
-          <div className="text-[10px] text-white/25 mt-0.5">
-            Phụng sự thế hệ sĩ tử Việt Nam với niềm tự hào & nhiệt huyết 💜
-          </div>
-        </div>
+export const Footer: React.FC<{ onOpenDashboard?: () => void; onReplayIntro?: () => void }> = ({ onOpenDashboard, onReplayIntro }) => (
+  <footer className="hh-footer">
+    {onOpenDashboard && (
+      <div className="hh-footer-cta">
+        <Reveal as="p" preset="rise" className="hh-footer-cta-title">
+          Những con đường khác nhau. Cùng một quỹ đạo.
+        </Reveal>
+        <Reveal preset="fade" delay={200}>
+          <PixelButton variant="primary" magnetic onClick={onOpenDashboard} {...hubIntentProps} trailing={<ArrowRight className="w-4 h-4" aria-hidden="true" />}>
+            Bắt đầu trong Orbit Hub
+          </PixelButton>
+        </Reveal>
       </div>
-    </footer>
-  );
-};
+    )}
+
+    <div className="hh-footer-base">
+      <div className="hh-footer-brand">
+        <div className="hh-footer-brand-row">
+          <PixelMark className="hh-footer-mark" />
+          <span className="hh-footer-name">Orbit</span>
+        </div>
+        <p className="hh-footer-tagline">
+          <span className="hh-word-learn">LEARN</span> · <span className="hh-word-grow">GROW</span> ·{' '}
+          <span className="hh-word-connect">CONNECT</span>
+        </p>
+        <p className="hh-fine">Different paths. One orbit. · Đồng sáng lập: Dai Viet, GithuZ, Nguyễn Duy, Lê Minh</p>
+      </div>
+
+      <nav aria-label="Liên kết chân trang">
+        <ul className="hh-footer-links">
+          {LINKS.map((l) => (
+            <li key={l.href}>
+              <a href={l.href} className="hh-link">
+                {l.label}
+              </a>
+            </li>
+          ))}
+          {onReplayIntro && (
+            <li>
+              <button type="button" onClick={onReplayIntro} className="hh-link">
+                Phát lại Intro
+              </button>
+            </li>
+          )}
+        </ul>
+      </nav>
+
+      <p className="hh-footer-copy">
+        © 2026 Orbit. Phụng sự thế hệ sĩ tử Việt Nam.
+      </p>
+    </div>
+  </footer>
+);
 
 export default Footer;

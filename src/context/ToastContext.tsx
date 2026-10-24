@@ -86,28 +86,28 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               role="status"
               className={`pointer-events-auto p-4 rounded-2xl border backdrop-blur-2xl shadow-xl flex items-start gap-3 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in ${
                 isSuccess
-                  ? 'bg-slate-900/95 border-emerald-500/40 text-emerald-200 shadow-emerald-950/30'
+                  ? 'bg-[#100B1A]/96 border-emerald-500/40 text-emerald-200 shadow-emerald-950/30'
                   : isError
-                  ? 'bg-slate-900/95 border-rose-500/40 text-rose-200 shadow-rose-950/30'
+                  ? 'bg-[#100B1A]/96 border-rose-500/40 text-rose-200 shadow-rose-950/30'
                   : isWarning
-                  ? 'bg-slate-900/95 border-amber-500/40 text-amber-200 shadow-amber-950/30'
-                  : 'bg-slate-900/95 border-sky-500/40 text-sky-200 shadow-sky-950/30'
+                  ? 'bg-[#100B1A]/96 border-amber-500/40 text-amber-200 shadow-amber-950/30'
+                  : 'bg-[#100B1A]/96 border-[#FF3CA6]/40 text-[#FFA8DC] shadow-black/50'
               }`}
             >
               <div className="shrink-0 mt-0.5">
                 {isSuccess && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
                 {isError && <AlertCircle className="w-5 h-5 text-rose-400" />}
                 {isWarning && <AlertTriangle className="w-5 h-5 text-amber-400" />}
-                {isInfo && <Info className="w-5 h-5 text-sky-400" />}
+                {isInfo && <Info className="w-5 h-5 text-[#FFA8DC]" />}
               </div>
 
               <div className="flex-1 overflow-hidden space-y-0.5">
                 {toast.title && (
-                  <h4 className="text-xs font-bold text-white tracking-wide uppercase">
+                  <h4 className="text-xs font-bold text-[#F8F5FF] tracking-wide uppercase">
                     {toast.title}
                   </h4>
                 )}
-                <p className="text-xs sm:text-sm text-slate-200 leading-snug">
+                <p className="text-xs sm:text-sm text-[#CEC4E8] leading-snug">
                   {toast.message}
                 </p>
               </div>

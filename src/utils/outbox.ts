@@ -2,7 +2,7 @@
  * utils/outbox.ts
  * Kho đệm IndexedDB: khi Discord Bot offline, đề user nộp được lưu tạm
  * trong trình duyệt rồi tự động gửi lên server khi bot online trở lại.
- * Dung lượng mỗi file tối đa 25MB — IndexedDB chứa thoải mái hàng chục file.
+ * Dung lượng mỗi file tối đa 25MB - IndexedDB chứa thoải mái hàng chục file.
  */
 
 export interface OutboxItem {

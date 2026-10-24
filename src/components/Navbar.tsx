@@ -1,407 +1,347 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, Volume2, VolumeX, Compass } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
-import { getApiBaseUrl, API_FETCH_HEADERS } from '../utils/apiConfig';
+import { PixelMark } from './hh/PixelMark';
+import { useHubPulse } from '../hooks/useHubPulse';
+import { preloadHub } from '../hubLoader';
+import { sound } from '../utils/audio';
+
+type Tab = 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
 
 interface NavbarProps {
   theme?: string;
   onToggleTheme?: (e?: React.MouseEvent) => void;
   activeView: 'home' | 'dashboard';
-  activeTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
-  onSelectView: (view: 'home' | 'dashboard', tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
+  activeTab?: Tab;
+  onSelectView: (view: 'home' | 'dashboard', tab?: Tab) => void;
+  onReplayIntro?: () => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  activeView,
-  activeTab = 'overview',
-  onSelectView,
-  user,
-  onOpenAuthModal,
-}) => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isNearTop, setIsNearTop] = useState(true);
-  const [docCount, setDocCount] = useState<number | null>(null);
-  const hideTimerRef = useRef<number | null>(null);
+interface NavItem {
+  key: string;
+  view: 'home' | 'dashboard';
+  tab?: Tab;
+  label: string;
+  mobileLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
 
-  // Lấy số lượng đề thật từ Bot
+const NAV_ITEMS: NavItem[] = [
+  { key: 'home', view: 'home', label: 'Trang chủ', mobileLabel: 'Trang chủ', icon: Home },
+  { key: 'vault', view: 'dashboard', tab: 'vault', label: 'Kho đề', mobileLabel: 'Kho đề thi', icon: BookOpen },
+  { key: 'get_exam', view: 'dashboard', tab: 'get_exam', label: 'Lấy đề', mobileLabel: 'Lấy đề nhanh', icon: Dices },
+  { key: 'submit_doc', view: 'dashboard', tab: 'submit_doc', label: 'Nộp đề', mobileLabel: 'Kho nộp đề', icon: UploadCloud },
+  { key: 'overview', view: 'dashboard', tab: 'overview', label: 'Bảng điều khiển', mobileLabel: 'Bảng điều khiển', icon: LayoutDashboard },
+];
+
+const isItemActive = (item: NavItem, view: 'home' | 'dashboard', tab: Tab) => {
+  if (item.view !== view) return false;
+  if (view === 'home') return true;
+  if (item.tab === 'overview') return tab === 'overview' || tab === 'admin';
+  return item.tab === tab;
+};
+
+export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overview', onSelectView, onReplayIntro, user, onOpenAuthModal }) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => sound.isEnabled());
+  const { docCount } = useHubPulse();
+
+  const listRef = useRef<HTMLUListElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  const activeKey = NAV_ITEMS.find((i) => isItemActive(i, activeView, activeTab))?.key ?? 'home';
+
+  useEffect(() => sound.subscribe(setSoundEnabled), []);
+
+  // Nền header: chỉ đổi state khi vượt ngưỡng (không re-render theo từng pixel cuộn)
   useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const apiBase = getApiBaseUrl();
-        const res = await fetch(`${apiBase}/api/documents/stats`, {
-          headers: API_FETCH_HEADERS,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.total_real || data.total_items)) {
-            setDocCount(data.total_real || data.total_items);
-          } else {
-            setDocCount(null);
-          }
-        } else {
-          setDocCount(null);
-        }
-      } catch {
-        setDocCount(null);
-      }
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const next = window.scrollY > 24;
+        setIsScrolled((prev) => (prev === next ? prev : next));
+        ticking = false;
+      });
     };
-    fetchCount();
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Track scroll position & smart direction with RAF throttling
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY;
-          const scrolled = currentScrollY > 35;
-          setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
-
-          if (currentScrollY <= 45) {
-            setIsNearTop((prev) => (!prev ? true : prev));
-          } else if (currentScrollY < lastScrollY - 8) {
-            setIsNearTop((prev) => (!prev ? true : prev));
-          } else if (currentScrollY > lastScrollY + 8 && currentScrollY > 80 && !mobileMenuOpen) {
-            setIsNearTop((prev) => (prev ? false : prev));
-          }
-          lastScrollY = currentScrollY;
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [mobileMenuOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    } else {
-      document.body.style.overflow = '';
+  /* ---------- Indicator trượt giữa các mục nav ---------- */
+  const moveIndicator = useCallback((key: string, instant = false) => {
+    const list = listRef.current;
+    const ind = indicatorRef.current;
+    const el = itemRefs.current[key];
+    if (!list || !ind || !el) return;
+    const host = ind.parentElement ?? list;
+    const lr = host.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    if (instant) ind.style.transition = 'none';
+    ind.style.width = `${r.width}px`;
+    ind.style.transform = `translate3d(${r.left - lr.left - host.clientLeft}px, 0, 0)`;
+    ind.style.opacity = '1';
+    if (instant) {
+      void ind.offsetWidth;
+      ind.style.transition = '';
     }
+  }, []);
 
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
+  useLayoutEffect(() => {
+    moveIndicator(activeKey, true);
+    const onResize = () => moveIndicator(activeKey, true);
+    window.addEventListener('resize', onResize);
+    document.fonts?.ready.then(() => moveIndicator(activeKey, true)).catch(() => {});
+    return () => window.removeEventListener('resize', onResize);
+  }, [activeKey, moveIndicator, docCount]);
+
+  /* ---------- Mobile drawer: Esc, khóa cuộn, focus ---------- */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const lenis = (window as Window & { __lenis?: { stop: () => void; start: () => void } }).__lenis;
+    lenis?.stop();
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        toggleRef.current?.focus();
+      }
     };
-  }, [mobileMenuOpen]);
+    window.addEventListener('keydown', onKey);
+    const id = window.setTimeout(() => drawerRef.current?.querySelector<HTMLElement>('button')?.focus(), 60);
+    return () => {
+      lenis?.start();
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+      window.clearTimeout(id);
+    };
+  }, [menuOpen]);
 
-  const handleNavClick = (
-    view: 'home' | 'dashboard',
-    tab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'
-  ) => {
-    setMobileMenuOpen(false);
-    onSelectView(view, tab);
+  const go = (item: NavItem) => {
+    sound.playNavSwitch();
+    setMenuOpen(false);
+    onSelectView(item.view, item.tab);
   };
 
-  const isVisible = isNearTop || !isScrolled || mobileMenuOpen;
+  const countBadge = (small = false) =>
+    docCount !== null ? (
+      <span className={`hh-nav-badge${small ? ' hh-nav-badge--sm' : ''}`}>
+        {docCount.toLocaleString('vi-VN')}
+        <span className="sr-only"> đề</span>
+      </span>
+    ) : null;
 
   return (
-    <>
-      <div 
-        aria-hidden="true"
-        onMouseEnter={() => {
-          if (hideTimerRef.current) {
-            window.clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = null;
-          }
-          setIsNearTop(true);
-        }}
-        className="fixed top-0 left-0 right-0 h-16 z-40 pointer-events-auto"
-      />
+    <header className="hh-header" data-scrolled={isScrolled || activeView === 'dashboard'} data-menu={menuOpen}>
+      <div className="hh-header-inner">
+        <button
+          type="button"
+          onClick={() => go(NAV_ITEMS[0])}
+          onPointerEnter={() => sound.playHover()}
+          className="hh-brand"
+          aria-label="Orbit · Về trang chủ"
+        >
+          <PixelMark className="hh-brand-mark" />
+          <span className="hh-brand-name" aria-hidden="true">
+            Orbit<span>.</span>
+          </span>
+        </button>
 
-      <header
-        onMouseEnter={() => {
-          if (hideTimerRef.current) {
-            window.clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = null;
-          }
-          setIsNearTop(true);
-        }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full ${
-          isVisible
-            ? 'translate-y-0 opacity-100'
-            : '-translate-y-full opacity-0 pointer-events-none'
-        } ${
-          isScrolled || activeView === 'dashboard'
-            ? 'bg-black/85 backdrop-blur-md border-b border-white/[0.08] py-2.5 shadow-2xl shadow-purple-950/20'
-            : 'bg-transparent py-3 sm:py-4'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
-          
-          {/* Brand Logo */}
-          <button 
-            type="button"
-            onClick={() => handleNavClick('home')}
-            className="flex items-center gap-2.5 group cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 rounded-lg p-1 shrink-0 hover:-translate-y-0.5 active:scale-95 transition-transform duration-200"
-          >
-            <img
-              src="/logo.png"
-              alt="Orbit Logo"
-              className="h-8 w-8 sm:h-9 sm:w-9 object-contain drop-shadow-[0_0_12px_rgba(168,85,247,0.5)] group-hover:scale-110 group-hover:drop-shadow-[0_0_18px_rgba(236,72,153,0.6)] transition-all duration-300"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
+        <nav className="hh-nav" aria-label="Điều hướng chính" onPointerLeave={() => moveIndicator(activeKey)}>
+          <span ref={indicatorRef} className="hh-nav-indicator" aria-hidden="true" />
+          <ul ref={listRef} className="hh-nav-list">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = item.key === activeKey;
+              return (
+                <li key={item.key}>
+                  <button
+                    ref={(el) => {
+                      itemRefs.current[item.key] = el;
+                    }}
+                    type="button"
+                    className="hh-nav-item"
+                    aria-current={active ? 'page' : undefined}
+                    onPointerEnter={() => {
+                      sound.playHover();
+                      moveIndicator(item.key);
+                      if (item.view === 'dashboard') preloadHub();
+                    }}
+                    onFocus={() => {
+                      moveIndicator(item.key);
+                      if (item.view === 'dashboard') preloadHub();
+                    }}
+                    onBlur={() => moveIndicator(activeKey)}
+                    onClick={() => go(item)}
+                  >
+                    <Icon className="hh-nav-icon" aria-hidden="true" />
+                    <span>{item.label}</span>
+                    {item.key === 'vault' && countBadge(true)}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="hh-header-actions">
+          {onReplayIntro && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onReplayIntro();
               }}
-            />
-            <div className="flex items-center">
-              <span className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-purple-300 transition-colors">
-                Orbit
-              </span>
-              <span className="h-1.5 w-1.5 rounded-full bg-pink-500 ml-1 shadow-[0_0_8px_#ec4899] animate-pulse"></span>
-            </div>
+              onPointerEnter={() => sound.playHover()}
+              className="hh-replay-intro-btn"
+              title="Phát lại màn mở đầu quỹ đạo Orbit"
+            >
+              <Compass className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Intro</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => sound.toggle()}
+            onPointerEnter={() => sound.playHover()}
+            className="hh-sound-btn"
+            data-active={soundEnabled}
+            aria-label={soundEnabled ? 'Tắt âm thanh tương tác' : 'Bật âm thanh tương tác'}
+            title={soundEnabled ? 'Âm thanh Orbit: Đang bật (Bấm để tắt)' : 'Âm thanh Orbit: Đang tắt (Bấm để bật)'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4" aria-hidden="true" />
+            ) : (
+              <VolumeX className="w-4 h-4" aria-hidden="true" />
+            )}
           </button>
 
-          {/* Desktop Nav Dock */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 py-1 px-2.5 rounded-2xl border border-white/[0.1] liquid-glass shadow-inner">
+          {user ? (
             <button
               type="button"
-              onClick={() => handleNavClick('home')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'home'
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
-              }`}
+              onClick={() => {
+                sound.playNavSwitch();
+                onSelectView('dashboard');
+              }}
+              onPointerEnter={() => sound.playHover()}
+              className="hh-user-chip"
+              title={`Đã liên kết với Discord: @${user.username}`}
             >
-              <Home className="w-3.5 h-3.5" />
-              <span>Trang Chủ</span>
+              <img
+                src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                alt=""
+                width={24}
+                height={24}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                }}
+              />
+              <span className="hh-user-name">{user.global_name || user.username}</span>
+              {user.verified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" aria-label="Email đã xác minh" />}
             </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenAuthModal();
+              }}
+              onPointerEnter={() => sound.playHover()}
+              className="hh-link-btn"
+            >
+              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+              <span>Liên kết Discord</span>
+            </button>
+          )}
+        </div>
 
-            <button
-              type="button"
-              onClick={() => handleNavClick('dashboard', 'vault')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'dashboard' && activeTab === 'vault'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-              <span>Kho Đề</span>
-              {docCount !== null && docCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  {docCount} Đề
-                </span>
-              )}
-            </button>
+        <button
+          ref={toggleRef}
+          type="button"
+          className="hh-menu-toggle"
+          aria-label={menuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+          aria-expanded={menuOpen}
+          aria-controls="hh-mobile-drawer"
+          onClick={() => {
+            sound.playClick();
+            setMenuOpen((v) => !v);
+          }}
+        >
+          <span className="hh-menu-icon" data-open={menuOpen}>
+            {menuOpen ? <X className="w-6 h-6" aria-hidden="true" /> : <Menu className="w-6 h-6" aria-hidden="true" />}
+          </span>
+        </button>
+      </div>
 
-            <button
-              type="button"
-              onClick={() => handleNavClick('dashboard', 'get_exam')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'dashboard' && activeTab === 'get_exam'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              <Dices className="w-3.5 h-3.5 text-pink-400" />
-              <span>Lấy Đề</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleNavClick('dashboard', 'submit_doc')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'dashboard' && activeTab === 'submit_doc'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Kho Nộp Đề</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleNavClick('dashboard', 'overview')}
-              className={`px-3 py-1.5 text-xs lg:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
-                activeView === 'dashboard' && (activeTab === 'overview' || activeTab === 'admin')
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm font-bold'
-                  : 'text-white/75 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Bảng Điều Khiển</span>
-            </button>
+      {/* Drawer luôn được mount để có cả animation vào lẫn ra; inert khi đóng */}
+      <div
+        id="hh-mobile-drawer"
+        ref={drawerRef}
+        className="hh-drawer"
+        data-open={menuOpen}
+        inert={!menuOpen}
+        aria-hidden={!menuOpen}
+      >
+        <div className="hh-drawer-scrim" onClick={() => setMenuOpen(false)} />
+        <div className="hh-drawer-panel">
+          <nav aria-label="Điều hướng di động">
+            <ul className="hh-drawer-list">
+              {NAV_ITEMS.map((item, i) => {
+                const Icon = item.icon;
+                const active = item.key === activeKey;
+                return (
+                  <li key={item.key} style={{ ['--i' as string]: i }}>
+                    <button
+                      type="button"
+                      className="hh-drawer-item"
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => go(item)}
+                    >
+                      <Icon className="w-4 h-4" aria-hidden="true" />
+                      <span>{item.mobileLabel}</span>
+                      {item.key === 'vault' && countBadge()}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
-
-          {/* Action Area: Discord User / Link CTA */}
-          <div className="hidden md:flex items-center gap-2.5 shrink-0">
+          <div className="hh-drawer-foot">
             {user ? (
-              <button
-                type="button"
-                onClick={() => onSelectView('dashboard')}
-                className="flex items-center gap-2 py-1.5 px-3 rounded-xl liquid-glass border border-white/10 hover:border-purple-500/40 transition-all cursor-pointer"
-                title={`Đã liên kết với Discord: @${user.username}`}
-              >
-                <img
-                  src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
-                  alt={user.username}
-                  className="w-6 h-6 rounded-lg object-cover ring-1 ring-purple-500"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                  }}
-                />
-                <span className="text-xs font-semibold max-w-[120px] truncate text-white">
-                  {user.global_name || user.username}
-                </span>
-                {user.verified && (
-                  <span title="Email đã xác minh">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  </span>
-                )}
-              </button>
+              <div className="hh-drawer-user">
+                <img src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'} alt="" width={36} height={36} />
+                <div>
+                  <div className="hh-drawer-user-name">{user.global_name || user.username}</div>
+                  <div className="hh-drawer-user-handle">@{user.username}</div>
+                </div>
+              </div>
             ) : (
               <button
                 type="button"
-                onClick={onOpenAuthModal}
-                className="btn-shimmer inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl shadow-lg shadow-purple-900/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  sound.playClick();
+                  setMenuOpen(false);
+                  onOpenAuthModal();
+                }}
+                className="hh-drawer-discord"
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Liên Kết Discord</span>
+                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                <span>Liên kết tài khoản Discord</span>
               </button>
             )}
           </div>
-
-          {/* Mobile Actions */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              type="button"
-              aria-label={mobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
-              aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-500 transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-90"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
         </div>
-
-        {/* Mobile Drawer Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-0 top-[56px] sm:top-[60px] max-h-[calc(100dvh-60px)] overflow-y-auto bg-black/95 backdrop-blur-xl border-b border-white/10 px-5 py-6 shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 duration-200">
-            <nav className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => handleNavClick('home')}
-                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
-                  activeView === 'home'
-                    ? 'bg-purple-500/20 text-white'
-                    : 'text-white/85'
-                }`}
-              >
-                <Home className="w-4 h-4" />
-                <span>Trang Chủ</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'vault')}
-                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center justify-between ${
-                  activeView === 'dashboard' && activeTab === 'vault'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                    : 'text-white/85 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <BookOpen className="w-4 h-4 text-purple-400" />
-                  <span>Kho Đề Thi</span>
-                </div>
-                {docCount !== null && docCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                    {docCount} đề
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'get_exam')}
-                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
-                  activeView === 'dashboard' && activeTab === 'get_exam'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                    : 'text-white/85 hover:bg-white/10'
-                }`}
-              >
-                <Dices className="w-4 h-4 text-pink-400" />
-                <span>Lấy Đề Nhanh</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'submit_doc')}
-                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
-                  activeView === 'dashboard' && activeTab === 'submit_doc'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                    : 'text-white/85 hover:bg-white/10'
-                }`}
-              >
-                <UploadCloud className="w-4 h-4 text-emerald-400" />
-                <span>Kho Nộp Đề</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard', 'overview')}
-                className={`w-full text-left px-4 py-3 text-base font-semibold rounded-xl transition-all flex items-center gap-2.5 ${
-                  activeView === 'dashboard' && (activeTab === 'overview' || activeTab === 'admin')
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                    : 'text-white/85 hover:bg-white/10'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Bảng Điều Khiển</span>
-              </button>
-
-              <div className="pt-4 border-t border-white/10 mt-2">
-                {user ? (
-                  <div className="p-3 rounded-xl bg-white/5 space-y-2">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
-                        alt={user.username}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div className="overflow-hidden">
-                        <div className="text-sm font-bold truncate text-white">{user.global_name || user.username}</div>
-                        <div className="text-xs text-slate-400">@{user.username}</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenAuthModal();
-                    }}
-                    className="w-full py-3 px-4 rounded-xl bg-[#5865F2] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#5865F2]/20"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Liên Kết Tài Khoản Discord</span>
-                  </button>
-                )}
-              </div>
-            </nav>
-          </div>
-        )}
-      </header>
-    </>
+      </div>
+    </header>
   );
 };
 

@@ -50,6 +50,7 @@ export async function calculateFileSha256(file: File): Promise<string> {
 
 // ============================================================================
 // 2. GIẢI NÉN WORD DOCX NATIVE BẰNG DECOMPRESSIONSTREAM (0 DEPENDENCY)
+//    Bóc tách cả word/header*.xml, word/document.xml, word/footer*.xml & bảng biểu
 // ============================================================================
 async function extractDocxTextNative(arrayBuffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(arrayBuffer);
@@ -58,15 +59,30 @@ async function extractDocxTextNative(arrayBuffer: ArrayBuffer): Promise<string> 
     return '';
   }
 
-  // Quét tìm entry "word/document.xml" trong ZIP local headers
   let pos = 0;
   const view = new DataView(arrayBuffer);
-  const targetName = 'word/document.xml';
+  const headerChunks: string[] = [];
+  const bodyChunks: string[] = [];
+
+  const cleanWordXml = (xmlText: string): string =>
+    xmlText
+      .replace(/<w:tr[^>]*>/g, '\n')
+      .replace(/<\/w:tc>/g, ' | ')
+      .replace(/<w:p[^>]*>/g, '\n')
+      .replace(/<w:tab[^>]*\/>/g, '\t')
+      .replace(/<w:br[^>]*\/>/g, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
   while (pos < bytes.length - 30) {
-    // Local file header magic: 0x04034b50
     if (view.getUint32(pos, true) !== 0x04034b50) {
-      // Nhảy sang byte tiếp theo
       pos++;
       continue;
     }
@@ -78,59 +94,91 @@ async function extractDocxTextNative(arrayBuffer: ArrayBuffer): Promise<string> 
 
     const fileNameBytes = bytes.slice(pos + 30, pos + 30 + fileNameLen);
     const fileName = new TextDecoder().decode(fileNameBytes);
-
     const dataStart = pos + 30 + fileNameLen + extraFieldLen;
 
-    if (fileName === targetName) {
+    const isDocBody = fileName === 'word/document.xml';
+    const isHeaderOrFooter = /^word\/(?:header|footer)\d*\.xml$/i.test(fileName);
+
+    if ((isDocBody || isHeaderOrFooter) && compressedSize > 0 && dataStart + compressedSize <= bytes.length) {
       const compressedData = bytes.slice(dataStart, dataStart + compressedSize);
       let xmlText = '';
 
       if (compressionMethod === 0) {
-        // Uncompressed (Stored)
         xmlText = new TextDecoder('utf-8').decode(compressedData);
-      } else if (compressionMethod === 8) {
-        // Deflated - giải nén bằng browser native DecompressionStream
+      } else if (compressionMethod === 8 && typeof DecompressionStream !== 'undefined') {
         try {
-          if (typeof DecompressionStream !== 'undefined') {
-            const ds = new DecompressionStream('deflate-raw');
-            const writer = ds.writable.getWriter();
-            writer.write(compressedData);
-            writer.close();
-            const decompressedBuffer = await new Response(ds.readable).arrayBuffer();
-            xmlText = new TextDecoder('utf-8').decode(decompressedBuffer);
-          }
+          const ds = new DecompressionStream('deflate-raw');
+          const writer = ds.writable.getWriter();
+          writer.write(compressedData);
+          writer.close();
+          const decompressedBuffer = await new Response(ds.readable).arrayBuffer();
+          xmlText = new TextDecoder('utf-8').decode(decompressedBuffer);
         } catch (e) {
           console.warn('Lỗi giải nén DecompressionStream deflate-raw:', e);
         }
       }
 
       if (xmlText) {
-        // Bóc tách text từ XML, lọc bỏ thẻ xml và entities
-        return xmlText
-          .replace(/<w:p[^>]*>/g, '\n')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&apos;/g, "'")
-          .replace(/\s+/g, ' ')
-          .trim();
+        const cleaned = cleanWordXml(xmlText);
+        if (cleaned) {
+          if (isHeaderOrFooter) {
+            headerChunks.push(cleaned);
+          } else {
+            bodyChunks.push(cleaned);
+          }
+        }
       }
     }
 
-    pos = dataStart + compressedSize;
+    pos = compressedSize > 0 ? dataStart + compressedSize : pos + 30 + fileNameLen + extraFieldLen;
   }
 
-  return '';
+  return [...headerChunks, ...bodyChunks].join('\n').normalize('NFC');
 }
 
 // ============================================================================
-// 3. ĐỌC TEXT TỪ PDF STREAM SƠ BỘ
+// 3. ĐỌC TEXT TỪ PDF STREAM (HỖ TRỢ GIẢI NÉN FLATEDECODE + UTF-16BE HEX)
 // ============================================================================
-function extractPdfTextSnippet(bytes: Uint8Array): string {
-  // Quét chuỗi nhị phân tìm các khối BT ... ET hoặc các metadata text
-  const len = Math.min(bytes.length, 500000); // 500KB đầu để tiết kiệm
+function parseBtEtContent(content: string, outSnippets: string[]): void {
+  const btMatches = content.matchAll(/BT[\s\S]*?ET/g);
+  for (const m of btMatches) {
+    const chunk = m[0];
+    // 1. Chuỗi ký tự thường (text)
+    const strMatches = chunk.matchAll(/\(([^()\\]*(?:\\.[^()\\]*)*)\)/g);
+    for (const sm of strMatches) {
+      if (sm[1] && sm[1].length >= 1) {
+        const unescaped = sm[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, ' ')
+          .replace(/\\t/g, ' ')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\');
+        outSnippets.push(unescaped);
+      }
+    }
+    // 2. Chuỗi UTF-16BE Hex <FEFF...>
+    const hexMatches = chunk.matchAll(/<([0-9A-Fa-f]{4,})>/g);
+    for (const hm of hexMatches) {
+      const hex = hm[1];
+      if (hex.toUpperCase().startsWith('FEFF') && hex.length >= 8 && hex.length % 4 === 0) {
+        let decodedU16 = '';
+        for (let i = 4; i < hex.length; i += 4) {
+          const code = parseInt(hex.slice(i, i + 4), 16);
+          if (!Number.isNaN(code) && code >= 32) {
+            decodedU16 += String.fromCharCode(code);
+          }
+        }
+        if (decodedU16) {
+          outSnippets.push(decodedU16);
+        }
+      }
+    }
+  }
+}
+
+async function extractPdfTextSnippet(bytes: Uint8Array): Promise<string> {
+  const len = Math.min(bytes.length, 650000); // Quét 650KB đầu
   let raw = '';
   try {
     raw = new TextDecoder('latin1').decode(bytes.slice(0, len));
@@ -139,21 +187,51 @@ function extractPdfTextSnippet(bytes: Uint8Array): string {
   }
 
   const textSnippets: string[] = [];
+  parseBtEtContent(raw, textSnippets);
 
-  // Tìm trong các khối text (BT ... ET)
-  const btMatches = raw.matchAll(/BT[\s\S]*?ET/g);
-  for (const m of btMatches) {
-    const chunk = m[0];
-    // Trích xuất các chuỗi trong ngoặc đơn (text) Tj hoặc TJ
-    const strMatches = chunk.matchAll(/\(([^)]+)\)\s*(?:Tj|'|")/g);
-    for (const sm of strMatches) {
-      if (sm[1] && sm[1].length > 1) {
-        textSnippets.push(sm[1]);
+  // Giải nén tới 12 FlateDecode streams nếu PDF nén nội dung (Word/LaTeX/Google Docs PDF)
+  if (typeof DecompressionStream !== 'undefined') {
+    const streamRegex = /stream\r?\n/g;
+    let match: RegExpExecArray | null;
+    let streamCount = 0;
+
+    while ((match = streamRegex.exec(raw)) !== null && streamCount < 12) {
+      const startIdx = match.index + match[0].length;
+      const endIdx = raw.indexOf('endstream', startIdx);
+      if (endIdx === -1 || endIdx - startIdx > 150000 || endIdx - startIdx < 10) {
+        continue;
+      }
+      const dictHeader = raw.slice(Math.max(0, match.index - 250), match.index);
+      if (/\/Subtype\s*\/Image/i.test(dictHeader) || !/\/FlateDecode/i.test(dictHeader)) {
+        continue;
+      }
+
+      streamCount++;
+      let endTrim = endIdx;
+      if (raw[endTrim - 1] === '\n') endTrim--;
+      if (raw[endTrim - 1] === '\r') endTrim--;
+      const streamBytes = bytes.slice(startIdx, endTrim);
+
+      for (const fmt of ['deflate', 'deflate-raw'] as const) {
+        try {
+          const ds = new DecompressionStream(fmt);
+          const writer = ds.writable.getWriter();
+          writer.write(streamBytes);
+          writer.close();
+          const decompressed = await new Response(ds.readable).arrayBuffer();
+          const inflatedStr = new TextDecoder('latin1').decode(decompressed);
+          if (inflatedStr.includes('BT') && inflatedStr.includes('ET')) {
+            parseBtEtContent(inflatedStr, textSnippets);
+          }
+          break;
+        } catch {
+          // Thử format tiếp theo nếu lỗi zlib header
+        }
       }
     }
   }
 
-  return textSnippets.join(' ');
+  return textSnippets.join(' ').normalize('NFC');
 }
 
 // ============================================================================
@@ -294,14 +372,14 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
       extractedText = await file.text();
     } else if (ext === '.pdf') {
       const buffer = await file.arrayBuffer();
-      extractedText = extractPdfTextSnippet(new Uint8Array(buffer));
+      extractedText = await extractPdfTextSnippet(new Uint8Array(buffer));
     }
   } catch (err) {
     console.warn('Lỗi trích xuất text client:', err);
   }
 
-  // Kết hợp text trích xuất và tên file để nhận diện
-  const searchCorpus = `${file.name} ${extractedText.slice(0, 15000)}`;
+  // Kết hợp text trích xuất và tên file để nhận diện (tăng lên 30,000 ký tự)
+  const searchCorpus = `${file.name} ${extractedText.slice(0, 30000)}`;
 
   // 1. Nhận diện Môn học theo thang điểm đa tầng (Frequency Scoring + Filename Boost)
   const subjectScores: Record<string, number> = {};
@@ -401,17 +479,34 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
   const moet2025Compliant = isMcqExam && hasPart1 && (hasPart2 || hasPart3);
 
   // Đếm sơ bộ câu hỏi trắc nghiệm
-  const qMatches = searchCorpus.match(/(?:câu|cau)\s*([0-9]{1,3})[:.]/gi) || [];
+  const qMatches = searchCorpus.match(/(?:câu|cau|bài|bai|question)\s*([0-9]{1,3})[:.)]/gi) || [];
   const questionCount = qMatches.length;
 
-  // Đếm theo từng phần nếu là chuẩn 2025
+  // Đếm thực tế theo từng phần nếu là chuẩn 2025 (fallback về chuẩn khung của Bộ nếu cắt lát thiếu)
   let p1Count = 0;
   let p2Count = 0;
   let p3Count = 0;
   if (moet2025Compliant) {
-    p1Count = detectedSubject === 'MATHEMATICS' ? 12 : 18;
-    p2Count = 4;
-    p3Count = detectedSubject === 'MATHEMATICS' ? 6 : 4;
+    const p1Idx = searchCorpus.search(RE_MOET_PART1);
+    const p2Idx = searchCorpus.search(RE_MOET_PART2);
+    const p3Idx = searchCorpus.search(RE_MOET_PART3);
+    const qRe = /(?:câu|cau)\s*([0-9]{1,3})[:.)]/gi;
+
+    if (p1Idx !== -1) {
+      const end1 = p2Idx !== -1 ? p2Idx : p3Idx !== -1 ? p3Idx : searchCorpus.length;
+      p1Count = (searchCorpus.slice(p1Idx, end1).match(qRe) || []).length;
+    }
+    if (p2Idx !== -1) {
+      const end2 = p3Idx !== -1 ? p3Idx : searchCorpus.length;
+      p2Count = (searchCorpus.slice(p2Idx, end2).match(qRe) || []).length;
+    }
+    if (p3Idx !== -1) {
+      p3Count = (searchCorpus.slice(p3Idx).match(qRe) || []).length;
+    }
+
+    if (p1Count === 0) p1Count = detectedSubject === 'MATHEMATICS' ? 12 : 18;
+    if (p2Count === 0) p2Count = 4;
+    if (p3Count === 0) p3Count = detectedSubject === 'MATHEMATICS' ? 6 : 4;
   }
 
   const hasAnswerKeys = RE_ANSWER_KEYS.test(searchCorpus);

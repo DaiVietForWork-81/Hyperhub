@@ -486,9 +486,9 @@ export const SpaceCubeBackground: React.FC = () => {
           screenY,
           auraRadius
         );
-        auraGrad.addColorStop(0, `rgba(168, 85, 247, ${0.28 * alpha})`);
-        auraGrad.addColorStop(0.55, `rgba(139, 92, 246, ${0.10 * alpha})`);
-        auraGrad.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        auraGrad.addColorStop(0, `rgba(255, 60, 166, ${0.26 * alpha})`);
+        auraGrad.addColorStop(0.55, `rgba(155, 92, 255, ${0.11 * alpha})`);
+        auraGrad.addColorStop(1, 'rgba(155, 92, 255, 0)');
 
         ctx.fillStyle = auraGrad;
         ctx.beginPath();
@@ -519,7 +519,7 @@ export const SpaceCubeBackground: React.FC = () => {
             });
           }
 
-          // Vẽ 6 mặt kính mờ màu tím
+          // Vẽ 6 mặt kính mờ màu tím-hồng Orbit
           for (let fi = 0; fi < cubeFaces.length; fi++) {
             const face = cubeFaces[fi];
             const p0 = projectedVerts[face[0]];
@@ -533,13 +533,13 @@ export const SpaceCubeBackground: React.FC = () => {
             ctx.lineTo(p2.x, p2.y);
             ctx.lineTo(p3.x, p3.y);
             ctx.closePath();
-            ctx.fillStyle = `rgba(168, 85, 247, ${0.12 * alpha})`;
+            ctx.fillStyle = `rgba(155, 92, 255, ${0.12 * alpha})`;
             ctx.fill();
           }
 
-          // 12 Cạnh wireframe tím neon sáng
+          // 12 Cạnh wireframe tím lilac sáng
           ctx.lineWidth = 1.3;
-          ctx.strokeStyle = `rgba(216, 180, 254, ${0.82 * alpha})`;
+          ctx.strokeStyle = `rgba(226, 206, 255, ${0.82 * alpha})`;
 
           ctx.beginPath();
           for (let e = 0; e < cubeEdges.length; e++) {
@@ -549,18 +549,18 @@ export const SpaceCubeBackground: React.FC = () => {
           }
           ctx.stroke();
 
-          // 8 Hạt đỉnh hồng phát sáng
-          ctx.fillStyle = `rgba(244, 114, 182, ${0.92 * alpha})`;
+          // 8 Hạt đỉnh cam đào / hồng phát sáng theo logo Orbit
+          ctx.fillStyle = `rgba(255, 179, 150, ${0.94 * alpha})`;
           for (let v = 0; v < projectedVerts.length; v++) {
             ctx.beginPath();
-            ctx.arc(projectedVerts[v].x, projectedVerts[v].y, 1.4, 0, Math.PI * 2);
+            ctx.arc(projectedVerts[v].x, projectedVerts[v].y, 1.5, 0, Math.PI * 2);
             ctx.fill();
           }
         } else {
           // --- VẼ KHỐI CẦU 3D TINH GỌN (SPHERE) ---
           const R = currentSize;
 
-          // Thân quả cầu kính 3D
+          // Thân quả cầu kính 3D theo phổ màu Logo Orbit
           const sphereGrad = ctx.createRadialGradient(
             screenX - R * 0.3,
             screenY - R * 0.3,
@@ -569,9 +569,9 @@ export const SpaceCubeBackground: React.FC = () => {
             screenY,
             R
           );
-          sphereGrad.addColorStop(0, `rgba(216, 180, 254, ${0.30 * alpha})`);
-          sphereGrad.addColorStop(0.6, `rgba(168, 85, 247, ${0.14 * alpha})`);
-          sphereGrad.addColorStop(1, `rgba(126, 34, 206, ${0.05 * alpha})`);
+          sphereGrad.addColorStop(0, `rgba(255, 168, 220, ${0.32 * alpha})`);
+          sphereGrad.addColorStop(0.55, `rgba(255, 60, 166, ${0.15 * alpha})`);
+          sphereGrad.addColorStop(1, `rgba(155, 92, 255, ${0.06 * alpha})`);
 
           ctx.fillStyle = sphereGrad;
           ctx.beginPath();
@@ -580,20 +580,20 @@ export const SpaceCubeBackground: React.FC = () => {
 
           // Viền ngoài khối cầu
           ctx.lineWidth = 1.2;
-          ctx.strokeStyle = `rgba(216, 180, 254, ${0.72 * alpha})`;
+          ctx.strokeStyle = `rgba(255, 168, 220, ${0.74 * alpha})`;
           ctx.beginPath();
           ctx.arc(screenX, screenY, R, 0, Math.PI * 2);
           ctx.stroke();
 
           // Xích đạo và Kinh tuyến
           ctx.lineWidth = 1.0;
-          ctx.strokeStyle = `rgba(192, 132, 252, ${0.58 * alpha})`;
+          ctx.strokeStyle = `rgba(226, 206, 255, ${0.56 * alpha})`;
           draw3DCircle(screenX, screenY, R, item.rotX, item.rotY, item.rotZ, fov, 'XZ', 16);
           draw3DCircle(screenX, screenY, R, item.rotX, item.rotY, item.rotZ, fov, 'YZ', 16);
 
-          // Vành đai quỹ đạo quanh quả cầu
+          // Vành đai quỹ đạo quanh quả cầu (Hồng-Cam Đào của Logo Orbit)
           const orbitR = R * 1.38;
-          ctx.strokeStyle = `rgba(244, 114, 182, ${0.42 * alpha})`;
+          ctx.strokeStyle = `rgba(255, 158, 125, ${0.50 * alpha})`;
           draw3DCircle(screenX, screenY, orbitR, item.rotX + 0.3, item.rotY + 0.4, item.rotZ, fov, 'XZ', 18);
 
           // Hạt electron phát sáng bay trên vành đai
@@ -604,9 +604,9 @@ export const SpaceCubeBackground: React.FC = () => {
           const elScreenX = screenX + rotElX * elScale;
           const elScreenY = screenY + rotElY * elScale;
 
-          ctx.fillStyle = `rgba(255, 182, 255, ${0.95 * alpha})`;
+          ctx.fillStyle = `rgba(255, 210, 185, ${0.96 * alpha})`;
           ctx.beginPath();
-          ctx.arc(elScreenX, elScreenY, 2.0, 0, Math.PI * 2);
+          ctx.arc(elScreenX, elScreenY, 2.2, 0, Math.PI * 2);
           ctx.fill();
         }
       }

@@ -2,36 +2,50 @@
 <html lang="vi" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="icon" type="image/png" href="/orbit_logo_transparent.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Orbit | Learn • Grow • Connect</title>
-    <meta name="description" content="Orbit — Different paths. One orbit. Không gian học hỏi, phát triển và cùng tiến xa hơn cho học sinh, sinh viên và sĩ tử tại Việt Nam." />
-    <meta name="theme-color" content="#050508" />
+    <meta name="description" content="Orbit · Different paths. One orbit. Không gian học tập, kho đề thi chuẩn hóa, bot Discord hỗ trợ 24/7 và quỹ đạo chung cho học sinh, sinh viên Việt Nam." />
+    <meta name="theme-color" content="#07060D" />
     <link rel="canonical" href="https://hyperhub-one.vercel.app/" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://hyperhub-one.vercel.app/" />
     <meta property="og:title" content="Orbit | Different paths. One orbit." />
-    <meta property="og:description" content="Orbit — Mỗi người có quỹ đạo riêng, nhưng chúng ta gặp nhau tại Orbit để học hỏi, phát triển và cùng tiến xa hơn." />
-    <meta property="og:image" content="https://hyperhub-one.vercel.app/logo.png" />
-    <meta property="og:image:width" content="512" />
-    <meta property="og:image:height" content="512" />
-    <meta property="og:image:alt" content="Orbit Logo" />
+    <meta property="og:description" content="Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại Orbit để học hỏi, bứt phá năng lực và cùng nhau tiến xa hơn." />
+    <meta property="og:image" content="https://hyperhub-one.vercel.app/orbit_full.png" />
+    <meta property="og:image:alt" content="Orbit · Learn, Grow, Connect" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://hyperhub-one.vercel.app/" />
     <meta name="twitter:title" content="Orbit | Learn • Grow • Connect" />
-    <meta name="twitter:description" content="Different paths. One orbit. Những con đường khác nhau. Cùng một quỹ đạo." />
-    <meta name="twitter:image" content="https://hyperhub-one.vercel.app/logo.png" />
+    <meta name="twitter:description" content="Different paths. One orbit. Kho đề thẩm định, bot Discord 24/7 và cộng đồng sĩ tử Việt Nam." />
+    <meta name="twitter:image" content="https://hyperhub-one.vercel.app/orbit_full.png" />
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Fonts self-host (public/fonts): Be Vietnam Pro cho tiếng Việt -->
+    <link rel="preload" href="/fonts/BeVietnamPro-700-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/BeVietnamPro-700-vietnamese.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/BeVietnamPro-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" as="image" href="/orbit_emblem_core.png" />
+
+    <!--
+      Bật chế độ motion TRƯỚC khi vẽ trang để tránh nháy nội dung.
+      Không có JS / bật reduced-motion / thiếu IntersectionObserver → nội dung hiện nguyên vẹn.
+    -->
+    <script>
+      (function () {
+        try {
+          var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!reduce && 'IntersectionObserver' in window) {
+            document.documentElement.classList.add('hh-motion');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="antialiased selection:bg-purple-500/30 selection:text-purple-200 min-h-dvh">
+  <body class="antialiased min-h-dvh">
+    <noscript>Orbit cần JavaScript để hiển thị kho đề và bảng điều khiển.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

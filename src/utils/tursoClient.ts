@@ -224,12 +224,13 @@ export async function saveDocumentToTurso(
 /**
  * 3. Đọc danh sách đề thi trực tiếp từ Turso Cloud (Phục vụ Web Vault khi bot tắt)
  */
-export async function fetchDocsFromTurso(limit = 100, offset = 0): Promise<any[]> {
+export async function fetchDocsFromTurso(limit = 500, offset = 0): Promise<any[]> {
   const sql = `
     SELECT 
       id, subject, title, file_name, file_size_bytes, file_type,
       estimated_level, question_count, page_count, author_name,
-      jump_url, timestamp, academic_year, school_or_department,
+      jump_url, timestamp, file_hash, notes, academic_year, school_or_department,
+      verdict, exam_track, confidence,
       moet_2025_compliant, moet_part1_count, moet_part2_count, moet_part3_count,
       has_answer_keys, has_detailed_solutions, queue_status
     FROM documents_archive
@@ -237,7 +238,12 @@ export async function fetchDocsFromTurso(limit = 100, offset = 0): Promise<any[]
     LIMIT ? OFFSET ?
   `;
   const res = await executeTurso(sql, [limit, offset]);
-  return res.rows;
+  return res.rows.map((r) => ({
+    ...r,
+    moet_2025_compliant: Boolean(r.moet_2025_compliant),
+    has_answer_keys: Boolean(r.has_answer_keys),
+    has_detailed_solutions: Boolean(r.has_detailed_solutions),
+  }));
 }
 
 export interface TursoStorageStats {

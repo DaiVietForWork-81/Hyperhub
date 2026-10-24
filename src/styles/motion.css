@@ -1,0 +1,249 @@
+/* ==========================================================================
+   HYPERHUB MOTION SYSTEM
+   Tài liệu đầy đủ: docs/MOTION_SYSTEM.md
+   Nguyên tắc: chuyển động nội dung = mượt (easing); điểm nhấn thương hiệu = "pixel step".
+   Mọi trạng thái cuối cùng là trạng thái mặc định của phần tử → tắt animation vẫn đọc được.
+   ========================================================================== */
+
+:root {
+  /* Duration tokens */
+  --hh-dur-micro: 140ms;     /* nhấn, toggle, feedback tức thì */
+  --hh-dur-hover: 200ms;     /* hover màu / lift */
+  --hh-dur-enter: 380ms;     /* component xuất hiện */
+  --hh-dur-section: 560ms;   /* section / heading reveal */
+  --hh-dur-page: 240ms;      /* chuyển view Home ↔ Hub */
+  --hh-dur-ambient: 48s;     /* orb nền trôi chậm */
+
+  /* Easing tokens - mỗi vai trò một đường cong */
+  --hh-ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* reveal nội dung: lao nhanh, đáp êm */
+  --hh-ease-soft: cubic-bezier(0.25, 1, 0.5, 1);       /* hover / màu */
+  --hh-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);     /* chuyển trạng thái hai chiều (menu, indicator) */
+  --hh-ease-drop: cubic-bezier(0.34, 1.42, 0.64, 1);   /* khối pixel rơi: nảy nhẹ */
+  --hh-ease-press: cubic-bezier(0.5, 0, 0.75, 0);      /* nhấn xuống */
+  --hh-steps-pixel: steps(8, end);                     /* wipe 8-bit cho accent thương hiệu */
+
+  /* Stagger tokens (giới hạn tối đa ~8 phần tử/nhóm) */
+  --hh-stagger-tight: 35ms;
+  --hh-stagger-base: 70ms;
+  --hh-stagger-loose: 110ms;
+
+  /* Distance tokens */
+  --hh-rise-sm: 10px;
+  --hh-rise-md: 22px;
+  --hh-lift: -3px;
+}
+
+@layer components {
+  /* ------------------------------------------------------------------------
+     1. REVEAL PRESETS
+     Chỉ ẩn khi <html> có class .hh-motion (JS đã chạy + không reduced-motion).
+     Không có JS → nội dung hiện nguyên vẹn.
+     ------------------------------------------------------------------------ */
+  .hh-motion [data-reveal] {
+    --hh-delay: 0ms;
+    transition-delay: var(--hh-delay);
+  }
+
+  /* fade: đoạn văn - fade + rise nhỏ */
+  .hh-motion [data-reveal='fade'] {
+    opacity: 0;
+    transform: translate3d(0, var(--hh-rise-sm), 0);
+    transition-property: opacity, transform;
+    transition-duration: var(--hh-dur-enter), var(--hh-dur-section);
+    transition-timing-function: var(--hh-ease-soft), var(--hh-ease-out);
+  }
+
+  /* rise: card / nhóm - rise lớn hơn */
+  .hh-motion [data-reveal='rise'] {
+    opacity: 0;
+    transform: translate3d(0, var(--hh-rise-md), 0);
+    transition-property: opacity, transform;
+    transition-duration: var(--hh-dur-enter), var(--hh-dur-section);
+    transition-timing-function: var(--hh-ease-soft), var(--hh-ease-out);
+  }
+
+  /* slide-l / slide-r: card đi vào từ hai phía */
+  .hh-motion [data-reveal='slide-l'],
+  .hh-motion [data-reveal='slide-r'] {
+    opacity: 0;
+    transition-property: opacity, transform;
+    transition-duration: var(--hh-dur-enter), var(--hh-dur-section);
+    transition-timing-function: var(--hh-ease-soft), var(--hh-ease-out);
+  }
+  .hh-motion [data-reveal='slide-l'] { transform: translate3d(-28px, 0, 0); }
+  .hh-motion [data-reveal='slide-r'] { transform: translate3d(28px, 0, 0); }
+
+  /* panel: khối lớn / minh họa - clip + scale */
+  .hh-motion [data-reveal='panel'] {
+    opacity: 0;
+    clip-path: inset(0 0 14% 0 round 28px); /* cắt phần dưới: mép trên luôn thấy → IO kích hoạt đúng lúc */
+    transform: scale(0.985);
+    transition-property: opacity, clip-path, transform;
+    transition-duration: var(--hh-dur-enter), 720ms, 720ms;
+    transition-timing-function: var(--hh-ease-soft), var(--hh-ease-out), var(--hh-ease-out);
+  }
+
+  /* draw: đường kẻ / divider vẽ dần */
+  .hh-motion [data-reveal='draw'] {
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 900ms var(--hh-ease-inout);
+  }
+
+  /* pixel: wipe 8-bit cho chữ pixel / accent thương hiệu (clip trên phần tử con) */
+  .hh-pixel-inner { display: inline-block; }
+  .hh-motion [data-reveal='pixel'] .hh-pixel-inner {
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 640ms var(--hh-steps-pixel);
+    transition-delay: var(--hh-delay);
+  }
+
+  /* words: heading - từng từ trồi lên mượt mà (transform + opacity, không cắt dấu tiếng Việt) */
+  .hh-motion [data-reveal='words'] .hh-word-inner {
+    opacity: 0;
+    transform: translate3d(0, 0.38em, 0);
+    transition-property: opacity, transform;
+    transition-duration: var(--hh-dur-enter), var(--hh-dur-section);
+    transition-timing-function: var(--hh-ease-soft), var(--hh-ease-out);
+    transition-delay: calc(var(--hh-delay) + var(--i, 0) * var(--hh-stagger-tight));
+  }
+
+  /* Trạng thái đã reveal */
+  .hh-motion [data-revealed='true'] {
+    opacity: 1;
+    transform: none;
+  }
+  /* Kết thúc bằng inset âm để không cắt bóng đổ / glow tràn ra ngoài khối */
+  .hh-motion [data-reveal='panel'][data-revealed='true'] { clip-path: inset(-48px -48px -48px -48px round 0); }
+  .hh-motion [data-reveal='pixel'][data-revealed='true'] .hh-pixel-inner { clip-path: inset(-50% -50% -50% -2%); }
+  .hh-motion [data-reveal='words'][data-revealed='true'] .hh-word-inner {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Word wrapper: giữ nguyên dấu thanh tiếng Việt (Ể, Ỗ, ặ...) không dùng overflow:clip */
+  .hh-word {
+    display: inline-block;
+    vertical-align: baseline;
+  }
+  .hh-word-inner {
+    display: inline-block;
+    will-change: auto;
+  }
+
+  /* ------------------------------------------------------------------------
+     2. INTRO (HERO) - chạy một lần bằng keyframes, fill `both`.
+     ------------------------------------------------------------------------ */
+  @keyframes hh-intro-fade {
+    from { opacity: 0; }
+  }
+  @keyframes hh-intro-rise {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  }
+  @keyframes hh-intro-word {
+    from { opacity: 0; transform: translate3d(0, 0.38em, 0); }
+  }
+  @keyframes hh-intro-pixel {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(-50% -50% -50% -2%); }
+  }
+  @keyframes hh-intro-block {
+    0% { opacity: 0; transform: translate3d(0, -140%, 0); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes hh-intro-underline {
+    from { transform: scaleX(0); }
+  }
+
+  .hh-motion .hh-intro-fade { animation: hh-intro-fade 600ms var(--hh-ease-soft) both; animation-delay: var(--d, 0ms); }
+  .hh-motion .hh-intro-rise { animation: hh-intro-rise var(--hh-dur-section) var(--hh-ease-out) both; animation-delay: var(--d, 0ms); }
+  .hh-motion .hh-intro-pixel { animation: hh-intro-pixel 560ms var(--hh-steps-pixel) both; animation-delay: var(--d, 0ms); }
+  .hh-motion .hh-intro-words .hh-word-inner {
+    animation: hh-intro-word var(--hh-dur-section) var(--hh-ease-out) both;
+    animation-delay: calc(var(--d, 0ms) + min(var(--i, 0), 14) * var(--hh-stagger-tight));
+  }
+
+  /* ------------------------------------------------------------------------
+     3. HOVER / SURFACE PRESETS
+     ------------------------------------------------------------------------ */
+  /* lift: card thông tin - nâng nhẹ + đổi viền */
+  .hh-lift {
+    transition:
+      transform var(--hh-dur-hover) var(--hh-ease-soft),
+      border-color var(--hh-dur-hover) var(--hh-ease-soft),
+      box-shadow var(--hh-dur-hover) var(--hh-ease-soft),
+      background-color var(--hh-dur-hover) var(--hh-ease-soft);
+  }
+  .hh-lift .hh-nudge {
+    transition: transform var(--hh-dur-hover) var(--hh-ease-out);
+  }
+
+  /* spot: spotlight bám con trỏ - biến --px/--py do JS ghi trực tiếp lên phần tử */
+  .hh-spot { position: relative; isolation: isolate; }
+  .hh-spot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0;
+    background: radial-gradient(
+      380px circle at var(--px, 50%) var(--py, 50%),
+      var(--spot-color, rgba(255, 79, 203, 0.14)),
+      transparent 62%
+    );
+    transition: opacity var(--hh-dur-hover) var(--hh-ease-soft);
+  }
+
+  /* press: phản hồi nhấn dùng chung */
+  .hh-press { transition: transform var(--hh-dur-micro) var(--hh-ease-soft); }
+  .hh-press:active { transform: scale(0.97); transition-timing-function: var(--hh-ease-press); }
+
+  /* Chỉ áp dụng hover khi thiết bị thật sự hover được */
+  @media (hover: hover) and (pointer: fine) {
+    .hh-lift:hover { transform: translate3d(0, var(--hh-lift), 0); }
+    .hh-lift:hover .hh-nudge { transform: translate3d(2px, -2px, 0); }
+    .hh-spot:hover::before { opacity: 1; }
+  }
+
+  /* ------------------------------------------------------------------------
+     4. VIEW TRANSITION (Home ↔ Hub) - View Transitions API khi có
+     ------------------------------------------------------------------------ */
+  @keyframes hh-view-out { to { opacity: 0; transform: translate3d(0, -6px, 0); } }
+  @keyframes hh-view-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+  ::view-transition-old(root) { animation: hh-view-out 160ms var(--hh-ease-press) both; }
+  ::view-transition-new(root) { animation: hh-view-in var(--hh-dur-page) var(--hh-ease-out) both; }
+
+  /* Fallback khi không có View Transitions API */
+  .hh-view-enter { animation: hh-view-in var(--hh-dur-page) var(--hh-ease-out) both; }
+}
+
+/* --------------------------------------------------------------------------
+   5. REDUCED MOTION - tắt reveal/parallax/tilt/ambient, giữ nguyên nội dung
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal] .hh-word-inner,
+  [data-reveal] .hh-pixel-inner,
+  .hh-intro-fade,
+  .hh-intro-rise,
+  .hh-intro-pixel,
+  .hh-intro-words .hh-word-inner,
+  .hh-block {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .hh-ambient-anim,
+  .hh-petal,
+  .hh-marquee-track {
+    animation: none !important;
+  }
+  [data-parallax] { transform: none !important; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
+}
