@@ -1,15 +1,14 @@
 /**
  * utils/apiConfig.ts
- * Cấu hình kết nối API bảo mật cho HyperHub.
- * Phòng chống SSRF / MitM / API Manipulation qua localStorage (CWE-918, CWE-352).
+ * Cấu hình kết nối API bảo mật cho HyperHub (Sử dụng trực tiếp Vercel Serverless Bridge + Turso Cloud).
+ * Không cần ngrok hay Cloudflare Tunnel.
  */
 
-export const DEFAULT_TUNNEL_URL = "https://phantasmagorically-occupative-gladys.ngrok-free.dev";
+export const DEFAULT_VERCEL_URL = "https://hyperhub-one.vercel.app";
+export const DEFAULT_TUNNEL_URL = DEFAULT_VERCEL_URL;
 export const LOCAL_API_URL = "http://localhost:8080";
 
 export const API_FETCH_HEADERS: Record<string, string> = {
-  "ngrok-skip-browser-warning": "true",
-  "cf-skip-browser-warning": "true",
   "Accept": "application/json",
 };
 
@@ -17,7 +16,6 @@ export const API_FETCH_HEADERS: Record<string, string> = {
 const ALLOWED_API_HOSTS = [
   "localhost",
   "127.0.0.1",
-  "phantasmagorically-occupative-gladys.ngrok-free.dev",
   "hyperhub-one.vercel.app",
 ];
 
@@ -26,12 +24,7 @@ function isSafeUrl(urlStr: string): boolean {
     const parsed = new URL(urlStr);
     const host = parsed.hostname.toLowerCase();
     if (ALLOWED_API_HOSTS.includes(host)) return true;
-    return (
-      host.endsWith(".ngrok-free.dev") ||
-      host.endsWith(".ngrok.io") ||
-      host.endsWith(".trycloudflare.com") ||
-      host.endsWith(".cfargotunnel.com")
-    );
+    return host.endsWith(".vercel.app");
   } catch {
     return false;
   }
@@ -39,57 +32,37 @@ function isSafeUrl(urlStr: string): boolean {
 
 /**
  * Trả về API Base URL an toàn.
- * Trên môi trường HTTPS (Vercel Production), gọi trực tiếp tunnel URL từ browser
- * (kèm header ngrok-skip-browser-warning) để vượt interstitial ngrok free.
- * Không dùng Vercel Rewrite /api/* vì fetch server-side không gắn được header đó.
+ * - Trên môi trường HTTPS (https://hyperhub-one.vercel.app): trả về "" (same-origin /api/* ngay trên chính Vercel!).
+ * - Trên môi trường Local (http://localhost:5173): dùng http://localhost:8080 hoặc fallback về Vercel.
  */
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
     const isHttps = window.location.protocol === "https:";
 
-    // 1. Kiểm tra biến môi trường build-time
-    const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
-    if (envUrl && typeof envUrl === "string" && isSafeUrl(envUrl)) {
-      if (isHttps && !envUrl.startsWith("https://")) {
-        // Trên HTTPS, không dùng URL HTTP để chống Mixed Content
-      } else {
-        return envUrl.trim().replace(/\/+$/, "");
-      }
-    }
-
-    // 1b. Override người dùng đã lưu (đọc lại cái setCustomApiUrl đã ghi)
+    // Dọn dẹp URL ngrok cũ nếu từng lưu trong localStorage
     try {
       const saved = window.localStorage.getItem("hyperhub_api_base_url");
-      if (saved && isSafeUrl(saved)) {
-        if (isHttps && !saved.startsWith("https://")) {
-          // Bỏ qua và xóa mục không an toàn (tránh lỗi Mixed Content chặn bot trên Vercel)
-          window.localStorage.removeItem("hyperhub_api_base_url");
-        } else {
+      if (saved && (saved.includes("ngrok") || saved.includes("trycloudflare"))) {
+        window.localStorage.removeItem("hyperhub_api_base_url");
+      } else if (saved && isSafeUrl(saved)) {
+        if (!isHttps || saved.startsWith("https://")) {
           return saved.trim().replace(/\/+$/, "");
         }
       }
-    } catch {
-      // localStorage bị chặn (private mode): bỏ qua
-    }
+    } catch {}
 
-    // 2. Khi chạy trên HTTPS (Vercel Production):
-    // Gọi TRỰC TIẾP tunnel URL từ browser (kèm header ngrok-skip-browser-warning).
-    // KHÔNG dùng relative "" qua Vercel Rewrite nữa vì rewrite phía server không
-    // gửi được header đó → ngrok free chặn bằng trang ERR_NGROK_6024.
+    // 1. Khi chạy trên chính Vercel (HTTPS): dùng đường dẫn tương đối "" để gọi thẳng /api/* trên Vercel
     if (isHttps) {
-      return DEFAULT_TUNNEL_URL;
+      return "";
     }
 
-    // 3. Local development
+    // 2. Local development
     return LOCAL_API_URL;
   }
 
-  return LOCAL_API_URL;
+  return DEFAULT_VERCEL_URL;
 }
 
-/**
- * Hàm hỗ trợ cấu hình trong môi trường kiểm thử (chỉ chấp nhận domain trong allowlist).
- */
 export function setCustomApiUrl(url: string | null): void {
   if (typeof window === "undefined") return;
   if (!url || !url.trim()) {
@@ -101,7 +74,6 @@ export function setCustomApiUrl(url: string | null): void {
 
   const cleanUrl = url.trim().replace(/\/+$/, "");
   if (window.location.protocol === "https:" && !cleanUrl.startsWith("https://")) {
-    console.warn("Bảo mật: Trên HTTPS chỉ chấp nhận endpoint có bảo mật https://");
     return;
   }
 
@@ -109,11 +81,9 @@ export function setCustomApiUrl(url: string | null): void {
     try {
       localStorage.setItem("hyperhub_api_base_url", cleanUrl);
     } catch {}
-  } else {
-    console.warn("Bảo mật: Từ chối thiết lập API URL không nằm trong danh sách an toàn:", url);
   }
 }
 
 export function isUsingDefaultTunnel(): boolean {
-  return true;
+  return false;
 }
