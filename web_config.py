@@ -34,11 +34,13 @@ class WebConfig:
     BOT_API_SECRET: str = os.getenv("BOT_API_SECRET", "")
 
     # ==================== DATABASE ====================
-    # CSDL chung (Hỗ trợ cả SQLite cục bộ và PostgreSQL từ xa)
-    LOCAL_DB_PATH = (BOT_DIR / "bot.db").resolve()
+    # CSDL chung (Trỏ trực tiếp tới Bot/data/bot.db nơi lưu kho đề HyperHub 178+ tài liệu)
+    _DATA_DB = (BOT_DIR / "data" / "bot.db").resolve()
+    _ROOT_DB = (BOT_DIR / "bot.db").resolve()
+    LOCAL_DB_PATH = _DATA_DB if _DATA_DB.exists() else _ROOT_DB
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        f"sqlite+aiosqlite:///{LOCAL_DB_PATH.as_posix()}"
+        f"sqlite+aiosqlite:///{_ROOT_DB.as_posix()}"
     )
 
 
