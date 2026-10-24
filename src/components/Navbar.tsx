@@ -85,9 +85,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overvie
     const host = ind.parentElement ?? list;
     const lr = host.getBoundingClientRect();
     const r = el.getBoundingClientRect();
+    const scale = host.offsetWidth > 0 ? lr.width / host.offsetWidth : 1;
     if (instant) ind.style.transition = 'none';
-    ind.style.width = `${r.width}px`;
-    ind.style.transform = `translate3d(${r.left - lr.left - host.clientLeft}px, 0, 0)`;
+    ind.style.width = `${r.width / scale}px`;
+    ind.style.transform = `translate3d(${(r.left - lr.left) / scale - host.clientLeft}px, 0, 0)`;
     ind.style.opacity = '1';
     if (instant) {
       void ind.offsetWidth;

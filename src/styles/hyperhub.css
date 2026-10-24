@@ -1668,10 +1668,22 @@ body {
   }
 
   .hh-hub-sidebar {
-    zoom: 0.9;
-    height: calc(100dvh / 0.9);
+    zoom: 0.95;
+    height: calc(100dvh / 0.95);
     background: var(--hh-ink-2);
     border-right: 1px solid var(--hh-line);
+  }
+
+  @media (min-width: 1024px) {
+    .hh-header-inner,
+    .hh-main,
+    .hh-footer,
+    .hh-hub-main {
+      zoom: 0.95;
+    }
+    .hh-hero {
+      min-height: calc(100svh / 0.95);
+    }
   }
 
   .hh-hub-mobile-bar {

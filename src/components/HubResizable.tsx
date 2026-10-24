@@ -22,7 +22,7 @@ export interface HubLayoutConfig {
 
 const DEFAULT_CONFIG: HubLayoutConfig = {
   sidebarWidth: 300,
-  globalScale: 0.9,
+  globalScale: 0.95,
   vaultGridCols: '2',
   fontSizeLevel: 'normal',
   editMode: false,

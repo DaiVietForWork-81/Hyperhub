@@ -2258,11 +2258,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.9x COMPACT FULL VIEW)                   */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.95x COMPACT FULL VIEW)                  */}
       {/* ========================================================================= */}
       <aside
         style={{ width: `${config.sidebarWidth}px` }}
-        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.9)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
+        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.95)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
       >
         <div className="space-y-3">
           {/* Brand Header */}
@@ -2594,7 +2594,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* MAIN WORKSPACE CONTENT                                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1640px] mx-auto w-full">
+      <main className="hh-hub-main flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1640px] mx-auto w-full">
         {/* Desktop Top Telemetry Bar */}
         <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-[#241a38]">
           <div className="flex items-center gap-2.5 text-sm">
