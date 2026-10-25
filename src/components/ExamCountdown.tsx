@@ -565,7 +565,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
       </div>
 
       {/* Bố cục 2 cột: Đồng hồ đếm ngược bên trái · Lịch thi từng ca bên phải */}
-      <div className="hh-cd-grid">
+      <div key={`${examMode}-${selectedCohort}`} className="hh-cd-grid hh-swap-panel">
         <SpotSurface as="article" className="hh-card hh-card--hero hh-lift" data-ui="exam-countdown">
           <h3 className="hh-card-title hh-card-title--lg">
             {examMode === 'thpt'
@@ -617,9 +617,9 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
             </div>
           </div>
 
-          {/* Lời nhắn nhủ mỗi ngày cho sĩ tử (tham khảo từ web gốc) */}
+          {/* Lời nhắn nhủ mỗi ngày cho sĩ tử */}
           <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between gap-3">
-            <p className="hh-fine italic">
+            <p key={quoteIdx} className="hh-fine italic hh-swap-icon">
               “{INSPIRATIONAL_QUOTES[quoteIdx].quote}” · <strong>{INSPIRATIONAL_QUOTES[quoteIdx].author}</strong>
             </p>
             <button

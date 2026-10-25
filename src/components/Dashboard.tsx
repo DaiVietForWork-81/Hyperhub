@@ -1382,6 +1382,28 @@ const DashboardContent: React.FC<DashboardProps> = ({
     }
   }, []);
 
+  // Nhận bộ lọc khởi hành nhanh từ Trang Chủ (Hero Quickbar & Subject Streams)
+  useEffect(() => {
+    try {
+      const rawFilter = sessionStorage.getItem('orbit_hub_prefilter');
+      if (!rawFilter) return;
+      sessionStorage.removeItem('orbit_hub_prefilter');
+      const parsed = JSON.parse(rawFilter);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.educationLevel) setSelectedEducationLevel(parsed.educationLevel);
+        if (parsed.grade) setSelectedGrade(parsed.grade);
+        if (parsed.subject) setSelectedSubject(parsed.subject);
+        if (parsed.examType) setSelectedExamType(parsed.examType);
+        if (typeof parsed.search === 'string') setDescriptionKeyword(parsed.search);
+        setShowBookmarksOnly(false);
+        setActiveTab('vault');
+        onTabChange?.('vault');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [onTabChange]);
+
   const handleSaveDreamInHub = (e: React.FormEvent) => {
     e.preventDefault();
     const school = dreamSchoolInput.trim();
@@ -1455,6 +1477,22 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
   // Đồng bộ ngày đếm ngược kỳ thi THPT Quốc Gia với Trang chủ
   const nextThptExam = useMemo(() => getNextThptExamInfo(), []);
+
+  // Thống kê nhanh được memo hóa (tránh tính lại mỗi lần render)
+  const thptDocsCount = useMemo(
+    () =>
+      (gradeDistribution['12'] || 0) +
+        (gradeDistribution['11'] || 0) +
+        (gradeDistribution['10'] || 0) || totalDocsCount,
+    [gradeDistribution, totalDocsCount]
+  );
+
+  const withAnswersDocsCount = useMemo(
+    () =>
+      documentsList.filter((d) => d.has_answer_keys || d.has_detailed_solutions).length ||
+      totalDocsCount,
+    [documentsList, totalDocsCount]
+  );
 
   const [showAdvancedDrawer, setShowAdvancedDrawer] = useState<boolean>(false);
 
@@ -2729,7 +2767,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         {/* TAB 01: OVERVIEW */}
         {activeTab === 'overview' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div key="tab-overview" className="space-y-6 hh-swap-panel">
             {/* HÀNG 1: BÀN ĐIỀU KHIỂN (7/12) + BẢN ĐỒ MÔN HỌC (5/12) */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
               {/* Cột Trái (7/12): Lời chào, Mục tiêu nguyện vọng 1 & Đếm ngược mùa thi */}
@@ -2760,7 +2798,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   {/* Mục tiêu Nguyện vọng 1 (Đồng bộ trực tiếp với Trang chủ) */}
                   <div className="p-4 rounded-2xl bg-[#0B0911]/85 border border-[#241a38]">
                     {!isEditingDream && dreamGoal ? (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div key="hub-dream-saved" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 hh-swap-panel">
                         <div className="flex items-start gap-3">
                           <Target className="w-5 h-5 text-[#FF4FCB] shrink-0 mt-0.5" />
                           <div>
@@ -2780,13 +2818,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         <button
                           type="button"
                           onClick={() => setIsEditingDream(true)}
-                          className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[13px] font-bold text-white/80 cursor-pointer self-start sm:self-center"
+                          className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[13px] font-bold text-white/80 cursor-pointer self-start sm:self-center hh-press"
                         >
                           Đổi mục tiêu
                         </button>
                       </div>
                     ) : (
-                      <form onSubmit={handleSaveDreamInHub} className="space-y-3">
+                      <form key="hub-dream-form" onSubmit={handleSaveDreamInHub} className="space-y-3 hh-swap-panel">
                         <div className="flex items-center justify-between">
                           <span className="text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5">
                             <Target className="w-3.5 h-3.5 text-[#FF4FCB]" />
@@ -2819,7 +2857,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                           />
                           <button
                             type="submit"
-                            className="sm:col-span-2 h-10 px-3 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white font-bold text-[13px] cursor-pointer transition-colors"
+                            className="sm:col-span-2 h-10 px-3 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white font-bold text-[13px] cursor-pointer transition-colors hh-press"
                           >
                             Lưu
                           </button>
@@ -2828,7 +2866,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     )}
                   </div>
 
-                  {/* Dải 4 lối tắt thống kê & lọc nhanh ngay trong Bàn Điều Khiển */}
+                  {/* Dải 4 lối tắt thống kê & lọc nhanh (Không bao giờ gãy dòng ở 1366x768 & 1440x900) */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <button
                       type="button"
@@ -2838,10 +2876,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         setShowBookmarksOnly(false);
                         handleTabChange('vault');
                       }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left transition-colors cursor-pointer"
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left transition-colors cursor-pointer hh-choice"
                     >
-                      <div className="text-[13px] text-white/55 font-medium">Trọng tâm Lớp 12</div>
-                      <div className="text-base font-extrabold text-white mt-0.5 tabular-nums">
+                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Lớp 12 THPT</div>
+                      <div className="text-base font-extrabold text-white mt-0.5 tabular-nums whitespace-nowrap">
                         {gradeDistribution['12'] || 0} đề thi
                       </div>
                     </button>
@@ -2854,14 +2892,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         setShowBookmarksOnly(false);
                         handleTabChange('vault');
                       }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/40 text-left transition-colors cursor-pointer"
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/40 text-left transition-colors cursor-pointer hh-choice"
                     >
-                      <div className="text-[13px] text-white/55 font-medium">Khối THPT (10–12)</div>
-                      <div className="text-base font-extrabold text-[#E2CEFF] mt-0.5 tabular-nums">
-                        {(gradeDistribution['12'] || 0) +
-                          (gradeDistribution['11'] || 0) +
-                          (gradeDistribution['10'] || 0) || totalDocsCount}{' '}
-                        đề tuyển chọn
+                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Khối 10 – 12</div>
+                      <div className="text-base font-extrabold text-[#E2CEFF] mt-0.5 tabular-nums whitespace-nowrap">
+                        {thptDocsCount} đề lọc
                       </div>
                     </button>
 
@@ -2872,11 +2907,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         setShowBookmarksOnly(false);
                         handleTabChange('vault');
                       }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-emerald-400/40 text-left transition-colors cursor-pointer"
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-emerald-400/40 text-left transition-colors cursor-pointer hh-choice"
                     >
-                      <div className="text-[13px] text-white/55 font-medium">Đáp án &amp; Lời giải</div>
-                      <div className="text-base font-extrabold text-emerald-300 mt-0.5 tabular-nums">
-                        {documentsList.filter((d) => d.has_answer_keys || d.has_detailed_solutions).length || totalDocsCount} đề chuẩn
+                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Có Đáp Án</div>
+                      <div className="text-base font-extrabold text-emerald-300 mt-0.5 tabular-nums whitespace-nowrap">
+                        {withAnswersDocsCount} đề chuẩn
                       </div>
                     </button>
 
@@ -2885,21 +2920,22 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       onClick={() => {
                         handleTabChange('submit_doc');
                       }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FFB396]/40 text-left transition-colors cursor-pointer"
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FFB396]/40 text-left transition-colors cursor-pointer hh-choice"
                     >
-                      <div className="text-[13px] text-white/55 font-medium">Đề thi độc bản</div>
-                      <div className="text-base font-extrabold text-[#FFB396] mt-0.5 tabular-nums">
-                        {stats.unique_items || totalDocsCount} độc bản
+                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Kho Độc Bản</div>
+                      <div className="text-base font-extrabold text-[#FFB396] mt-0.5 tabular-nums whitespace-nowrap">
+                        {stats.unique_items || totalDocsCount} đề gốc
                       </div>
                     </button>
                   </div>
                 </div>
 
                 {/* Primary CTA Row */}
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#241a38]">
+                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-[#241a38]">
                   <PixelButton
                     variant="primary"
                     magnetic
+                    className="hh-btn--sm"
                     onClick={() => handleTabChange('get_exam')}
                     icon={<Dices className="w-4 h-4" />}
                     trailing={<ArrowRight className="w-4 h-4" />}
@@ -2909,6 +2945,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
                   <PixelButton
                     variant="ghost"
+                    className="hh-btn--sm"
                     onClick={() => {
                       handleTabChange('vault');
                       setShowBookmarksOnly(false);
@@ -2920,6 +2957,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
                   <PixelButton
                     variant="ghost"
+                    className="hh-btn--sm"
                     onClick={handleInstantPracticePick}
                     icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
                   >
@@ -3360,7 +3398,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         {/* TAB 04: GET_EXAM */}
         {activeTab === 'get_exam' && !hubLocked && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div key="tab-get-exam" className="space-y-6 hh-swap-panel">
             <SpotSurface className="hh-hub-surface p-6 sm:p-8 space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#241a38] pb-5">
                 <div>
@@ -3575,7 +3613,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         {/* TAB 02 & 03: VAULT */}
         {activeTab === 'vault' && !hubLocked && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div key="tab-vault" className="space-y-6 hh-swap-panel">
             {/* Vault Header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
@@ -3692,7 +3730,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         {/* TAB 05: SUBMIT_DOC */}
         {activeTab === 'submit_doc' && !hubLocked && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div key="tab-submit-doc" className="space-y-6 hh-swap-panel">
             <SpotSurface className="hh-hub-surface p-6 sm:p-8 space-y-5">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
@@ -3747,7 +3785,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         {/* TAB 06: ADMIN */}
         {activeTab === 'admin' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div key="tab-admin" className="space-y-6 hh-swap-panel">
             {isAdmin || readCachedAdmin() ? (
               <Suspense
                 fallback={

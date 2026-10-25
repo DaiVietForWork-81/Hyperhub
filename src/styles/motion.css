@@ -1,5 +1,5 @@
 /* ==========================================================================
-   HYPERHUB MOTION SYSTEM
+   HYPERHUB MOTION SYSTEM — ANIMATE UI TOKENS & CHOREOGRAPHY
    Tài liệu đầy đủ: docs/MOTION_SYSTEM.md
    Nguyên tắc: chuyển động nội dung = mượt (easing); điểm nhấn thương hiệu = "pixel step".
    Mọi trạng thái cuối cùng là trạng thái mặc định của phần tử → tắt animation vẫn đọc được.
@@ -14,13 +14,20 @@
   --hh-dur-page: 240ms;      /* chuyển view Home ↔ Hub */
   --hh-dur-ambient: 48s;     /* orb nền trôi chậm */
 
-  /* Easing tokens - mỗi vai trò một đường cong */
-  --hh-ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* reveal nội dung: lao nhanh, đáp êm */
-  --hh-ease-soft: cubic-bezier(0.25, 1, 0.5, 1);       /* hover / màu */
-  --hh-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);     /* chuyển trạng thái hai chiều (menu, indicator) */
-  --hh-ease-drop: cubic-bezier(0.34, 1.42, 0.64, 1);   /* khối pixel rơi: nảy nhẹ */
-  --hh-ease-press: cubic-bezier(0.5, 0, 0.75, 0);      /* nhấn xuống */
-  --hh-steps-pixel: steps(8, end);                     /* wipe 8-bit cho accent thương hiệu */
+  /* Easing tokens - chuẩn hóa theo Animate UI (references/tokens.md) */
+  --hh-ease-out: cubic-bezier(0.23, 1, 0.32, 1);        /* reveal nội dung & entrance/exit */
+  --hh-ease-soft: cubic-bezier(0.215, 0.61, 0.355, 1);  /* hover / màu / menu / disclosure */
+  --hh-ease-inout: cubic-bezier(0.77, 0, 0.175, 1);     /* chuyển trạng thái hai chiều (menu, indicator) */
+  --hh-ease-enter: cubic-bezier(0.25, 0.1, 0.35, 1);    /* tab / panel content entering */
+  --hh-ease-drop: cubic-bezier(0.34, 1.42, 0.64, 1);    /* khối pixel rơi: nảy nhẹ */
+  --hh-ease-press: cubic-bezier(0.5, 0, 0.75, 0);       /* nhấn xuống */
+  --hh-steps-pixel: steps(8, end);                      /* wipe 8-bit cho accent thương hiệu */
+
+  /* Scale & blur tokens (Animate UI) */
+  --hh-scale-press: 0.97;
+  --hh-scale-choice: 0.985;
+  --hh-blur-icon: blur(2px);
+  --hh-blur-surface: blur(4px);
 
   /* Stagger tokens (giới hạn tối đa ~8 phần tử/nhóm) */
   --hh-stagger-tight: 35ms;
@@ -76,7 +83,7 @@
   /* panel: khối lớn / minh họa - clip + scale */
   .hh-motion [data-reveal='panel'] {
     opacity: 0;
-    clip-path: inset(0 0 14% 0 round 28px); /* cắt phần dưới: mép trên luôn thấy → IO kích hoạt đúng lúc */
+    clip-path: inset(0 0 14% 0 round 28px);
     transform: scale(0.985);
     transition-property: opacity, clip-path, transform;
     transition-duration: var(--hh-dur-enter), 720ms, 720ms;
@@ -113,7 +120,6 @@
     opacity: 1;
     transform: none;
   }
-  /* Kết thúc bằng inset âm để không cắt bóng đổ / glow tràn ra ngoài khối */
   .hh-motion [data-reveal='panel'][data-revealed='true'] { clip-path: inset(-48px -48px -48px -48px round 0); }
   .hh-motion [data-reveal='pixel'][data-revealed='true'] .hh-pixel-inner { clip-path: inset(-50% -50% -50% -2%); }
   .hh-motion [data-reveal='words'][data-revealed='true'] .hh-word-inner {
@@ -165,7 +171,7 @@
   }
 
   /* ------------------------------------------------------------------------
-     3. HOVER / SURFACE PRESETS
+     3. HOVER / SURFACE / SWAP PRESETS (Animate UI)
      ------------------------------------------------------------------------ */
   /* lift: card thông tin - nâng nhẹ + đổi viền */
   .hh-lift {
@@ -197,9 +203,40 @@
     transition: opacity var(--hh-dur-hover) var(--hh-ease-soft);
   }
 
-  /* press: phản hồi nhấn dùng chung */
-  .hh-press { transition: transform var(--hh-dur-micro) var(--hh-ease-soft); }
-  .hh-press:active { transform: scale(0.97); transition-timing-function: var(--hh-ease-press); }
+  /* press & choice: phản hồi nhấn theo Animate UI (scale.press = 0.97, scale.choice = 0.985) */
+  .hh-press { transition: transform var(--hh-dur-micro) var(--hh-ease-out); }
+  .hh-press:active { transform: scale(var(--hh-scale-press, 0.97)); transition-timing-function: var(--hh-ease-press); }
+
+  .hh-choice { transition: transform var(--hh-dur-micro) var(--hh-ease-out); }
+  .hh-choice:active { transform: scale(var(--hh-scale-choice, 0.985)); transition-timing-function: var(--hh-ease-press); }
+
+  /* Blur-bridged panel & icon swaps (Animate UI Rule 6) */
+  @keyframes hh-panel-swap-in {
+    0% {
+      opacity: 0;
+      filter: var(--hh-blur-surface, blur(4px));
+      transform: translate3d(0, 6px, 0) scale(0.992);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0px);
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+  @keyframes hh-icon-swap-in {
+    0% {
+      opacity: 0;
+      filter: var(--hh-blur-icon, blur(2px));
+      transform: scale(0.84);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0px);
+      transform: scale(1);
+    }
+  }
+  .hh-swap-panel { animation: hh-panel-swap-in var(--hh-dur-page) var(--hh-ease-enter) both; }
+  .hh-swap-icon { animation: hh-icon-swap-in 180ms var(--hh-ease-out) both; }
 
   /* Chỉ áp dụng hover khi thiết bị thật sự hover được */
   @media (hover: hover) and (pointer: fine) {
@@ -231,9 +268,12 @@
   .hh-intro-rise,
   .hh-intro-pixel,
   .hh-intro-words .hh-word-inner,
+  .hh-swap-panel,
+  .hh-swap-icon,
   .hh-block {
     opacity: 1 !important;
     transform: none !important;
+    filter: none !important;
     clip-path: none !important;
     animation: none !important;
     transition: none !important;
