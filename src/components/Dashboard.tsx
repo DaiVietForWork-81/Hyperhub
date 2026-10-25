@@ -1368,7 +1368,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('orbit_user_dream') || localStorage.getItem('hyperhub_user_dream');
+      const raw = localStorage.getItem('orbit_user_dream_v2');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.school) {
@@ -1390,8 +1390,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
     const payload = { school, score, updatedAt: new Date().toISOString() };
     try {
       const serialized = JSON.stringify(payload);
-      localStorage.setItem('orbit_user_dream', serialized);
-      localStorage.setItem('hyperhub_user_dream', serialized);
+      localStorage.setItem('orbit_user_dream_v2', serialized);
       setDreamGoal({ school, score });
       setIsEditingDream(false);
       showSuccess(`Đã ghim mục tiêu: ${school}`, 'Mục Tiêu Học Tập');

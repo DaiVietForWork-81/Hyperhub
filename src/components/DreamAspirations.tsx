@@ -42,8 +42,8 @@ const POPULAR_DREAM_SCHOOLS = [
   'Học Viện Công Nghệ Bưu Chính Viễn Thông',
 ];
 
-const STORAGE_KEY = 'hyperhub_user_dream';
-const LEGACY_KEYS = ['orbit_user_dream'];
+const STORAGE_KEY = 'orbit_user_dream_v2';
+const LEGACY_KEYS: string[] = [];
 
 type Feedback = { kind: 'success' | 'error'; text: string } | null;
 
@@ -86,7 +86,6 @@ export const DreamAspirations: React.FC = () => {
     try {
       const serialized = JSON.stringify(dreamObj);
       localStorage.setItem(STORAGE_KEY, serialized);
-      localStorage.setItem('orbit_user_dream', serialized);
       setSavedDream(dreamObj);
       setIsEditing(false);
       setFeedback({ kind: 'success', text: 'Đã lưu mục tiêu. Hãy quyết tâm biến nó thành hiện thực nhé!' });

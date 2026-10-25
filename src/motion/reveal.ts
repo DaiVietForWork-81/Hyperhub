@@ -64,7 +64,7 @@ export const observeReveal = (el: Element | null): (() => void) => {
     return () => {};
   }
   const rect = el.getBoundingClientRect();
-  if (rect.top <= window.innerHeight + 180 && rect.bottom >= 0) {
+  if (rect.top <= window.innerHeight + 2400 && rect.bottom >= 0) {
     reveal(el);
     return () => {};
   }

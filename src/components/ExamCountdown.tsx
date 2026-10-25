@@ -423,7 +423,7 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
   const pulse = useHubPulse();
   const [examMode, setExamMode] = useState<ExamMode>(() => {
     try {
-      const saved = localStorage.getItem('orbit-exam-mode') || localStorage.getItem('hyperhub-exam-mode');
+      const saved = localStorage.getItem('orbit_exam_mode_v2');
       if (saved === 'thpt' || saved === 'grade10') return saved;
     } catch {}
     return 'thpt';
@@ -431,12 +431,12 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onNavigateTab }) =
   const [selectedCohort, setSelectedCohort] = useState<CohortKey>(() => getNextThptExamInfo().cohortKey);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
-  const [quoteIdx, setQuoteIdx] = useState<number>(() => Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length));
+  const [quoteIdx, setQuoteIdx] = useState<number>(0);
 
   const handleSelectMode = (mode: ExamMode) => {
     setExamMode(mode);
     try {
-      localStorage.setItem('orbit-exam-mode', mode);
+      localStorage.setItem('orbit_exam_mode_v2', mode);
     } catch {}
   };
 
