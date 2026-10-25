@@ -2258,11 +2258,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.95x COMPACT FULL VIEW)                  */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.9x COMPACT FULL VIEW)                   */}
       {/* ========================================================================= */}
       <aside
         style={{ width: `${config.sidebarWidth}px` }}
-        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.95)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
+        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.9)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
       >
         <div className="space-y-3">
           {/* Brand Header */}
