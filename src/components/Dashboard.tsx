@@ -979,11 +979,15 @@ const DashboardContent: React.FC<DashboardProps> = ({
           if (!apiResolved && tursoDocs && tursoDocs.length > 0) {
             setDocumentsList(tursoDocs as any);
             setTotalDocsCount(tursoDocs.length);
-            setStats({
-              total_real: tursoDocs.length,
-              unique_items: tursoDocs.length,
-              duplicate_items: 0,
-            });
+            setStats((prev) =>
+              prev.total_real > 30 && prev.unique_items > 0 && prev.unique_items <= prev.total_real
+                ? prev
+                : {
+                    total_real: tursoDocs.length,
+                    unique_items: tursoDocs.length,
+                    duplicate_items: 0,
+                  }
+            );
             setIsLoadingDocs(false);
           }
           return tursoDocs;

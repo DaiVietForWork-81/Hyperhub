@@ -255,6 +255,11 @@ export default async function handler(req, res) {
       });
     }
 
+    // 1b. GET /api/health
+    if (pathname === "/api/health" && req.method === "GET") {
+      return res.status(200).json({ status: "ok", bridge: "vercel_turso_direct" });
+    }
+
     // 2. GET /api/documents/stats
     if (pathname === "/api/documents/stats" && req.method === "GET") {
       const totalRes = await executeTurso(
@@ -267,6 +272,13 @@ export default async function handler(req, res) {
         "SELECT COUNT(DISTINCT COALESCE(NULLIF(file_hash, ''), LOWER(file_name))) as ucnt FROM documents_archive"
       );
       const uniqueItems = Number(uniqueRes.rows[0]?.ucnt || totalItems);
+
+      const dupRes = await executeTurso(
+        `SELECT COUNT(*) as dcnt FROM documents_archive
+         WHERE file_hash IN (SELECT file_hash FROM documents_archive WHERE file_hash IS NOT NULL AND file_hash != '' GROUP BY file_hash HAVING COUNT(*) > 1)
+            OR LOWER(file_name) IN (SELECT LOWER(file_name) FROM documents_archive GROUP BY LOWER(file_name) HAVING COUNT(*) > 1)`
+      );
+      const duplicateItems = Number(dupRes.rows[0]?.dcnt || 0);
 
       const subRes = await executeTurso(
         "SELECT subject, COUNT(*) as cnt, COALESCE(SUM(file_size_bytes), 0) as sbytes FROM documents_archive GROUP BY subject ORDER BY cnt DESC"
@@ -282,10 +294,65 @@ export default async function handler(req, res) {
         total_items: totalItems,
         total_real: totalItems,
         unique_items: uniqueItems,
-        duplicate_items: Math.max(0, totalItems - uniqueItems),
+        duplicate_items: duplicateItems,
         total_bytes: totalBytes,
         subjects,
       });
+    }
+
+    // 2b. GET /api/documents/check_hash
+    if (pathname === "/api/documents/check_hash" && req.method === "GET") {
+      const fileHash = (searchParams.get("hash") || "").trim();
+      if (!fileHash || fileHash.length !== 64) {
+        return res
+          .status(400)
+          .json({ error: "Mã hash không hợp lệ (yêu cầu 64 ký tự SHA-256)" });
+      }
+      const existingRes = await executeTurso(
+        "SELECT id, title, author_name, timestamp, jump_url FROM documents_archive WHERE file_hash = ? LIMIT 1",
+        [fileHash]
+      );
+      const existing = existingRes.rows[0];
+      if (existing) {
+        return res.status(200).json({
+          exists: true,
+          is_duplicate: true,
+          message: `Tài liệu trùng lặp! Tệp '${existing.title}' đã được nộp trước đó bởi '${existing.author_name}' vào ${existing.timestamp}.`,
+          doc_id: existing.id,
+          title: existing.title,
+        });
+      }
+      return res.status(200).json({ exists: false, is_duplicate: false });
+    }
+
+    // Helper: điều kiện lọc exam_type giống hệt Bot/services/api_bridge.py
+    function applyExamTypeClause(examTypeRaw, clauses, sqlParams) {
+      if (!examTypeRaw || examTypeRaw.toUpperCase() === "ALL") return;
+      const et = examTypeRaw.toUpperCase().trim();
+      if (et === "THUONG") {
+        clauses.push(
+          "(LOWER(estimated_level) LIKE '%thuong%' OR LOWER(estimated_level) LIKE '%thường%' OR LOWER(title) LIKE '%thường%' OR LOWER(title) LIKE '%học kỳ%' OR LOWER(title) LIKE '%định kỳ%' OR LOWER(title) LIKE '%thi thử%')"
+        );
+      } else if (et === "HSG") {
+        clauses.push(
+          "(LOWER(estimated_level) LIKE '%hsg%' OR LOWER(title) LIKE '%hsg%' OR LOWER(title) LIKE '%học sinh giỏi%')"
+        );
+      } else if (et === "CHUYEN") {
+        clauses.push(
+          "(LOWER(estimated_level) LIKE '%chuyen%' OR LOWER(estimated_level) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyen%')"
+        );
+      } else if (et === "QUOC_TE" || et === "QUOCTE" || et === "INTERNATIONAL") {
+        clauses.push(
+          "(LOWER(estimated_level) LIKE '%quốc tế%' OR LOWER(estimated_level) LIKE '%quoc te%' OR LOWER(title) LIKE '%quốc tế%' OR LOWER(title) LIKE '%quoc te%' OR LOWER(title) LIKE '%international%' OR LOWER(title) LIKE '%imo%' OR LOWER(title) LIKE '%amc%' OR LOWER(title) LIKE '%kangaroo%' OR LOWER(title) LIKE '%ikmc%' OR LOWER(title) LIKE '%sasmo%' OR LOWER(title) LIKE '%timo%' OR LOWER(title) LIKE '%hkimo%' OR LOWER(title) LIKE '%sat%' OR LOWER(title) LIKE '%cambridge%')"
+        );
+      } else if (et === "CHUNG" || et === "TONG_HOP") {
+        clauses.push(
+          "(LOWER(estimated_level) LIKE '%chung%' OR LOWER(estimated_level) LIKE '%phổ thông chung%' OR LOWER(title) LIKE '%tổng hợp%' OR LOWER(title) LIKE '%đề cương%' OR LOWER(title) LIKE '%lý thuyết%')"
+        );
+      } else {
+        clauses.push("(file_type LIKE ? OR estimated_level LIKE ? OR title LIKE ?)");
+        sqlParams.push(`%${examTypeRaw}%`, `%${examTypeRaw}%`, `%${examTypeRaw}%`);
+      }
     }
 
     // 3. GET /api/documents / /api/documents/archive / /api/docs/archive
@@ -295,8 +362,15 @@ export default async function handler(req, res) {
         pathname === "/api/docs/archive") &&
       req.method === "GET"
     ) {
-      const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
-      const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") || "50", 10) || 50));
+      const rawLimit = (searchParams.get("limit") || "20").trim().toLowerCase();
+      let limit = 20;
+      let page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+      if (["0", "-1", "all", "unlimited"].includes(rawLimit)) {
+        limit = 100000;
+        page = 1;
+      } else {
+        limit = Math.min(10000, Math.max(1, parseInt(rawLimit, 10) || 20));
+      }
       const offset = searchParams.has("offset")
         ? Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0)
         : (page - 1) * limit;
@@ -311,19 +385,19 @@ export default async function handler(req, res) {
       const params = [];
 
       if (subject && subject.toUpperCase() !== "ALL") {
-        whereClauses.push("UPPER(subject) = UPPER(?)");
+        whereClauses.push("LOWER(subject) = LOWER(?)");
         params.push(subject);
       }
       if (grade && grade.toUpperCase() !== "ALL") {
         whereClauses.push("(estimated_level LIKE ? OR title LIKE ?)");
         params.push(`%${grade}%`, `%${grade}%`);
       }
-      if (examType && examType.toUpperCase() !== "ALL") {
-        whereClauses.push("(estimated_level LIKE ? OR title LIKE ? OR file_type LIKE ?)");
-        params.push(`%${examType}%`, `%${examType}%`, `%${examType}%`);
-      }
+      applyExamTypeClause(examType, whereClauses, params);
+
       if (searchKw) {
-        whereClauses.push("(LOWER(title) LIKE ? OR LOWER(file_name) LIKE ? OR LOWER(COALESCE(notes, '')) LIKE ?)");
+        whereClauses.push(
+          "(LOWER(title) LIKE ? OR LOWER(file_name) LIKE ? OR LOWER(COALESCE(notes, '')) LIKE ?)"
+        );
         const kw = `%${searchKw.toLowerCase()}%`;
         params.push(kw, kw, kw);
       }
@@ -344,6 +418,22 @@ export default async function handler(req, res) {
       );
       const total = Number(cntRes.rows[0]?.cnt || 0);
 
+      // Map min_id và count cho từng hash / tên file để xác định bản gốc vs bản trùng giống hệt api_bridge.py
+      const minIdRes = await executeTurso(
+        `SELECT COALESCE(NULLIF(file_hash, ''), LOWER(file_name)) as k, MIN(id) as min_id, COUNT(*) as cnt
+         FROM documents_archive
+         GROUP BY COALESCE(NULLIF(file_hash, ''), LOWER(file_name))`
+      );
+      const docStatsMap = new Map();
+      for (const mr of minIdRes.rows) {
+        if (mr.k) {
+          docStatsMap.set(mr.k, {
+            minId: Number(mr.min_id || 0),
+            cnt: Number(mr.cnt || 1),
+          });
+        }
+      }
+
       const dataRes = await executeTurso(
         `SELECT id, subject, title, file_name, file_size_bytes, file_type,
                 estimated_level, question_count, page_count, author_name,
@@ -358,13 +448,20 @@ export default async function handler(req, res) {
 
       const docs = dataRes.rows.map((r) => {
         const { acYear, schDept } = extractAcademicMeta(r);
+        const h = r.file_hash || "";
+        const fn = (r.file_name || "").toLowerCase();
+        const lookupKey = h || fn;
+        const st = docStatsMap.get(lookupKey) || { minId: r.id, cnt: 1 };
+        const isDup = st.cnt > 1;
+        const isDupCopy = Boolean(isDup && r.id !== st.minId);
+
         return {
           ...r,
           academic_year: acYear,
           school_or_department: schDept,
-          is_duplicate: false,
-          is_duplicate_copy: false,
-          duplicate_count: 1,
+          is_duplicate: isDup,
+          is_duplicate_copy: isDupCopy,
+          duplicate_count: st.cnt,
           download_url: `/api/documents/${r.id}/download`,
         };
       });
@@ -405,18 +502,20 @@ export default async function handler(req, res) {
 
       const subject = (searchParams.get("subject") || "").trim();
       const grade = (searchParams.get("grade") || "").trim();
+      const examType = (searchParams.get("exam_type") || "").trim();
       const desc = (searchParams.get("description") || "").trim();
 
       const clauses = [];
       const params = [];
       if (subject && subject.toUpperCase() !== "ALL") {
-        clauses.push("UPPER(subject) = UPPER(?)");
+        clauses.push("LOWER(subject) = LOWER(?)");
         params.push(subject);
       }
       if (grade && grade.toUpperCase() !== "ALL") {
         clauses.push("(estimated_level LIKE ? OR title LIKE ?)");
         params.push(`%${grade}%`, `%${grade}%`);
       }
+      applyExamTypeClause(examType, clauses, params);
       if (desc) {
         clauses.push("(LOWER(title) LIKE ? OR LOWER(file_name) LIKE ?)");
         params.push(`%${desc.toLowerCase()}%`, `%${desc.toLowerCase()}%`);
