@@ -13,7 +13,7 @@ const LINKS = [
   { href: '#co-founders', label: 'Đồng sáng lập' },
 ];
 
-export const Footer: React.FC<{ onOpenDashboard?: () => void; onReplayIntro?: () => void }> = ({ onOpenDashboard, onReplayIntro }) => (
+export const Footer: React.FC<{ onOpenDashboard?: () => void }> = ({ onOpenDashboard }) => (
   <footer className="hh-footer">
     {onOpenDashboard && (
       <div className="hh-footer-cta">
@@ -50,13 +50,6 @@ export const Footer: React.FC<{ onOpenDashboard?: () => void; onReplayIntro?: ()
               </a>
             </li>
           ))}
-          {onReplayIntro && (
-            <li>
-              <button type="button" onClick={onReplayIntro} className="hh-link">
-                Phát lại Intro
-              </button>
-            </li>
-          )}
         </ul>
       </nav>
 

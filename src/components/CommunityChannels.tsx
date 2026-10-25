@@ -82,6 +82,7 @@ export const CommunityChannels: React.FC = () => {
             <ul className="hh-feature-list">
               <li><Smartphone aria-hidden="true" />Trao đổi bài tập trên điện thoại</li>
               <li><BellRing aria-hidden="true" />Nhắc lịch thi &amp; đếm ngược</li>
+              <li><Users aria-hidden="true" />Chia sẻ nhanh tài liệu PDF &amp; lời giải</li>
             </ul>
             <PixelButton
               variant="messenger"

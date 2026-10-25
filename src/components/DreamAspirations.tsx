@@ -153,7 +153,7 @@ export const DreamAspirations: React.FC = () => {
                       type="text"
                       value={dreamSchool}
                       onChange={(e) => setDreamSchool(e.target.value)}
-                      placeholder="Ví dụ: ĐH Bách Khoa, Chuyên Amsterdam, ĐH Y Hà Nội…"
+                      placeholder="VD: ĐH Bách Khoa HN, Chuyên Amsterdam"
                       required
                       autoComplete="off"
                     />
@@ -165,7 +165,7 @@ export const DreamAspirations: React.FC = () => {
                       type="text"
                       value={dreamScore}
                       onChange={(e) => setDreamScore(e.target.value)}
-                      placeholder="Ví dụ: 28+ khối A00, IELTS 7.5+…"
+                      placeholder="VD: 28.5+ khối A00, IELTS 8.0"
                       autoComplete="off"
                     />
                   </div>

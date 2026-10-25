@@ -1447,7 +1447,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
       return { ...item, count };
     });
     withCounts.sort((a, b) => b.count - a.count);
-    return withCounts.slice(0, 4);
+    return withCounts.slice(0, 6);
   }, [documentsList]);
 
   // Đồng bộ ngày đếm ngược kỳ thi THPT Quốc Gia với Trang chủ
@@ -2308,7 +2308,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
           >
             <span className="flex items-center gap-2">
               <Search className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
-              <span>Tìm nhanh đề thi, lệnh...</span>
+              <span>Tìm nhanh đề thi &amp; lệnh</span>
             </span>
             <kbd className="text-[13px] px-1.5 py-0.5 rounded bg-white/[0.07] border border-[#241a38] text-white/65 whitespace-nowrap shrink-0">
               Ctrl K
@@ -2512,6 +2512,57 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   {dreamGoal.score}đ
                 </span>
               )}
+            </div>
+          </div>
+
+          {/* LỌC NHANH THEO KHỐI LỚP NGAY TRONG SIDEBAR (TẬN DỤNG KHÔNG GIAN TRỐNG) */}
+          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold text-[#E2CEFF] flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                <span>Lọc nhanh khối lớp</span>
+              </span>
+              <span className="text-[13px] text-white/50 tabular-nums">Lớp 6–12</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: '12', label: 'Lớp 12', dot: '#EF4444', count: gradeDistribution['12'] || 0 },
+                { id: '11', label: 'Lớp 11', dot: '#F97316', count: gradeDistribution['11'] || 0 },
+                { id: '10', label: 'Lớp 10', dot: '#F59E0B', count: gradeDistribution['10'] || 0 },
+                {
+                  id: '9',
+                  label: 'Khối THCS',
+                  dot: '#10B981',
+                  count:
+                    (gradeDistribution['9'] || 0) +
+                    (gradeDistribution['8'] || 0) +
+                    (gradeDistribution['7'] || 0) +
+                    (gradeDistribution['6'] || 0),
+                },
+              ].map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => {
+                    if (g.id === '9') {
+                      setSelectedEducationLevel('CAP_2');
+                      handleGradeChange('ALL');
+                    } else {
+                      setSelectedEducationLevel('ALL');
+                      handleGradeChange(g.id);
+                    }
+                    setShowBookmarksOnly(false);
+                    handleTabChange('vault');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-[#241a38] hover:border-[#FF4FCB]/40 flex items-center justify-between text-[13px] transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5 font-semibold text-white/85">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: g.dot }} />
+                    <span>{g.label}</span>
+                  </span>
+                  <span className="font-mono text-[13px] text-white/55 tabular-nums">{g.count}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -2753,14 +2804,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
                             type="text"
                             value={dreamSchoolInput}
                             onChange={(e) => setDreamSchoolInput(e.target.value)}
-                            placeholder="VD: ĐH Bách Khoa Hà Nội, THPT Chuyên KHTN..."
+                            placeholder="VD: ĐH Bách Khoa HN, Chuyên KHTN"
                             className="sm:col-span-7 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#FF4FCB]"
                           />
                           <input
                             type="text"
                             value={dreamScoreInput}
                             onChange={(e) => setDreamScoreInput(e.target.value)}
-                            placeholder="Điểm mục tiêu (VD: 28.5+)"
+                            placeholder="Điểm (VD: 28.5+)"
                             className="sm:col-span-3 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#9B5CFF]"
                           />
                           <button
@@ -2772,6 +2823,72 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         </div>
                       </form>
                     )}
+                  </div>
+
+                  {/* Dải 4 lối tắt thống kê & lọc nhanh ngay trong Bàn Điều Khiển */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEducationLevel('ALL');
+                        handleGradeChange('12');
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="text-[13px] text-white/55 font-medium">Trọng tâm Lớp 12</div>
+                      <div className="text-base font-extrabold text-white mt-0.5 tabular-nums">
+                        {gradeDistribution['12'] || 0} đề thi
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEducationLevel('CAP_3');
+                        handleGradeChange('ALL');
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/40 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="text-[13px] text-white/55 font-medium">Khối THPT (10–12)</div>
+                      <div className="text-base font-extrabold text-[#E2CEFF] mt-0.5 tabular-nums">
+                        {(gradeDistribution['12'] || 0) +
+                          (gradeDistribution['11'] || 0) +
+                          (gradeDistribution['10'] || 0) || totalDocsCount}{' '}
+                        đề tuyển chọn
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterHasAnswers(true);
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-emerald-400/40 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="text-[13px] text-white/55 font-medium">Đáp án &amp; Lời giải</div>
+                      <div className="text-base font-extrabold text-emerald-300 mt-0.5 tabular-nums">
+                        {documentsList.filter((d) => d.has_answer_keys || d.has_detailed_solutions).length || totalDocsCount} đề chuẩn
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleTabChange('submit_doc');
+                      }}
+                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FFB396]/40 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="text-[13px] text-white/55 font-medium">Đề thi độc bản</div>
+                      <div className="text-base font-extrabold text-[#FFB396] mt-0.5 tabular-nums">
+                        {stats.unique_items || totalDocsCount} độc bản
+                      </div>
+                    </button>
                   </div>
                 </div>
 
@@ -2964,7 +3081,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    {documentsList.slice(0, 4).map((doc) => {
+                    {documentsList.slice(0, 5).map((doc) => {
                       const isBookmarked = bookmarkedIds.has(doc.id);
                       const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
                       const trackInfo = getExamTrackInfo(doc);
@@ -3004,7 +3121,15 @@ const DashboardContent: React.FC<DashboardProps> = ({
                             </h4>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                            <div className="hidden md:flex items-center gap-1.5 text-[13px] text-white/50 tabular-nums pr-1">
+                              <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-[#241a38]">
+                                {doc.page_count || 1} trang
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-[#241a38] uppercase font-mono">
+                                {doc.file_type || 'PDF'}
+                              </span>
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
@@ -3051,11 +3176,34 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     })}
                   </div>
                 )}
+
+                <div className="pt-2 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/60">
+                  <span>Bấm vào tên đề để mở Hồ sơ kiểm định chi tiết</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('submit_doc')}
+                      className="text-emerald-300 hover:underline font-bold cursor-pointer"
+                    >
+                      + Đóng góp đề mới
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="text-[#FFB8E6] hover:underline font-bold cursor-pointer"
+                    >
+                      Duyệt kho đề ({totalDocsCount})
+                    </button>
+                  </div>
+                </div>
               </SpotSurface>
 
-              {/* Cột phải (4/12): Tủ Sách Đang Lưu + Trạng thái kết nối (Gộp trong 1 card đồng nhất chiều cao) */}
-              <SpotSurface className="xl:col-span-4 hh-hub-surface p-6 flex flex-col justify-between gap-5 h-full">
-                <div className="space-y-4">
+              {/* Cột phải (4/12): Tủ Sách Đang Lưu + Lối tắt phân ban + Trạng thái kết nối */}
+              <SpotSurface className="xl:col-span-4 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
+                <div className="space-y-3.5">
                   <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
                     <div>
                       <span className="text-[13px] font-semibold text-amber-300">Lưu trữ cá nhân</span>
@@ -3067,17 +3215,45 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
 
                   {bookmarkedIds.size === 0 ? (
-                    <div className="py-5 px-4 rounded-xl bg-[#0B0911]/70 border border-[#241a38] text-center space-y-2">
-                      <p className="text-[13px] text-white/60 leading-relaxed">
-                        Bạn chưa đánh dấu đề thi nào. Bấm biểu tượng ngôi sao trên các đề cần luyện lại để ghim vào đây.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('vault')}
-                        className="text-[13px] font-bold text-[#FFB8E6] hover:underline cursor-pointer"
-                      >
-                        Mở Kho Đề Thi
-                      </button>
+                    <div className="space-y-2.5">
+                      <div className="p-3.5 rounded-xl bg-[#0B0911]/70 border border-[#241a38] flex items-center justify-between gap-3">
+                        <p className="text-[13px] text-white/65 leading-snug">
+                          Chưa có đề ghim. Bấm ngôi sao trên đề bất kỳ hoặc ghim nhanh đề tiêu biểu bên dưới:
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {documentsList.slice(0, 2).map((doc) => (
+                          <div
+                            key={`suggest-${doc.id}`}
+                            className="p-2.5 rounded-xl bg-[#0B0911]/80 border border-[#241a38] flex items-center justify-between gap-2"
+                          >
+                            <div
+                              onClick={() => {
+                                setSelectedDossierDoc(doc);
+                                setIsDossierOpen(true);
+                              }}
+                              className="min-w-0 flex-1 cursor-pointer"
+                            >
+                              <div className="text-[13px] font-bold text-[#FFB8E6]">{doc.subject}</div>
+                              <div className="text-[13px] font-semibold text-white overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,#000_85%,transparent)]">
+                                {doc.title || doc.file_name}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleBookmarkExam(doc.id);
+                                setBookmarkedIds(new Set(getBookmarkedExamIds()));
+                                showSuccess(`Đã lưu "${doc.title || doc.file_name}" vào Tủ Sách!`, 'Tủ Sách');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[13px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              <Star className="w-3.5 h-3.5" />
+                              <span>Ghim</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -3116,8 +3292,37 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   )}
                 </div>
 
+                {/* Lối tắt phân ban đề (Lấp đầy khoảng trống bằng bộ lọc 1 chạm) */}
+                <div className="pt-3 border-t border-[#241a38] space-y-2">
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="font-semibold text-white/75">Phân ban đề nhanh</span>
+                    <span className="text-white/45">1 chạm mở kho</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'THUONG', label: 'Đề Thường & HK', tone: 'text-[#E2CEFF]' },
+                      { id: 'CHUYEN', label: 'Đề Trường Chuyên', tone: 'text-[#FFA8DC]' },
+                      { id: 'HSG', label: 'Đề Học Sinh Giỏi', tone: 'text-[#FFB396]' },
+                      { id: 'ALL', label: 'Mở Toàn Bộ Kho', tone: 'text-emerald-300' },
+                    ].map((track) => (
+                      <button
+                        key={track.id}
+                        type="button"
+                        onClick={() => {
+                          handleExamTypeChange(track.id);
+                          setShowBookmarksOnly(false);
+                          handleTabChange('vault');
+                        }}
+                        className={`px-3 py-2 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.06] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left text-[13px] font-bold ${track.tone} transition-colors cursor-pointer`}
+                      >
+                        {track.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Trạng thái Hạ tầng Bot & Turso */}
-                <div className="pt-4 border-t border-[#241a38] space-y-2.5">
+                <div className="pt-3 border-t border-[#241a38] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-semibold text-white/75">Hạ tầng dữ liệu</span>
                     <span

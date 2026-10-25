@@ -61,9 +61,10 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
               trực tuyến 24/7.
             </p>
             <ul className="hh-checks">
-              <li><Check aria-hidden="true" />Kho đề đã thẩm định</li>
-              <li><Check aria-hidden="true" />Lưu trữ cá nhân</li>
-              <li><Check aria-hidden="true" />Bộ lọc môn học chuẩn</li>
+              <li><Check aria-hidden="true" />Kho đề đã thẩm định &amp; phân loại tự động</li>
+              <li><Check aria-hidden="true" />Tủ sách cá nhân &amp; đồng bộ tài khoản Discord</li>
+              <li><Check aria-hidden="true" />Bộ lọc sâu theo Khối lớp, Môn học, Trường &amp; Sở</li>
+              <li><Check aria-hidden="true" />Máy phát đề ngẫu nhiên &amp; đồng hồ Pomodoro 25/5</li>
             </ul>
             {/* Minh họa "kho khối": các ô đề xếp tầng, nhô lên thành sóng khi hover thẻ */}
             <div className="hh-vault" aria-hidden="true">

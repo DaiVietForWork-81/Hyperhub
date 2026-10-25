@@ -16,15 +16,12 @@ import { CoFounders } from './components/CoFounders';
 import { AmbientField, CursorAura } from './components/hh/Ambient';
 import { ChapterRail, ChapterOpener } from './components/hh/Chapters';
 import { Reveal } from './components/hh/Reveal';
-import { OrbitIntro } from './components/OrbitIntro';
 import { prefersReducedMotion } from './motion/capabilities';
 import { loadDashboard, preloadHubWhenIdle } from './hubLoader';
 import { sound } from './utils/audio';
 
-type View = 'intro' | 'home' | 'dashboard';
+type View = 'home' | 'dashboard';
 type Tab = 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
-
-const INTRO_SEEN_KEY = 'orbit_intro_seen';
 
 /**
  * Hub (Dashboard ~200KB nguồn) tách chunk riêng: trang chủ tải nhanh hơn,
@@ -57,32 +54,16 @@ export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   useSmoothScroll();
 
-  // Khởi tạo activeView dựa theo pathname (/intro, /hub, /admin) hoặc phiên truy cập đầu tiên
+  // Khởi tạo activeView dựa theo pathname (/hub, /admin) hoặc mặc định vào thẳng trang chủ
   const [activeView, setActiveView] = useState<View>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    const params = new URLSearchParams(window.location.search);
 
     if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
       return 'dashboard';
     }
-    if (path.startsWith('/intro') || hash === '#intro' || params.get('intro') === '1') {
-      return 'intro';
-    }
-    // Bỏ qua Intro khi điều hướng sâu bằng hash/query hoặc khi trình kiểm tra bố cục tự động đang lấy mẫu
-    const isAutomatedPageProbe = '__motionSample' in window;
-    if (hash || params.get('skipIntro') === '1' || isAutomatedPageProbe) {
-      return 'home';
-    }
-    try {
-      if (sessionStorage.getItem(INTRO_SEEN_KEY) === '1') {
-        return 'home';
-      }
-    } catch {
-      return 'home';
-    }
-    return 'intro';
+    return 'home';
   });
 
   const [dashboardTab, setDashboardTab] = useState<Tab>(() => {
@@ -93,53 +74,27 @@ export const App: React.FC = () => {
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Điều hướng SPA chuẩn với URL /intro, /hub, /admin và /
+  // Điều hướng SPA chuẩn với URL /hub, /admin và /
   const navigateTo = useCallback((view: View, tab?: Tab) => {
     const targetPath =
       view === 'dashboard'
         ? tab === 'admin'
           ? '/admin'
           : '/hub'
-        : view === 'intro'
-          ? '/intro'
-          : '/';
-    if (view !== 'intro') {
-      try {
-        sessionStorage.setItem(INTRO_SEEN_KEY, '1');
-      } catch {
-        // ignore storage quota errors
-      }
-    }
+        : '/';
     const apply = () => {
       setActiveView(view);
       if (tab) setDashboardTab(tab);
       if (window.location.pathname !== targetPath) {
         window.history.pushState(null, '', targetPath);
       }
+      if (window.__lenis) {
+        window.__lenis.scrollTo(0, { immediate: true });
+      }
       window.scrollTo({ top: 0, behavior: 'auto' });
     };
     withViewTransition(apply);
   }, []);
-
-  const handleEnterFromIntro = useCallback(
-    (target: 'home' | 'dashboard' = 'home') => {
-      try {
-        sessionStorage.setItem(INTRO_SEEN_KEY, '1');
-      } catch {
-        // ignore
-      }
-      if (target === 'dashboard') {
-        navigateTo('dashboard', 'get_exam');
-      } else {
-        navigateTo('home');
-      }
-    },
-    [navigateTo]
-  );
-
-  const handleReplayIntro = useCallback(() => {
-    navigateTo('intro');
-  }, [navigateTo]);
 
   // Lắng nghe nút Back / Forward trên trình duyệt
   useEffect(() => {
@@ -152,8 +107,6 @@ export const App: React.FC = () => {
           if (path.startsWith('/admin')) {
             setDashboardTab('admin');
           }
-        } else if (path.startsWith('/intro') || hash === '#intro') {
-          setActiveView('intro');
         } else {
           setActiveView('home');
         }
@@ -195,8 +148,8 @@ export const App: React.FC = () => {
     setDiscordUser(null);
   };
 
-  // Trang chủ hoặc Intro đã hiển thị → tải trước Hub khi trình duyệt rảnh
-  useEffect(() => (activeView === 'home' || activeView === 'intro' ? preloadHubWhenIdle() : undefined), [activeView]);
+  // Trang chủ đã hiển thị → tải trước Hub khi trình duyệt rảnh
+  useEffect(() => (activeView === 'home' ? preloadHubWhenIdle() : undefined), [activeView]);
 
   // Phản hồi âm thanh tương tác toàn cục
   useEffect(() => {
@@ -222,15 +175,7 @@ export const App: React.FC = () => {
     <div className="relative min-h-dvh w-full overflow-x-clip bg-[#08060E] text-[#F8F5FF] selection:bg-pink-500/35 selection:text-pink-100">
       <a href="#main-content" className="hh-skip">Bỏ qua tới nội dung chính</a>
 
-      {activeView === 'intro' ? (
-        <main id="main-content" className="relative z-10 min-h-dvh w-full">
-          <OrbitIntro
-            onEnterMain={() => handleEnterFromIntro('home')}
-            onEnterHub={() => handleEnterFromIntro('dashboard')}
-            onSkip={() => handleEnterFromIntro('home')}
-          />
-        </main>
-      ) : activeView === 'home' ? (
+      {activeView === 'home' ? (
         <>
           <AmbientField />
           <CursorAura />
@@ -240,7 +185,6 @@ export const App: React.FC = () => {
             activeView={activeView}
             activeTab={dashboardTab}
             onSelectView={(view, tab) => navigateTo(view, tab)}
-            onReplayIntro={handleReplayIntro}
             user={discordUser}
             onOpenAuthModal={() => setIsAuthModalOpen(true)}
           />
@@ -297,7 +241,7 @@ export const App: React.FC = () => {
             </div>
           </main>
 
-          <Footer onOpenDashboard={openHub('get_exam')} onReplayIntro={handleReplayIntro} />
+          <Footer onOpenDashboard={openHub('get_exam')} />
         </>
       ) : (
         /* HUB / BẢNG ĐIỀU KHIỂN */

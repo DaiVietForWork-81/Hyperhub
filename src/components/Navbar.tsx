@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, Volume2, VolumeX, Compass } from 'lucide-react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, Volume2, VolumeX } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import { PixelMark } from './hh/PixelMark';
 import { useHubPulse } from '../hooks/useHubPulse';
@@ -14,7 +14,6 @@ interface NavbarProps {
   activeView: 'home' | 'dashboard';
   activeTab?: Tab;
   onSelectView: (view: 'home' | 'dashboard', tab?: Tab) => void;
-  onReplayIntro?: () => void;
   user: DiscordUser | null;
   onOpenAuthModal: () => void;
 }
@@ -43,7 +42,7 @@ const isItemActive = (item: NavItem, view: 'home' | 'dashboard', tab: Tab) => {
   return item.tab === tab;
 };
 
-export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overview', onSelectView, onReplayIntro, user, onOpenAuthModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overview', onSelectView, user, onOpenAuthModal }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => sound.isEnabled());
@@ -194,22 +193,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overvie
         </nav>
 
         <div className="hh-header-actions">
-          {onReplayIntro && (
-            <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-                onReplayIntro();
-              }}
-              onPointerEnter={() => sound.playHover()}
-              className="hh-replay-intro-btn"
-              title="Phát lại màn mở đầu quỹ đạo Orbit"
-            >
-              <Compass className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Intro</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => sound.toggle()}

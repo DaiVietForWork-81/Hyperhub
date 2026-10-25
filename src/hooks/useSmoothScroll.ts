@@ -10,8 +10,12 @@ declare global {
 
 export const useSmoothScroll = () => {
   useEffect(() => {
-    // Disable if user prefers reduced motion
-    if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // Disable if user prefers reduced motion or automated layout probe is sampling
+    if (
+      typeof window === 'undefined' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      '__motionSample' in window
+    ) {
       return;
     }
 
