@@ -903,7 +903,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
     try {
       let res = await fetch(`${apiBase}/api/status`, {
         headers: API_FETCH_HEADERS,
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(8000),
       });
 
       // Nếu endpoint hiện tại lỗi, tự động thử DEFAULT_TUNNEL_URL (trên môi trường HTTPS)
@@ -911,7 +911,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         try {
           const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(8000),
           });
           if (fallbackRes.ok) {
             res = fallbackRes;
@@ -940,7 +940,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         try {
           const fallbackRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/status`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(8000),
           });
           if (fallbackRes.ok) {
             const data = await fallbackRes.json();
@@ -1014,14 +1014,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
         let res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
           headers: API_FETCH_HEADERS,
-          signal: AbortSignal.timeout(2500),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
           try {
             const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents?${q.toString()}`, {
               headers: API_FETCH_HEADERS,
-              signal: AbortSignal.timeout(2500),
+              signal: AbortSignal.timeout(8000),
             });
             if (fbRes.ok) {
               res = fbRes;
@@ -1073,14 +1073,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
       let apiBase = getApiBaseUrl();
       let res = await fetch(`${apiBase}/api/documents/stats`, {
         headers: API_FETCH_HEADERS,
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (!res.ok && apiBase !== DEFAULT_TUNNEL_URL && (typeof window !== 'undefined' && window.location.protocol === 'https:')) {
         try {
           const fbRes = await fetch(`${DEFAULT_TUNNEL_URL}/api/documents/stats`, {
             headers: API_FETCH_HEADERS,
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(8000),
           });
           if (fbRes.ok) {
             res = fbRes;

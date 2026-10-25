@@ -6,7 +6,7 @@
 
 export const DEFAULT_VERCEL_URL = "https://hyperhub-one.vercel.app";
 export const DEFAULT_TUNNEL_URL = DEFAULT_VERCEL_URL;
-export const LOCAL_API_URL = "http://localhost:8080";
+export const LOCAL_API_URL = "http://127.0.0.1:8080";
 
 export const API_FETCH_HEADERS: Record<string, string> = {
   "Accept": "application/json",
