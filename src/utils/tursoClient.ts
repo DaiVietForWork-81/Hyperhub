@@ -195,7 +195,7 @@ export async function saveDocumentToTurso(
     doc.authorName || "Khách (Web)",
     0, // channel_id
     0, // message_id
-    "https://hyperhub-one.vercel.app/#vault",
+    "https://orbit-psi-black.vercel.app/#vault",
     nowIso,
     doc.fileHash,
     doc.rawTextSnippet.slice(0, 50000),

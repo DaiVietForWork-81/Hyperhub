@@ -4,7 +4,7 @@
  * Không cần ngrok hay Cloudflare Tunnel.
  */
 
-export const DEFAULT_VERCEL_URL = "https://hyperhub-one.vercel.app";
+export const DEFAULT_VERCEL_URL = "https://orbit-psi-black.vercel.app";
 export const DEFAULT_TUNNEL_URL = DEFAULT_VERCEL_URL;
 export const LOCAL_API_URL = "http://127.0.0.1:8080";
 
@@ -16,6 +16,7 @@ export const API_FETCH_HEADERS: Record<string, string> = {
 const ALLOWED_API_HOSTS = [
   "localhost",
   "127.0.0.1",
+  "orbit-psi-black.vercel.app",
   "hyperhub-one.vercel.app",
 ];
 

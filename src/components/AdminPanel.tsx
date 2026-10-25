@@ -474,7 +474,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     if (input) {
       try {
         const parsed = new URL(input);
-        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'hyperhub-one.vercel.app'];
+        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'orbit-psi-black.vercel.app', 'hyperhub-one.vercel.app'];
         const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
         if (!isAllowed) {
           setEndpointMsg('⚠️ Chỉ chấp nhận máy chủ chính thức của Orbit hoặc Localhost.');
@@ -1956,12 +1956,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Cổng Web Vercel:</span>
                   <a
-                    href="https://hyperhub-one.vercel.app"
+                    href="https://orbit-psi-black.vercel.app"
                     target="_blank"
                     rel="noreferrer"
                     className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-[11px]"
                   >
-                    <span>hyperhub-one.vercel.app</span>
+                    <span>orbit-psi-black.vercel.app</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>

@@ -224,7 +224,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) 
 
       <div className="hh-hero-inner">
         <div className="hh-hero-main">
-          <div className="hh-hero-mark" role="img" aria-label="Orbit · Different paths. One orbit. Learn, Grow, Connect">
+          <div className="hh-hero-mark" role="img" aria-label="Orbit · Learn, Chill, Study">
             <PixelWordmark className="hh-wordmark" />
           </div>
 

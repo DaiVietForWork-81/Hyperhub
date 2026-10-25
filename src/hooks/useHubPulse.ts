@@ -32,9 +32,9 @@ const fetchJson = async (path: string): Promise<Record<string, unknown> | null> 
   } catch {
     // Fallback sang Vercel API nếu gọi Local API bị gián đoạn
   }
-  if (base && !base.includes('hyperhub-one.vercel.app')) {
+  if (base && !base.includes('orbit-psi-black.vercel.app')) {
     try {
-      const res2 = await fetch(`https://hyperhub-one.vercel.app${path}`, {
+      const res2 = await fetch(`https://orbit-psi-black.vercel.app${path}`, {
         headers: API_FETCH_HEADERS,
         signal: AbortSignal.timeout(8000),
       });
