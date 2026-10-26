@@ -356,6 +356,18 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     // Nếu chạy trên Vercel Serverless (trả về 202 queued vì multipart không đi qua RPC),
     // lưu trực tiếp tài liệu vào Turso Cloud (5GB) với đầy đủ siêu dữ liệu từ Client Edge Inspector
     if ((res.status === 202 || data?.queued) && clientReport) {
+      if (clientReport.fileHash) {
+        const dupCheck = await checkHashExistsTurso(clientReport.fileHash);
+        if (dupCheck.exists) {
+          throw {
+            duplicate: true,
+            message: `Tài liệu trùng lặp! Tệp '${dupCheck.title || file.name}' đã được nộp trước đó.`,
+            author: dupCheck.author,
+            timestamp: dupCheck.timestamp,
+            fileHash: clientReport.fileHash,
+          };
+        }
+      }
       let base64Content: string | undefined = undefined;
       if (file.size <= 5 * 1024 * 1024) {
         base64Content = await new Promise<string>((resolve) => {
@@ -365,7 +377,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           reader.readAsDataURL(file);
         });
       }
-      const saved = await saveDocumentToTurso(
+      const docId = await saveDocumentToTurso(
         {
           subject: clientReport.detectedSubject,
           title: file.name,
@@ -391,36 +403,29 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         },
         'pending_bot'
       );
-      if (saved.duplicate) {
-        throw {
-          duplicate: true,
-          message: saved.message || 'Tài liệu này đã tồn tại trong kho đề!',
-          author: saved.existingAuthor,
-          timestamp: saved.existingTimestamp,
-          fileHash: clientReport.fileHash,
-        };
-      }
       return {
-        success: true,
-        doc_id: saved.docId || 0,
+        id: docId || 0,
+        title: file.name,
         file_name: file.name,
         file_size_bytes: file.size,
-        subject: clientReport.detectedSubject,
-        grade: clientReport.estimatedLevel,
-        category: 'EXAM_PAPER',
+        file_type: file.name.split('.').pop()?.toUpperCase() || 'PDF',
+        detected_subject: clientReport.detectedSubject,
+        estimated_level: clientReport.estimatedLevel,
         exam_type: clientReport.examType,
-        confidence: 0.95,
+        confidence_score: 0.95,
         question_count: clientReport.questionCount,
         page_count: clientReport.pageCount,
         summary: clientReport.summary,
         academic_year: clientReport.academicYear,
         school_or_department: clientReport.schoolOrDepartment,
+        file_hash: clientReport.fileHash,
         moet_2025_compliant: clientReport.moet2025Compliant,
         moet_part1_count: clientReport.moetPart1Count,
         moet_part2_count: clientReport.moetPart2Count,
         moet_part3_count: clientReport.moetPart3Count,
         has_answer_keys: clientReport.hasAnswerKeys,
         has_detailed_solutions: clientReport.hasDetailedSolutions,
+        download_url: `/api/documents/${docId || 0}/download`,
       };
     }
 
