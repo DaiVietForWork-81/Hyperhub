@@ -353,6 +353,77 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
     const data = await res.json().catch(() => null);
 
+    // Nếu chạy trên Vercel Serverless (trả về 202 queued vì multipart không đi qua RPC),
+    // lưu trực tiếp tài liệu vào Turso Cloud (5GB) với đầy đủ siêu dữ liệu từ Client Edge Inspector
+    if ((res.status === 202 || data?.queued) && clientReport) {
+      let base64Content: string | undefined = undefined;
+      if (file.size <= 5 * 1024 * 1024) {
+        base64Content = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string) || '');
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      }
+      const saved = await saveDocumentToTurso(
+        {
+          subject: clientReport.detectedSubject,
+          title: file.name,
+          fileName: file.name,
+          fileSizeBytes: file.size,
+          fileType: file.name.split('.').pop()?.toUpperCase() || 'PDF',
+          estimatedLevel: clientReport.estimatedLevel,
+          questionCount: clientReport.questionCount,
+          pageCount: clientReport.pageCount,
+          authorName: displayUploaderName,
+          authorId: user?.id ? parseInt(user.id, 10) : 0,
+          fileHash: clientReport.fileHash,
+          rawTextSnippet: clientReport.rawTextSnippet,
+          academicYear: clientReport.academicYear,
+          schoolOrDepartment: clientReport.schoolOrDepartment,
+          moet2025Compliant: clientReport.moet2025Compliant,
+          moetPart1Count: clientReport.moetPart1Count,
+          moetPart2Count: clientReport.moetPart2Count,
+          moetPart3Count: clientReport.moetPart3Count,
+          hasAnswerKeys: clientReport.hasAnswerKeys,
+          hasDetailedSolutions: clientReport.hasDetailedSolutions,
+          fileContentBase64: base64Content,
+        },
+        'pending_bot'
+      );
+      if (saved.duplicate) {
+        throw {
+          duplicate: true,
+          message: saved.message || 'Tài liệu này đã tồn tại trong kho đề!',
+          author: saved.existingAuthor,
+          timestamp: saved.existingTimestamp,
+          fileHash: clientReport.fileHash,
+        };
+      }
+      return {
+        success: true,
+        doc_id: saved.docId || 0,
+        file_name: file.name,
+        file_size_bytes: file.size,
+        subject: clientReport.detectedSubject,
+        grade: clientReport.estimatedLevel,
+        category: 'EXAM_PAPER',
+        exam_type: clientReport.examType,
+        confidence: 0.95,
+        question_count: clientReport.questionCount,
+        page_count: clientReport.pageCount,
+        summary: clientReport.summary,
+        academic_year: clientReport.academicYear,
+        school_or_department: clientReport.schoolOrDepartment,
+        moet_2025_compliant: clientReport.moet2025Compliant,
+        moet_part1_count: clientReport.moetPart1Count,
+        moet_part2_count: clientReport.moetPart2Count,
+        moet_part3_count: clientReport.moetPart3Count,
+        has_answer_keys: clientReport.hasAnswerKeys,
+        has_detailed_solutions: clientReport.hasDetailedSolutions,
+      };
+    }
+
     if (!res.ok || !data?.success) {
       if (data?.is_duplicate) {
         throw {

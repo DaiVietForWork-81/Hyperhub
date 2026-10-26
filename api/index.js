@@ -1,6 +1,6 @@
 /**
  * api/index.js — Vercel Serverless API Gateway & Turso Cloud 2-Way Bridge
- * Kết nối trực tiếp Web (https://hyperhub-one.vercel.app) <-> Turso Cloud <-> Discord Bot
+ * Kết nối trực tiếp Web (https://orbit-psi-black.vercel.app) <-> Turso Cloud <-> Discord Bot
  * Không cần ngrok hay Cloudflare Tunnel.
  */
 
@@ -226,7 +226,7 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const parsedUrl = new URL(req.url, `https://${req.headers.host || "hyperhub-one.vercel.app"}`);
+  const parsedUrl = new URL(req.url, `https://${req.headers.host || "orbit-psi-black.vercel.app"}`);
   const pathname = parsedUrl.pathname.replace(/\/+$/, "") || "/api/status";
   const searchParams = parsedUrl.searchParams;
 

@@ -522,10 +522,12 @@ const DashboardContent: React.FC<DashboardProps> = ({
       try {
         const apiBase = getApiBaseUrl();
         const token = getDiscordAccessToken();
-        const headers: Record<string, string> = { ...API_FETCH_HEADERS };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+        if (!token) {
+          writeCachedAdmin(false);
+          break;
         }
+        const headers: Record<string, string> = { ...API_FETCH_HEADERS };
+        headers['Authorization'] = `Bearer ${token}`;
         const res = await fetch(`${apiBase}/api/admin/check`, {
           headers,
           signal: AbortSignal.timeout(12000),
