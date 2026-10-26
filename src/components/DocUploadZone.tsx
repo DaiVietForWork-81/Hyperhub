@@ -361,9 +361,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         if (dupCheck.exists) {
           throw {
             duplicate: true,
-            message: `Tài liệu trùng lặp! Tệp '${dupCheck.title || file.name}' đã được nộp trước đó.`,
-            author: dupCheck.author,
-            timestamp: dupCheck.timestamp,
+            message: `Tài liệu trùng lặp! Tệp '${dupCheck.existingDoc?.title || file.name}' đã được nộp trước đó.`,
+            author: dupCheck.existingDoc?.author_name,
+            timestamp: dupCheck.existingDoc?.timestamp,
             fileHash: clientReport.fileHash,
           };
         }
