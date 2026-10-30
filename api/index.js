@@ -212,6 +212,206 @@ function extractAcademicMeta(doc) {
   return { acYear, schDept };
 }
 
+function getVnDates() {
+  const nowVn = new Date(Date.now() + 7 * 3600 * 1000);
+  const yestVn = new Date(nowVn.getTime() - 24 * 3600 * 1000);
+  return {
+    todayStr: nowVn.toISOString().slice(0, 10),
+    yesterdayStr: yestVn.toISOString().slice(0, 10),
+  };
+}
+
+function computeStudyRank(xp) {
+  const tiers = [
+    [0, 1, "🌱 Tân Binh Orbit", 150],
+    [150, 2, "📘 Học Viên Chăm Chỉ", 400],
+    [400, 3, "⚡ Chiến Binh Luyện Đề", 800],
+    [800, 4, "🔥 Học Giả Tinh Anh", 1500],
+    [1500, 5, "🏅 Kiện Tướng Giải Đề", 2800],
+    [2800, 6, "💎 Học Bá Toàn Năng", 5000],
+    [5000, 7, "👑 Thủ Khoa Orbit", 10000],
+  ];
+  let cur = tiers[0];
+  for (const t of tiers) {
+    if (xp >= t[0]) cur = t;
+    else break;
+  }
+  const [minXp, level, title, nextXp] = cur;
+  const span = Math.max(1, nextXp - minXp);
+  const progress = Math.min(100, Math.round(((xp - minXp) / span) * 100));
+  return { level, title, next_xp: nextXp, progress };
+}
+
+function parseQuestionsAndKeys(rawText) {
+  if (!rawText || !rawText.trim()) {
+    return { questions: [], answer_keys: {} };
+  }
+  const text = rawText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const answerKeys = {};
+  const tailText = text.length > 600 ? text.slice(Math.floor(text.length * 0.55)) : text;
+  const keyRegex = /\b(\d{1,3})\s*[.:\-–)\s]\s*([A-D])\b/g;
+  let km;
+  while ((km = keyRegex.exec(tailText)) !== null) {
+    const qn = parseInt(km[1], 10);
+    if (qn >= 1 && qn <= 120) {
+      answerKeys[String(qn)] = km[2].toUpperCase();
+    }
+  }
+
+  const qRegex = /(?:^|\n)\s*(?:Câu|Cau|Question|Bài|Bai)\s+(\d{1,3})\s*[.:)\-–]?\s*([\s\S]*?)(?=(?:\n\s*(?:Câu|Cau|Question|Bài|Bai)\s+\d{1,3}\s*[.:)\-–]?)|$)/gi;
+  const questions = [];
+  const seen = new Set();
+  let qm;
+  while ((qm = qRegex.exec(text)) !== null) {
+    const qNumStr = qm[1];
+    const body = (qm[2] || "").trim();
+    if (!body || body.length < 4) continue;
+    if (seen.has(qNumStr) && body.length < 35) continue;
+    seen.add(qNumStr);
+
+    const options = [];
+    const optRegex = /(?:^|\s|\n)([A-D])\s*[.)]\s+([^\n]+)/g;
+    const optMatches = [];
+    let om;
+    while ((om = optRegex.exec(body)) !== null) {
+      optMatches.push({ index: om.index, key: om[1].toUpperCase(), text: om[2].trim() });
+    }
+
+    let stem = body;
+    if (optMatches.length >= 2) {
+      stem = body.slice(0, optMatches[0].index).trim();
+      for (const o of optMatches.slice(0, 4)) {
+        options.push({ key: o.key, text: o.text });
+      }
+    }
+
+    const statements = [];
+    if (!options.length) {
+      const stRegex = /(?:^|\n)\s*([a-d])\)\s+([^\n]+)/g;
+      const stMatches = [];
+      let sm;
+      while ((sm = stRegex.exec(body)) !== null) {
+        stMatches.push({ index: sm.index, key: sm[1].toLowerCase(), text: sm[2].trim() });
+      }
+      if (stMatches.length >= 2) {
+        stem = body.slice(0, stMatches[0].index).trim();
+        for (const s of stMatches.slice(0, 4)) {
+          statements.push({ key: s.key, text: s.text });
+        }
+      }
+    }
+
+    const qType = options.length
+      ? "mcq"
+      : statements.length
+      ? "true_false"
+      : "short_or_essay";
+
+    questions.push({
+      number: parseInt(qNumStr, 10),
+      label: `Câu ${qNumStr}`,
+      type: qType,
+      stem: stem.slice(0, 1500),
+      options,
+      statements,
+      answer_key: answerKeys[qNumStr],
+    });
+    if (questions.length >= 80) break;
+  }
+
+  return { questions, answer_keys: answerKeys };
+}
+
+async function resolveDocumentFileOnVercel(docId) {
+  const resDoc = await executeTurso(
+    `SELECT id, title, subject, estimated_level, file_name, file_size_bytes,
+            file_type, channel_id, message_id, jump_url, file_content_base64
+     FROM documents_archive WHERE id = ? LIMIT 1`,
+    [docId]
+  );
+  const row = resDoc.rows[0];
+  if (!row) return null;
+
+  const fileName = row.file_name || `de_thi_${docId}.pdf`;
+  const fileType = (row.file_type || "PDF").toUpperCase();
+
+  // 1. Nếu có sẵn file_content_base64 trên Turso Cloud
+  if (row.file_content_base64) {
+    return {
+      row,
+      fileName,
+      fileType,
+      buffer: Buffer.from(row.file_content_base64, "base64"),
+      directUrl: null,
+    };
+  }
+
+  // 2. Kiểm tra cache signed Discord CDN URL trong bot_kv_store (hợp lệ trong 12 giờ)
+  let directUrl = null;
+  const kvCdn = await getKvValue(`doc_cdn_${docId}`);
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (kvCdn && kvCdn.data?.direct_url && nowSec - kvCdn.updated_at < 43200) {
+    directUrl = kvCdn.data.direct_url;
+  }
+
+  // 3. Nếu trên Vercel có cấu hình DISCORD_TOKEN, gọi thẳng Discord REST API lấy link CDN mới nhất (không cần bật máy tính ở nhà!)
+  const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN || "";
+  let channelId = row.channel_id;
+  let messageId = row.message_id;
+  if ((!channelId || !messageId) && row.jump_url && row.jump_url.includes("discord.com/channels/")) {
+    const mj = row.jump_url.match(/discord\.com\/channels\/\d+\/(\d+)\/(\d+)/);
+    if (mj) {
+      channelId = mj[1];
+      messageId = mj[2];
+    }
+  }
+
+  if (!directUrl && botToken && channelId && messageId) {
+    try {
+      const msgResp = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
+        { headers: { Authorization: `Bot ${botToken}` } }
+      );
+      if (msgResp.ok) {
+        const msgData = await msgResp.json();
+        const atts = msgData.attachments || [];
+        const matched =
+          atts.find((a) => (a.filename || "").toLowerCase() === fileName.toLowerCase()) || atts[0];
+        if (matched && matched.url) {
+          directUrl = matched.url;
+          await executeTurso(
+            `INSERT INTO bot_kv_store (key, value, updated_at) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+            [
+              `doc_cdn_${docId}`,
+              JSON.stringify({ direct_url: directUrl, file_name: fileName, file_type: fileType }),
+              nowSec,
+            ]
+          ).catch(() => {});
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Nếu chưa có directUrl, nhờ Bot giải quyết link CDN qua RPC nhẹ (chỉ lấy URL 200 bytes, Bot không phải upload cả file PDF!)
+  if (!directUrl) {
+    try {
+      const rpcRes = await forwardRpcToBot(
+        "GET",
+        `/api/documents/${docId}/file_url`,
+        {},
+        null,
+        5500
+      );
+      if (rpcRes.status === 200 && rpcRes.body?.direct_url?.startsWith("http")) {
+        directUrl = rpcRes.body.direct_url;
+      }
+    } catch {}
+  }
+
+  return { row, fileName, fileType, buffer: null, directUrl };
+}
+
 export default async function handler(req, res) {
   // CORS Headers
   const origin = req.headers.origin || "*";
@@ -566,29 +766,496 @@ export default async function handler(req, res) {
       });
     }
 
-    // 5. GET /api/documents/:id/download
-    const dlMatch = pathname.match(/^\/api\/documents\/(\d+)\/download$/);
-    if (dlMatch && req.method === "GET") {
-      const docId = parseInt(dlMatch[1], 10);
-      const resDoc = await executeTurso(
-        "SELECT file_name, jump_url, file_content_base64 FROM documents_archive WHERE id = ? LIMIT 1",
-        [docId]
-      );
-      const row = resDoc.rows[0];
-      if (!row) {
+    // 5. GET /api/documents/:id/view, /api/documents/:id/pdf, /api/documents/:id/download, /api/documents/:id/file_url, /api/documents/:id/content
+    const docActionMatch = pathname.match(
+      /^\/api\/documents\/(\d+)\/(download|view|pdf|file_url|content)$/
+    );
+    if (docActionMatch && req.method === "GET") {
+      const docId = parseInt(docActionMatch[1], 10);
+      const action = docActionMatch[2];
+
+      // 5a. Nội dung văn bản & câu hỏi bóc tách (xử lý trực tiếp trên Vercel + Turso)
+      if (action === "content") {
+        const resDoc = await executeTurso(
+          `SELECT id, subject, title, file_name, file_size_bytes, file_type,
+                  estimated_level, question_count, page_count, raw_text, notes,
+                  academic_year, school_or_department
+           FROM documents_archive WHERE id = ? LIMIT 1`,
+          [docId]
+        );
+        const row = resDoc.rows[0];
+        if (!row) {
+          return res.status(404).json({ error: "Không tìm thấy đề thi này trong kho" });
+        }
+
+        let rawText = (row.raw_text || "").trim();
+        let pageCount = Number(row.page_count || 1);
+
+        // Nếu chưa có raw_text trên Turso, nhờ Bot trích xuất 1 lần duy nhất và lưu vĩnh viễn lên Turso
+        if (rawText.length < 60) {
+          try {
+            const rpcContent = await forwardRpcToBot(
+              "GET",
+              `/api/documents/${docId}/content`,
+              {},
+              null,
+              6500
+            );
+            if (rpcContent.status === 200 && rpcContent.body?.raw_text) {
+              rawText = rpcContent.body.raw_text;
+              pageCount = rpcContent.body.page_count || pageCount;
+            }
+          } catch {}
+        }
+
+        const parsed = parseQuestionsAndKeys(rawText || row.notes || "");
+        const fileName = row.file_name || `de_thi_${docId}.pdf`;
+        const fileType = (row.file_type || "PDF").toUpperCase();
+        const isPdf = fileName.toLowerCase().endsWith(".pdf") || fileType === "PDF";
+
+        res.setHeader("Cache-Control", "public, max-age=300, s-maxage=1800");
+        return res.status(200).json({
+          success: true,
+          id: docId,
+          subject: row.subject,
+          title: row.title || fileName,
+          file_name: fileName,
+          file_size_bytes: Number(row.file_size_bytes || 0),
+          file_type: fileType,
+          is_pdf: isPdf,
+          estimated_level: row.estimated_level,
+          page_count: pageCount,
+          question_count: parsed.questions.length || Number(row.question_count || 0),
+          academic_year: row.academic_year || "",
+          school_or_department: row.school_or_department || "",
+          raw_text: rawText,
+          notes: row.notes || "",
+          questions: parsed.questions,
+          answer_keys: parsed.answer_keys,
+          inline_view_url: `/api/documents/${docId}/view`,
+          download_url: `/api/documents/${docId}/download`,
+        });
+      }
+
+      const resolved = await resolveDocumentFileOnVercel(docId);
+      if (!resolved) {
         return res.status(404).json({ error: "Không tìm thấy đề thi này trong kho" });
       }
-      if (row.file_content_base64) {
-        const buf = Buffer.from(row.file_content_base64, "base64");
-        const safeName = (row.file_name || `de_thi_${docId}.pdf`).replace(/["\r\n]/g, "");
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
-        return res.status(200).send(buf);
+
+      // 5b. Trả về JSON chứa link CDN trực tiếp
+      if (action === "file_url") {
+        return res.status(200).json({
+          success: true,
+          id: docId,
+          title: resolved.row.title || resolved.fileName,
+          file_name: resolved.fileName,
+          file_type: resolved.fileType,
+          file_size_bytes: Number(resolved.row.file_size_bytes || 0),
+          subject: resolved.row.subject || "GENERAL",
+          estimated_level: resolved.row.estimated_level || "ALL",
+          direct_url: resolved.directUrl || `/api/documents/${docId}/view`,
+          download_url: `/api/documents/${docId}/download`,
+          view_url: `/api/documents/${docId}/view`,
+          jump_url: resolved.row.jump_url,
+        });
       }
-      if (row.jump_url && row.jump_url.startsWith("http")) {
-        return res.redirect(302, row.jump_url);
+
+      // 5c. Stream trực tiếp PDF/DOCX từ Vercel Serverless (gánh 100% băng thông cho Bot!)
+      const isInline = action === "view" || action === "pdf";
+      const safeName = resolved.fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || `exam_${docId}.pdf`;
+      const isPdfFile =
+        resolved.fileName.toLowerCase().endsWith(".pdf") || resolved.fileType === "PDF";
+      const contentType = isPdfFile ? "application/pdf" : "application/octet-stream";
+
+      if (resolved.buffer) {
+        res.setHeader("Content-Type", contentType);
+        res.setHeader(
+          "Content-Disposition",
+          `${isInline ? "inline" : "attachment"}; filename="${safeName}"`
+        );
+        res.setHeader(
+          "Cache-Control",
+          "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"
+        );
+        return res.status(200).send(resolved.buffer);
+      }
+
+      if (resolved.directUrl && resolved.directUrl.startsWith("http")) {
+        try {
+          const cdnResp = await fetch(resolved.directUrl);
+          if (cdnResp.ok) {
+            const arrBuf = await cdnResp.arrayBuffer();
+            const buf = Buffer.from(arrBuf);
+            res.setHeader("Content-Type", isPdfFile ? "application/pdf" : (cdnResp.headers.get("content-type") || contentType));
+            res.setHeader(
+              "Content-Disposition",
+              `${isInline ? "inline" : "attachment"}; filename="${safeName}"`
+            );
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"
+            );
+            return res.status(200).send(buf);
+          }
+        } catch {}
+        return res.redirect(302, resolved.directUrl);
+      }
+
+      if (resolved.row.jump_url && resolved.row.jump_url.startsWith("http")) {
+        return res.redirect(302, resolved.row.jump_url);
       }
       return res.status(404).json({ error: "Không tìm thấy liên kết tải cho tệp này" });
+    }
+
+    // 5d. HỒ SƠ HỌC TẬP, CHUỖI NGÀY HỌC (STREAK) & BẢNG XẾP HẠNG TRÊN VERCEL SERVERLESS
+    if (
+      (pathname === "/api/study/profile" || pathname.startsWith("/api/study/profile/")) &&
+      req.method === "GET"
+    ) {
+      await executeTurso(
+        `CREATE TABLE IF NOT EXISTS study_profiles (
+          discord_id INTEGER PRIMARY KEY,
+          username TEXT,
+          display_name TEXT,
+          avatar_url TEXT,
+          current_streak INTEGER DEFAULT 0,
+          max_streak INTEGER DEFAULT 0,
+          last_study_date TEXT DEFAULT '',
+          study_xp INTEGER DEFAULT 0,
+          pomodoro_count INTEGER DEFAULT 0,
+          study_minutes INTEGER DEFAULT 0,
+          exams_completed INTEGER DEFAULT 0,
+          docs_contributed INTEGER DEFAULT 0,
+          dream_school TEXT DEFAULT '',
+          dream_score TEXT DEFAULT '',
+          updated_at TEXT NOT NULL
+        )`
+      ).catch(() => {});
+
+      const pathParts = pathname.split("/");
+      const idFromPath = pathParts.length > 4 ? pathParts[4] : "";
+      const discordId = (idFromPath || searchParams.get("discord_id") || "").trim();
+      const username = (searchParams.get("username") || "").trim();
+      const displayName = (searchParams.get("display_name") || username || "Học viên Orbit").trim();
+      const avatarUrl = (searchParams.get("avatar_url") || "").trim();
+
+      if (!discordId) {
+        return res.status(400).json({ error: "Thiếu discord_id" });
+      }
+
+      const { todayStr, yesterdayStr } = getVnDates();
+      const nowIso = new Date().toISOString();
+
+      const [profRes, contribRes] = await Promise.all([
+        executeTurso("SELECT * FROM study_profiles WHERE discord_id = ? LIMIT 1", [discordId]),
+        executeTurso("SELECT COUNT(*) as cnt FROM documents_archive WHERE author_id = ?", [
+          discordId,
+        ]).catch(() => ({ rows: [{ cnt: 0 }] })),
+      ]);
+
+      const realContrib = Number(contribRes.rows[0]?.cnt || 0);
+      let row = profRes.rows[0];
+      if (!row) {
+        const initXp = realContrib * 50;
+        await executeTurso(
+          `INSERT OR IGNORE INTO study_profiles
+           (discord_id, username, display_name, avatar_url, current_streak, max_streak,
+            last_study_date, study_xp, pomodoro_count, study_minutes, exams_completed,
+            docs_contributed, dream_school, dream_score, updated_at)
+           VALUES (?, ?, ?, ?, 0, 0, '', ?, 0, 0, 0, ?, '', '', ?)`,
+          [discordId, username, displayName, avatarUrl, initXp, realContrib, nowIso]
+        ).catch(() => {});
+        row = {
+          discord_id: discordId,
+          username,
+          display_name: displayName,
+          avatar_url: avatarUrl,
+          current_streak: 0,
+          max_streak: 0,
+          last_study_date: "",
+          study_xp: initXp,
+          pomodoro_count: 0,
+          study_minutes: 0,
+          exams_completed: 0,
+          docs_contributed: realContrib,
+          dream_school: "",
+          dream_score: "",
+          updated_at: nowIso,
+        };
+      }
+
+      const lastDate = String(row.last_study_date || "");
+      const rawStreak = Number(row.current_streak || 0);
+      const activeStreak =
+        lastDate === todayStr || lastDate === yesterdayStr ? rawStreak : 0;
+      const maxStreak = Math.max(Number(row.max_streak || 0), activeStreak);
+      const docsContrib = Math.max(Number(row.docs_contributed || 0), realContrib);
+      const xp = Math.max(Number(row.study_xp || 0), docsContrib * 50);
+      const rankInfo = computeStudyRank(xp);
+
+      return res.status(200).json({
+        success: true,
+        profile: {
+          discord_id: String(row.discord_id || discordId),
+          username: String(row.username || username),
+          display_name: String(row.display_name || displayName),
+          avatar_url: String(row.avatar_url || avatarUrl),
+          current_streak: activeStreak,
+          max_streak: maxStreak,
+          last_study_date: lastDate,
+          checked_in_today: lastDate === todayStr,
+          study_xp: xp,
+          level: rankInfo.level,
+          rank_title: rankInfo.title,
+          next_xp: rankInfo.next_xp,
+          level_progress: rankInfo.progress,
+          pomodoro_count: Number(row.pomodoro_count || 0),
+          study_minutes: Number(row.study_minutes || 0),
+          exams_completed: Number(row.exams_completed || 0),
+          docs_contributed: docsContrib,
+          dream_school: String(row.dream_school || ""),
+          dream_score: String(row.dream_score || ""),
+          updated_at: String(row.updated_at || nowIso),
+        },
+      });
+    }
+
+    if (pathname === "/api/study/checkin" && req.method === "POST") {
+      const body = req.body || {};
+      const discordId = String(body.discord_id || "").trim();
+      if (!discordId) {
+        return res.status(400).json({ error: "Thiếu discord_id" });
+      }
+      const action = String(body.action || "daily_checkin").trim().toLowerCase();
+      const minutes = Math.max(0, Math.min(parseInt(body.minutes || "0", 10) || 0, 240));
+      const username = String(body.username || "").trim();
+      const displayName = String(body.display_name || username || "Học viên Orbit").trim();
+      const avatarUrl = String(body.avatar_url || "").trim();
+
+      const { todayStr, yesterdayStr } = getVnDates();
+      const nowIso = new Date().toISOString();
+
+      const profRes = await executeTurso(
+        "SELECT * FROM study_profiles WHERE discord_id = ? LIMIT 1",
+        [discordId]
+      ).catch(() => ({ rows: [] }));
+      const cur = profRes.rows[0] || {};
+
+      let curStreak = Number(cur.current_streak || 0);
+      let maxStreak = Number(cur.max_streak || 0);
+      let lastDate = String(cur.last_study_date || "");
+      let studyXp = Number(cur.study_xp || 0);
+      let pomoCount = Number(cur.pomodoro_count || 0);
+      let studyMins = Number(cur.study_minutes || 0);
+      let examsDone = Number(cur.exams_completed || 0);
+      let docsContrib = Number(cur.docs_contributed || 0);
+      let dreamSchool = String(cur.dream_school || "");
+      let dreamScore = String(cur.dream_score || "");
+
+      let xpGained = 0;
+      let streakIncremented = false;
+
+      if (["daily_checkin", "pomodoro", "exam_complete"].includes(action)) {
+        if (lastDate !== todayStr) {
+          curStreak = lastDate === yesterdayStr ? curStreak + 1 : 1;
+          maxStreak = Math.max(maxStreak, curStreak);
+          lastDate = todayStr;
+          xpGained += 50 + Math.min(curStreak * 5, 50);
+          streakIncremented = true;
+        }
+      }
+
+      if (action === "pomodoro") {
+        pomoCount += 1;
+        studyMins += minutes > 0 ? minutes : 25;
+        xpGained += 35;
+      } else if (action === "exam_complete") {
+        examsDone += 1;
+        studyMins += minutes > 0 ? minutes : 45;
+        xpGained += 100;
+      } else if (action === "update_dream") {
+        if (body.dream_school !== undefined) dreamSchool = String(body.dream_school).slice(0, 120);
+        if (body.dream_score !== undefined) dreamScore = String(body.dream_score).slice(0, 30);
+        if (dreamSchool && studyXp === 0) xpGained += 20;
+      }
+
+      studyXp += xpGained;
+
+      await executeTurso(
+        `INSERT INTO study_profiles
+         (discord_id, username, display_name, avatar_url, current_streak, max_streak,
+          last_study_date, study_xp, pomodoro_count, study_minutes, exams_completed,
+          docs_contributed, dream_school, dream_score, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(discord_id) DO UPDATE SET
+          username = excluded.username,
+          display_name = excluded.display_name,
+          avatar_url = CASE WHEN excluded.avatar_url != '' THEN excluded.avatar_url ELSE study_profiles.avatar_url END,
+          current_streak = excluded.current_streak,
+          max_streak = excluded.max_streak,
+          last_study_date = excluded.last_study_date,
+          study_xp = excluded.study_xp,
+          pomodoro_count = excluded.pomodoro_count,
+          study_minutes = excluded.study_minutes,
+          exams_completed = excluded.exams_completed,
+          docs_contributed = excluded.docs_contributed,
+          dream_school = excluded.dream_school,
+          dream_score = excluded.dream_score,
+          updated_at = excluded.updated_at`,
+        [
+          discordId,
+          username || cur.username || "",
+          displayName || cur.display_name || "Học viên Orbit",
+          avatarUrl || cur.avatar_url || "",
+          curStreak,
+          maxStreak,
+          lastDate,
+          studyXp,
+          pomoCount,
+          studyMins,
+          examsDone,
+          docsContrib,
+          dreamSchool,
+          dreamScore,
+          nowIso,
+        ]
+      );
+
+      const rankInfo = computeStudyRank(studyXp);
+      return res.status(200).json({
+        success: true,
+        xp_gained: xpGained,
+        streak_incremented: streakIncremented,
+        profile: {
+          discord_id: discordId,
+          username: username || cur.username || "",
+          display_name: displayName || cur.display_name || "Học viên Orbit",
+          avatar_url: avatarUrl || cur.avatar_url || "",
+          current_streak: curStreak,
+          max_streak: maxStreak,
+          last_study_date: lastDate,
+          checked_in_today: lastDate === todayStr,
+          study_xp: studyXp,
+          level: rankInfo.level,
+          rank_title: rankInfo.title,
+          next_xp: rankInfo.next_xp,
+          level_progress: rankInfo.progress,
+          pomodoro_count: pomoCount,
+          study_minutes: studyMins,
+          exams_completed: examsDone,
+          docs_contributed: docsContrib,
+          dream_school: dreamSchool,
+          dream_score: dreamScore,
+          updated_at: nowIso,
+        },
+      });
+    }
+
+    if (pathname === "/api/study/leaderboard" && req.method === "GET") {
+      const { todayStr, yesterdayStr } = getVnDates();
+      const [profRes, contribRes] = await Promise.all([
+        executeTurso(
+          `SELECT * FROM study_profiles ORDER BY study_xp DESC, current_streak DESC LIMIT 30`
+        ).catch(() => ({ rows: [] })),
+        executeTurso(
+          `SELECT author_name, MAX(author_id) as aid, COUNT(*) as cnt
+           FROM documents_archive
+           WHERE author_name IS NOT NULL AND author_name != ''
+           GROUP BY author_name
+           ORDER BY cnt DESC LIMIT 20`
+        ).catch(() => ({ rows: [] })),
+      ]);
+
+      const map = new Map();
+      for (const r of profRes.rows) {
+        const key = String(r.discord_id || r.username || r.display_name);
+        const lastD = String(r.last_study_date || "");
+        const actStreak =
+          lastD === todayStr || lastD === yesterdayStr ? Number(r.current_streak || 0) : 0;
+        const maxS = Math.max(Number(r.max_streak || 0), actStreak);
+        const xp = Number(r.study_xp || 0);
+        const rInfo = computeStudyRank(xp);
+        map.set(key, {
+          rank: 0,
+          discord_id: String(r.discord_id || ""),
+          display_name: String(r.display_name || r.username || "Học viên Orbit"),
+          username: String(r.username || ""),
+          avatar_url: String(r.avatar_url || ""),
+          current_streak: actStreak,
+          max_streak: maxS,
+          study_xp: xp,
+          level: rInfo.level,
+          rank_title: rInfo.title,
+          pomodoro_count: Number(r.pomodoro_count || 0),
+          study_minutes: Number(r.study_minutes || 0),
+          exams_completed: Number(r.exams_completed || 0),
+          docs_contributed: Number(r.docs_contributed || 0),
+          dream_school: String(r.dream_school || ""),
+          dream_score: String(r.dream_score || ""),
+        });
+      }
+
+      for (const cr of contribRes.rows) {
+        const aname = String(cr.author_name || "").trim();
+        const aid = String(cr.aid || aname);
+        const cnt = Number(cr.cnt || 0);
+        if (!aname) continue;
+        const existing =
+          map.get(aid) ||
+          Array.from(map.values()).find(
+            (x) =>
+              x.username.toLowerCase() === aname.toLowerCase() ||
+              x.display_name.toLowerCase() === aname.toLowerCase()
+          );
+        if (existing) {
+          existing.docs_contributed = Math.max(existing.docs_contributed, cnt);
+          existing.study_xp = Math.max(existing.study_xp, cnt * 50);
+          const ri = computeStudyRank(existing.study_xp);
+          existing.level = ri.level;
+          existing.rank_title = ri.title;
+        } else {
+          const xp = cnt * 50;
+          const ri = computeStudyRank(xp);
+          map.set(aid, {
+            rank: 0,
+            discord_id: aid,
+            display_name: aname,
+            username: aname,
+            avatar_url: "",
+            current_streak: 1,
+            max_streak: 1,
+            study_xp: xp,
+            level: ri.level,
+            rank_title: ri.title,
+            pomodoro_count: 0,
+            study_minutes: 0,
+            exams_completed: 0,
+            docs_contributed: cnt,
+            dream_school: "",
+            dream_score: "",
+          });
+        }
+      }
+
+      const list = Array.from(map.values()).sort(
+        (a, b) =>
+          b.study_xp - a.study_xp ||
+          b.current_streak - a.current_streak ||
+          b.docs_contributed - a.docs_contributed
+      );
+      list.forEach((item, idx) => {
+        item.rank = idx + 1;
+      });
+
+      res.setHeader(
+        "Cache-Control",
+        "public, max-age=15, s-maxage=30, stale-while-revalidate=60"
+      );
+      return res.status(200).json({
+        success: true,
+        total: list.length,
+        leaderboard: list.slice(0, 25),
+      });
     }
 
     // 6. POST /api/account/link & GET /api/account/me

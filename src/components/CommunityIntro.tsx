@@ -159,7 +159,7 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
         <Reveal preset="fade" delay={120} className="hh-eco-plate">
           <img
             src="/orbit_emblem_core.png"
-            alt="Biểu trưng quỹ đạo tri thức Orbit · Learn, Chill, Study"
+            alt="Biểu trưng quỹ đạo tri thức Orbit | Vietnam"
             width={140}
             height={140}
             loading="lazy"

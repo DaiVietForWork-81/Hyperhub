@@ -33,6 +33,10 @@ import {
   Pause,
   RotateCcw,
   Target,
+  Flame,
+  Award,
+  Trophy,
+  PenTool,
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import {
@@ -51,9 +55,17 @@ const AdminPanel = lazy(() =>
 import { getExamTrackInfo, getGradeBadgeStyle } from '../utils/formatters';
 import { getBookmarkedExamIds, toggleBookmarkExam } from '../utils/bookmarkStorage';
 import { useToast } from '../context/ToastContext';
-import { ExamDossierModal } from './ExamDossierModal';
+import { ExamDossierModal, DossierModalTab } from './ExamDossierModal';
 import { CommandPalette } from './CommandPalette';
-import { fetchDocsFromTurso, getTursoStorageUsage } from '../utils/tursoClient';
+import {
+  fetchDocsFromTurso,
+  getTursoStorageUsage,
+  StudyProfileData,
+  AcademicScholarEntry,
+  fetchStudyProfileTurso,
+  recordStudyCheckinTurso,
+  fetchAcademicLeaderboardTurso,
+} from '../utils/tursoClient';
 import { sound } from '../utils/audio';
 import { PixelMark } from './hh/PixelMark';
 import { PixelButton, SpotSurface } from './hh/Controls';
@@ -627,7 +639,33 @@ const DashboardContent: React.FC<DashboardProps> = ({
   // Modal Hồ Sơ Chi Tiết & Command Palette
   const [selectedDossierDoc, setSelectedDossierDoc] = useState<ExamDocument | null>(null);
   const [isDossierOpen, setIsDossierOpen] = useState<boolean>(false);
+  const [dossierInitialTab, setDossierInitialTab] = useState<DossierModalTab>('pdf_reader');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+
+  const openExamModal = useCallback((doc: ExamDocument, tab: DossierModalTab = 'pdf_reader') => {
+    setSelectedDossierDoc(doc);
+    setDossierInitialTab(tab);
+    setIsDossierOpen(true);
+  }, []);
+
+  // Tự động mở Trình đọc đề PDF nếu URL có hash #exam-{id} (từ lệnh /luyende trên Discord)
+  useEffect(() => {
+    if (documentsList.length === 0) return;
+    try {
+      const hash = window.location.hash;
+      const m = hash.match(/^#exam-(\d+)$/i);
+      if (m) {
+        const docId = Number(m[1]);
+        const target = documentsList.find((d) => d.id === docId);
+        if (target) {
+          openExamModal(target, 'pdf_reader');
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [documentsList, openExamModal]);
 
   // Phím tắt toàn cục Ctrl+K hoặc Cmd+K để mở thanh tìm kiếm siêu tốc
   useEffect(() => {
@@ -1316,51 +1354,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
   };
 
   // ============================================================================
-  // POMODORO FOCUS & CHILL TIMER (LEARN • CHILL • CONNECT TRONG HUB)
-  // ============================================================================
-  const [pomoMode, setPomoMode] = useState<'focus' | 'chill'>('focus');
-  const [pomoSeconds, setPomoSeconds] = useState<number>(25 * 60);
-  const [pomoRunning, setPomoRunning] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!pomoRunning) return;
-    const timer = window.setInterval(() => {
-      setPomoSeconds((prev) => {
-        if (prev <= 1) {
-          setPomoRunning(false);
-          sound.playClick();
-          const nextMode = pomoMode === 'focus' ? 'chill' : 'focus';
-          setPomoMode(nextMode);
-          showInfo(
-            nextMode === 'chill'
-              ? 'Đã hoàn thành 25 phút tập trung! Nghỉ ngơi 5 phút nhé 🌸'
-              : 'Hết giờ nghỉ! Bắt đầu phiên tập trung mới nhé ⚡',
-            'Pomodoro Hub'
-          );
-          return nextMode === 'chill' ? 5 * 60 : 25 * 60;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [pomoRunning, pomoMode, showInfo]);
-
-  const togglePomoMode = (mode: 'focus' | 'chill') => {
-    setPomoRunning(false);
-    setPomoMode(mode);
-    setPomoSeconds(mode === 'focus' ? 25 * 60 : 5 * 60);
-  };
-
-  const formatPomo = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-
-  const pomoTotal = pomoMode === 'focus' ? 25 * 60 : 5 * 60;
-  const pomoProgress = Math.max(0, Math.min(1, 1 - pomoSeconds / pomoTotal));
-
-  // ============================================================================
   // MỤC TIÊU TRƯỜNG MƠ ƯỚC (ĐỒNG BỘ VỚI TRANG CHỦ HYPERHUB)
   // ============================================================================
   const [dreamGoal, setDreamGoal] = useState<{ school: string; score: string } | null>(null);
@@ -1383,6 +1376,234 @@ const DashboardContent: React.FC<DashboardProps> = ({
       /* ignore */
     }
   }, []);
+
+  // ============================================================================
+  // HỒ SƠ HỌC TẬP, CHUỖI NGÀY HỌC (STREAK) & BẢNG XẾP HẠNG ĐỒNG BỘ DISCORD ↔ WEB
+  // ============================================================================
+  const [studyProfile, setStudyProfile] = useState<StudyProfileData | null>(() => {
+    try {
+      const cached = localStorage.getItem('orbit_study_profile_v1');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  });
+  const [leaderboardList, setLeaderboardList] = useState<AcademicScholarEntry[]>([]);
+  const [leaderboardSort, setLeaderboardSort] = useState<'xp' | 'streak' | 'contrib'>('xp');
+  const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
+
+  const fetchStudyProfileAndLeaderboard = useCallback(async () => {
+    const apiBase = getApiBaseUrl();
+    const uid = user?.id || '';
+    const uname = user?.username || 'Học Sinh Orbit';
+    const dname = user?.global_name || user?.username || 'Học Sinh Orbit';
+    const avatar = user?.avatar || '';
+
+    // 1. Tải Bảng Xếp Hạng Học Thuật (Song song Bot API & Turso Cloud)
+    let lbResolved = false;
+    fetchAcademicLeaderboardTurso()
+      .then((tursoLb) => {
+        if (!lbResolved && tursoLb && tursoLb.length > 0) {
+          setLeaderboardList(tursoLb);
+        }
+      })
+      .catch(() => {});
+
+    try {
+      const lbRes = await fetch(`${apiBase}/api/study/leaderboard?limit=12`, {
+        headers: API_FETCH_HEADERS,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (lbRes.ok) {
+        const lbData = await lbRes.json();
+        if (lbData.success && Array.isArray(lbData.leaderboard) && lbData.leaderboard.length > 0) {
+          lbResolved = true;
+          setLeaderboardList(lbData.leaderboard);
+        }
+      }
+    } catch {
+      /* Turso fallback already running */
+    }
+
+    // 2. Tải Hồ Sơ & Chuỗi Ngày Học cá nhân
+    if (!uid) return;
+    let profResolved = false;
+    fetchStudyProfileTurso(uid, uname, dname, avatar)
+      .then((tursoProf) => {
+        if (!profResolved && tursoProf) {
+          setStudyProfile(tursoProf);
+          try {
+            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(tursoProf));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    try {
+      const headers: Record<string, string> = { ...API_FETCH_HEADERS };
+      const token = getDiscordAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const q = new URLSearchParams({
+        discord_id: uid,
+        username: uname,
+        display_name: dname,
+        avatar_url: avatar,
+      });
+      const profRes = await fetch(`${apiBase}/api/study/profile?${q.toString()}`, {
+        headers,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (profRes.ok) {
+        const profData = await profRes.json();
+        if (profData.success && profData.profile) {
+          profResolved = true;
+          setStudyProfile(profData.profile);
+          try {
+            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(profData.profile));
+          } catch {}
+        }
+      }
+    } catch {
+      /* Turso fallback handles it */
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchStudyProfileAndLeaderboard();
+  }, [fetchStudyProfileAndLeaderboard]);
+
+  const triggerStudyCheckin = useCallback(
+    async (
+      action: 'daily_checkin' | 'pomodoro' | 'exam_complete' | 'update_dream',
+      minutes: number = 0,
+      dreamSchoolOverride?: string,
+      dreamScoreOverride?: string
+    ) => {
+      const uid = user?.id || 'local_scholar';
+      const uname = user?.username || 'HocSinhOrbit';
+      const dname = user?.global_name || user?.username || 'Học Sinh Orbit';
+      const avatar = user?.avatar || '';
+
+      setIsCheckingIn(true);
+      try {
+        // Đồng bộ trực tiếp lên Turso Cloud trước để đảm bảo cả khi Bot tắt vẫn lưu
+        const tursoUpdated = await recordStudyCheckinTurso({
+          discordId: uid,
+          username: uname,
+          displayName: dname,
+          avatarUrl: avatar,
+          action,
+          minutes,
+          dreamSchool: dreamSchoolOverride ?? dreamGoal?.school,
+          dreamScore: dreamScoreOverride ?? dreamGoal?.score,
+        });
+        if (tursoUpdated && tursoUpdated.profile) {
+          setStudyProfile(tursoUpdated.profile);
+          try {
+            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(tursoUpdated.profile));
+          } catch {}
+        }
+
+        // Đồng bộ song song về Bot SQLite (nếu Bot đang bật)
+        try {
+          const apiBase = getApiBaseUrl();
+          const headers: Record<string, string> = {
+            ...API_FETCH_HEADERS,
+            'Content-Type': 'application/json',
+          };
+          const token = getDiscordAccessToken();
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const res = await fetch(`${apiBase}/api/study/checkin`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              discord_id: uid,
+              username: uname,
+              display_name: dname,
+              avatar_url: avatar,
+              action,
+              minutes,
+              dream_school: dreamSchoolOverride ?? dreamGoal?.school ?? '',
+              dream_score: dreamScoreOverride ?? dreamGoal?.score ?? '',
+            }),
+            signal: AbortSignal.timeout(6000),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.profile) {
+              setStudyProfile(data.profile);
+              try {
+                localStorage.setItem('orbit_study_profile_v1', JSON.stringify(data.profile));
+              } catch {}
+            }
+          }
+        } catch {
+          /* Turso already saved */
+        }
+
+        if (action === 'daily_checkin') {
+          showSuccess('🔥 Đã điểm danh chuỗi học tập hôm nay (+50 XP)! Đồng bộ Discord & Web.', 'Chuỗi Học Tập');
+        } else if (action === 'pomodoro') {
+          showSuccess('🍅 Hoàn thành phiên Pomodoro 25 phút (+40 XP)!', 'Pomodoro Đồng Bộ');
+        } else if (action === 'exam_complete') {
+          showSuccess('🏆 Đã ghi nhận hoàn thành luyện đề (+100 XP) vào Bảng Xếp Hạng!', 'Phòng Thi Thực Chiến');
+        }
+
+        fetchStudyProfileAndLeaderboard();
+      } finally {
+        setIsCheckingIn(false);
+      }
+    },
+    [user, dreamGoal, showSuccess, fetchStudyProfileAndLeaderboard]
+  );
+
+  // ============================================================================
+  // POMODORO FOCUS & CHILL TIMER (LEARN • CHILL • CONNECT TRONG HUB)
+  // ============================================================================
+  const [pomoMode, setPomoMode] = useState<'focus' | 'chill'>('focus');
+  const [pomoSeconds, setPomoSeconds] = useState<number>(25 * 60);
+  const [pomoRunning, setPomoRunning] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!pomoRunning) return;
+    const timer = window.setInterval(() => {
+      setPomoSeconds((prev) => {
+        if (prev <= 1) {
+          setPomoRunning(false);
+          sound.playClick();
+          const nextMode = pomoMode === 'focus' ? 'chill' : 'focus';
+          if (pomoMode === 'focus') {
+            triggerStudyCheckin('pomodoro', 25);
+          }
+          setPomoMode(nextMode);
+          showInfo(
+            nextMode === 'chill'
+              ? 'Đã hoàn thành 25 phút tập trung (+40 XP)! Nghỉ ngơi 5 phút nhé 🌸'
+              : 'Hết giờ nghỉ! Bắt đầu phiên tập trung mới nhé ⚡',
+            'Pomodoro Hub'
+          );
+          return nextMode === 'chill' ? 5 * 60 : 25 * 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pomoRunning, pomoMode, showInfo, triggerStudyCheckin]);
+
+  const togglePomoMode = (mode: 'focus' | 'chill') => {
+    setPomoRunning(false);
+    setPomoMode(mode);
+    setPomoSeconds(mode === 'focus' ? 25 * 60 : 5 * 60);
+  };
+
+  const formatPomo = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const pomoTotal = pomoMode === 'focus' ? 25 * 60 : 5 * 60;
+  const pomoProgress = Math.max(0, Math.min(1, 1 - pomoSeconds / pomoTotal));
 
   // Nhận bộ lọc khởi hành nhanh từ Trang Chủ (Hero Quickbar & Subject Streams)
   useEffect(() => {
@@ -1417,7 +1638,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
       localStorage.setItem('orbit_user_dream_v2', serialized);
       setDreamGoal({ school, score });
       setIsEditingDream(false);
-      showSuccess(`Đã ghim mục tiêu: ${school}`, 'Mục Tiêu Học Tập');
+      triggerStudyCheckin('update_dream', 0, school, score);
+      showSuccess(`Đã ghim mục tiêu: ${school} (Đồng bộ Discord & Web)`, 'Mục Tiêu Học Tập');
     } catch {
       showError('Không thể lưu mục tiêu vào trình duyệt.');
     }
@@ -2026,10 +2248,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
             {/* Title & Click to Open Dossier */}
             <div
-              onClick={() => {
-                setSelectedDossierDoc(doc);
-                setIsDossierOpen(true);
-              }}
+              onClick={() => openExamModal(doc, 'pdf_reader')}
               className="cursor-pointer space-y-2"
             >
               <h4 className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-2 leading-snug">
@@ -2131,32 +2350,33 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedDossierDoc(doc);
-                  setIsDossierOpen(true);
-                }}
-                className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-[#241a38] text-white font-bold text-[13px] transition-all cursor-pointer flex items-center gap-1.5"
+                onClick={() => openExamModal(doc, 'pdf_reader')}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-1.5 shadow-[0_6px_20px_-6px_rgba(255,79,203,0.6)] transition-all cursor-pointer"
+                title="Đọc đề PDF trực tiếp trên Web"
               >
-                <Eye className="w-3.5 h-3.5 text-[#C4A6FF]" />
-                <span>Chi Tiết Đề</span>
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>📖 Đọc PDF</span>
               </button>
 
-              <a
-                href={resolveExamFileUrl(doc) || '#vault'}
-                target={resolveExamFileUrl(doc) ? '_blank' : undefined}
-                rel={resolveExamFileUrl(doc) ? 'noopener noreferrer' : undefined}
-                onClick={(e) => {
-                  if (!resolveExamFileUrl(doc)) {
-                    e.preventDefault();
-                    setSelectedDossierDoc(doc);
-                    setIsDossierOpen(true);
-                  }
-                }}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-[#9B5CFF]/15 hover:bg-[#9B5CFF]/30 border border-[#9B5CFF]/35 text-[#E2D4FF] font-bold text-[13px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              <button
+                type="button"
+                onClick={() => openExamModal(doc, 'practice_room')}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-extrabold text-[13px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="Mở phòng thi thực chiến (Đếm giờ + Phiếu tô đáp án 2025)"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Mở Tệp</span>
-              </a>
+                <PenTool className="w-3.5 h-3.5" />
+                <span>✍️ Làm Đề</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openExamModal(doc, 'overview')}
+                className="px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-[#241a38] text-white/80 hover:text-white font-bold text-[13px] transition-all cursor-pointer flex items-center gap-1"
+                title="Xem Hồ Sơ Kiểm Định AI"
+              >
+                <Eye className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                <span className="hidden sm:inline">Hồ Sơ</span>
+              </button>
 
               <a
                 href={resolveExamFileUrl(doc) || '#vault'}
@@ -2166,14 +2386,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 onClick={(e) => {
                   if (!resolveExamFileUrl(doc)) {
                     e.preventDefault();
-                    setSelectedDossierDoc(doc);
-                    setIsDossierOpen(true);
+                    openExamModal(doc, 'pdf_reader');
                   }
                 }}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-1.5 shadow-[0_6px_20px_-6px_rgba(255,79,203,0.6)] transition-all cursor-pointer"
+                className="p-2.5 rounded-xl bg-[#9B5CFF]/15 hover:bg-[#9B5CFF]/30 border border-[#9B5CFF]/35 text-[#E2D4FF] transition-all cursor-pointer"
+                title="Tải tệp gốc về máy"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Tải Về</span>
+                <Download className="w-4 h-4" />
               </a>
 
               {getSafeExternalUrl(doc.jump_url) && (
@@ -2530,6 +2749,36 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* CHUỖI NGÀY HỌC (STREAK) & XP ĐỒNG BỘ DISCORD ↔ WEB TRONG SIDEBAR */}
+          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-orange-400 fill-orange-400/30" />
+                <span>Chuỗi học: {studyProfile?.current_streak || 0} ngày</span>
+              </span>
+              <span className="font-mono font-bold text-[#FFB8E6] tabular-nums text-[12px]">
+                {studyProfile?.study_xp || 0} XP
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 text-[12px] text-white/60">
+              <span className="truncate">{studyProfile?.rank_title || '🌱 Tân Binh Orbit'}</span>
+              <span className="font-mono text-emerald-300 shrink-0">
+                ✍️ {studyProfile?.exams_completed || 0} đề
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={isCheckingIn}
+              onClick={() => triggerStudyCheckin('daily_checkin', 15)}
+              className="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-orange-500/20 to-[#d61f79]/25 hover:from-orange-500/30 hover:to-[#d61f79]/40 border border-orange-400/35 text-amber-200 font-extrabold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>{isCheckingIn ? 'Đang đồng bộ...' : '🔥 Điểm Danh Hôm Nay (+50 XP)'}</span>
+            </button>
           </div>
 
           {/* NHỊP ĐỘ MÙA THI & MỤC TIÊU CÁ NHÂN TRONG SIDEBAR */}
@@ -3058,29 +3307,20 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedDossierDoc(currentExam);
-                        setIsDossierOpen(true);
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-[13px] font-bold text-white cursor-pointer"
+                      onClick={() => openExamModal(currentExam, 'pdf_reader')}
+                      className="px-4 py-2 rounded-xl bg-[#d61f79] hover:opacity-95 text-white text-[13px] font-extrabold flex items-center gap-1.5 cursor-pointer"
                     >
-                      Xem Chi Tiết Đề
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>📖 Đọc Đề PDF</span>
                     </button>
-                    <a
-                      href={resolveExamFileUrl(currentExam) || '#vault'}
-                      target={resolveExamFileUrl(currentExam) ? '_blank' : undefined}
-                      rel={resolveExamFileUrl(currentExam) ? 'noopener noreferrer' : undefined}
-                      onClick={(e) => {
-                        if (!resolveExamFileUrl(currentExam)) {
-                          e.preventDefault();
-                          setSelectedDossierDoc(currentExam);
-                          setIsDossierOpen(true);
-                        }
-                      }}
-                      className="px-4 py-2 rounded-xl bg-[#9B5CFF] hover:bg-[#8A46FF] text-white text-[13px] font-extrabold"
+                    <button
+                      type="button"
+                      onClick={() => openExamModal(currentExam, 'practice_room')}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[13px] font-extrabold flex items-center gap-1.5 cursor-pointer"
                     >
-                      Mở Đề Ngay
-                    </a>
+                      <PenTool className="w-3.5 h-3.5" />
+                      <span>✍️ Làm Bài (+100 XP)</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setCurrentExam(null)}
@@ -3154,35 +3394,36 @@ const DashboardContent: React.FC<DashboardProps> = ({
                             </div>
 
                             <h4
-                              onClick={() => {
-                                setSelectedDossierDoc(doc);
-                                setIsDossierOpen(true);
-                              }}
+                              onClick={() => openExamModal(doc, 'pdf_reader')}
                               className="font-bold text-sm sm:text-base text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-1 cursor-pointer"
                             >
                               {doc.title || doc.file_name}
                             </h4>
                           </div>
 
-                          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                             <div className="hidden md:flex items-center gap-1.5 text-[13px] text-white/50 tabular-nums pr-1">
                               <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-[#241a38]">
                                 {doc.page_count || 1} trang
                               </span>
-                              <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-[#241a38] uppercase font-mono">
-                                {doc.file_type || 'PDF'}
-                              </span>
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedDossierDoc(doc);
-                                setIsDossierOpen(true);
-                              }}
-                              className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 cursor-pointer"
-                              title="Xem chi tiết đề thi"
+                              onClick={() => openExamModal(doc, 'pdf_reader')}
+                              className="px-2.5 py-1.5 rounded-lg bg-[#d61f79]/25 hover:bg-[#d61f79] border border-[#FF4FCB]/40 text-white text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Đọc đề PDF trực tiếp trên Web"
                             >
-                              <Eye className="w-4 h-4" />
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span>📖 Đọc PDF</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openExamModal(doc, 'practice_room')}
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/40 text-emerald-300 text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Mở phòng thi bấm giờ & tô đáp án"
+                            >
+                              <PenTool className="w-3.5 h-3.5" />
+                              <span>✍️ Làm Bài</span>
                             </button>
                             <button
                               type="button"
@@ -3197,22 +3438,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
                             >
                               <Star className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
                             </button>
-                            <a
-                              href={resolveExamFileUrl(doc) || '#vault'}
-                              target={resolveExamFileUrl(doc) ? '_blank' : undefined}
-                              rel={resolveExamFileUrl(doc) ? 'noopener noreferrer' : undefined}
-                              onClick={(e) => {
-                                if (!resolveExamFileUrl(doc)) {
-                                  e.preventDefault();
-                                  setSelectedDossierDoc(doc);
-                                  setIsDossierOpen(true);
-                                }
-                              }}
-                              className="px-3 py-1.5 rounded-lg bg-[#9B5CFF]/25 hover:bg-[#9B5CFF]/40 border border-[#9B5CFF]/40 text-white text-[13px] font-bold flex items-center gap-1"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Tải</span>
-                            </a>
                           </div>
                         </div>
                       );
@@ -3395,6 +3620,201 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 </div>
               </SpotSurface>
             </div>
+
+            {/* HÀNG 3: HỒ SƠ CHUỖI NGÀY HỌC (STREAK) & BẢNG XẾP HẠNG HỌC THUẬT ĐỒNG BỘ DISCORD ↔ WEB */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+              {/* Cột Trái (5/12): Hồ sơ Học Tập, Chuỗi Streak & Tiến độ Danh Hiệu */}
+              <SpotSurface className="xl:col-span-5 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+                    <div>
+                      <span className="text-[13px] font-semibold text-amber-300 flex items-center gap-1.5">
+                        <Flame className="w-4 h-4 text-orange-400 fill-orange-400/30" />
+                        <span>Đồng bộ lệnh /chuoi &amp; /luyende trên Discord</span>
+                      </span>
+                      <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
+                        Hồ Sơ Chuỗi Ngày Học &amp; Học Vị
+                      </h3>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 text-amber-300 border border-orange-500/30 font-mono font-black text-[13px]">
+                      🔥 {studyProfile?.current_streak || 0} ngày
+                    </span>
+                  </div>
+
+                  {/* Thẻ Học Vị & Thanh XP */}
+                  <div className="p-4 rounded-2xl bg-[#0B0911]/85 border border-[#241a38] space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[12px] text-white/50">Danh hiệu học thuật hiện tại</div>
+                        <div className="text-base sm:text-lg font-black text-[#FFB8E6]">
+                          {studyProfile?.rank_title || '🌱 Tân Binh Orbit'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[12px] text-white/50">Tổng điểm tích lũy</div>
+                        <div className="text-base sm:text-lg font-mono font-black text-emerald-300 tabular-nums">
+                          {studyProfile?.study_xp || 0} XP
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[12px] text-white/55">
+                        <span>Tiến độ thăng cấp tiếp theo</span>
+                        <span className="font-mono">
+                          {(studyProfile?.study_xp || 0) % 500} / 500 XP
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-white/[0.07] overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#9B5CFF] via-[#FF4FCB] to-amber-400 transition-all duration-500"
+                          style={{
+                            width: `${Math.max(8, Math.round((((studyProfile?.study_xp || 0) % 500) / 500) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 Chỉ số Học Tập Đồng Bộ */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
+                      <div className="text-[12px] text-white/50">Kỷ lục chuỗi</div>
+                      <div className="text-base font-black text-amber-300 mt-0.5 tabular-nums">
+                        {studyProfile?.max_streak || 0} ngày
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
+                      <div className="text-[12px] text-white/50">Đề đã luyện</div>
+                      <div className="text-base font-black text-emerald-300 mt-0.5 tabular-nums">
+                        {studyProfile?.exams_completed || 0} đề
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
+                      <div className="text-[12px] text-white/50">Pomodoro</div>
+                      <div className="text-base font-black text-[#E2CEFF] mt-0.5 tabular-nums">
+                        {studyProfile?.pomodoro_count || 0} phiên
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
+                      <div className="text-[12px] text-white/50">Đề đóng góp</div>
+                      <div className="text-base font-black text-[#FFB8E6] mt-0.5 tabular-nums">
+                        {studyProfile?.docs_contributed || 0} tệp
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    disabled={isCheckingIn}
+                    onClick={() => triggerStudyCheckin('daily_checkin', 15)}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer shadow-[0_6px_20px_-6px_rgba(255,79,203,0.6)]"
+                  >
+                    <Flame className="w-4 h-4" />
+                    <span>{isCheckingIn ? 'Đang đồng bộ Cloud...' : '🔥 Điểm Danh Hôm Nay (+50 XP)'}</span>
+                  </button>
+                </div>
+              </SpotSurface>
+
+              {/* Cột Phải (7/12): Bảng Xếp Hạng Học Thuật Liên Thông Discord ↔ Web */}
+              <SpotSurface className="xl:col-span-7 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
+                <div className="space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#241a38] pb-3.5">
+                    <div>
+                      <span className="text-[13px] font-semibold text-[#C4A6FF] flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <span>Bảng Vàng Học Thuật Orbit (Discord &amp; Web)</span>
+                      </span>
+                      <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
+                        Top Học Giả Luyện Đề &amp; Đóng Góp Tài Liệu
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0911] border border-[#241a38]">
+                      {[
+                        { id: 'xp', label: '🏆 Điểm XP' },
+                        { id: 'streak', label: '🔥 Chuỗi Ngày' },
+                        { id: 'contrib', label: '📚 Đóng Góp' },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setLeaderboardSort(t.id as any)}
+                          className={`px-2.5 py-1 rounded-lg text-[12px] font-extrabold cursor-pointer transition-all ${
+                            leaderboardSort === t.id
+                              ? 'bg-[#9B5CFF] text-white'
+                              : 'text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
+                    {[...leaderboardList]
+                      .sort((a, b) => {
+                        if (leaderboardSort === 'streak') return b.current_streak - a.current_streak || b.study_xp - a.study_xp;
+                        if (leaderboardSort === 'contrib') return b.docs_contributed - a.docs_contributed || b.study_xp - a.study_xp;
+                        return b.study_xp - a.study_xp;
+                      })
+                      .slice(0, 6)
+                      .map((scholar, idx) => (
+                        <div
+                          key={`${scholar.discord_id}-${idx}`}
+                          className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`w-7 h-7 rounded-lg font-mono font-black text-[13px] flex items-center justify-center shrink-0 ${
+                                idx === 0
+                                  ? 'bg-amber-400 text-black'
+                                  : idx === 1
+                                  ? 'bg-slate-300 text-black'
+                                  : idx === 2
+                                  ? 'bg-amber-700 text-white'
+                                  : 'bg-white/[0.06] text-white/70'
+                              }`}
+                            >
+                              #{idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-[13px] sm:text-sm text-white truncate">
+                                  {scholar.display_name || scholar.username}
+                                </span>
+                                <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded bg-white/[0.05] text-[#FFB8E6] border border-[#241a38]">
+                                  {scholar.rank_title}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-[12px] text-white/50 mt-0.5">
+                                <span>🔥 Chuỗi {scholar.current_streak} ngày</span>
+                                <span>• ✍️ {scholar.exams_completed} đề</span>
+                                <span>• 📚 {scholar.docs_contributed} đóng góp</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <div className="font-mono font-black text-sm text-emerald-300 tabular-nums">
+                              {scholar.study_xp} XP
+                            </div>
+                            <div className="text-[11px] text-white/40">Đồng bộ Live</div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2 text-[12px] text-white/55">
+                  <span>Gõ lệnh <code className="text-[#FFB8E6] font-mono">/chuoi</code> hoặc <code className="text-[#FFB8E6] font-mono">/luyende</code> trên Discord để đồng bộ tức thì</span>
+                  <Award className="w-4 h-4 text-amber-400" />
+                </div>
+              </SpotSurface>
+            </div>
           </div>
         )}
 
@@ -3562,18 +3982,18 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <PixelButton
                     variant="primary"
-                    href={resolveExamFileUrl(currentExam) || undefined}
-                    target={resolveExamFileUrl(currentExam) ? '_blank' : undefined}
-                    rel={resolveExamFileUrl(currentExam) ? 'noopener noreferrer' : undefined}
-                    onClick={() => {
-                      if (!resolveExamFileUrl(currentExam)) {
-                        setSelectedDossierDoc(currentExam);
-                        setIsDossierOpen(true);
-                      }
-                    }}
-                    icon={<ExternalLink className="w-4 h-4" />}
+                    onClick={() => openExamModal(currentExam, 'pdf_reader')}
+                    icon={<BookOpen className="w-4 h-4" />}
                   >
-                    Mở Làm Bài Ngay
+                    📖 Đọc Đề PDF Trực Tiếp
+                  </PixelButton>
+
+                  <PixelButton
+                    variant="ghost"
+                    onClick={() => openExamModal(currentExam, 'practice_room')}
+                    icon={<PenTool className="w-4 h-4 text-emerald-400" />}
+                  >
+                    ✍️ Mở Phòng Thi Thực Chiến (+100 XP)
                   </PixelButton>
 
                   <PixelButton
@@ -3584,26 +4004,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     download={botStatus.online ? currentExam.file_name || 'de_thi.pdf' : undefined}
                     onClick={() => {
                       if (!resolveExamFileUrl(currentExam)) {
-                        setSelectedDossierDoc(currentExam);
-                        setIsDossierOpen(true);
+                        openExamModal(currentExam, 'pdf_reader');
                       }
                     }}
                     icon={<Download className="w-4 h-4" />}
                   >
                     Tải Về Máy ({(currentExam.file_type || 'PDF').toUpperCase()})
                   </PixelButton>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedDossierDoc(currentExam);
-                      setIsDossierOpen(true);
-                    }}
-                    className="px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-[#241a38] text-[13px] font-bold text-white cursor-pointer flex items-center gap-2"
-                  >
-                    <Eye className="w-4 h-4 text-[#C4A6FF]" />
-                    <span>Xem Hồ Sơ Đề Thi</span>
-                  </button>
                 </div>
               </SpotSurface>
             )}
@@ -3849,7 +4256,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         )}
       </main>
 
-      {/* Modal Hồ Sơ Kiểm Định Đề Thi Toàn Diện */}
+      {/* Modal Đọc Đề PDF Trực Tiếp, Phòng Thi Thực Chiến & Hồ Sơ Kiểm Định AI */}
       <ExamDossierModal
         doc={selectedDossierDoc}
         isOpen={isDossierOpen}
@@ -3867,6 +4274,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
         }}
         apiBase={getApiBaseUrl()}
         botOnline={botStatus.online}
+        initialTab={dossierInitialTab}
+        onCompleteExam={(_docId, minutesSpent) => {
+          triggerStudyCheckin('exam_complete', minutesSpent);
+        }}
       />
 
       {/* Thanh Tìm Kiếm Siêu Tốc & Lệnh Nhanh (Ctrl+K / ⌘K) */}
@@ -3874,10 +4285,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         documents={documentsList}
-        onSelectExam={(doc) => {
-          setSelectedDossierDoc(doc);
-          setIsDossierOpen(true);
-        }}
+        onSelectExam={(doc) => openExamModal(doc, 'pdf_reader')}
         onNavigateTab={(tab) => handleTabChange(tab)}
         onNavigateHome={onBackToHome}
         onTriggerRandomExam={handleInstantPracticePick}

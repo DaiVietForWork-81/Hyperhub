@@ -891,7 +891,7 @@ def main() -> None:
     """Chạy Web Server độc lập."""
     app = create_app()
     print("\n" + "=" * 62)
-    print(" 🚀 HYPERHUB WEB PLATFORM ĐÃ KHỞI CHẠY THÀNH CÔNG!")
+    print(" 🚀 ORBIT | VIETNAM WEB PLATFORM ĐÃ KHỞI CHẠY THÀNH CÔNG!")
     print("=" * 62)
     print(f" 👉 Mở trình duyệt truy cập: http://localhost:{config.WEB_PORT}")
     print(f" 👉 Hoặc:                    http://127.0.0.1:{config.WEB_PORT}")

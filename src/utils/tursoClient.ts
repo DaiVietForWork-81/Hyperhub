@@ -313,3 +313,564 @@ export async function getTursoStorageUsage(): Promise<TursoStorageStats> {
   }
 }
 
+// ============================================================================
+// 5. ĐỒNG BỘ HỒ SƠ HỌC TẬP, CHUỖI NGÀY HỌC (STREAK) & BẢNG XẾP HẠNG TRÊN TURSO
+// ============================================================================
+export interface StudyProfileData {
+  discord_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string;
+  current_streak: number;
+  max_streak: number;
+  last_study_date: string;
+  checked_in_today: boolean;
+  study_xp: number;
+  level: number;
+  rank_title: string;
+  next_xp: number;
+  level_progress: number;
+  pomodoro_count: number;
+  study_minutes: number;
+  exams_completed: number;
+  docs_contributed: number;
+  dream_school: string;
+  dream_score: string;
+  updated_at?: string;
+}
+
+export interface AcademicScholarEntry {
+  rank: number;
+  discord_id: string;
+  display_name: string;
+  username: string;
+  avatar_url: string;
+  current_streak: number;
+  max_streak: number;
+  study_xp: number;
+  level: number;
+  rank_title: string;
+  pomodoro_count: number;
+  study_minutes: number;
+  exams_completed: number;
+  docs_contributed: number;
+  dream_school: string;
+  dream_score: string;
+}
+
+export function computeStudyRankClient(xp: number): {
+  level: number;
+  title: string;
+  next_xp: number;
+  progress: number;
+} {
+  const safeXp = Math.max(0, Math.floor(xp || 0));
+  if (safeXp >= 3000) {
+    return { level: 6, title: '🌌 Huyền Thoại Orbit', next_xp: 5000, progress: Math.min(100, Math.floor((safeXp - 3000) / 20)) };
+  }
+  if (safeXp >= 1500) {
+    return { level: 5, title: '👑 Thủ Khoa Khối', next_xp: 3000, progress: Math.floor(((safeXp - 1500) / 1500) * 100) };
+  }
+  if (safeXp >= 700) {
+    return { level: 4, title: '🏅 Học Giả Tinh Anh', next_xp: 1500, progress: Math.floor(((safeXp - 700) / 800) * 100) };
+  }
+  if (safeXp >= 300) {
+    return { level: 3, title: '⚡ Chiến Binh Luyện Đề', next_xp: 700, progress: Math.floor(((safeXp - 300) / 400) * 100) };
+  }
+  if (safeXp >= 100) {
+    return { level: 2, title: '📘 Học Viên Chăm Chỉ', next_xp: 300, progress: Math.floor(((safeXp - 100) / 200) * 100) };
+  }
+  return { level: 1, title: '🌱 Tân Binh Orbit', next_xp: 100, progress: Math.floor((safeXp / 100) * 100) };
+}
+
+export function getVnDatesClient(): { todayStr: string; yesterdayStr: string } {
+  const now = new Date();
+  const vnNow = new Date(now.getTime() + 7 * 3600 * 1000);
+  const vnYesterday = new Date(vnNow.getTime() - 24 * 3600 * 1000);
+  return {
+    todayStr: vnNow.toISOString().slice(0, 10),
+    yesterdayStr: vnYesterday.toISOString().slice(0, 10),
+  };
+}
+
+let _studyTableEnsured = false;
+async function ensureStudyProfilesTableTurso(): Promise<void> {
+  if (_studyTableEnsured) return;
+  try {
+    await executeTurso(`
+      CREATE TABLE IF NOT EXISTS study_profiles (
+        discord_id INTEGER PRIMARY KEY,
+        username TEXT,
+        display_name TEXT,
+        avatar_url TEXT,
+        current_streak INTEGER DEFAULT 0,
+        max_streak INTEGER DEFAULT 0,
+        last_study_date TEXT DEFAULT '',
+        study_xp INTEGER DEFAULT 0,
+        pomodoro_count INTEGER DEFAULT 0,
+        study_minutes INTEGER DEFAULT 0,
+        exams_completed INTEGER DEFAULT 0,
+        docs_contributed INTEGER DEFAULT 0,
+        dream_school TEXT DEFAULT '',
+        dream_score TEXT DEFAULT '',
+        updated_at TEXT NOT NULL
+      )
+    `);
+    _studyTableEnsured = true;
+  } catch {
+    // ignore
+  }
+}
+
+export async function fetchStudyProfileTurso(
+  discordId: string,
+  username = '',
+  displayName = '',
+  avatarUrl = ''
+): Promise<StudyProfileData | null> {
+  try {
+    await ensureStudyProfilesTableTurso();
+    const { todayStr, yesterdayStr } = getVnDatesClient();
+    const res = await executeTurso(
+      `SELECT discord_id, username, display_name, avatar_url,
+              current_streak, max_streak, last_study_date, study_xp,
+              pomodoro_count, study_minutes, exams_completed, docs_contributed,
+              dream_school, dream_score, updated_at
+       FROM study_profiles
+       WHERE CAST(discord_id AS TEXT) = ?
+       LIMIT 1`,
+      [String(discordId)]
+    );
+
+    const contribRes = await executeTurso(
+      `SELECT COUNT(*) as cnt FROM documents_archive WHERE CAST(author_id AS TEXT) = ? OR LOWER(author_name) = LOWER(?)`,
+      [String(discordId), username || displayName || '__none__']
+    ).catch(() => ({ rows: [] }));
+    const realContrib = Number(contribRes.rows[0]?.cnt || 0);
+
+    if (res.rows.length === 0) {
+      const initXp = realContrib * 50;
+      const rankInfo = computeStudyRankClient(initXp);
+      return {
+        discord_id: String(discordId),
+        username,
+        display_name: displayName || username || 'Học viên Orbit',
+        avatar_url: avatarUrl,
+        current_streak: 0,
+        max_streak: 0,
+        last_study_date: '',
+        checked_in_today: false,
+        study_xp: initXp,
+        level: rankInfo.level,
+        rank_title: rankInfo.title,
+        next_xp: rankInfo.next_xp,
+        level_progress: rankInfo.progress,
+        pomodoro_count: 0,
+        study_minutes: 0,
+        exams_completed: 0,
+        docs_contributed: realContrib,
+        dream_school: '',
+        dream_score: '',
+      };
+    }
+
+    const r = res.rows[0];
+    const lastDate = String(r.last_study_date || '');
+    const rawStreak = Number(r.current_streak || 0);
+    const activeStreak = lastDate === todayStr || lastDate === yesterdayStr ? rawStreak : 0;
+    const maxStreak = Math.max(Number(r.max_streak || 0), activeStreak);
+    const docsContrib = Math.max(Number(r.docs_contributed || 0), realContrib);
+    const xp = Math.max(Number(r.study_xp || 0), docsContrib * 50);
+    const rankInfo = computeStudyRankClient(xp);
+
+    return {
+      discord_id: String(r.discord_id || discordId),
+      username: String(r.username || username),
+      display_name: String(r.display_name || displayName || username || 'Học viên Orbit'),
+      avatar_url: String(r.avatar_url || avatarUrl),
+      current_streak: activeStreak,
+      max_streak: maxStreak,
+      last_study_date: lastDate,
+      checked_in_today: lastDate === todayStr,
+      study_xp: xp,
+      level: rankInfo.level,
+      rank_title: rankInfo.title,
+      next_xp: rankInfo.next_xp,
+      level_progress: rankInfo.progress,
+      pomodoro_count: Number(r.pomodoro_count || 0),
+      study_minutes: Number(r.study_minutes || 0),
+      exams_completed: Number(r.exams_completed || 0),
+      docs_contributed: docsContrib,
+      dream_school: String(r.dream_school || ''),
+      dream_score: String(r.dream_score || ''),
+      updated_at: String(r.updated_at || ''),
+    };
+  } catch (err) {
+    console.warn('Lỗi đọc study_profiles từ Turso:', err);
+    return null;
+  }
+}
+
+export async function recordStudyCheckinTurso(params: {
+  discordId: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  action: 'daily_checkin' | 'pomodoro' | 'exam_complete' | 'update_dream';
+  minutes?: number;
+  dreamSchool?: string;
+  dreamScore?: string;
+}): Promise<{ profile: StudyProfileData; xpGained: number; streakIncremented: boolean } | null> {
+  try {
+    await ensureStudyProfilesTableTurso();
+    const { todayStr, yesterdayStr } = getVnDatesClient();
+    const current = await fetchStudyProfileTurso(
+      params.discordId,
+      params.username,
+      params.displayName,
+      params.avatarUrl
+    );
+
+    let curStreak = current?.current_streak || 0;
+    let maxStreak = current?.max_streak || 0;
+    let lastDate = current?.last_study_date || '';
+    let studyXp = current?.study_xp || 0;
+    let pomoCount = current?.pomodoro_count || 0;
+    let studyMins = current?.study_minutes || 0;
+    let examsDone = current?.exams_completed || 0;
+    const docsContrib = current?.docs_contributed || 0;
+    let dreamSchool = current?.dream_school || '';
+    let dreamScore = current?.dream_score || '';
+
+    let xpGained = 0;
+    let streakIncremented = false;
+
+    if (params.action === 'daily_checkin' || params.action === 'pomodoro' || params.action === 'exam_complete') {
+      if (lastDate !== todayStr) {
+        curStreak = lastDate === yesterdayStr ? curStreak + 1 : 1;
+        maxStreak = Math.max(maxStreak, curStreak);
+        lastDate = todayStr;
+        xpGained += 50 + Math.min(curStreak * 5, 50);
+        streakIncremented = true;
+      }
+    }
+
+    if (params.action === 'pomodoro') {
+      pomoCount += 1;
+      studyMins += params.minutes && params.minutes > 0 ? params.minutes : 25;
+      xpGained += 35;
+    } else if (params.action === 'exam_complete') {
+      examsDone += 1;
+      studyMins += params.minutes && params.minutes > 0 ? params.minutes : 45;
+      xpGained += 100;
+    } else if (params.action === 'update_dream') {
+      if (params.dreamSchool !== undefined) dreamSchool = params.dreamSchool;
+      if (params.dreamScore !== undefined) dreamScore = params.dreamScore;
+      if (dreamSchool && studyXp === 0) xpGained += 20;
+    }
+
+    studyXp += xpGained;
+    const nowIso = new Date().toISOString();
+
+    await executeTurso(
+      `INSERT INTO study_profiles
+       (discord_id, username, display_name, avatar_url, current_streak, max_streak,
+        last_study_date, study_xp, pomodoro_count, study_minutes, exams_completed,
+        docs_contributed, dream_school, dream_score, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(discord_id) DO UPDATE SET
+        username = excluded.username,
+        display_name = excluded.display_name,
+        avatar_url = CASE WHEN excluded.avatar_url != '' THEN excluded.avatar_url ELSE study_profiles.avatar_url END,
+        current_streak = excluded.current_streak,
+        max_streak = excluded.max_streak,
+        last_study_date = excluded.last_study_date,
+        study_xp = excluded.study_xp,
+        pomodoro_count = excluded.pomodoro_count,
+        study_minutes = excluded.study_minutes,
+        exams_completed = excluded.exams_completed,
+        docs_contributed = excluded.docs_contributed,
+        dream_school = excluded.dream_school,
+        dream_score = excluded.dream_score,
+        updated_at = excluded.updated_at`,
+      [
+        params.discordId,
+        params.username || current?.username || '',
+        params.displayName || current?.display_name || params.username || 'Học viên Orbit',
+        params.avatarUrl || current?.avatar_url || '',
+        curStreak,
+        maxStreak,
+        lastDate,
+        studyXp,
+        pomoCount,
+        studyMins,
+        examsDone,
+        docsContrib,
+        dreamSchool,
+        dreamScore,
+        nowIso,
+      ]
+    );
+
+    const rankInfo = computeStudyRankClient(studyXp);
+    return {
+      xpGained,
+      streakIncremented,
+      profile: {
+        discord_id: params.discordId,
+        username: params.username || current?.username || '',
+        display_name: params.displayName || current?.display_name || 'Học viên Orbit',
+        avatar_url: params.avatarUrl || current?.avatar_url || '',
+        current_streak: curStreak,
+        max_streak: maxStreak,
+        last_study_date: lastDate,
+        checked_in_today: lastDate === todayStr,
+        study_xp: studyXp,
+        level: rankInfo.level,
+        rank_title: rankInfo.title,
+        next_xp: rankInfo.next_xp,
+        level_progress: rankInfo.progress,
+        pomodoro_count: pomoCount,
+        study_minutes: studyMins,
+        exams_completed: examsDone,
+        docs_contributed: docsContrib,
+        dream_school: dreamSchool,
+        dream_score: dreamScore,
+        updated_at: nowIso,
+      },
+    };
+  } catch (err) {
+    console.warn('Lỗi ghi nhận study checkin lên Turso:', err);
+    return null;
+  }
+}
+
+export async function fetchAcademicLeaderboardTurso(): Promise<AcademicScholarEntry[]> {
+  try {
+    await ensureStudyProfilesTableTurso();
+    const { todayStr, yesterdayStr } = getVnDatesClient();
+
+    const [profRes, contribRes] = await Promise.all([
+      executeTurso(
+        `SELECT discord_id, username, display_name, avatar_url,
+                current_streak, max_streak, last_study_date, study_xp,
+                pomodoro_count, study_minutes, exams_completed, docs_contributed,
+                dream_school, dream_score
+         FROM study_profiles
+         ORDER BY study_xp DESC, current_streak DESC
+         LIMIT 30`
+      ).catch(() => ({ rows: [] })),
+      executeTurso(
+        `SELECT author_name, MAX(author_id) as aid, COUNT(*) as cnt
+         FROM documents_archive
+         WHERE author_name IS NOT NULL AND author_name != ''
+         GROUP BY author_name
+         ORDER BY cnt DESC
+         LIMIT 20`
+      ).catch(() => ({ rows: [] })),
+    ]);
+
+    const map = new Map<string, AcademicScholarEntry>();
+
+    for (const r of profRes.rows) {
+      const idStr = String(r.discord_id || r.username || r.display_name);
+      const lastDate = String(r.last_study_date || '');
+      const activeStreak = lastDate === todayStr || lastDate === yesterdayStr ? Number(r.current_streak || 0) : 0;
+      const maxS = Math.max(Number(r.max_streak || 0), activeStreak);
+      const xp = Number(r.study_xp || 0);
+      const rankInfo = computeStudyRankClient(xp);
+      map.set(idStr, {
+        rank: 0,
+        discord_id: idStr,
+        display_name: String(r.display_name || r.username || 'Học viên Orbit'),
+        username: String(r.username || ''),
+        avatar_url: String(r.avatar_url || ''),
+        current_streak: activeStreak,
+        max_streak: maxS,
+        study_xp: xp,
+        level: rankInfo.level,
+        rank_title: rankInfo.title,
+        pomodoro_count: Number(r.pomodoro_count || 0),
+        study_minutes: Number(r.study_minutes || 0),
+        exams_completed: Number(r.exams_completed || 0),
+        docs_contributed: Number(r.docs_contributed || 0),
+        dream_school: String(r.dream_school || ''),
+        dream_score: String(r.dream_score || ''),
+      });
+    }
+
+    for (const c of contribRes.rows) {
+      const aname = String(c.author_name || 'Thành viên Orbit');
+      const cnt = Number(c.cnt || 0);
+      const aid = c.aid ? String(c.aid) : `contrib_${aname.toLowerCase()}`;
+      const existing = map.get(aid) || Array.from(map.values()).find((x) => x.display_name.toLowerCase() === aname.toLowerCase());
+      if (existing) {
+        existing.docs_contributed = Math.max(existing.docs_contributed, cnt);
+        existing.study_xp = Math.max(existing.study_xp, cnt * 50);
+        const ri = computeStudyRankClient(existing.study_xp);
+        existing.level = ri.level;
+        existing.rank_title = ri.title;
+      } else {
+        const xp = cnt * 50;
+        const ri = computeStudyRankClient(xp);
+        map.set(aid, {
+          rank: 0,
+          discord_id: aid,
+          display_name: aname,
+          username: aname.toLowerCase().replace(/\s+/g, '_'),
+          avatar_url: '',
+          current_streak: 1,
+          max_streak: 1,
+          study_xp: xp,
+          level: ri.level,
+          rank_title: ri.title,
+          pomodoro_count: 0,
+          study_minutes: 0,
+          exams_completed: 0,
+          docs_contributed: cnt,
+          dream_school: '',
+          dream_score: '',
+        });
+      }
+    }
+
+    const list = Array.from(map.values()).sort(
+      (a, b) => b.study_xp - a.study_xp || b.current_streak - a.current_streak || b.docs_contributed - a.docs_contributed
+    );
+    return list.slice(0, 25).map((item, idx) => ({ ...item, rank: idx + 1 }));
+  } catch (err) {
+    console.warn('Lỗi lấy bảng xếp hạng Turso:', err);
+    return [];
+  }
+}
+
+// ============================================================================
+// 6. BÓC TÁCH NỘI DUNG VĂN BẢN & CÂU HỎI ĐỀ THI TRỰC TIẾP TỪ TURSO CLOUD
+// ============================================================================
+export interface ParsedExamQuestion {
+  number: number;
+  label: string;
+  type: 'mcq' | 'true_false' | 'short_or_essay';
+  stem: string;
+  options: { key: string; text: string }[];
+  statements: { key: string; text: string }[];
+  answer_key?: string;
+}
+
+export function parseQuestionsFromRawTextClient(rawText: string): {
+  questions: ParsedExamQuestion[];
+  answer_keys: Record<string, string>;
+} {
+  if (!rawText || !rawText.trim()) {
+    return { questions: [], answer_keys: {} };
+  }
+  const text = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const answer_keys: Record<string, string> = {};
+  const tail = text.length > 600 ? text.slice(Math.floor(text.length * 0.55)) : text;
+  const keyRegex = /\b(\d{1,3})\s*[.:\-–)\s]\s*([A-D])\b/g;
+  let km: RegExpExecArray | null;
+  while ((km = keyRegex.exec(tail)) !== null) {
+    const qn = parseInt(km[1], 10);
+    if (qn >= 1 && qn <= 120) {
+      answer_keys[String(qn)] = km[2].toUpperCase();
+    }
+  }
+
+  const lines = text.split('\n');
+  const questions: ParsedExamQuestion[] = [];
+  const seen = new Set<string>();
+  let currentNum: string | null = null;
+  let currentLines: string[] = [];
+
+  const flushQuestion = () => {
+    if (!currentNum || currentLines.length === 0) return;
+    const body = currentLines.join('\n').trim();
+    if (body.length < 4 || (seen.has(currentNum) && body.length < 35)) return;
+    seen.add(currentNum);
+
+    const optRegex = /(?:^|\s|\n)([A-D])\s*[.)]\s+([^\n]+)/g;
+    const options: { key: string; text: string }[] = [];
+    let firstOptIdx = -1;
+    let om: RegExpExecArray | null;
+    while ((om = optRegex.exec(body)) !== null) {
+      if (firstOptIdx === -1) firstOptIdx = om.index;
+      if (options.length < 4) {
+        options.push({ key: om[1].toUpperCase(), text: om[2].trim() });
+      }
+    }
+
+    let stem = firstOptIdx > 0 && options.length >= 2 ? body.slice(0, firstOptIdx).trim() : body;
+    const statements: { key: string; text: string }[] = [];
+    if (options.length < 2) {
+      const stmtRegex = /(?:^|\n)\s*([a-d])\)\s+([^\n]+)/g;
+      let firstStmtIdx = -1;
+      let sm: RegExpExecArray | null;
+      while ((sm = stmtRegex.exec(body)) !== null) {
+        if (firstStmtIdx === -1) firstStmtIdx = sm.index;
+        if (statements.length < 4) {
+          statements.push({ key: sm[1].toLowerCase(), text: sm[2].trim() });
+        }
+      }
+      if (firstStmtIdx > 0 && statements.length >= 2) {
+        stem = body.slice(0, firstStmtIdx).trim();
+      }
+    }
+
+    questions.push({
+      number: parseInt(currentNum, 10),
+      label: `Câu ${currentNum}`,
+      type: options.length >= 2 ? 'mcq' : statements.length >= 2 ? 'true_false' : 'short_or_essay',
+      stem: stem.slice(0, 1500),
+      options: options.length >= 2 ? options : [],
+      statements: statements.length >= 2 ? statements : [],
+      answer_key: answer_keys[currentNum],
+    });
+  };
+
+  const headRegex = /^\s*(?:Câu|Cau|Question|Bài|Bai)\s+(\d{1,3})\s*[.:)\-–]?\s*(.*)$/i;
+  for (const line of lines) {
+    const m = headRegex.exec(line);
+    if (m) {
+      flushQuestion();
+      currentNum = m[1];
+      currentLines = m[2] ? [m[2]] : [];
+    } else if (currentNum) {
+      currentLines.push(line);
+    }
+  }
+  flushQuestion();
+
+  return { questions: questions.slice(0, 80), answer_keys };
+}
+
+export async function fetchDocContentFromTurso(docId: number): Promise<{
+  raw_text: string;
+  notes: string;
+  file_content_base64?: string | null;
+  questions: ParsedExamQuestion[];
+  answer_keys: Record<string, string>;
+} | null> {
+  try {
+    const res = await executeTurso(
+      `SELECT raw_text, notes, file_content_base64 FROM documents_archive WHERE id = ? LIMIT 1`,
+      [docId]
+    );
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    const rawText = String(r.raw_text || '');
+    const notes = String(r.notes || '');
+    const parsed = parseQuestionsFromRawTextClient(rawText || notes);
+    return {
+      raw_text: rawText,
+      notes,
+      file_content_base64: r.file_content_base64 ? String(r.file_content_base64) : null,
+      questions: parsed.questions,
+      answer_keys: parsed.answer_keys,
+    };
+  } catch (err) {
+    console.warn('Lỗi đọc nội dung đề thi từ Turso:', err);
+    return null;
+  }
+}
+
+

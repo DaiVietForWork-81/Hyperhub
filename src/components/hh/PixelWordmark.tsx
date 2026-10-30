@@ -25,7 +25,7 @@ export const PixelWordmark: React.FC<{ className?: string }> = ({ className }) =
           Orbit
         </div>
         <p className="hh-orbit-motto">
-          Learn • Chill • Study · Không gian học tập, thư giãn &amp; ôn luyện cùng một quỹ đạo.
+          Vietnam · Không gian học tập, thư giãn &amp; ôn luyện cùng một quỹ đạo.
         </p>
       </div>
     </div>
