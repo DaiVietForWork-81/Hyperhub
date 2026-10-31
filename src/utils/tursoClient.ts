@@ -10,6 +10,7 @@
  */
 
 export const TURSO_DATABASE_URL = "https://daiviet-daiviet.aws-ap-northeast-1.turso.io";
+export const DISCORD_DATABASE_CHANNEL_ID = "1548627763467128912";
 export const TURSO_AUTH_TOKEN =
   "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE3MzI5NDQsImlkIjoiMDFhMTJiOTktYTEwMS03OGFlLWI1ZTItNWRjODQ2ZjZjZjQ3Iiwia2lkIjoiRHBfR2JDeW01a1VKNk9NUkR4aFE5akxxdFlXR1ZTUF81ZzhZQ0xkSmVfWSIsInJpZCI6IjU0MjdjMWE1LWU3MWEtNGMzZi1iNWUxLTgwZjYwZTM3NDZjZCJ9.OuOzXvRrslun1bxyS5BZ9lDOSR97yhViOWRktdLBLrLG1a9Jmf_QlpSK1WwsLgQydNFO7IQhCJKZoyAP6o7fDA";
 
@@ -193,7 +194,7 @@ export async function saveDocumentToTurso(
     doc.pageCount,
     doc.authorId || 0,
     doc.authorName || "Khách (Web)",
-    0, // channel_id
+    DISCORD_DATABASE_CHANNEL_ID, // channel_id (#database trên Discord)
     0, // message_id
     "https://orbit-psi-black.vercel.app/#vault",
     nowIso,

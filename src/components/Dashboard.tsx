@@ -4,7 +4,6 @@ import {
   Home,
   ArrowLeft,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   RefreshCw,
   BookOpen,
@@ -34,7 +33,6 @@ import {
   RotateCcw,
   Target,
   Flame,
-  Award,
   Trophy,
   PenTool,
 } from 'lucide-react';
@@ -67,7 +65,6 @@ import {
   fetchAcademicLeaderboardTurso,
 } from '../utils/tursoClient';
 import { sound } from '../utils/audio';
-import { PixelMark } from './hh/PixelMark';
 import { PixelButton, SpotSurface } from './hh/Controls';
 import { getNextThptExamInfo } from './ExamCountdown';
 import {
@@ -1679,13 +1676,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
   // Thống kê phân bố theo môn học thực tế trong kho (sắp xếp giảm dần theo số lượng đề thật)
   const subjectBreakdown = useMemo(() => {
     const catalog = [
-      { id: 'ENGLISH', label: 'Ngoại ngữ (Tiếng Anh)', tone: '#9B5CFF' },
-      { id: 'LITERATURE', label: 'Ngữ văn', tone: '#FF4FCB' },
-      { id: 'GENERAL', label: 'Tài liệu & Chuyên đề chung', tone: '#9B5CFF' },
-      { id: 'MATHEMATICS', label: 'Toán học', tone: '#9B5CFF' },
-      { id: 'INFORMATICS', label: 'Tin học & Thuật toán', tone: '#FF4FCB' },
-      { id: 'PHYSICS', label: 'Vật lí', tone: '#9B5CFF' },
-      { id: 'CHEMISTRY', label: 'Hóa học', tone: '#9B5CFF' },
+      { id: 'ENGLISH', label: 'Ngoại ngữ (Tiếng Anh)', shortLabel: 'Tiếng Anh', tone: '#38BDF8' },
+      { id: 'LITERATURE', label: 'Ngữ văn', shortLabel: 'Ngữ văn', tone: '#F472B6' },
+      { id: 'GENERAL', label: 'Tài liệu & Chuyên đề chung', shortLabel: 'Chuyên đề chung', tone: '#818CF8' },
+      { id: 'MATHEMATICS', label: 'Toán học', shortLabel: 'Toán học', tone: '#FF4FCB' },
+      { id: 'INFORMATICS', label: 'Tin học & Thuật toán', shortLabel: 'Tin học', tone: '#FBBF24' },
+      { id: 'PHYSICS', label: 'Vật lí', shortLabel: 'Vật lí', tone: '#A78BFA' },
+      { id: 'CHEMISTRY', label: 'Hóa học', shortLabel: 'Hóa học', tone: '#34D399' },
     ];
     const withCounts = catalog.map((item) => {
       const count = documentsList.filter((d) =>
@@ -1699,8 +1696,43 @@ const DashboardContent: React.FC<DashboardProps> = ({
     return withCounts.slice(0, 6);
   }, [documentsList]);
 
-  // Đồng bộ ngày đếm ngược kỳ thi THPT Quốc Gia với Trang chủ
+  // Đồng bộ ngày & giờ đếm ngược kỳ thi THPT Quốc Gia theo thời gian thực
   const nextThptExam = useMemo(() => getNextThptExamInfo(), []);
+  const [countdownParts, setCountdownParts] = useState<{
+    days: number;
+    hours: string;
+    minutes: string;
+    seconds: string;
+  }>(() => {
+    const diff = Math.max(0, new Date(nextThptExam.targetIso).getTime() - Date.now());
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return {
+      days: d,
+      hours: String(h).padStart(2, '0'),
+      minutes: String(m).padStart(2, '0'),
+      seconds: String(s).padStart(2, '0'),
+    };
+  });
+
+  useEffect(() => {
+    const targetMs = new Date(nextThptExam.targetIso).getTime();
+    const tick = () => {
+      const diff = Math.max(0, targetMs - Date.now());
+      setCountdownParts({
+        days: Math.floor(diff / 86400000),
+        hours: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, '0'),
+        minutes: String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0'),
+        seconds: String(Math.floor((diff % 60000) / 1000)).padStart(2, '0'),
+      });
+    };
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [nextThptExam.targetIso]);
+
+  const [vaultViewMode, setVaultViewMode] = useState<'cards' | 'table'>('cards');
 
   // Thống kê nhanh được memo hóa (tránh tính lại mỗi lần render)
   const thptDocsCount = useMemo(
@@ -2413,6 +2445,110 @@ const DashboardContent: React.FC<DashboardProps> = ({
     );
   };
 
+  // ===========================================================================
+  // SUB-RENDER: COMPACT TABLE ROW FOR HIGH-DENSITY WORKBENCH / VAULT TABLE VIEW
+  // ===========================================================================
+  const renderExamCompactRow = (doc: ExamDocument) => {
+    const isBookmarked = bookmarkedIds.has(doc.id);
+    const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
+    const trackInfo = getExamTrackInfo(doc);
+    const resolvedDownloadUrl = resolveExamFileUrl(doc);
+
+    return (
+      <div
+        key={`row-${doc.id}`}
+        className="hh-dossier-row px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+      >
+        <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <span className="text-[12px] font-extrabold px-2 py-0.5 rounded bg-[#9B5CFF]/15 text-[#E2D4FF] border border-[#9B5CFF]/35">
+              {doc.subject}
+            </span>
+            <span className={`text-[12px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${gradeStyle.badgeClass}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
+              <span>{gradeStyle.label}</span>
+            </span>
+            <span className={`text-[12px] font-bold px-2 py-0.5 rounded border ${trackInfo.badgeClass}`}>
+              {trackInfo.label}
+            </span>
+            {(doc.has_answer_keys || doc.has_detailed_solutions) && (
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                Đáp án
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openExamModal(doc, 'pdf_reader')}
+            className="text-left min-w-0 flex-1 font-bold text-[13px] sm:text-sm text-white group-hover:text-[#FFB8E6] transition-colors truncate cursor-pointer"
+          >
+            {doc.title || doc.file_name}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-2 text-[12px] text-white/50 font-mono tabular-nums pr-1">
+            {doc.academic_year && <span>{doc.academic_year}</span>}
+            <span>•</span>
+            <span>{doc.page_count || 1}tr</span>
+            <span>•</span>
+            <span>{formatFileSize(doc.file_size_bytes)}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => openExamModal(doc, 'pdf_reader')}
+              className="px-2.5 py-1 rounded-lg bg-[#d61f79]/25 hover:bg-[#d61f79] border border-[#FF4FCB]/40 text-white text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Đọc PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => openExamModal(doc, 'practice_room')}
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/35 text-emerald-300 text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Làm Bài</span>
+            </button>
+
+            {resolvedDownloadUrl && (
+              <a
+                href={resolvedDownloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={botStatus.online ? doc.file_name || 'de_thi.pdf' : undefined}
+                className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.08] text-white/75 hover:text-white transition-colors"
+                title="Tải tệp gốc"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                toggleBookmarkExam(doc.id);
+                setBookmarkedIds(new Set(getBookmarkedExamIds()));
+              }}
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                isBookmarked
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                  : 'bg-white/[0.03] border-white/[0.08] text-white/45 hover:text-amber-300'
+              }`}
+              title="Lưu vào Tủ Sách"
+            >
+              <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const hubLocked = false;
 
   return (
@@ -2421,18 +2557,24 @@ const DashboardContent: React.FC<DashboardProps> = ({
       {/* MOBILE TOP COMMAND HEADER                                                 */}
       {/* ========================================================================= */}
       <div className="lg:hidden w-full sticky top-0 z-40 hh-hub-mobile-bar">
-        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-[#241a38]">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-white/[0.08]">
           <button
             type="button"
             onClick={onBackToHome}
             className="flex items-center gap-2.5 group cursor-pointer text-left"
           >
-            <PixelMark className="w-7 h-7" />
+            <span className="hh-orbit-logo-halo w-8 h-8 shrink-0">
+              <img
+                src="/orbit_logo_transparent.png"
+                alt="Orbit | Vietnam"
+                className="w-6 h-6 object-contain"
+              />
+            </span>
             <div>
               <div className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                <span>Orbit</span>
-                <span className="hh-pixel text-[13px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6] border border-[#FF4FCB]/35">
-                  HUB
+                <span>Orbit | Vietnam</span>
+                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6] border border-[#FF4FCB]/35">
+                  COMMAND
                 </span>
               </div>
             </div>
@@ -2442,7 +2584,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <button
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="p-2 rounded-lg bg-white/[0.06] border border-[#241a38] text-white/80"
+              className="p-2 rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/80"
               aria-label="Tìm kiếm nhanh"
             >
               <Search className="w-4 h-4 text-[#FFB8E6]" />
@@ -2450,7 +2592,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <button
               type="button"
               onClick={onBackToHome}
-              className="px-3 py-1.5 rounded-lg text-[13px] font-bold text-white/85 bg-white/[0.06] border border-[#241a38] flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-[13px] font-bold text-white/85 bg-white/[0.06] border border-white/[0.1] flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Trang chủ</span>
@@ -2466,7 +2608,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             className="hh-hub-chip whitespace-nowrap"
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Tổng Quan</span>
+            <span>Bàn Điều Khiển</span>
           </button>
           <button
             onClick={() => {
@@ -2504,7 +2646,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             className="hh-hub-chip whitespace-nowrap"
           >
             <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Đóng Góp Đề</span>
+            <span>Nộp Đề AI</span>
           </button>
           {(isAdmin || readCachedAdmin()) && (
             <button
@@ -2520,31 +2662,34 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP COMMAND RAIL (SIDEBAR - 0.9x COMPACT FULL VIEW)                   */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - ARCHITECTURAL PRECISION, NO ZOOM SLOP)   */}
       {/* ========================================================================= */}
       <aside
-        style={{ width: `${config.sidebarWidth}px` }}
-        className="hidden lg:flex sticky top-0 h-[calc(100dvh/0.9)] hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto no-scrollbar"
+        style={{ width: `${Math.max(256, config.sidebarWidth)}px` }}
+        className="hidden lg:flex sticky top-0 h-dvh hh-hub-sidebar flex-col justify-between shrink-0 p-4 z-30 overflow-y-auto no-scrollbar"
       >
-        <div className="space-y-3">
-          {/* Brand Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-[#241a38]">
+        <div className="space-y-4">
+          {/* Brand Header with Crystal Ring Emblem */}
+          <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08]">
             <button
               type="button"
               onClick={onBackToHome}
-              className="flex items-center gap-2.5 group cursor-pointer text-left"
-              title="Quay về Trang Chủ Orbit"
+              className="flex items-center gap-3 group cursor-pointer text-left min-w-0"
+              title="Quay về Trang Chủ Orbit | Vietnam"
             >
-              <PixelMark className="w-7 h-7 shrink-0" />
-              <div>
-                <div className="text-base font-black text-white group-hover:text-[#FFB8E6] transition-colors flex items-center gap-2">
-                  <span>Orbit</span>
-                  <span className="hh-pixel text-[13px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6] border border-[#FF4FCB]/40">
-                    HUB
-                  </span>
+              <span className="hh-orbit-logo-halo w-10 h-10 shrink-0">
+                <img
+                  src="/orbit_logo_transparent.png"
+                  alt="Orbit | Vietnam"
+                  className="w-7 h-7 object-contain"
+                />
+              </span>
+              <div className="min-w-0">
+                <div className="text-[15px] font-black text-white group-hover:text-[#FFB8E6] transition-colors flex items-center gap-1.5 truncate">
+                  <span>Orbit | Vietnam</span>
                 </div>
-                <div className="text-[13px] text-white/60 mt-0.5">
-                  Different paths. One orbit.
+                <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#C4A6FF]/75 mt-0.5">
+                  COMMAND DECK v2.5
                 </div>
               </div>
             </button>
@@ -2552,7 +2697,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <button
               type="button"
               onClick={onBackToHome}
-              className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors cursor-pointer shrink-0"
               title="Về Trang Chủ"
             >
               <Home className="w-4 h-4" />
@@ -2566,24 +2711,26 @@ const DashboardContent: React.FC<DashboardProps> = ({
               sound.playClick();
               setIsCommandPaletteOpen(true);
             }}
-            className="w-full px-3 py-2 rounded-xl bg-[#0B0911]/90 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/50 flex items-center justify-between gap-2 text-[13px] text-white/70 hover:text-white transition-all cursor-pointer group"
+            className="w-full px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.09] hover:border-[#FF4FCB]/45 flex items-center justify-between gap-2 text-[13px] text-white/75 hover:text-white transition-all cursor-pointer group"
           >
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2 truncate">
               <Search className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
-              <span>Tìm nhanh đề thi &amp; lệnh</span>
+              <span className="truncate">Tìm nhanh đề thi &amp; lệnh...</span>
             </span>
-            <kbd className="text-[13px] px-1.5 py-0.5 rounded bg-white/[0.07] border border-[#241a38] text-white/65 whitespace-nowrap shrink-0">
+            <kbd className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-white/[0.07] border border-white/[0.1] text-white/70 whitespace-nowrap shrink-0">
               Ctrl K
             </kbd>
           </button>
 
           {/* Navigation Deck */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="px-2 pb-1 flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-white/55">Điều hướng</span>
-              <span className="text-[13px] text-emerald-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-xs bg-emerald-400" />
-                <span>{botStatus.online ? 'Bot Trực tuyến' : 'Trực tuyến'}</span>
+              <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-white/45 font-bold">
+                TRẠM ĐIỀU HÀNH
+              </span>
+              <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
+                <span>{botStatus.online ? 'BOT LIVE' : 'CLOUD LIVE'}</span>
               </span>
             </div>
 
@@ -2596,7 +2743,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               >
                 <LayoutDashboard className="w-4 h-4 shrink-0 text-[#C4A6FF]" />
                 <span>Bàn Điều Khiển</span>
-                <span className="ml-auto text-[13px] text-white/45 font-medium">Tổng quan</span>
+                <span className="ml-auto font-mono text-[11px] text-white/40">01</span>
               </button>
 
               <button
@@ -2610,7 +2757,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               >
                 <BookOpen className="w-4 h-4 shrink-0 text-[#FF4FCB]" />
                 <span>Kho Đề Thẩm Định</span>
-                <span className="ml-auto tabular-nums text-[13px] px-2 py-0.5 rounded-md bg-[#FF4FCB]/15 text-[#FFB8E6] border border-[#FF4FCB]/30">
+                <span className="ml-auto font-mono tabular-nums text-[12px] px-2 py-0.5 rounded-md bg-[#FF4FCB]/15 text-[#FFB8E6] border border-[#FF4FCB]/30">
                   {totalDocsCount}
                 </span>
               </button>
@@ -2626,7 +2773,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               >
                 <Star className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>Tủ Sách Cá Nhân</span>
-                <span className="ml-auto tabular-nums text-[13px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <span className="ml-auto font-mono tabular-nums text-[12px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
                   {bookmarkedIds.size}
                 </span>
               </button>
@@ -2637,9 +2784,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 data-active={activeTab === 'get_exam'}
                 className="hh-hub-nav-item"
               >
-                <Dices className="w-4 h-4 shrink-0 text-[#5CE1E6]" />
-                <span>Máy Phát Đề</span>
-                <span className="ml-auto text-[13px] text-white/45 font-medium">Ngẫu nhiên</span>
+                <Dices className="w-4 h-4 shrink-0 text-[#38BDF8]" />
+                <span>Máy Bốc Đề Ngẫu Nhiên</span>
+                <span className="ml-auto font-mono text-[11px] text-[#38BDF8]/80">RNG</span>
               </button>
 
               <button
@@ -2649,8 +2796,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 className="hh-hub-nav-item"
               >
                 <UploadCloud className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>Đóng Góp Đề Thi</span>
-                <span className="ml-auto text-[13px] text-emerald-300/75 font-medium">3+1 Quorum</span>
+                <span>Trạm Nộp Đề AI</span>
+                <span className="ml-auto font-mono text-[11px] text-emerald-300/80">+XP</span>
               </button>
 
               {(isAdmin || readCachedAdmin()) && (
@@ -2661,160 +2808,29 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   className="hh-hub-nav-item"
                 >
                   <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>Quản Trị ({adminInfo?.role_name || 'ADMIN'})</span>
-                  {hasSystemUpdate && (
-                    <span className="ml-auto text-[13px] px-1.5 py-0.5 rounded bg-amber-400 text-black font-bold">
+                  <span>Quản Trị Hệ Thống</span>
+                  {hasSystemUpdate ? (
+                    <span className="ml-auto text-[11px] px-1.5 py-0.5 rounded bg-amber-400 text-black font-bold">
                       Mới
                     </span>
-                  )}
-                  {justReconnected && !hasSystemUpdate && (
-                    <span className="ml-auto w-2 h-2 rounded-xs bg-emerald-400" />
+                  ) : (
+                    <span className="ml-auto font-mono text-[11px] text-amber-300/75 flex items-center gap-1">
+                      {justReconnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                      <span>{adminInfo?.role_name || 'ROOT'}</span>
+                    </span>
                   )}
                 </button>
               )}
             </nav>
           </div>
 
-          {/* CHILL // POMODORO FOCUS WIDGET NGAY TRONG SIDEBAR */}
-          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#FF4FCB]" />
-                <span>{pomoMode === 'focus' ? 'Pomodoro · 25p' : 'Nghỉ giải lao · 5p'}</span>
+          {/* LỌC NHANH THEO KHỐI LỚP (GỌN GÀNG, SẮC NÉT) */}
+          <div className="pt-3 border-t border-white/[0.08] space-y-2">
+            <div className="px-1 flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-white/45 font-bold">
+                KHỐI LỚP TRỌNG ĐIỂM
               </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => togglePomoMode('focus')}
-                  className={`px-2 py-0.5 rounded text-[13px] font-bold cursor-pointer ${
-                    pomoMode === 'focus' ? 'bg-[#9B5CFF] text-white' : 'text-white/50 hover:text-white'
-                  }`}
-                >
-                  Học
-                </button>
-                <button
-                  type="button"
-                  onClick={() => togglePomoMode('chill')}
-                  className={`px-2 py-0.5 rounded text-[13px] font-bold cursor-pointer ${
-                    pomoMode === 'chill' ? 'bg-[#FF4FCB] text-white' : 'text-white/50 hover:text-white'
-                  }`}
-                >
-                  Nghỉ
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-              <div className="hh-pixel text-xl text-white tracking-wider tabular-nums">
-                {formatPomo(pomoSeconds)}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    setPomoRunning((r) => !r);
-                  }}
-                  aria-label={pomoRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu đồng hồ'}
-                  className="px-2.5 py-1 rounded-lg bg-[#d61f79] text-white text-[13px] font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  {pomoRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  <span>{pomoRunning ? 'Dừng' : 'Chạy'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPomoRunning(false);
-                    setPomoSeconds(pomoMode === 'focus' ? 25 * 60 : 5 * 60);
-                  }}
-                  aria-label="Đặt lại đồng hồ"
-                  className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 8-block Voxel Progress Bar */}
-            <div className="grid grid-cols-8 gap-1 pt-0.5" aria-hidden="true">
-              {Array.from({ length: 8 }).map((_, i) => {
-                const lit = pomoProgress >= (i + 1) / 8 || (pomoRunning && i === Math.floor(pomoProgress * 8));
-                return (
-                  <span
-                    key={i}
-                    className={`h-1.5 rounded-xs transition-colors ${
-                      lit ? 'bg-[#d61f79]' : 'bg-white/[0.08]'
-                    }`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* CHUỖI NGÀY HỌC (STREAK) & XP ĐỒNG BỘ DISCORD ↔ WEB TRONG SIDEBAR */}
-          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="font-bold text-amber-300 flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-orange-400 fill-orange-400/30" />
-                <span>Chuỗi học: {studyProfile?.current_streak || 0} ngày</span>
-              </span>
-              <span className="font-mono font-bold text-[#FFB8E6] tabular-nums text-[12px]">
-                {studyProfile?.study_xp || 0} XP
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 text-[12px] text-white/60">
-              <span className="truncate">{studyProfile?.rank_title || '🌱 Tân Binh Orbit'}</span>
-              <span className="font-mono text-emerald-300 shrink-0">
-                ✍️ {studyProfile?.exams_completed || 0} đề
-              </span>
-            </div>
-
-            <button
-              type="button"
-              disabled={isCheckingIn}
-              onClick={() => triggerStudyCheckin('daily_checkin', 15)}
-              className="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-orange-500/20 to-[#d61f79]/25 hover:from-orange-500/30 hover:to-[#d61f79]/40 border border-orange-400/35 text-amber-200 font-extrabold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-            >
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>{isCheckingIn ? 'Đang đồng bộ...' : '🔥 Điểm Danh Hôm Nay (+50 XP)'}</span>
-            </button>
-          </div>
-
-          {/* NHỊP ĐỘ MÙA THI & MỤC TIÊU CÁ NHÂN TRONG SIDEBAR */}
-          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="font-bold text-[#E2CEFF] flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-[#FFA8DC]" />
-                <span>Kỳ thi THPT {nextThptExam.examYear}</span>
-              </span>
-              <span className="font-mono font-bold text-[#FFB396] tabular-nums text-[13px]">
-                Còn {nextThptExam.daysLeft} ngày
-              </span>
-            </div>
-            <div className="pt-1.5 border-t border-[#241a38] flex items-center justify-between gap-2 text-[13px]">
-              <span className="text-white/60 flex items-center gap-1.5 truncate">
-                <Target className="w-3.5 h-3.5 text-[#FF3CA6] shrink-0" />
-                <span className="truncate">
-                  {dreamGoal ? dreamGoal.school : 'Chưa ghim trường mục tiêu'}
-                </span>
-              </span>
-              {dreamGoal?.score && (
-                <span className="px-1.5 py-0.5 rounded bg-[#FF3CA6]/15 text-[#FFA8DC] font-mono font-bold text-[13px] shrink-0">
-                  {dreamGoal.score}đ
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* LỌC NHANH THEO KHỐI LỚP NGAY TRONG SIDEBAR (TẬN DỤNG KHÔNG GIAN TRỐNG) */}
-          <div className="p-3 rounded-2xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="font-bold text-[#E2CEFF] flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5 text-[#C4A6FF]" />
-                <span>Lọc nhanh khối lớp</span>
-              </span>
-              <span className="text-[13px] text-white/50 tabular-nums">Lớp 6–12</span>
+              <span className="text-[11px] font-mono text-white/40 tabular-nums">Lớp 6–12</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               {[
@@ -2846,28 +2862,64 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     setShowBookmarksOnly(false);
                     handleTabChange('vault');
                   }}
-                  className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-[#241a38] hover:border-[#FF4FCB]/40 flex items-center justify-between text-[13px] transition-colors cursor-pointer"
+                  className="px-2.5 py-2 rounded-lg bg-white/[0.025] hover:bg-white/[0.06] border border-white/[0.07] hover:border-[#FF4FCB]/40 flex items-center justify-between text-[13px] transition-colors cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5 font-semibold text-white/85">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: g.dot }} />
                     <span>{g.label}</span>
                   </span>
-                  <span className="font-mono text-[13px] text-white/55 tabular-nums">{g.count}</span>
+                  <span className="font-mono text-[12px] text-white/55 tabular-nums">{g.count}</span>
                 </button>
               ))}
             </div>
           </div>
+
+          {/* MINI LIVE ORBIT TELEMETRY PILL (POMODORO + STREAK LUÔN HIỂN THỊ KHI CHUYỂN TAB) */}
+          <div className="p-3 rounded-xl bg-white/[0.025] border border-white/[0.08] space-y-2.5">
+            <div className="flex items-center justify-between text-[12px]">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  setPomoRunning((r) => !r);
+                }}
+                className="flex items-center gap-1.5 font-bold text-[#FFB8E6] hover:text-white cursor-pointer"
+                title="Bấm để Chạy/Dừng Pomodoro"
+              >
+                <Clock className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                <span className="font-mono tabular-nums">{formatPomo(pomoSeconds)}</span>
+                <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#FF4FCB]/20 text-[#FFB8E6]">
+                  {pomoRunning ? 'ĐANG CHẠY' : 'POMO'}
+                </span>
+              </button>
+
+              <span className="font-mono font-bold text-amber-300 tabular-nums flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400/30" />
+                <span>{studyProfile?.current_streak || 0}d</span>
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={isCheckingIn}
+              onClick={() => triggerStudyCheckin('daily_checkin', 15)}
+              className="w-full py-1.5 px-2.5 rounded-lg bg-gradient-to-r from-orange-500/20 to-[#d61f79]/25 hover:from-orange-500/30 hover:to-[#d61f79]/40 border border-orange-400/35 text-amber-200 font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>{isCheckingIn ? 'Đang đồng bộ...' : 'Điểm danh hôm nay (+50 XP)'}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Bottom: Discord Identity & Back to Home */}
-        <div className="pt-2.5 mt-2 border-t border-[#241a38] space-y-2">
+        {/* Bottom: Discord Identity & Storage Channel Status */}
+        <div className="pt-3 mt-3 border-t border-white/[0.08] space-y-2.5">
           {user ? (
-            <div className="p-2.5 rounded-xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
+            <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
               <div className="flex items-center gap-2.5">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
                   alt={user.username}
-                  className="w-8 h-8 rounded-lg object-cover ring-2 ring-[#9B5CFF]/50 shrink-0"
+                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-[#9B5CFF]/50 shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                   }}
@@ -2876,45 +2928,38 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <div className="font-bold text-[13px] truncate text-white">
                     {user.global_name || user.username}
                   </div>
-                  <div className="text-[13px] text-white/45 truncate font-mono">@{user.username}</div>
+                  <div className="text-[11px] text-white/45 truncate font-mono">
+                    {studyProfile?.rank_title || `@${user.username}`}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between text-[13px] pt-1.5 border-t border-[#241a38]">
-                {user.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Đã xác minh</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-amber-300 font-bold">
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span>Chưa verify</span>
-                  </span>
-                )}
                 <button
                   onClick={onLogout}
-                  className="text-white/55 hover:text-rose-300 flex items-center gap-1 cursor-pointer"
+                  className="p-1.5 rounded-lg text-white/45 hover:text-rose-300 hover:bg-white/[0.05] cursor-pointer"
+                  title="Đăng xuất"
                 >
-                  <LogOut className="w-3 h-3" />
-                  <span>Thoát</span>
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
+              </div>
+              <div className="flex items-center justify-between text-[11px] font-mono pt-1.5 border-t border-white/[0.06] text-white/50">
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Turso + Discord Sync</span>
+                </span>
+                <span className="tabular-nums text-[#FFB8E6] font-bold">{studyProfile?.study_xp || 0} XP</span>
               </div>
             </div>
           ) : (
-            <div className="p-2.5 rounded-xl bg-[#0D0A15]/90 border border-[#241a38] space-y-2">
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-white/80 font-semibold">Tài khoản Discord</span>
-                <span className="text-[13px] text-[#FFB8E6] font-semibold">Khách</span>
+            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="text-white/85 font-bold">Đồng bộ Discord</span>
+                <span className="font-mono text-[11px] text-[#FFB8E6]">Khách</span>
               </div>
-              <p className="text-[13px] text-white/50 leading-snug">
-                Đồng bộ tủ sách &amp; nhận đề tự động qua Bot Orbit.
-              </p>
               <PixelButton
                 variant="discord"
                 block
-                className="!min-h-[40px] !text-[13px]"
+                className="!min-h-[38px] !text-[12px]"
                 onClick={onOpenAuthModal}
-                icon={<UserCheck className="w-4 h-4" />}
+                icon={<UserCheck className="w-3.5 h-3.5" />}
               >
                 Liên Kết Discord
               </PixelButton>
@@ -2924,12 +2969,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
           <button
             type="button"
             onClick={onBackToHome}
-            className="w-full py-2 px-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-[#241a38] text-[13px] font-bold text-white/75 hover:text-white flex items-center justify-between cursor-pointer transition-all"
+            className="w-full py-2 px-3 rounded-xl bg-white/[0.025] hover:bg-white/[0.06] border border-white/[0.08] text-[12px] font-bold text-white/70 hover:text-white flex items-center justify-between cursor-pointer transition-all"
           >
             <span className="flex items-center gap-2">
               <ArrowLeft className="w-3.5 h-3.5 text-[#FF4FCB]" />
               <span>Về Trang Chủ Orbit</span>
             </span>
+            <span className="font-mono text-[11px] text-white/35">ESC</span>
           </button>
         </div>
       </aside>
@@ -2937,42 +2983,86 @@ const DashboardContent: React.FC<DashboardProps> = ({
       {/* ========================================================================= */}
       {/* MAIN WORKSPACE CONTENT                                                    */}
       {/* ========================================================================= */}
-      <main className="hh-hub-main flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1640px] mx-auto w-full">
-        {/* Desktop Top Telemetry Bar */}
-        <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-[#241a38]">
-          <div className="flex items-center gap-2.5 text-sm">
-            <button
-              type="button"
-              onClick={onBackToHome}
-              className="text-[13px] font-bold text-white/55 hover:text-[#FFB8E6] transition-colors cursor-pointer"
-            >
-              Orbit
-            </button>
-            <span className="text-white/25">/</span>
-            <span className="text-[13px] font-bold text-[#FFB8E6]">
-              {activeTab === 'overview' && 'Bàn điều khiển'}
-              {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
-              {activeTab === 'get_exam' && 'Máy phát đề'}
-              {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
-              {activeTab === 'admin' && 'Quản trị hệ thống'}
-            </span>
+      <main className="hh-hub-main flex-1 min-w-0 p-4 sm:p-6 lg:p-7 xl:p-8 max-w-[1640px] mx-auto w-full">
+        {/* Desktop Top Telemetry & Quick Filter Bar */}
+        <div className="hidden lg:flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-white/[0.08]">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                type="button"
+                onClick={onBackToHome}
+                className="text-[13px] font-bold text-white/55 hover:text-[#FFB8E6] transition-colors cursor-pointer"
+              >
+                Orbit | Vietnam
+              </button>
+              <span className="text-white/25">/</span>
+              <span className="text-[13px] font-extrabold text-white">
+                {activeTab === 'overview' && 'Bàn điều khiển trung tâm'}
+                {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
+                {activeTab === 'get_exam' && 'Máy bốc đề ngẫu nhiên'}
+                {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
+                {activeTab === 'admin' && 'Quản trị hệ thống'}
+              </span>
+            </div>
+
+            {/* 1-Click Quick Filter Strip right in the header */}
+            <div className="hidden xl:flex items-center gap-1.5 pl-3 border-l border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEducationLevel('ALL');
+                  handleGradeChange('12');
+                  setShowBookmarksOnly(false);
+                  handleTabChange('vault');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.07] text-[12px] font-semibold text-white/75 hover:text-white cursor-pointer transition-colors"
+              >
+                🔥 Đề Lớp 12 ({gradeDistribution['12'] || 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterHasAnswers(true);
+                  setShowBookmarksOnly(false);
+                  handleTabChange('vault');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.07] text-[12px] font-semibold text-emerald-300/90 hover:text-emerald-200 cursor-pointer transition-colors"
+              >
+                ✓ Có Đáp Án ({withAnswersDocsCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleExamTypeChange('CHUYEN');
+                  setShowBookmarksOnly(false);
+                  handleTabChange('vault');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.07] text-[12px] font-semibold text-[#FFB8E6] hover:text-white cursor-pointer transition-colors"
+              >
+                🏅 Trường Chuyên
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Live Bot Status Pill */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#120F1D]/90 border border-[#241a38] text-[13px] tabular-nums">
+            {/* Live Database & Bot Telemetry Pill */}
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[12px] font-mono tabular-nums">
               <span
-                className={`w-2 h-2 rounded-xs ${
+                className={`w-2 h-2 rounded-full ${
                   botStatus.online
                     ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]'
-                    : 'bg-amber-400'
+                    : 'bg-sky-400 shadow-[0_0_8px_#38bdf8]'
                 }`}
               />
-              <span className="text-white/80 font-semibold">
-                {botStatus.online ? `Bot trực tuyến (${botStatus.ping_ms || 24}ms)` : 'Kho đề Cloud trực tuyến'}
+              <span className="text-white/80 font-sans font-semibold">
+                {botStatus.online ? `Orbit Bot (${botStatus.ping_ms || 24}ms)` : 'Turso + Discord CDN'}
               </span>
-              <span className="text-white/30">|</span>
-              <span className="text-[#FFB8E6] font-bold tabular-nums">{totalDocsCount} đề</span>
+              <span className="text-white/20">|</span>
+              <span className="text-[#FFB8E6] font-bold">{totalDocsCount} đề</span>
+              <span className="text-white/20">|</span>
+              <span className="text-emerald-300 font-bold" title="Kênh lưu trữ #database trên Discord">
+                DB #154862...
+              </span>
             </div>
 
             <button
@@ -2981,9 +3071,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 checkBotStatus();
                 fetchDocStats();
                 fetchDocuments();
-                showInfo('Đã đồng bộ lại dữ liệu kho đề.');
+                showInfo('Đã đồng bộ lại dữ liệu kho đề từ Turso Cloud & Discord CDN.');
               }}
-              className="p-2 rounded-xl bg-[#120F1D]/90 hover:bg-white/[0.08] border border-[#241a38] text-white/70 hover:text-white transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-white/70 hover:text-white transition-colors cursor-pointer"
               title="Làm mới dữ liệu"
             >
               <RefreshCw className="w-4 h-4" />
@@ -3016,286 +3106,454 @@ const DashboardContent: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 01: OVERVIEW */}
+        {/* TAB 01: OVERVIEW — ORBIT | VIETNAM COMMAND DECK V2 */}
         {activeTab === 'overview' && (
           <div key="tab-overview" className="space-y-6 hh-swap-panel">
-            {/* HÀNG 1: BÀN ĐIỀU KHIỂN (7/12) + BẢN ĐỒ MÔN HỌC (5/12) */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
-              {/* Cột Trái (7/12): Lời chào, Mục tiêu nguyện vọng 1 & Đếm ngược mùa thi */}
-              <SpotSurface className="xl:col-span-7 hh-hub-surface hh-voxel-frame p-6 sm:p-7 flex flex-col justify-between gap-5 h-full">
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[#FFB8E6] flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-xs bg-[#FF4FCB]" />
-                      <span>Không gian học thuật &amp; kho đề thực chiến</span>
-                    </span>
-
-                    <div className="flex items-center gap-2 text-[13px] px-3 py-1 rounded-lg bg-white/[0.04] border border-[#241a38] tabular-nums">
-                      <Calendar className="w-3.5 h-3.5 text-[#FF4FCB]" />
-                      <span className="text-white/70">THPT {nextThptExam.examYear}:</span>
-                      <strong className="text-[#FFB8E6] tabular-nums">{nextThptExam.daysLeft} ngày</strong>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h1 className="text-xl sm:text-2xl lg:text-[28px] font-extrabold tracking-tight text-white leading-snug">
-                      Chào {user ? user.global_name || user.username : 'bạn'}, sẵn sàng luyện đề hôm nay?
-                    </h1>
-                    <p className="text-sm text-white/65 mt-1.5 max-w-2xl leading-relaxed">
-                      Tra cứu nhanh <strong className="text-white tabular-nums">{totalDocsCount} đề thi</strong> đã qua kiểm duyệt cấu trúc và đáp án, bốc đề ngẫu nhiên theo đúng khối lớp hoặc ghim mục tiêu đại học để giữ nhịp ôn tập mỗi ngày.
-                    </p>
-                  </div>
-
-                  {/* Mục tiêu Nguyện vọng 1 (Đồng bộ trực tiếp với Trang chủ) */}
-                  <div className="p-4 rounded-2xl bg-[#0B0911]/85 border border-[#241a38]">
-                    {!isEditingDream && dreamGoal ? (
-                      <div key="hub-dream-saved" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 hh-swap-panel">
-                        <div className="flex items-start gap-3">
-                          <Target className="w-5 h-5 text-[#FF4FCB] shrink-0 mt-0.5" />
-                          <div>
-                            <div className="text-[13px] font-semibold text-[#FFB8E6]">
-                              Mục tiêu nguyện vọng 1 đã ghim
-                            </div>
-                            <div className="text-base sm:text-lg font-extrabold text-white">
-                              {dreamGoal.school}
-                              {dreamGoal.score && (
-                                <span className="ml-2 text-[13px] px-2 py-0.5 rounded bg-[#9B5CFF]/25 text-[#E2D4FF] border border-[#9B5CFF]/40 tabular-nums">
-                                  Mục tiêu: {dreamGoal.score}
-                                </span>
-                              )}
-                            </div>
+            {/* ===================================================================== */}
+            {/* ZONE 1: THE ORBIT COMMAND DECK (UNIFIED HERO + POMODORO/STREAK COCKPIT)*/}
+            {/* ===================================================================== */}
+            <div className="hh-command-deck p-5 sm:p-7 lg:p-8">
+              <div className="relative z-10 grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+                {/* LEFT 7/12: ACADEMIC MISSION CONTROL, LIVE THPT COUNTDOWN & TYPOGRAPHY KPIs */}
+                <div className="xl:col-span-7 flex flex-col justify-between gap-5">
+                  <div className="space-y-5">
+                    {/* Top Eyebrow + Live 4-Cell Second-by-Second THPT Countdown */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="hh-orbit-logo-halo w-8 h-8 shrink-0">
+                          <img
+                            src="/orbit_logo_transparent.png"
+                            alt="Orbit | Vietnam"
+                            className="w-6 h-6 object-contain"
+                          />
+                        </span>
+                        <div>
+                          <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#FFB8E6] font-bold">
+                            ORBIT | VIETNAM • ACADEMIC COMMAND
+                          </div>
+                          <div className="text-[12px] text-white/60">
+                            Đồng bộ trực tiếp Turso Cloud &amp; Discord Bot
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingDream(true)}
-                          className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[13px] font-bold text-white/80 cursor-pointer self-start sm:self-center hh-press"
-                        >
-                          Đổi mục tiêu
-                        </button>
                       </div>
-                    ) : (
-                      <form key="hub-dream-form" onSubmit={handleSaveDreamInHub} className="space-y-3 hh-swap-panel">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] font-bold text-[#FFB8E6] flex items-center gap-1.5">
-                            <Target className="w-3.5 h-3.5 text-[#FF4FCB]" />
-                            <span>Ghim mục tiêu trường mơ ước</span>
-                          </span>
-                          {dreamGoal && (
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingDream(false)}
-                              className="text-[13px] text-white/50 hover:text-white cursor-pointer"
-                            >
-                              Hủy
-                            </button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                          <input
-                            type="text"
-                            value={dreamSchoolInput}
-                            onChange={(e) => setDreamSchoolInput(e.target.value)}
-                            placeholder="VD: ĐH Bách Khoa HN, Chuyên KHTN"
-                            className="sm:col-span-7 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#FF4FCB]"
-                          />
-                          <input
-                            type="text"
-                            value={dreamScoreInput}
-                            onChange={(e) => setDreamScoreInput(e.target.value)}
-                            placeholder="Điểm (VD: 28.5+)"
-                            className="sm:col-span-3 h-10 px-3 rounded-xl bg-white/[0.04] border border-[#241a38] text-[13px] sm:text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-[#9B5CFF]"
-                          />
-                          <button
-                            type="submit"
-                            className="sm:col-span-2 h-10 px-3 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white font-bold text-[13px] cursor-pointer transition-colors hh-press"
+
+                      {/* Real-time Second-by-Second THPT Countdown Strip */}
+                      <div className="flex items-center gap-1.5 self-start sm:self-center">
+                        <span className="text-[11px] font-mono uppercase tracking-wider text-white/50 mr-1 hidden sm:inline">
+                          THPT {nextThptExam.examYear}:
+                        </span>
+                        {[
+                          { val: String(countdownParts.days).padStart(2, '0'), unit: 'NGÀY' },
+                          { val: String(countdownParts.hours).padStart(2, '0'), unit: 'GIỜ' },
+                          { val: String(countdownParts.minutes).padStart(2, '0'), unit: 'PHÚT' },
+                          { val: String(countdownParts.seconds).padStart(2, '0'), unit: 'GIÂY' },
+                        ].map((cell, i) => (
+                          <div
+                            key={cell.unit}
+                            className={`px-2 py-1 rounded-lg border text-center tabular-nums ${
+                              i === 3
+                                ? 'bg-[#FF4FCB]/15 border-[#FF4FCB]/40 text-[#FFB8E6]'
+                                : 'bg-white/[0.04] border-white/[0.09] text-white'
+                            }`}
                           >
-                            Lưu
+                            <div className="font-mono font-black text-xs sm:text-sm leading-none">
+                              {cell.val}
+                            </div>
+                            <div className="text-[9px] font-mono text-white/50 mt-0.5">{cell.unit}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Hero Headline & Context */}
+                    <div className="space-y-2">
+                      <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-black tracking-tight text-white leading-[1.18]">
+                        Chào {user ? user.global_name || user.username : 'bạn'}, sẵn sàng bứt phá quỹ đạo điểm số hôm nay?
+                      </h1>
+                      <p className="text-[13px] sm:text-sm text-white/65 max-w-2xl leading-relaxed">
+                        Truy cập tức thì <strong className="text-white tabular-nums">{totalDocsCount} đề thi</strong> đã kiểm định cấu trúc, mở phòng luyện đề bấm giờ nhận XP hoặc bốc ngẫu nhiên theo đúng tổ hợp môn mục tiêu.
+                      </p>
+                    </div>
+
+                    {/* Nguyện Vọng 1 Target Bar */}
+                    <div className="p-3.5 sm:p-4 rounded-xl bg-black/35 border border-white/[0.09]">
+                      {!isEditingDream && dreamGoal ? (
+                        <div
+                          key="hub-dream-saved"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 hh-swap-panel"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-[#FF4FCB]/15 border border-[#FF4FCB]/35 flex items-center justify-center shrink-0">
+                              <Target className="w-4 h-4 text-[#FF4FCB]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#FFB8E6]">
+                                MỤC TIÊU NGUYỆN VỌNG 1 ĐÃ KHÓA
+                              </div>
+                              <div className="text-sm sm:text-base font-black text-white truncate flex flex-wrap items-center gap-2">
+                                <span>{dreamGoal.school}</span>
+                                {dreamGoal.score && (
+                                  <span className="font-mono text-[12px] px-2 py-0.5 rounded bg-[#9B5CFF]/25 text-[#E2D4FF] border border-[#9B5CFF]/40 tabular-nums">
+                                    Chỉ tiêu: {dreamGoal.score}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingDream(true)}
+                            className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-[12px] font-bold text-white/85 cursor-pointer self-start sm:self-center shrink-0"
+                          >
+                            Đổi mục tiêu
                           </button>
                         </div>
-                      </form>
-                    )}
-                  </div>
+                      ) : (
+                        <form key="hub-dream-form" onSubmit={handleSaveDreamInHub} className="space-y-2.5 hh-swap-panel">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] font-mono uppercase tracking-wider font-bold text-[#FFB8E6] flex items-center gap-1.5">
+                              <Target className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                              <span>Thiết lập mục tiêu trường Đại học / Chuyên</span>
+                            </span>
+                            {dreamGoal && (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingDream(false)}
+                                className="text-[12px] text-white/50 hover:text-white cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            <input
+                              type="text"
+                              value={dreamSchoolInput}
+                              onChange={(e) => setDreamSchoolInput(e.target.value)}
+                              placeholder="VD: ĐH Bách Khoa Hà Nội, ĐH Ngoại Thương, Chuyên KHTN..."
+                              className="sm:col-span-7 h-9 px-3 rounded-lg bg-white/[0.05] border border-white/[0.1] text-[13px] text-white placeholder:text-white/35 focus:outline-none focus:border-[#FF4FCB]"
+                            />
+                            <input
+                              type="text"
+                              value={dreamScoreInput}
+                              onChange={(e) => setDreamScoreInput(e.target.value)}
+                              placeholder="Điểm (VD: 28.5+)"
+                              className="sm:col-span-3 h-9 px-3 rounded-lg bg-white/[0.05] border border-white/[0.1] text-[13px] text-white placeholder:text-white/35 focus:outline-none focus:border-[#9B5CFF]"
+                            />
+                            <button
+                              type="submit"
+                              className="sm:col-span-2 h-9 px-3 rounded-lg bg-[#d61f79] hover:bg-[#e11d84] text-white font-bold text-[12px] cursor-pointer transition-colors"
+                            >
+                              Ghim
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
 
-                  {/* Dải 4 lối tắt thống kê & lọc nhanh (Không bao giờ gãy dòng ở 1366x768 & 1440x900) */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedEducationLevel('ALL');
-                        handleGradeChange('12');
-                        setShowBookmarksOnly(false);
-                        handleTabChange('vault');
-                      }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left transition-colors cursor-pointer hh-choice"
-                    >
-                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Lớp 12 THPT</div>
-                      <div className="text-base font-extrabold text-white mt-0.5 tabular-nums whitespace-nowrap">
-                        {gradeDistribution['12'] || 0} đề thi
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedEducationLevel('CAP_3');
-                        handleGradeChange('ALL');
-                        setShowBookmarksOnly(false);
-                        handleTabChange('vault');
-                      }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#9B5CFF]/40 text-left transition-colors cursor-pointer hh-choice"
-                    >
-                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Khối 10 – 12</div>
-                      <div className="text-base font-extrabold text-[#E2CEFF] mt-0.5 tabular-nums whitespace-nowrap">
-                        {thptDocsCount} đề lọc
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilterHasAnswers(true);
-                        setShowBookmarksOnly(false);
-                        handleTabChange('vault');
-                      }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-emerald-400/40 text-left transition-colors cursor-pointer hh-choice"
-                    >
-                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Có Đáp Án</div>
-                      <div className="text-base font-extrabold text-emerald-300 mt-0.5 tabular-nums whitespace-nowrap">
-                        {withAnswersDocsCount} đề chuẩn
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleTabChange('submit_doc');
-                      }}
-                      className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] hover:border-[#FFB396]/40 text-left transition-colors cursor-pointer hh-choice"
-                    >
-                      <div className="text-[13px] text-white/55 font-medium whitespace-nowrap">Kho Độc Bản</div>
-                      <div className="text-base font-extrabold text-[#FFB396] mt-0.5 tabular-nums whitespace-nowrap">
-                        {stats.unique_items || totalDocsCount} đề gốc
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Primary CTA Row */}
-                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-[#241a38]">
-                  <PixelButton
-                    variant="primary"
-                    magnetic
-                    className="hh-btn--sm"
-                    onClick={() => handleTabChange('get_exam')}
-                    icon={<Dices className="w-4 h-4" />}
-                    trailing={<ArrowRight className="w-4 h-4" />}
-                  >
-                    Mở Máy Phát Đề
-                  </PixelButton>
-
-                  <PixelButton
-                    variant="ghost"
-                    className="hh-btn--sm"
-                    onClick={() => {
-                      handleTabChange('vault');
-                      setShowBookmarksOnly(false);
-                    }}
-                    icon={<BookOpen className="w-4 h-4" />}
-                  >
-                    Duyệt Kho Đề ({totalDocsCount})
-                  </PixelButton>
-
-                  <PixelButton
-                    variant="ghost"
-                    className="hh-btn--sm"
-                    onClick={handleInstantPracticePick}
-                    icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
-                  >
-                    Bốc Thử 1 Đề Ngay
-                  </PixelButton>
-                </div>
-              </SpotSurface>
-
-              {/* Cột Phải (5/12): Ma Trận Telemetry & Radar Môn Học (Bấm để lọc ngay) */}
-              <SpotSurface className="xl:col-span-5 hh-hub-surface p-6 sm:p-7 flex flex-col justify-between gap-4 h-full">
-                <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
-                  <div>
-                    <span className="text-[13px] font-semibold text-[#C4A6FF]">
-                      Phân bố tài liệu thực tế
-                    </span>
-                    <h2 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
-                      Bản Đồ Kho Đề Theo Môn Học
-                    </h2>
-                  </div>
-                  <span className="tabular-nums text-[13px] px-2.5 py-1 rounded-lg bg-[#9B5CFF]/15 text-[#E2D4FF] border border-[#9B5CFF]/30 font-bold">
-                    {stats.unique_items || totalDocsCount} độc bản
-                  </span>
-                </div>
-
-                {/* Interactive Subject Radar Bars */}
-                <div className="space-y-2.5">
-                  {subjectBreakdown.map((subj) => {
-                    const pct = Math.min(
-                      100,
-                      Math.round((subj.count / Math.max(1, documentsList.length)) * 100)
-                    );
-                    return (
+                    {/* TYPOGRAPHY-FIRST 4-COLUMN KPI STRIP (NO IDENTICAL BOX SLOP) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08] rounded-xl bg-black/30 border border-white/[0.08] overflow-hidden">
                       <button
-                        key={subj.id}
                         type="button"
                         onClick={() => {
-                          handleSubjectChange(subj.id);
                           setShowBookmarksOnly(false);
                           handleTabChange('vault');
                         }}
-                        className="w-full p-2.5 rounded-xl bg-white/[0.025] hover:bg-white/[0.06] border border-[#241a38] hover:border-[#FF4FCB]/40 transition-all cursor-pointer group text-left space-y-1.5"
+                        className="p-3.5 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
                       >
-                        <div className="flex items-center justify-between text-[13px]">
-                          <span className="font-bold text-white group-hover:text-[#FFB8E6] flex items-center gap-2">
-                            <BookOpen className="w-3.5 h-3.5 text-[#C4A6FF]" />
-                            <span>{subj.label}</span>
+                        <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+                          KHO ĐỀ CHUẨN
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black text-white mt-1 tabular-nums flex items-baseline gap-1.5">
+                          <span>{totalDocsCount}</span>
+                          <span className="text-[11px] font-mono text-[#FFB8E6] font-semibold">tệp</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEducationLevel('ALL');
+                          handleGradeChange('12');
+                          setShowBookmarksOnly(false);
+                          handleTabChange('vault');
+                        }}
+                        className="p-3.5 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                      >
+                        <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+                          TRỌNG ĐIỂM 12
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black text-[#FF4FCB] mt-1 tabular-nums flex items-baseline gap-1.5">
+                          <span>{gradeDistribution['12'] || 0}</span>
+                          <span className="text-[11px] font-mono text-white/50 font-semibold">đề thi</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterHasAnswers(true);
+                          setShowBookmarksOnly(false);
+                          handleTabChange('vault');
+                        }}
+                        className="p-3.5 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                      >
+                        <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+                          CÓ ĐÁP ÁN
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black text-emerald-300 mt-1 tabular-nums flex items-baseline gap-1.5">
+                          <span>{withAnswersDocsCount}</span>
+                          <span className="text-[11px] font-mono text-emerald-300/70 font-semibold">đề giải</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEducationLevel('CAP_3');
+                          handleGradeChange('ALL');
+                          setShowBookmarksOnly(false);
+                          handleTabChange('vault');
+                        }}
+                        className="p-3.5 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                      >
+                        <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+                          KHỐI THPT 10–12
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black text-[#38BDF8] mt-1 tabular-nums flex items-baseline gap-1.5">
+                          <span>{thptDocsCount}</span>
+                          <span className="text-[11px] font-mono text-sky-300/70 font-semibold">tài liệu</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Primary Action Bar */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-white/[0.08]">
+                    <PixelButton
+                      variant="primary"
+                      magnetic
+                      className="hh-btn--sm"
+                      onClick={() => handleTabChange('get_exam')}
+                      icon={<Dices className="w-4 h-4" />}
+                      trailing={<ArrowRight className="w-4 h-4" />}
+                    >
+                      Mở Máy Bốc Đề
+                    </PixelButton>
+
+                    <PixelButton
+                      variant="ghost"
+                      className="hh-btn--sm"
+                      onClick={handleInstantPracticePick}
+                      icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
+                    >
+                      Bốc Thử 1 Đề Ngay
+                    </PixelButton>
+
+                    <PixelButton
+                      variant="ghost"
+                      className="hh-btn--sm"
+                      onClick={() => {
+                        handleTabChange('vault');
+                        setShowBookmarksOnly(false);
+                      }}
+                      icon={<BookOpen className="w-4 h-4" />}
+                    >
+                      Duyệt Kho Đề ({totalDocsCount})
+                    </PixelButton>
+
+                    <PixelButton
+                      variant="ghost"
+                      className="hh-btn--sm"
+                      onClick={() => handleTabChange('submit_doc')}
+                      icon={<UploadCloud className="w-4 h-4 text-emerald-400" />}
+                    >
+                      + Đóng Góp Đề
+                    </PixelButton>
+                  </div>
+                </div>
+
+                {/* RIGHT 5/12: ORBITAL FOCUS & STREAK COCKPIT (SVG RADIAL RING + STREAK/XP) */}
+                <div className="xl:col-span-5 rounded-2xl bg-black/40 border border-white/[0.1] p-5 sm:p-6 flex flex-col justify-between gap-4">
+                  {/* Top Bar: Pomodoro Mode Switcher & Streak Pill */}
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#C4A6FF] font-bold">
+                        BUỒNG LÁI TẬP TRUNG • ORBIT TIMER
+                      </div>
+                      <div className="text-sm font-extrabold text-white mt-0.5">
+                        Đồng Hồ Pomodoro &amp; Chuỗi Học Thuật
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+                      <button
+                        type="button"
+                        onClick={() => togglePomoMode('focus')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold cursor-pointer transition-colors ${
+                          pomoMode === 'focus'
+                            ? 'bg-[#9B5CFF] text-white'
+                            : 'text-white/55 hover:text-white'
+                        }`}
+                      >
+                        25P HỌC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => togglePomoMode('chill')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold cursor-pointer transition-colors ${
+                          pomoMode === 'chill'
+                            ? 'bg-[#FF4FCB] text-white'
+                            : 'text-white/55 hover:text-white'
+                        }`}
+                      >
+                        5P NGHỈ
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Middle: SVG Radial Orbit Ring + Controls */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                    {/* Radial SVG Dial */}
+                    <div className="sm:col-span-5 flex justify-center">
+                      <div className="relative w-32 h-32 flex items-center justify-center">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="50"
+                            fill="none"
+                            stroke="rgba(255,255,255,0.08)"
+                            strokeWidth="8"
+                          />
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="50"
+                            fill="none"
+                            stroke={pomoMode === 'focus' ? '#FF4FCB' : '#38BDF8'}
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            strokeDasharray={2 * Math.PI * 50}
+                            strokeDashoffset={2 * Math.PI * 50 * (1 - Math.min(1, Math.max(0.04, pomoProgress)))}
+                            className="transition-all duration-500"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                          <span className="font-mono text-2xl font-black text-white tabular-nums tracking-tight">
+                            {formatPomo(pomoSeconds)}
                           </span>
-                          <span className="tabular-nums text-[13px] text-white/65 group-hover:text-white">
-                            {subj.count} đề ({pct}%)
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-[#FFB8E6] mt-0.5">
+                            {pomoRunning ? 'ĐANG TẬP TRUNG' : pomoMode === 'focus' ? 'SẴN SÀNG' : 'GIẢI LAO'}
                           </span>
                         </div>
-                        <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      </div>
+                    </div>
+
+                    {/* Controls + Live Rank & XP Progress */}
+                    <div className="sm:col-span-7 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            setPomoRunning((r) => !r);
+                          }}
+                          className="flex-1 py-2 px-3 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white text-[13px] font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          {pomoRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          <span>{pomoRunning ? 'Tạm dừng' : 'Bắt đầu phiên'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPomoRunning(false);
+                            setPomoSeconds(pomoMode === 'focus' ? 25 * 60 : 5 * 60);
+                          }}
+                          className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-white/75 hover:text-white cursor-pointer"
+                          title="Đặt lại đồng hồ"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Rank & XP Bar */}
+                      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.07] space-y-1.5">
+                        <div className="flex items-center justify-between text-[12px]">
+                          <span className="font-extrabold text-[#FFB8E6] truncate">
+                            {studyProfile?.rank_title || '🌱 Tân Binh Orbit'}
+                          </span>
+                          <span className="font-mono font-black text-emerald-300 tabular-nums">
+                            {studyProfile?.study_xp || 0} XP
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
                           <div
-                            className="h-full rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-[#9B5CFF] via-[#FF4FCB] to-amber-400 transition-all duration-500"
                             style={{
-                              width: `${Math.max(6, pct)}%`,
-                              backgroundColor: subj.tone,
+                              width: `${Math.max(8, Math.round((((studyProfile?.study_xp || 0) % 500) / 500) * 100))}%`,
                             }}
                           />
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <div className="flex items-center justify-between text-[11px] font-mono text-white/45 tabular-nums">
+                          <span>🔥 Chuỗi {studyProfile?.current_streak || 0} ngày</span>
+                          <span>✍️ {studyProfile?.exams_completed || 0} đề đã luyện</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Quick 7-Grade Strip */}
-                <div className="pt-2 border-t border-[#241a38] flex items-center justify-between text-[13px] text-white/60">
-                  <span>Phân loại tự động chuẩn GDPT 2018</span>
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('vault')}
-                    className="text-[#FFB8E6] hover:underline font-bold cursor-pointer"
-                  >
-                    Xem đủ 18 môn
-                  </button>
+                  {/* Bottom: 4 Compact Telemetry Metrics + Daily Checkin CTA */}
+                  <div className="pt-3 border-t border-white/[0.08] space-y-3">
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <div className="p-2 rounded-lg bg-white/[0.025] border border-white/[0.06]">
+                        <div className="text-[10px] font-mono uppercase text-white/45">CHUỖI</div>
+                        <div className="text-sm font-black text-amber-300 tabular-nums mt-0.5">
+                          {studyProfile?.current_streak || 0}d
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white/[0.025] border border-white/[0.06]">
+                        <div className="text-[10px] font-mono uppercase text-white/45">KỶ LỤC</div>
+                        <div className="text-sm font-black text-orange-300 tabular-nums mt-0.5">
+                          {studyProfile?.max_streak || 0}d
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white/[0.025] border border-white/[0.06]">
+                        <div className="text-[10px] font-mono uppercase text-white/45">POMODORO</div>
+                        <div className="text-sm font-black text-[#E2CEFF] tabular-nums mt-0.5">
+                          {studyProfile?.pomodoro_count || 0}
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white/[0.025] border border-white/[0.06]">
+                        <div className="text-[10px] font-mono uppercase text-white/45">ĐÓNG GÓP</div>
+                        <div className="text-sm font-black text-emerald-300 tabular-nums mt-0.5">
+                          {studyProfile?.docs_contributed || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isCheckingIn}
+                      onClick={() => triggerStudyCheckin('daily_checkin', 15)}
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer transition-opacity"
+                    >
+                      <Flame className="w-4 h-4" />
+                      <span>{isCheckingIn ? 'Đang đồng bộ Turso Cloud...' : '🔥 Điểm Danh Hôm Nay (+50 XP)'}</span>
+                    </button>
+                  </div>
                 </div>
-              </SpotSurface>
+              </div>
             </div>
 
             {/* NẾU VỪA BỐC THỬ 1 ĐỀ NGAY TRÊN OVERVIEW THÌ HIỂN THỊ KẾT QUẢ TỨC THÌ */}
             {currentExam && (
-              <SpotSurface className="hh-hub-surface hh-voxel-frame p-5 sm:p-6 border-[#FF4FCB]/50 animate-in fade-in duration-200">
+              <SpotSurface className="hh-hub-surface p-5 sm:p-6 border-[#FF4FCB]/50 animate-in fade-in duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] px-2 py-0.5 rounded bg-[#FF4FCB] text-[#0E0C14] font-bold">
-                        Đề vừa bốc
+                      <span className="text-[12px] font-mono px-2 py-0.5 rounded bg-[#FF4FCB] text-[#0E0C14] font-bold">
+                        ĐỀ VỪA BỐC TỨC THÌ
                       </span>
                       <span className="text-[13px] font-bold text-[#FFB8E6]">{currentExam.subject}</span>
                       <span className="text-[13px] text-white/50">• {currentExam.estimated_level}</span>
@@ -3334,119 +3592,165 @@ const DashboardContent: React.FC<DashboardProps> = ({
               </SpotSurface>
             )}
 
-            {/* HÀNG 2: CỘT TRÁI (ĐỀ MỚI NHẤT, 8/12) + CỘT PHẢI (TỦ SÁCH & HẠ TẦNG, 4/12) */}
+            {/* ===================================================================== */}
+            {/* ZONE 2: 6-CELL SUBJECT MATRIX (ARCHITECTURAL CELLS WITH 3PX BAR)      */}
+            {/* ===================================================================== */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#C4A6FF] font-bold">
+                    MA TRẬN MÔN HỌC TRỌNG ĐIỂM
+                  </span>
+                  <span className="text-white/20">•</span>
+                  <span className="text-[12px] text-white/55">
+                    Bấm vào môn bất kỳ để mở kho đề đã phân loại chuẩn GDPT 2018
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSubjectChange('ALL');
+                    setShowBookmarksOnly(false);
+                    handleTabChange('vault');
+                  }}
+                  className="text-[12px] font-bold text-[#FFB8E6] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Xem toàn bộ 18 môn học</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                {subjectBreakdown.map((subj) => {
+                  const pct = Math.min(
+                    100,
+                    Math.round((subj.count / Math.max(1, documentsList.length)) * 100)
+                  );
+                  return (
+                    <button
+                      key={subj.id}
+                      type="button"
+                      style={{ '--subject-accent': subj.tone } as React.CSSProperties}
+                      onClick={() => {
+                        handleSubjectChange(subj.id);
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="hh-subject-cell p-4 text-left cursor-pointer group flex flex-col justify-between gap-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-[11px] font-mono uppercase tracking-wider text-white/45">
+                            MÔN HỌC
+                          </div>
+                          <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-[#FFB8E6] transition-colors mt-0.5">
+                            {subj.label}
+                          </div>
+                        </div>
+                        <span
+                          className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded tabular-nums"
+                          style={{
+                            backgroundColor: `${subj.tone}20`,
+                            color: subj.tone,
+                          }}
+                        >
+                          {pct}%
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xl font-black text-white tabular-nums">{subj.count}</span>
+                          <span className="text-[11px] text-white/45 font-mono">đề thẩm định</span>
+                        </div>
+                        <div className="w-full h-1 rounded-full bg-white/[0.07] overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${Math.max(8, pct)}%`,
+                              backgroundColor: subj.tone,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ===================================================================== */}
+            {/* ZONE 3: HIGH-DENSITY EXAM WORKBENCH (8/12) + STUDY VAULT/DB DOCK (4/12)*/}
+            {/* ===================================================================== */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
-              {/* Đề thi mới thẩm định (8/12) */}
-              <SpotSurface className="xl:col-span-8 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
-                <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+              {/* Left 8/12: High-Density Exam Workbench with Table/Card Switcher */}
+              <SpotSurface className="xl:col-span-8 hh-hub-surface p-5 sm:p-6 flex flex-col justify-between gap-4 h-full">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5">
                   <div>
-                    <span className="text-[13px] font-semibold text-[#FF4FCB]">Cập nhật mới nhất</span>
-                    <h3 className="font-extrabold text-base sm:text-lg text-white">
-                      Đề Thi Mới Thẩm Định Gần Đây
+                    <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#FF4FCB] font-bold">
+                      BÀN THẨM ĐỊNH &amp; LUYỆN ĐỀ MỚI NHẤT
+                    </div>
+                    <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
+                      Đề Thi Vừa Kiểm Duyệt Lên Kho Cloud
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBookmarksOnly(false);
-                      handleTabChange('vault');
-                    }}
-                    className="text-[13px] font-bold text-[#FFB8E6] hover:underline flex items-center gap-1 cursor-pointer tabular-nums"
-                  >
-                    <span>Mở toàn bộ ({documentsList.length})</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 p-1 rounded-lg bg-black/40 border border-white/[0.08]">
+                      <button
+                        type="button"
+                        onClick={() => setVaultViewMode('table')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold cursor-pointer transition-colors ${
+                          vaultViewMode === 'table'
+                            ? 'bg-[#9B5CFF] text-white'
+                            : 'text-white/55 hover:text-white'
+                        }`}
+                      >
+                        Dạng Bảng
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVaultViewMode('cards')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold cursor-pointer transition-colors ${
+                          vaultViewMode === 'cards'
+                            ? 'bg-[#9B5CFF] text-white'
+                            : 'text-white/55 hover:text-white'
+                        }`}
+                      >
+                        Dạng Thẻ
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBookmarksOnly(false);
+                        handleTabChange('vault');
+                      }}
+                      className="text-[12px] font-bold text-[#FFB8E6] hover:underline flex items-center gap-1 cursor-pointer tabular-nums pl-1"
+                    >
+                      <span>Mở kho ({documentsList.length})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {documentsList.length === 0 ? (
                   <div className="py-12 text-center text-sm text-white/45">
                     {isLoadingDocs ? 'Đang đồng bộ danh sách đề thi...' : 'Chưa có tài liệu nào.'}
                   </div>
+                ) : vaultViewMode === 'table' ? (
+                  <div className="space-y-2">
+                    {documentsList.slice(0, 6).map((doc) => renderExamCompactRow(doc))}
+                  </div>
                 ) : (
-                  <div className="space-y-2.5">
-                    {documentsList.slice(0, 5).map((doc) => {
-                      const isBookmarked = bookmarkedIds.has(doc.id);
-                      const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
-                      const trackInfo = getExamTrackInfo(doc);
-
-                      return (
-                        <div
-                          key={doc.id}
-                          className="p-3.5 rounded-xl bg-[#0B0911]/75 hover:bg-white/[0.04] border border-[#241a38] hover:border-[#9B5CFF]/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
-                        >
-                          <div className="min-w-0 flex-1 space-y-1.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-[13px] font-bold px-2 py-0.5 rounded bg-[#9B5CFF]/20 text-[#E2D4FF] border border-[#9B5CFF]/35">
-                                {doc.subject}
-                              </span>
-                              <span className={`text-[13px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${trackInfo.badgeClass}`}>
-                                <span>{trackInfo.label}</span>
-                              </span>
-                              <span className={`text-[13px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${gradeStyle.badgeClass}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
-                                <span>{gradeStyle.label}</span>
-                              </span>
-                              {doc.academic_year && (
-                                <span className="text-[13px] tabular-nums text-white/55">
-                                  • {doc.academic_year}
-                                </span>
-                              )}
-                            </div>
-
-                            <h4
-                              onClick={() => openExamModal(doc, 'pdf_reader')}
-                              className="font-bold text-sm sm:text-base text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-1 cursor-pointer"
-                            >
-                              {doc.title || doc.file_name}
-                            </h4>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                            <div className="hidden md:flex items-center gap-1.5 text-[13px] text-white/50 tabular-nums pr-1">
-                              <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-[#241a38]">
-                                {doc.page_count || 1} trang
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => openExamModal(doc, 'pdf_reader')}
-                              className="px-2.5 py-1.5 rounded-lg bg-[#d61f79]/25 hover:bg-[#d61f79] border border-[#FF4FCB]/40 text-white text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Đọc đề PDF trực tiếp trên Web"
-                            >
-                              <BookOpen className="w-3.5 h-3.5" />
-                              <span>📖 Đọc PDF</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openExamModal(doc, 'practice_room')}
-                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/40 text-emerald-300 text-[12px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Mở phòng thi bấm giờ & tô đáp án"
-                            >
-                              <PenTool className="w-3.5 h-3.5" />
-                              <span>✍️ Làm Bài</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                toggleBookmarkExam(doc.id);
-                                setBookmarkedIds(new Set(getBookmarkedExamIds()));
-                              }}
-                              className={`p-2 rounded-lg cursor-pointer ${
-                                isBookmarked ? 'text-amber-400 bg-amber-500/15' : 'text-white/45 hover:text-amber-300'
-                              }`}
-                              title="Lưu vào Tủ Sách"
-                            >
-                              <Star className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {documentsList.slice(0, 4).map((doc) => renderExamDossierCard(doc))}
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/60">
-                  <span>Bấm vào tên đề để mở Hồ sơ kiểm định chi tiết</span>
+                <div className="pt-2.5 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-2 text-[12px] text-white/55">
+                  <span>Bấm trực tiếp vào tên đề để mở trình đọc PDF hoặc Phòng Thi Thực Chiến (+100 XP)</span>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
@@ -3463,47 +3767,46 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       }}
                       className="text-[#FFB8E6] hover:underline font-bold cursor-pointer"
                     >
-                      Duyệt kho đề ({totalDocsCount})
+                      Xem tất cả ({totalDocsCount})
                     </button>
                   </div>
                 </div>
               </SpotSurface>
 
-              {/* Cột phải (4/12): Tủ Sách Đang Lưu + Lối tắt phân ban + Trạng thái kết nối */}
-              <SpotSurface className="xl:col-span-4 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
+              {/* Right 4/12: Personal Study Vault + 1-Click Track Matrix + Database Channel Link */}
+              <SpotSurface className="xl:col-span-4 hh-hub-surface p-5 sm:p-6 flex flex-col justify-between gap-4 h-full">
                 <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
+                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
                     <div>
-                      <span className="text-[13px] font-semibold text-amber-300">Lưu trữ cá nhân</span>
-                      <h3 className="font-extrabold text-base sm:text-lg text-white">Tủ Sách Của Bạn</h3>
+                      <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-amber-300 font-bold">
+                        LƯU TRỮ CÁ NHÂN
+                      </div>
+                      <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
+                        Tủ Sách Đang Ghim
+                      </h3>
                     </div>
-                    <span className="tabular-nums text-[13px] px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                    <span className="font-mono tabular-nums text-[12px] px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
                       {bookmarkedIds.size} đề
                     </span>
                   </div>
 
                   {bookmarkedIds.size === 0 ? (
                     <div className="space-y-2.5">
-                      <div className="p-3.5 rounded-xl bg-[#0B0911]/70 border border-[#241a38] flex items-center justify-between gap-3">
-                        <p className="text-[13px] text-white/65 leading-snug">
-                          Chưa có đề ghim. Bấm ngôi sao trên đề bất kỳ hoặc ghim nhanh đề tiêu biểu bên dưới:
-                        </p>
-                      </div>
+                      <p className="text-[12px] text-white/60 leading-relaxed">
+                        Chưa có đề ghim. Bấm biểu tượng ngôi sao trên bất kỳ đề thi nào hoặc ghim nhanh đề gợi ý dưới đây:
+                      </p>
                       <div className="space-y-2">
                         {documentsList.slice(0, 2).map((doc) => (
                           <div
                             key={`suggest-${doc.id}`}
-                            className="p-2.5 rounded-xl bg-[#0B0911]/80 border border-[#241a38] flex items-center justify-between gap-2"
+                            className="p-2.5 rounded-xl bg-black/35 border border-white/[0.08] flex items-center justify-between gap-2"
                           >
                             <div
-                              onClick={() => {
-                                setSelectedDossierDoc(doc);
-                                setIsDossierOpen(true);
-                              }}
+                              onClick={() => openExamModal(doc, 'pdf_reader')}
                               className="min-w-0 flex-1 cursor-pointer"
                             >
-                              <div className="text-[13px] font-bold text-[#FFB8E6]">{doc.subject}</div>
-                              <div className="text-[13px] font-semibold text-white overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,#000_85%,transparent)]">
+                              <div className="text-[11px] font-mono font-bold text-[#FFB8E6]">{doc.subject}</div>
+                              <div className="text-[13px] font-bold text-white truncate">
                                 {doc.title || doc.file_name}
                               </div>
                             </div>
@@ -3514,7 +3817,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                                 setBookmarkedIds(new Set(getBookmarkedExamIds()));
                                 showSuccess(`Đã lưu "${doc.title || doc.file_name}" vào Tủ Sách!`, 'Tủ Sách');
                               }}
-                              className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[13px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[12px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
                             >
                               <Star className="w-3.5 h-3.5" />
                               <span>Ghim</span>
@@ -3531,14 +3834,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         .map((doc) => (
                           <div
                             key={doc.id}
-                            onClick={() => {
-                              setSelectedDossierDoc(doc);
-                              setIsDossierOpen(true);
-                            }}
-                            className="p-3 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.05] border border-[#241a38] cursor-pointer flex items-center justify-between gap-2"
+                            onClick={() => openExamModal(doc, 'pdf_reader')}
+                            className="p-2.5 rounded-xl bg-black/35 hover:bg-white/[0.05] border border-white/[0.08] cursor-pointer flex items-center justify-between gap-2"
                           >
                             <div className="min-w-0">
-                              <div className="text-[13px] font-bold text-amber-300">{doc.subject}</div>
+                              <div className="text-[11px] font-mono font-bold text-amber-300">{doc.subject}</div>
                               <div className="text-[13px] font-bold text-white truncate">
                                 {doc.title || doc.file_name}
                               </div>
@@ -3552,7 +3852,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                           setShowBookmarksOnly(true);
                           handleTabChange('vault');
                         }}
-                        className="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[13px] font-bold cursor-pointer tabular-nums"
+                        className="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[12px] font-bold cursor-pointer tabular-nums"
                       >
                         Mở Tủ Sách ({bookmarkedIds.size} đề)
                       </button>
@@ -3560,11 +3860,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   )}
                 </div>
 
-                {/* Lối tắt phân ban đề (Lấp đầy khoảng trống bằng bộ lọc 1 chạm) */}
-                <div className="pt-3 border-t border-[#241a38] space-y-2">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="font-semibold text-white/75">Phân ban đề nhanh</span>
-                    <span className="text-white/45">1 chạm mở kho</span>
+                {/* 1-Click Exam Track Filter Matrix */}
+                <div className="pt-3 border-t border-white/[0.08] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-white/50">
+                    <span>PHÂN BAN ĐỀ NHANH</span>
+                    <span>1 CHẠM MỞ KHO</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
@@ -3581,7 +3881,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                           setShowBookmarksOnly(false);
                           handleTabChange('vault');
                         }}
-                        className={`px-3 py-2 rounded-xl bg-[#0B0911]/80 hover:bg-white/[0.06] border border-[#241a38] hover:border-[#FF4FCB]/40 text-left text-[13px] font-bold ${track.tone} transition-colors cursor-pointer`}
+                        className={`px-3 py-2 rounded-xl bg-black/35 hover:bg-white/[0.06] border border-white/[0.08] hover:border-[#FF4FCB]/40 text-left text-[12px] font-bold ${track.tone} transition-colors cursor-pointer`}
                       >
                         {track.label}
                       </button>
@@ -3589,232 +3889,180 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Trạng thái Hạ tầng Bot & Turso */}
-                <div className="pt-3 border-t border-[#241a38] space-y-2">
+                {/* Live Data & Discord #database Archive Telemetry */}
+                <div className="pt-3 border-t border-white/[0.08] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-semibold text-white/75">Hạ tầng dữ liệu</span>
-                    <span
-                      className={`text-[13px] font-bold px-2 py-0.5 rounded ${
-                        botStatus.online
-                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-white/50">
+                      LIÊN KẾT HẠ TẦNG DỮ LIỆU
+                    </span>
+                    <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      SYNCED
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-[12px] text-white/65 font-mono">
+                    <div className="flex justify-between">
+                      <span className="font-sans text-white/55">Discord Bot:</span>
+                      <span className="text-white font-bold">{botStatus.bot_user || 'Orbit#0594'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-sans text-white/55">Cloud Database:</span>
+                      <span className="text-emerald-400 font-bold">Turso libSQL AWS</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-sans text-white/55">Kênh lưu trữ #database:</span>
+                      <span className="text-[#FFB8E6] font-bold tabular-nums">1548627763467128912</span>
+                    </div>
+                  </div>
+                </div>
+              </SpotSurface>
+            </div>
+
+            {/* ===================================================================== */}
+            {/* ZONE 4: BẢNG VÀNG HỌC THUẬT ORBIT (TOP 3 PODIUM + TABLE ROWS)          */}
+            {/* ===================================================================== */}
+            <SpotSurface className="hh-hub-surface p-5 sm:p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5">
+                <div>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-amber-300 font-bold flex items-center gap-1.5">
+                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                    <span>BẢNG VÀNG HỌC THUẬT LIÊN THÔNG DISCORD ↔ WEB</span>
+                  </div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
+                    Top Học Giả Luyện Đề, Giữ Chuỗi Streak &amp; Đóng Góp Tài Liệu
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.08] self-start sm:self-center">
+                  {[
+                    { id: 'xp', label: '🏆 Điểm XP' },
+                    { id: 'streak', label: '🔥 Chuỗi Ngày' },
+                    { id: 'contrib', label: '📚 Đóng Góp' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setLeaderboardSort(t.id as any)}
+                      className={`px-3 py-1 rounded-lg text-[12px] font-extrabold cursor-pointer transition-all ${
+                        leaderboardSort === t.id
+                          ? 'bg-[#9B5CFF] text-white'
+                          : 'text-white/60 hover:text-white'
                       }`}
                     >
-                      {botStatus.online ? 'Bot trực tuyến' : 'Cloud trực tuyến'}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 text-[13px] text-white/65">
-                    <div className="flex justify-between">
-                      <span>Discord Bot:</span>
-                      <span className="text-white font-semibold">{botStatus.bot_user || 'Orbit#0594'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Cơ sở dữ liệu:</span>
-                      <span className="text-emerald-400 font-semibold">Turso libSQL Live</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Quy trình kiểm duyệt:</span>
-                      <span className="text-[#FFB8E6] font-semibold">Đối chiếu 3 bước</span>
-                    </div>
-                  </div>
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
-              </SpotSurface>
-            </div>
+              </div>
 
-            {/* HÀNG 3: HỒ SƠ CHUỖI NGÀY HỌC (STREAK) & BẢNG XẾP HẠNG HỌC THUẬT ĐỒNG BỘ DISCORD ↔ WEB */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
-              {/* Cột Trái (5/12): Hồ sơ Học Tập, Chuỗi Streak & Tiến độ Danh Hiệu */}
-              <SpotSurface className="xl:col-span-5 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-[#241a38] pb-3.5">
-                    <div>
-                      <span className="text-[13px] font-semibold text-amber-300 flex items-center gap-1.5">
-                        <Flame className="w-4 h-4 text-orange-400 fill-orange-400/30" />
-                        <span>Đồng bộ lệnh /chuoi &amp; /luyende trên Discord</span>
-                      </span>
-                      <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
-                        Hồ Sơ Chuỗi Ngày Học &amp; Học Vị
-                      </h3>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 text-amber-300 border border-orange-500/30 font-mono font-black text-[13px]">
-                      🔥 {studyProfile?.current_streak || 0} ngày
-                    </span>
-                  </div>
+              {(() => {
+                const sortedScholars = [...leaderboardList].sort((a, b) => {
+                  if (leaderboardSort === 'streak')
+                    return b.current_streak - a.current_streak || b.study_xp - a.study_xp;
+                  if (leaderboardSort === 'contrib')
+                    return b.docs_contributed - a.docs_contributed || b.study_xp - a.study_xp;
+                  return b.study_xp - a.study_xp;
+                });
+                const podium = sortedScholars.slice(0, 3);
+                const runnersUp = sortedScholars.slice(3, 7);
 
-                  {/* Thẻ Học Vị & Thanh XP */}
-                  <div className="p-4 rounded-2xl bg-[#0B0911]/85 border border-[#241a38] space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-[12px] text-white/50">Danh hiệu học thuật hiện tại</div>
-                        <div className="text-base sm:text-lg font-black text-[#FFB8E6]">
-                          {studyProfile?.rank_title || '🌱 Tân Binh Orbit'}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[12px] text-white/50">Tổng điểm tích lũy</div>
-                        <div className="text-base sm:text-lg font-mono font-black text-emerald-300 tabular-nums">
-                          {studyProfile?.study_xp || 0} XP
-                        </div>
-                      </div>
-                    </div>
+                return (
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+                    {/* Top 3 Podium Cards */}
+                    <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {podium.map((scholar, idx) => {
+                        const medalStyle =
+                          idx === 0
+                            ? 'border-amber-400/45 bg-gradient-to-b from-amber-500/15 to-black/40'
+                            : idx === 1
+                            ? 'border-slate-300/35 bg-gradient-to-b from-slate-300/10 to-black/40'
+                            : 'border-amber-700/45 bg-gradient-to-b from-amber-700/15 to-black/40';
+                        const badgeLabel = idx === 0 ? '🥇 HẠNG 1' : idx === 1 ? '🥈 HẠNG 2' : '🥉 HẠNG 3';
 
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[12px] text-white/55">
-                        <span>Tiến độ thăng cấp tiếp theo</span>
-                        <span className="font-mono">
-                          {(studyProfile?.study_xp || 0) % 500} / 500 XP
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-white/[0.07] overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#9B5CFF] via-[#FF4FCB] to-amber-400 transition-all duration-500"
-                          style={{
-                            width: `${Math.max(8, Math.round((((studyProfile?.study_xp || 0) % 500) / 500) * 100))}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                        return (
+                          <div
+                            key={`podium-${scholar.discord_id}-${idx}`}
+                            className={`p-4 rounded-xl border ${medalStyle} flex flex-col justify-between gap-3`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono text-[11px] font-black text-amber-300">
+                                  {badgeLabel}
+                                </span>
+                                <span className="font-mono text-xs font-black text-emerald-300 tabular-nums">
+                                  {scholar.study_xp} XP
+                                </span>
+                              </div>
+                              <div className="font-black text-sm sm:text-base text-white truncate">
+                                {scholar.display_name || scholar.username}
+                              </div>
+                              <div className="text-[11px] px-2 py-0.5 rounded bg-white/[0.06] text-[#FFB8E6] border border-white/[0.08] inline-block truncate max-w-full">
+                                {scholar.rank_title}
+                              </div>
+                            </div>
 
-                  {/* 4 Chỉ số Học Tập Đồng Bộ */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
-                      <div className="text-[12px] text-white/50">Kỷ lục chuỗi</div>
-                      <div className="text-base font-black text-amber-300 mt-0.5 tabular-nums">
-                        {studyProfile?.max_streak || 0} ngày
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
-                      <div className="text-[12px] text-white/50">Đề đã luyện</div>
-                      <div className="text-base font-black text-emerald-300 mt-0.5 tabular-nums">
-                        {studyProfile?.exams_completed || 0} đề
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
-                      <div className="text-[12px] text-white/50">Pomodoro</div>
-                      <div className="text-base font-black text-[#E2CEFF] mt-0.5 tabular-nums">
-                        {studyProfile?.pomodoro_count || 0} phiên
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38]">
-                      <div className="text-[12px] text-white/50">Đề đóng góp</div>
-                      <div className="text-base font-black text-[#FFB8E6] mt-0.5 tabular-nums">
-                        {studyProfile?.docs_contributed || 0} tệp
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    disabled={isCheckingIn}
-                    onClick={() => triggerStudyCheckin('daily_checkin', 15)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-[#d61f79] hover:opacity-95 text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer shadow-[0_6px_20px_-6px_rgba(255,79,203,0.6)]"
-                  >
-                    <Flame className="w-4 h-4" />
-                    <span>{isCheckingIn ? 'Đang đồng bộ Cloud...' : '🔥 Điểm Danh Hôm Nay (+50 XP)'}</span>
-                  </button>
-                </div>
-              </SpotSurface>
-
-              {/* Cột Phải (7/12): Bảng Xếp Hạng Học Thuật Liên Thông Discord ↔ Web */}
-              <SpotSurface className="xl:col-span-7 hh-hub-surface p-6 flex flex-col justify-between gap-4 h-full">
-                <div className="space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#241a38] pb-3.5">
-                    <div>
-                      <span className="text-[13px] font-semibold text-[#C4A6FF] flex items-center gap-1.5">
-                        <Trophy className="w-4 h-4 text-amber-400" />
-                        <span>Bảng Vàng Học Thuật Orbit (Discord &amp; Web)</span>
-                      </span>
-                      <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
-                        Top Học Giả Luyện Đề &amp; Đóng Góp Tài Liệu
-                      </h3>
+                            <div className="pt-2.5 border-t border-white/[0.08] grid grid-cols-3 gap-1 text-center font-mono text-[11px]">
+                              <div>
+                                <div className="text-white/40">CHUỖI</div>
+                                <div className="font-bold text-amber-300 tabular-nums">
+                                  {scholar.current_streak}d
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-white/40">ĐỀ</div>
+                                <div className="font-bold text-white tabular-nums">
+                                  {scholar.exams_completed}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-white/40">GÓP</div>
+                                <div className="font-bold text-emerald-300 tabular-nums">
+                                  {scholar.docs_contributed}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0911] border border-[#241a38]">
-                      {[
-                        { id: 'xp', label: '🏆 Điểm XP' },
-                        { id: 'streak', label: '🔥 Chuỗi Ngày' },
-                        { id: 'contrib', label: '📚 Đóng Góp' },
-                      ].map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setLeaderboardSort(t.id as any)}
-                          className={`px-2.5 py-1 rounded-lg text-[12px] font-extrabold cursor-pointer transition-all ${
-                            leaderboardSort === t.id
-                              ? 'bg-[#9B5CFF] text-white'
-                              : 'text-white/60 hover:text-white'
-                          }`}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
-                    {[...leaderboardList]
-                      .sort((a, b) => {
-                        if (leaderboardSort === 'streak') return b.current_streak - a.current_streak || b.study_xp - a.study_xp;
-                        if (leaderboardSort === 'contrib') return b.docs_contributed - a.docs_contributed || b.study_xp - a.study_xp;
-                        return b.study_xp - a.study_xp;
-                      })
-                      .slice(0, 6)
-                      .map((scholar, idx) => (
-                        <div
-                          key={`${scholar.discord_id}-${idx}`}
-                          className="p-3 rounded-xl bg-[#0B0911]/80 border border-[#241a38] flex items-center justify-between gap-3"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span
-                              className={`w-7 h-7 rounded-lg font-mono font-black text-[13px] flex items-center justify-center shrink-0 ${
-                                idx === 0
-                                  ? 'bg-amber-400 text-black'
-                                  : idx === 1
-                                  ? 'bg-slate-300 text-black'
-                                  : idx === 2
-                                  ? 'bg-amber-700 text-white'
-                                  : 'bg-white/[0.06] text-white/70'
-                              }`}
-                            >
-                              #{idx + 1}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-[13px] sm:text-sm text-white truncate">
+                    {/* Ranks #4 - #7 Compact Rows */}
+                    <div className="xl:col-span-5 flex flex-col justify-between gap-2">
+                      {runnersUp.length > 0 ? (
+                        runnersUp.map((scholar, idx) => (
+                          <div
+                            key={`runner-${scholar.discord_id}-${idx}`}
+                            className="hh-dossier-row px-3.5 py-2.5 flex items-center justify-between gap-3"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="w-6 h-6 rounded-md bg-white/[0.06] font-mono text-[12px] font-bold text-white/70 flex items-center justify-center shrink-0 tabular-nums">
+                                #{idx + 4}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="font-bold text-[13px] text-white truncate">
                                   {scholar.display_name || scholar.username}
-                                </span>
-                                <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded bg-white/[0.05] text-[#FFB8E6] border border-[#241a38]">
-                                  {scholar.rank_title}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-3 text-[12px] text-white/50 mt-0.5">
-                                <span>🔥 Chuỗi {scholar.current_streak} ngày</span>
-                                <span>• ✍️ {scholar.exams_completed} đề</span>
-                                <span>• 📚 {scholar.docs_contributed} đóng góp</span>
+                                </div>
+                                <div className="text-[11px] font-mono text-white/45 flex items-center gap-2 tabular-nums">
+                                  <span>🔥 {scholar.current_streak}d</span>
+                                  <span>• ✍️ {scholar.exams_completed} đề</span>
+                                  <span>• 📚 {scholar.docs_contributed} tệp</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <div className="font-mono font-black text-sm text-emerald-300 tabular-nums">
+                            <span className="font-mono font-black text-xs text-emerald-300 tabular-nums shrink-0">
                               {scholar.study_xp} XP
-                            </div>
-                            <div className="text-[11px] text-white/40">Đồng bộ Live</div>
+                            </span>
                           </div>
+                        ))
+                      ) : (
+                        <div className="h-full rounded-xl bg-black/30 border border-white/[0.07] p-4 flex items-center justify-center text-[12px] text-white/50 text-center">
+                          Hoàn thành đề thi trong Phòng Thi Thực Chiến hoặc gõ /chuoi trên Discord để ghi danh lên Bảng Vàng Orbit!
                         </div>
-                      ))}
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#241a38] flex flex-wrap items-center justify-between gap-2 text-[12px] text-white/55">
-                  <span>Gõ lệnh <code className="text-[#FFB8E6] font-mono">/chuoi</code> hoặc <code className="text-[#FFB8E6] font-mono">/luyende</code> trên Discord để đồng bộ tức thì</span>
-                  <Award className="w-4 h-4 text-amber-400" />
-                </div>
-              </SpotSurface>
-            </div>
+                );
+              })()}
+            </SpotSurface>
           </div>
         )}
 
@@ -4026,15 +4274,44 @@ const DashboardContent: React.FC<DashboardProps> = ({
             {/* Vault Header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#C4A6FF] font-bold mb-1">
+                  ORBIT | VIETNAM • DOCUMENT ARCHIVE
+                </div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight flex flex-wrap items-center gap-3">
                   <span>{showBookmarksOnly ? 'Tủ Sách Ôn Luyện Của Tôi' : 'Kho Đề Thi Đã Thẩm Định'}</span>
-                  <span className="tabular-nums text-[13px] sm:text-sm px-3 py-1 rounded-xl bg-[#9B5CFF]/25 border border-[#9B5CFF]/45 text-[#E2D4FF]">
+                  <span className="font-mono tabular-nums text-[13px] sm:text-sm px-3 py-1 rounded-xl bg-[#9B5CFF]/25 border border-[#9B5CFF]/45 text-[#E2D4FF]">
                     {displayedDocuments.length} đề
                   </span>
                 </h1>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* View Mode Toggle: Cards vs High-Density Table */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-white/[0.08]">
+                  <button
+                    type="button"
+                    onClick={() => setVaultViewMode('cards')}
+                    className={`px-2.5 py-1 rounded-lg text-[12px] font-mono font-bold cursor-pointer transition-colors ${
+                      vaultViewMode === 'cards'
+                        ? 'bg-[#9B5CFF] text-white'
+                        : 'text-white/55 hover:text-white'
+                    }`}
+                  >
+                    Dạng Thẻ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVaultViewMode('table')}
+                    className={`px-2.5 py-1 rounded-lg text-[12px] font-mono font-bold cursor-pointer transition-colors ${
+                      vaultViewMode === 'table'
+                        ? 'bg-[#9B5CFF] text-white'
+                        : 'text-white/55 hover:text-white'
+                    }`}
+                  >
+                    Dạng Bảng
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowBookmarksOnly((b) => !b)}
@@ -4058,7 +4335,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             {/* Bàn Lọc Chiến Thuật Gọn Gàng */}
             {renderFilterControls(false)}
 
-            {/* Lưới Hồ Sơ Đề Thi */}
+            {/* Lưới Hồ Sơ Đề Thi (Hỗ trợ cả Dạng Thẻ & Dạng Bảng Mật Độ Cao) */}
             {isLoadingDocs ? (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {[1, 2, 3, 4].map((idx) => (
@@ -4077,17 +4354,23 @@ const DashboardContent: React.FC<DashboardProps> = ({
               </div>
             ) : displayedDocuments.length > 0 ? (
               <div className="space-y-5">
-                <div
-                  className={`grid gap-4 sm:gap-5 ${
-                    config.vaultGridCols === '1'
-                      ? 'grid-cols-1'
-                      : config.vaultGridCols === '3'
-                      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-                      : 'grid-cols-1 xl:grid-cols-2'
-                  }`}
-                >
-                  {paginatedDocuments.map((doc) => renderExamDossierCard(doc))}
-                </div>
+                {vaultViewMode === 'table' ? (
+                  <SpotSurface className="hh-hub-surface p-4 sm:p-5 space-y-2">
+                    {paginatedDocuments.map((doc) => renderExamCompactRow(doc))}
+                  </SpotSurface>
+                ) : (
+                  <div
+                    className={`grid gap-4 sm:gap-5 ${
+                      config.vaultGridCols === '1'
+                        ? 'grid-cols-1'
+                        : config.vaultGridCols === '3'
+                        ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                        : 'grid-cols-1 xl:grid-cols-2'
+                    }`}
+                  >
+                    {paginatedDocuments.map((doc) => renderExamDossierCard(doc))}
+                  </div>
+                )}
 
                 {visibleCount < displayedDocuments.length && (
                   <div className="p-4 rounded-2xl hh-hub-surface flex flex-col sm:flex-row items-center justify-between gap-3">

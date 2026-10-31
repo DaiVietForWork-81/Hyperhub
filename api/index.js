@@ -12,6 +12,7 @@ const TURSO_AUTH_TOKEN =
 
 const BOT_OWNER_ID = "1529864608813416449";
 const DISCORD_GUILD_ID = "1532265330079174697";
+const DISCORD_DATABASE_CHANNEL_ID = process.env.DATABASE_ARCHIVE_CHANNEL_ID || "1548627763467128912";
 
 async function executeTurso(sql, args = []) {
   const url = `${TURSO_DATABASE_URL.replace(/\/+$/, "")}/v2/pipeline`;
@@ -356,9 +357,9 @@ async function resolveDocumentFileOnVercel(docId) {
 
   // 3. Nếu trên Vercel có cấu hình DISCORD_TOKEN, gọi thẳng Discord REST API lấy link CDN mới nhất (không cần bật máy tính ở nhà!)
   const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN || "";
-  let channelId = row.channel_id;
+  let channelId = row.channel_id || DISCORD_DATABASE_CHANNEL_ID;
   let messageId = row.message_id;
-  if ((!channelId || !messageId) && row.jump_url && row.jump_url.includes("discord.com/channels/")) {
+  if ((!row.channel_id || !messageId) && row.jump_url && row.jump_url.includes("discord.com/channels/")) {
     const mj = row.jump_url.match(/discord\.com\/channels\/\d+\/(\d+)\/(\d+)/);
     if (mj) {
       channelId = mj[1];

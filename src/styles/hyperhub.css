@@ -1430,21 +1430,26 @@ body {
     display: flex;
     flex-direction: column;
     color: var(--hh-text);
+    background:
+      radial-gradient(960px 420px at 22% 0%, rgba(214, 31, 121, 0.08), transparent 68%),
+      radial-gradient(840px 480px at 88% 8%, rgba(155, 92, 255, 0.07), transparent 70%),
+      var(--hh-ink);
   }
   @media (min-width: 1024px) {
     .hh-hub-shell { flex-direction: row; }
   }
 
   .hh-hub-sidebar {
-    zoom: 0.9;
-    height: calc(100dvh / 0.9);
-    background: var(--hh-ink-2);
-    border-right: 1px solid var(--hh-line);
+    height: 100dvh;
+    background: rgba(9, 7, 16, 0.96);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
   }
 
   .hh-hub-mobile-bar {
-    background: rgba(11, 15, 23, 0.94);
-    border-bottom: 1px solid var(--hh-line);
+    background: rgba(9, 7, 16, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(14px);
   }
 
   .hh-hub-nav-item {
@@ -1453,12 +1458,12 @@ body {
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 38px;
-    padding: 7px 11px;
-    border-radius: 11px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 10px;
     font-size: 13px;
-    font-weight: 700;
-    color: var(--hh-text-2);
+    font-weight: 600;
+    color: rgba(244, 240, 255, 0.68);
     cursor: pointer;
     text-align: left;
     transition:
@@ -1467,50 +1472,111 @@ body {
       transform var(--hh-dur-micro) var(--hh-ease-soft);
   }
   .hh-hub-nav-item:hover {
-    color: var(--hh-text);
-    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.045);
   }
-  .hh-hub-nav-item:active { transform: scale(0.985); }
+  .hh-hub-nav-item:active { transform: scale(0.99); }
   .hh-hub-nav-item[data-active='true'] {
     color: #fff;
-    background-color: rgba(214, 31, 121, 0.24);
+    font-weight: 700;
+    background: linear-gradient(90deg, rgba(255, 79, 203, 0.16), rgba(155, 92, 255, 0.06));
+    box-shadow: inset 0 0 0 1px rgba(255, 79, 203, 0.22);
   }
   .hh-hub-nav-item[data-active='true']::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 8px;
-    bottom: 8px;
+    top: 7px;
+    bottom: 7px;
     width: 3px;
     border-radius: 2px;
-    background-color: var(--hh-petal);
+    background: linear-gradient(180deg, #ff4fcb, #9b5cff);
   }
   .hh-hub-nav-idx {
-    font-family: var(--hh-font-pixel);
-    font-size: 12px;
+    font-family: var(--hh-font-mono);
+    font-size: 11px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: var(--hh-text-3);
+    color: rgba(244, 240, 255, 0.36);
     min-width: 20px;
   }
   .hh-hub-nav-item[data-active='true'] .hh-hub-nav-idx {
-    color: var(--hh-petal);
+    color: #ffb8e6;
   }
 
-  /* Bề mặt thẻ trong Hub */
+  /* Bề mặt kiến trúc trong Hub (App-screen discipline: 1px crisp border, subtle top highlight) */
   .hh-hub-surface {
     position: relative;
     border-radius: 16px;
-    background: var(--hh-surface);
-    border: 1px solid var(--hh-line);
+    background: rgba(13, 10, 22, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     transition:
       border-color var(--hh-dur-hover) var(--hh-ease-soft),
       transform var(--hh-dur-hover) var(--hh-ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
     .hh-hub-surface--interactive:hover {
-      border-color: rgba(96, 165, 250, 0.45);
+      border-color: rgba(255, 79, 203, 0.38);
       transform: translate3d(0, -2px, 0);
     }
+  }
+
+  /* Signature Command Deck */
+  .hh-command-deck {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    background:
+      radial-gradient(560px 260px at 0% 0%, rgba(255, 79, 203, 0.12), transparent 70%),
+      radial-gradient(480px 260px at 100% 0%, rgba(155, 92, 255, 0.12), transparent 70%),
+      rgba(12, 9, 20, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 20px 50px -28px rgba(0, 0, 0, 0.8);
+  }
+
+  .hh-orbit-logo-halo {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: radial-gradient(circle, rgba(255, 79, 203, 0.22) 0%, rgba(155, 92, 255, 0.08) 65%, transparent 100%);
+    border: 1px solid rgba(255, 79, 203, 0.28);
+  }
+
+  /* Subject Matrix Cell with 3px Left Accent Edge */
+  .hh-subject-cell {
+    position: relative;
+    border-radius: 12px;
+    background: rgba(17, 13, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 12px 14px 12px 16px;
+    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+  .hh-subject-cell:hover {
+    background: rgba(25, 19, 40, 0.95);
+    border-color: rgba(255, 79, 203, 0.35);
+    transform: translateY(-1px);
+  }
+
+  /* High-Density Dossier Table (App-Screen Standard) */
+  .hh-dossier-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    transition: background-color 140ms ease;
+  }
+  .hh-dossier-row:last-child {
+    border-bottom: none;
+  }
+  .hh-dossier-row:hover {
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .hh-voxel-frame {
@@ -1522,27 +1588,32 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--hh-text-2);
-    background: var(--hh-surface-2);
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(244, 240, 255, 0.72);
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     cursor: pointer;
     transition:
       color var(--hh-dur-hover) var(--hh-ease-soft),
       background-color var(--hh-dur-hover) var(--hh-ease-soft),
+      border-color var(--hh-dur-hover) var(--hh-ease-soft),
       transform var(--hh-dur-micro) var(--hh-ease-soft);
   }
   .hh-hub-chip:hover {
     color: #fff;
-    background: #2c1f47;
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.16);
   }
-  .hh-hub-chip:active { transform: scale(0.96); }
+  .hh-hub-chip:active { transform: scale(0.97); }
   .hh-hub-chip[data-active='true'] {
     color: #fff;
-    background-color: var(--hh-bloom);
+    font-weight: 700;
+    background: rgba(214, 31, 121, 0.25);
+    border-color: rgba(255, 79, 203, 0.55);
   }
 
   /* Dispenser Slot Window */
@@ -1550,8 +1621,8 @@ body {
     position: relative;
     overflow: hidden;
     border-radius: 14px;
-    background: var(--hh-ink-2);
-    border: 1px solid var(--hh-line-2);
+    background: rgba(10, 8, 18, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.09);
   }
   .hh-slot-window[data-rolling='true'] {
     border-color: var(--hh-petal);
