@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, Volume2, VolumeX } from 'lucide-react';
+import { Menu, X, ShieldCheck, CheckCircle2, LayoutDashboard, Home, BookOpen, Dices, UploadCloud, GraduationCap, Volume2, VolumeX } from 'lucide-react';
 import { DiscordUser } from '../utils/discordAuth';
 import { PixelMark } from './hh/PixelMark';
 import { useHubPulse } from '../hooks/useHubPulse';
 import { preloadHub } from '../hubLoader';
 import { sound } from '../utils/audio';
 
-type Tab = 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+type Tab = 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
 
 interface NavbarProps {
   theme?: string;
@@ -29,6 +29,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', view: 'home', label: 'Trang chủ', mobileLabel: 'Trang chủ', icon: Home },
+  { key: 'courses', view: 'dashboard', tab: 'courses', label: 'Khóa học', mobileLabel: 'Khóa học', icon: GraduationCap },
   { key: 'vault', view: 'dashboard', tab: 'vault', label: 'Kho đề', mobileLabel: 'Kho đề thi', icon: BookOpen },
   { key: 'get_exam', view: 'dashboard', tab: 'get_exam', label: 'Lấy đề', mobileLabel: 'Lấy đề nhanh', icon: Dices },
   { key: 'submit_doc', view: 'dashboard', tab: 'submit_doc', label: 'Nộp đề', mobileLabel: 'Kho nộp đề', icon: UploadCloud },

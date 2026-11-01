@@ -19,7 +19,7 @@ import { loadDashboard, preloadHubWhenIdle } from './hubLoader';
 import { sound } from './utils/audio';
 
 type View = 'home' | 'dashboard';
-type Tab = 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+type Tab = 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
 
 /**
  * Hub (Dashboard ~200KB nguồn) tách chunk riêng: trang chủ tải nhanh hơn,
@@ -49,13 +49,21 @@ const withViewTransition = (update: () => void, dir: 'to-hub' | 'to-home' = 'to-
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
-  // Khởi tạo activeView dựa theo pathname (/hub, /admin) hoặc mặc định vào thẳng trang chủ
+  // Khởi tạo activeView dựa theo pathname (/hub, /courses, /admin) hoặc mặc định vào thẳng trang chủ
   const [activeView, setActiveView] = useState<View>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
 
-    if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
+    if (
+      path.startsWith('/hub') ||
+      path.startsWith('/courses') ||
+      path.startsWith('/khoahoc') ||
+      path.startsWith('/admin') ||
+      hash === '#hub' ||
+      hash === '#courses' ||
+      hash === '#dashboard'
+    ) {
       return 'dashboard';
     }
     return 'home';
@@ -66,18 +74,23 @@ export const App: React.FC = () => {
 
   const [dashboardTab, setDashboardTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'overview';
-    if (window.location.pathname.toLowerCase().startsWith('/admin')) return 'admin';
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') return 'courses';
     return 'overview';
   });
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Điều hướng SPA chuẩn với URL /hub, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
+  // Điều hướng SPA chuẩn với URL /hub, /courses, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
   const navigateTo = useCallback((view: View, tab?: Tab) => {
     const targetPath =
       view === 'dashboard'
         ? tab === 'admin'
           ? '/admin'
+          : tab === 'courses'
+          ? '/courses'
           : '/hub'
         : '/';
     const dir: 'to-hub' | 'to-home' = view === 'dashboard' ? 'to-hub' : 'to-home';
@@ -106,13 +119,22 @@ export const App: React.FC = () => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
-      const isHub = path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard';
+      const isHub =
+        path.startsWith('/hub') ||
+        path.startsWith('/courses') ||
+        path.startsWith('/khoahoc') ||
+        path.startsWith('/admin') ||
+        hash === '#hub' ||
+        hash === '#courses' ||
+        hash === '#dashboard';
       withViewTransition(
         () => {
           if (isHub) {
             setActiveView('dashboard');
             if (path.startsWith('/admin')) {
               setDashboardTab('admin');
+            } else if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') {
+              setDashboardTab('courses');
             }
           } else {
             setActiveView('home');
@@ -263,7 +285,7 @@ export const App: React.FC = () => {
               initialTab={dashboardTab}
               onTabChange={(tab) => {
                 setDashboardTab(tab);
-                const nextPath = tab === 'admin' ? '/admin' : '/hub';
+                const nextPath = tab === 'admin' ? '/admin' : tab === 'courses' ? '/courses' : '/hub';
                 if (window.location.pathname !== nextPath) {
                   window.history.replaceState(null, '', nextPath);
                 }

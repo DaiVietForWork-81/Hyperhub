@@ -67,6 +67,7 @@ import {
 import { sound } from '../utils/audio';
 import { PixelButton, SpotSurface } from './hh/Controls';
 import { getNextThptExamInfo } from './ExamCountdown';
+import { CoursesHub } from '../courses/CoursesHub';
 import {
   HubLayoutProvider,
   useHubLayout,
@@ -75,8 +76,8 @@ import {
 
 interface DashboardProps {
   user: DiscordUser | null;
-  initialTab?: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
-  onTabChange?: (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
+  initialTab?: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+  onTabChange?: (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
   onOpenAuthModal: () => void;
   onLogout: () => void;
   onBackToHome: () => void;
@@ -518,13 +519,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
   onBackToHome,
 }) => {
   const { config } = useHubLayout();
-  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
+  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
     initialTab || 'overview'
   );
   const { showSuccess, showInfo, showError } = useToast();
 
   const handleTabChange = useCallback(
-    (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
+    (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
       sound.playNavSwitch();
       setActiveTab(tab);
       onTabChange?.(tab);
@@ -543,13 +544,15 @@ const DashboardContent: React.FC<DashboardProps> = ({
     }
   }, [initialTab]);
 
-  // Đồng bộ URL với tab Admin để có link trực tiếp /admin chia sẻ được
+  // Đồng bộ URL với tab Admin và Courses để có link trực tiếp /admin, /courses chia sẻ được
   useEffect(() => {
     try {
       const path = window.location.pathname.toLowerCase();
       if (activeTab === 'admin' && path !== '/admin') {
         window.history.replaceState(null, '', '/admin');
-      } else if (activeTab !== 'admin' && path === '/admin') {
+      } else if (activeTab === 'courses' && path !== '/courses') {
+        window.history.replaceState(null, '', '/courses');
+      } else if (activeTab !== 'admin' && activeTab !== 'courses' && (path === '/admin' || path === '/courses')) {
         window.history.replaceState(null, '', '/hub');
       }
     } catch {
@@ -2684,6 +2687,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <span>Bàn Điều Khiển</span>
           </button>
           <button
+            onClick={() => handleTabChange('courses')}
+            data-active={activeTab === 'courses'}
+            className="hh-hub-chip whitespace-nowrap"
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-[#C4A6FF]" />
+            <span>Khóa Học</span>
+          </button>
+          <button
             onClick={() => {
               handleTabChange('vault');
               setShowBookmarksOnly(false);
@@ -2832,6 +2843,25 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 <LayoutDashboard className="w-4 h-4 shrink-0 text-[#C4A6FF]" />
                 <span className="truncate">Bàn Điều Khiển</span>
                 <span className="ml-auto font-mono text-xs text-white/45 shrink-0">01</span>
+              </button>
+
+              <button
+                ref={(el) => {
+                  sidebarItemRefs.current['courses'] = el;
+                }}
+                type="button"
+                onClick={() => handleTabChange('courses')}
+                onPointerEnter={() => moveSidebarIndicator('courses')}
+                onFocus={() => moveSidebarIndicator('courses')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
+                data-active={activeTab === 'courses'}
+                className="hh-hub-nav-item"
+              >
+                <GraduationCap className="w-4 h-4 shrink-0 text-[#FFB8E6]" />
+                <span className="truncate">Khóa Học Chuyên Đề</span>
+                <span className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded bg-[#201833] text-[#E2D4FF] border border-[#32244d] shrink-0">
+                  Mới
+                </span>
               </button>
 
               <button
@@ -3123,6 +3153,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <span className="text-white/25">/</span>
               <span className="text-[13px] font-extrabold text-white">
                 {activeTab === 'overview' && 'Bàn điều khiển trung tâm'}
+                {activeTab === 'courses' && 'Trung tâm Khóa học (Đồng bộ khoahoc)'}
                 {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
                 {activeTab === 'get_exam' && 'Máy bốc đề ngẫu nhiên'}
                 {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
@@ -3448,6 +3479,15 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       icon={<Dices className="w-4 h-4 text-[#FFC46B]" />}
                     >
                       Bốc Thử 1 Đề Ngay
+                    </PixelButton>
+
+                    <PixelButton
+                      variant="ghost"
+                      className="hh-btn--sm"
+                      onClick={() => handleTabChange('courses')}
+                      icon={<GraduationCap className="w-4 h-4 text-[#C4A6FF]" />}
+                    >
+                      Khóa Học Chuyên Đề
                     </PixelButton>
 
                     <PixelButton
@@ -4178,6 +4218,19 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 );
               })()}
             </SpotSurface>
+          </div>
+        )}
+
+        {/* TAB 02: COURSES — TRUNG TÂM KHÓA HỌC ORBIT (ĐỒNG BỘ REPO KHOAHOC) */}
+        {activeTab === 'courses' && !hubLocked && (
+          <div key="tab-courses" className="hh-swap-panel">
+            <CoursesHub
+              onOpenExamVaultForSubject={(subjectCode) => {
+                setSelectedSubject(subjectCode);
+                setShowBookmarksOnly(false);
+                handleTabChange('vault');
+              }}
+            />
           </div>
         )}
 

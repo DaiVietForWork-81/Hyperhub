@@ -4,6 +4,7 @@ import {
   BookOpen,
   Dices,
   UploadCloud,
+  GraduationCap,
   Home,
   X,
   ChevronRight,
@@ -16,7 +17,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   documents: ExamDocument[];
   onSelectExam: (doc: ExamDocument) => void;
-  onNavigateTab: (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc') => void;
+  onNavigateTab: (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc') => void;
   onNavigateHome: () => void;
   onTriggerRandomExam: () => void;
 }
@@ -58,6 +59,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     : [];
 
   const quickActions = [
+    {
+      id: 'action-courses',
+      title: 'Mở Trung Tâm Khóa Học (Toán · Văn · Anh · KHTN · Tin Học)',
+      category: 'Khóa học',
+      icon: <GraduationCap className="w-4 h-4 text-[#C4A6FF]" />,
+      action: () => {
+        onNavigateTab('courses');
+        onClose();
+      },
+    },
     {
       id: 'action-random',
       title: 'Bốc Đề Thi Ngẫu Nhiên',
