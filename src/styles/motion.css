@@ -210,32 +210,21 @@
   .hh-choice { transition: transform var(--hh-dur-micro) var(--hh-ease-out); }
   .hh-choice:active { transform: scale(var(--hh-scale-choice, 0.985)); transition-timing-function: var(--hh-ease-press); }
 
-  /* Blur-bridged panel & icon swaps (Animate UI Rule 6) */
+  /* Panel & icon swaps (Animate UI: chỉ dùng blur cho icon nhỏ, panel lớn dùng opacity + translate3d nhẹ để đạt 120fps) */
   @keyframes hh-panel-swap-in {
-    0% {
+    from {
       opacity: 0;
-      filter: var(--hh-blur-surface, blur(4px));
-      transform: translate3d(0, 6px, 0) scale(0.992);
-    }
-    100% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: translate3d(0, 6px, 0);
     }
   }
   @keyframes hh-icon-swap-in {
-    0% {
+    from {
       opacity: 0;
       filter: var(--hh-blur-icon, blur(2px));
       transform: scale(0.84);
     }
-    100% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: scale(1);
-    }
   }
-  .hh-swap-panel { animation: hh-panel-swap-in var(--hh-dur-page) var(--hh-ease-enter) both; }
+  .hh-swap-panel { animation: hh-panel-swap-in 180ms var(--hh-ease-out) both; }
   .hh-swap-icon { animation: hh-icon-swap-in 180ms var(--hh-ease-out) both; }
 
   /* Chỉ áp dụng hover khi thiết bị thật sự hover được */
@@ -246,101 +235,36 @@
   }
 
   /* ------------------------------------------------------------------------
-     4. VIEW TRANSITION (Home ↔ Hub) - Animate UI Blur-Bridged Spatial Morph
-     Nền vũ trụ (.hh-ambient) tách layer riêng để đứng yên & nội suy mượt;
-     chỉ phần nội dung (.hh-view-stage) trượt + blur-bridge hai chiều.
+     4. VIEW TRANSITION (Home ↔ Hub) - 120fps GPU Compositor Transition
+     Quan trọng: KHÔNG gán transform hay filter lên .hh-view-stage để giữ nguyên
+     containing block gốc (viewport) cho thanh sidebar `position: fixed` trong Hub.
      ------------------------------------------------------------------------ */
-  .hh-ambient {
-    view-transition-name: hh-ambient-bg;
+  .hh-ambient-canvas {
+    will-change: transform;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
+  .hh-ambient[data-mode='dashboard'] .hh-ambient-canvas {
+    transform: translate3d(2.5%, 1.2%, 0) scale(1.03);
+  }
+
+  @keyframes hh-stage-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
   .hh-view-stage {
-    view-transition-name: hh-stage;
+    animation: hh-stage-fade-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-
-  @keyframes hh-stage-out-to-hub {
-    0% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    100% {
-      opacity: 0;
-      filter: blur(4px);
-      transform: translate3d(-16px, 0, 0) scale(0.985);
-    }
-  }
-  @keyframes hh-stage-in-to-hub {
-    0% {
-      opacity: 0;
-      filter: blur(4px);
-      transform: translate3d(18px, 0, 0) scale(0.992);
-    }
-    100% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-  @keyframes hh-stage-out-to-home {
-    0% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    100% {
-      opacity: 0;
-      filter: blur(4px);
-      transform: translate3d(16px, 0, 0) scale(0.985);
-    }
-  }
-  @keyframes hh-stage-in-to-home {
-    0% {
-      opacity: 0;
-      filter: blur(4px);
-      transform: translate3d(-18px, 0, 0) scale(0.992);
-    }
-    100% {
-      opacity: 1;
-      filter: blur(0px);
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
-  ::view-transition-old(hh-ambient-bg),
-  ::view-transition-new(hh-ambient-bg) {
-    animation: none;
-    mix-blend-mode: normal;
+  .hh-view-enter {
+    animation: hh-stage-fade-in 180ms var(--hh-ease-out) both;
   }
 
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation-duration: 260ms;
+    animation-duration: 180ms;
     animation-timing-function: var(--hh-ease-out);
-  }
-
-  ::view-transition-old(hh-stage) {
-    animation: hh-stage-out-to-hub 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-  ::view-transition-new(hh-stage) {
-    animation: hh-stage-in-to-hub 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  html[data-nav-dir='to-home']::view-transition-old(hh-stage) {
-    animation-name: hh-stage-out-to-home;
-  }
-  html[data-nav-dir='to-home']::view-transition-new(hh-stage) {
-    animation-name: hh-stage-in-to-home;
-  }
-
-  /* Fallback mượt khi trình duyệt không dùng View Transitions API nhưng có điều hướng */
-  html[data-nav-dir='to-hub'] .hh-view-stage {
-    animation: hh-stage-in-to-hub 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  html[data-nav-dir='to-home'] .hh-view-stage {
-    animation: hh-stage-in-to-home 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  .hh-view-enter {
-    animation: hh-stage-in-to-hub var(--hh-dur-page) var(--hh-ease-out) both;
   }
 }
 

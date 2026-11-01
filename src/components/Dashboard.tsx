@@ -446,6 +446,69 @@ const getSafeExternalUrl = (url?: string): string => {
   return '';
 };
 
+// Bộ nhớ đệm cấp module giúp chuyển qua lại Home ↔ Hub tức thì (0ms delay, không tải lại từ đầu)
+let CACHED_HUB_DOCS: ExamDocument[] = [];
+let CACHED_HUB_TOTAL = 29;
+let CACHED_HUB_STATS = { total_real: 29, unique_items: 28, duplicate_items: 2 };
+
+// Component đồng hồ đếm ngược độc lập (React.memo) — chỉ render lại đúng 4 ô số mỗi giây,
+// KHÔNG kích hoạt re-render toàn bộ 4.600 dòng của DashboardContent (chống khựng/giật khi cuộn).
+const HubThptCountdownStrip: React.FC<{ examYear: number; targetIso: string }> = React.memo(
+  ({ examYear, targetIso }) => {
+    const [parts, setParts] = useState(() => {
+      const diff = Math.max(0, new Date(targetIso).getTime() - Date.now());
+      return {
+        days: String(Math.floor(diff / 86400000)).padStart(2, '0'),
+        hours: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, '0'),
+        minutes: String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0'),
+        seconds: String(Math.floor((diff % 60000) / 1000)).padStart(2, '0'),
+      };
+    });
+
+    useEffect(() => {
+      const targetMs = new Date(targetIso).getTime();
+      const timer = window.setInterval(() => {
+        const diff = Math.max(0, targetMs - Date.now());
+        setParts({
+          days: String(Math.floor(diff / 86400000)).padStart(2, '0'),
+          hours: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, '0'),
+          minutes: String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0'),
+          seconds: String(Math.floor((diff % 60000) / 1000)).padStart(2, '0'),
+        });
+      }, 1000);
+      return () => window.clearInterval(timer);
+    }, [targetIso]);
+
+    const cells = [
+      { val: parts.days, unit: 'Ngày' },
+      { val: parts.hours, unit: 'Giờ' },
+      { val: parts.minutes, unit: 'Phút' },
+      { val: parts.seconds, unit: 'Giây' },
+    ];
+
+    return (
+      <div className="flex items-center gap-1.5 self-start sm:self-center">
+        <span className="text-[13px] font-semibold text-white/55 mr-1 hidden sm:inline">
+          Kỳ thi THPT {examYear}:
+        </span>
+        {cells.map((cell, i) => (
+          <div
+            key={cell.unit}
+            className={`px-2.5 py-1 rounded-lg border text-center tabular-nums ${
+              i === 3
+                ? 'bg-[#291524] border-[#422039] text-[#FFB8E6]'
+                : 'bg-[#15131f] border-[#221e30] text-white'
+            }`}
+          >
+            <div className="font-mono font-black text-[13px] sm:text-sm leading-none">{cell.val}</div>
+            <div className="text-xs font-mono text-white/55 mt-0.5">{cell.unit}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+);
+
 const DashboardContent: React.FC<DashboardProps> = ({
   user,
   initialTab,
@@ -627,20 +690,30 @@ const DashboardContent: React.FC<DashboardProps> = ({
   const [filterHasSolutions, setFilterHasSolutions] = useState<boolean>(false);
   const [filterHasDiscordLink, setFilterHasDiscordLink] = useState<boolean>(false);
 
-  // Danh Sách Đề Thi Trong Kho (Full Catalog List)
-  const [documentsList, setDocumentsList] = useState<ExamDocument[]>([]);
+  // Danh Sách Đề Thi Trong Kho (Full Catalog List - khởi tạo tức thì từ bộ nhớ đệm nếu đã nạp)
+  const [documentsList, setDocumentsList] = useState<ExamDocument[]>(() => CACHED_HUB_DOCS);
   const [isLoadingDocs, setIsLoadingDocs] = useState<boolean>(false);
-  const [totalDocsCount, setTotalDocsCount] = useState<number>(29);
+  const [totalDocsCount, setTotalDocsCount] = useState<number>(() => CACHED_HUB_TOTAL);
   const [stats, setStats] = useState<{
     total_real: number;
     unique_items: number;
     duplicate_items: number;
-  }>({ total_real: 29, unique_items: 28, duplicate_items: 2 });
+  }>(() => CACHED_HUB_STATS);
   const [filterDup, setFilterDup] = useState<'all' | 'unique' | 'duplicate'>('all');
   const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'newest' | 'pages' | 'size' | 'confidence'>('newest');
   // Phân trang & Tối ưu Render danh sách đề (Mặc định 24 đề/trang, chống nghẽn DOM)
   const [visibleCount, setVisibleCount] = useState<number>(24);
+
+  useEffect(() => {
+    if (documentsList.length > 0) CACHED_HUB_DOCS = documentsList;
+  }, [documentsList]);
+  useEffect(() => {
+    if (totalDocsCount > 0) CACHED_HUB_TOTAL = totalDocsCount;
+  }, [totalDocsCount]);
+  useEffect(() => {
+    if (stats.total_real > 0) CACHED_HUB_STATS = stats;
+  }, [stats]);
 
   // Modal Hồ Sơ Chi Tiết & Command Palette
   const [selectedDossierDoc, setSelectedDossierDoc] = useState<ExamDocument | null>(null);
@@ -1705,41 +1778,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
     return withCounts.slice(0, 6);
   }, [documentsList]);
 
-  // Đồng bộ ngày & giờ đếm ngược kỳ thi THPT Quốc Gia theo thời gian thực
+  // Đồng bộ ngày & giờ đếm ngược kỳ thi THPT Quốc Gia (đã tách sang HubThptCountdownStrip để không re-render toàn Dashboard)
   const nextThptExam = useMemo(() => getNextThptExamInfo(), []);
-  const [countdownParts, setCountdownParts] = useState<{
-    days: number;
-    hours: string;
-    minutes: string;
-    seconds: string;
-  }>(() => {
-    const diff = Math.max(0, new Date(nextThptExam.targetIso).getTime() - Date.now());
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff % 86400000) / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return {
-      days: d,
-      hours: String(h).padStart(2, '0'),
-      minutes: String(m).padStart(2, '0'),
-      seconds: String(s).padStart(2, '0'),
-    };
-  });
-
-  useEffect(() => {
-    const targetMs = new Date(nextThptExam.targetIso).getTime();
-    const tick = () => {
-      const diff = Math.max(0, targetMs - Date.now());
-      setCountdownParts({
-        days: Math.floor(diff / 86400000),
-        hours: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, '0'),
-        minutes: String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0'),
-        seconds: String(Math.floor((diff % 60000) / 1000)).padStart(2, '0'),
-      });
-    };
-    const timer = window.setInterval(tick, 1000);
-    return () => window.clearInterval(timer);
-  }, [nextThptExam.targetIso]);
 
   const [vaultViewMode, setVaultViewMode] = useState<'cards' | 'table'>('table');
 
@@ -2695,34 +2735,35 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP COMMAND RAIL (SIDEBAR - FIXED POSITION + ANIMATE UI GLIDING PILL) */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - FIXED VIEWPORT + FULL-PAGE RAIL)          */}
       {/* ========================================================================= */}
       <aside
         data-lenis-prevent
         style={{ width: `${sidebarWidthPx}px` }}
-        className="hidden lg:flex lg:fixed lg:top-0 lg:left-0 lg:bottom-0 h-dvh hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto overscroll-contain no-scrollbar"
+        className="hidden lg:flex lg:fixed lg:top-0 lg:left-0 lg:bottom-0 h-dvh hh-hub-sidebar hh-sidebar-scroll flex-col justify-between shrink-0 p-3 z-30 overflow-y-auto overscroll-contain"
       >
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {/* Brand Header with Crystal Ring Emblem */}
-          <div className="flex items-center justify-between pb-3 border-b border-[#221a35]">
+          <div className="flex items-center justify-between pb-2.5 border-b border-[#221a35]">
             <button
               type="button"
               onClick={onBackToHome}
               className="flex items-center gap-2.5 group cursor-pointer text-left min-w-0"
               title="Quay về Trang Chủ Orbit | Vietnam"
             >
-              <span className="hh-orbit-logo-halo w-9 h-9 shrink-0">
+              <span className="hh-orbit-logo-halo w-8 h-8 shrink-0">
                 <img
                   src="/orbit_logo_transparent.png"
-                  alt="Orbit | Vietnam"
-                  className="w-6 h-6 object-contain"
+                  alt=""
+                  aria-hidden="true"
+                  className="w-5 h-5 object-contain"
                 />
               </span>
               <div className="min-w-0">
                 <div className="text-[15px] font-black text-white group-hover:text-[#FFB8E6] transition-colors flex items-center gap-1.5 truncate">
                   <span>Orbit | Vietnam</span>
                 </div>
-                <div className="text-xs font-mono text-[#C4A6FF]/75 mt-0.5 truncate">
+                <div className="text-xs font-mono text-[#C4A6FF]/75 truncate">
                   Bàn điều khiển v2.5
                 </div>
               </div>
@@ -2731,7 +2772,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <button
               type="button"
               onClick={onBackToHome}
-              className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-[#171522] border border-transparent hover:border-[#242033] transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-[#171522] border border-transparent hover:border-[#242033] transition-colors cursor-pointer shrink-0"
               title="Về Trang Chủ"
             >
               <Home className="w-4 h-4" />
@@ -2745,7 +2786,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               sound.playClick();
               setIsCommandPaletteOpen(true);
             }}
-            className="w-full px-3 py-2 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] hover:border-[#422039] flex items-center justify-between gap-2 text-[13px] text-white/75 hover:text-white transition-colors cursor-pointer group"
+            className="w-full px-2.5 py-1.5 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] hover:border-[#422039] flex items-center justify-between gap-2 text-[13px] text-white/75 hover:text-white transition-colors cursor-pointer group"
           >
             <span className="flex items-center gap-2 truncate">
               <Search className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
@@ -2758,7 +2799,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
           {/* Navigation Deck with Animate UI Vertical Gliding Indicator */}
           <div className="space-y-1">
-            <div className="px-2 pb-1 flex items-center justify-between">
+            <div className="px-2 pb-0.5 flex items-center justify-between">
               <span className="text-xs font-semibold text-white/55">
                 Trạm điều hành
               </span>
@@ -2770,7 +2811,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
             <nav
               ref={sidebarNavRef}
-              className="hh-sidebar-nav space-y-1"
+              className="hh-sidebar-nav space-y-0.5"
               aria-label="Điều hướng Hub"
               onPointerLeave={() => moveSidebarIndicator(activeSidebarKey)}
             >
@@ -3057,9 +3098,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
         </div>
       </aside>
 
-      {/* Spacer giữ chỗ cho Fixed Sidebar trên Desktop để nội dung không bao giờ bị che */}
+      {/* Cột nền kéo dài xuyên suốt 100% chiều cao toàn trang từ đỉnh xuống đáy Hub */}
       <div
-        className="hidden lg:block shrink-0 pointer-events-none"
+        className="hidden lg:block shrink-0 hh-hub-sidebar-rail pointer-events-none"
         style={{ width: `${sidebarWidthPx}px` }}
         aria-hidden="true"
       />
@@ -3219,32 +3260,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         </div>
                       </div>
 
-                      {/* Real-time Second-by-Second THPT Countdown Strip */}
-                      <div className="flex items-center gap-1.5 self-start sm:self-center">
-                        <span className="text-[13px] font-semibold text-white/55 mr-1 hidden sm:inline">
-                          Kỳ thi THPT {nextThptExam.examYear}:
-                        </span>
-                        {[
-                          { val: String(countdownParts.days).padStart(2, '0'), unit: 'Ngày' },
-                          { val: String(countdownParts.hours).padStart(2, '0'), unit: 'Giờ' },
-                          { val: String(countdownParts.minutes).padStart(2, '0'), unit: 'Phút' },
-                          { val: String(countdownParts.seconds).padStart(2, '0'), unit: 'Giây' },
-                        ].map((cell, i) => (
-                          <div
-                            key={cell.unit}
-                            className={`px-2.5 py-1 rounded-lg border text-center tabular-nums ${
-                              i === 3
-                                ? 'bg-[#291524] border-[#422039] text-[#FFB8E6]'
-                                : 'bg-[#15131f] border-[#221e30] text-white'
-                            }`}
-                          >
-                            <div className="font-mono font-black text-[13px] sm:text-sm leading-none">
-                              {cell.val}
-                            </div>
-                            <div className="text-xs font-mono text-white/55 mt-0.5">{cell.unit}</div>
-                          </div>
-                        ))}
-                      </div>
+                      {/* Real-time Second-by-Second THPT Countdown Strip (React.memo cô lập re-render) */}
+                      <HubThptCountdownStrip
+                        examYear={nextThptExam.examYear}
+                        targetIso={nextThptExam.targetIso}
+                      />
                     </div>
 
                     {/* Hero Headline & Context */}

@@ -8,8 +8,12 @@ declare global {
   }
 }
 
-export const useSmoothScroll = () => {
+export const useSmoothScroll = (enabled: boolean = true) => {
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     // Disable if user prefers reduced motion or automated layout probe is sampling
     if (
       typeof window === 'undefined' ||
@@ -25,14 +29,14 @@ export const useSmoothScroll = () => {
       return;
     }
 
-    // Lenis configuration: snappy, direct response, zero lag
+    // Lenis configuration: snappy, direct response, zero lag (chỉ bật ở Trang Chủ, tắt ở Hub để cuộn bảng & sidebar 120Hz gốc)
     const lenis = new Lenis({
-      duration: 0.85,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Silky exponential settle
+      duration: 0.6,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 1.0, // 1:1 direct scroll control
+      wheelMultiplier: 1.0,
       touchMultiplier: 1.5,
       infinite: false,
       syncTouch: false,
@@ -59,7 +63,7 @@ export const useSmoothScroll = () => {
             e.preventDefault();
             lenis.scrollTo(el as HTMLElement, {
               offset: -ANCHOR_OFFSET,
-              duration: 1.1,
+              duration: 0.85,
               easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             });
           }
@@ -75,5 +79,5 @@ export const useSmoothScroll = () => {
       lenis.destroy();
       delete window.__lenis;
     };
-  }, []);
+  }, [enabled]);
 };

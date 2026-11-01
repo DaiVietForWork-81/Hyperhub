@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { flushSync } from 'react-dom';
 import { useTheme } from './hooks/useTheme';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { Navbar } from './components/Navbar';
@@ -16,7 +15,6 @@ import { CoFounders } from './components/CoFounders';
 import { AmbientField, CursorAura } from './components/hh/Ambient';
 import { ChapterRail, ChapterOpener } from './components/hh/Chapters';
 import { Reveal } from './components/hh/Reveal';
-import { prefersReducedMotion } from './motion/capabilities';
 import { loadDashboard, preloadHubWhenIdle } from './hubLoader';
 import { sound } from './utils/audio';
 
@@ -38,24 +36,18 @@ const HubFallback: React.FC = () => (
 );
 
 /**
- * Chuyển view có hiệu ứng: dùng View Transitions API khi trình duyệt hỗ trợ
- * (crossfade kèm blur-bridge mượt theo chiều điều hướng Home ↔ Hub), ngược lại cập nhật trực tiếp.
+ * Chuyển view mượt 120fps không chặn luồng chính (không dùng flushSync + startViewTransition
+ * chụp ảnh toàn trang gây khựng 150-250ms khi mount Dashboard lớn).
  */
 const withViewTransition = (update: () => void, dir: 'to-hub' | 'to-home' = 'to-hub') => {
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.navDir = dir;
   }
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-  if (typeof doc.startViewTransition === 'function' && !prefersReducedMotion()) {
-    doc.startViewTransition(() => flushSync(update));
-  } else {
-    update();
-  }
+  update();
 };
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  useSmoothScroll();
 
   // Khởi tạo activeView dựa theo pathname (/hub, /admin) hoặc mặc định vào thẳng trang chủ
   const [activeView, setActiveView] = useState<View>(() => {
@@ -68,6 +60,9 @@ export const App: React.FC = () => {
     }
     return 'home';
   });
+
+  // Chỉ bật Lenis ở Trang Chủ, để Hub sử dụng cuộn gốc 120Hz không độ trễ
+  useSmoothScroll(activeView === 'home');
 
   const [dashboardTab, setDashboardTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'overview';
