@@ -39,9 +39,12 @@ const HubFallback: React.FC = () => (
 
 /**
  * Chuyển view có hiệu ứng: dùng View Transitions API khi trình duyệt hỗ trợ
- * (crossfade ngắn, không remount thừa), ngược lại cập nhật trực tiếp.
+ * (crossfade kèm blur-bridge mượt theo chiều điều hướng Home ↔ Hub), ngược lại cập nhật trực tiếp.
  */
-const withViewTransition = (update: () => void) => {
+const withViewTransition = (update: () => void, dir: 'to-hub' | 'to-home' = 'to-hub') => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.dataset.navDir = dir;
+  }
   const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
   if (typeof doc.startViewTransition === 'function' && !prefersReducedMotion()) {
     doc.startViewTransition(() => flushSync(update));
@@ -74,7 +77,7 @@ export const App: React.FC = () => {
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Điều hướng SPA chuẩn với URL /hub, /admin và /
+  // Điều hướng SPA chuẩn với URL /hub, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
   const navigateTo = useCallback((view: View, tab?: Tab) => {
     const targetPath =
       view === 'dashboard'
@@ -82,6 +85,7 @@ export const App: React.FC = () => {
           ? '/admin'
           : '/hub'
         : '/';
+    const dir: 'to-hub' | 'to-home' = view === 'dashboard' ? 'to-hub' : 'to-home';
     const apply = () => {
       setActiveView(view);
       if (tab) setDashboardTab(tab);
@@ -93,7 +97,13 @@ export const App: React.FC = () => {
       }
       window.scrollTo({ top: 0, behavior: 'auto' });
     };
-    withViewTransition(apply);
+    if (view === 'dashboard') {
+      loadDashboard()
+        .then(() => withViewTransition(apply, dir))
+        .catch(() => withViewTransition(apply, dir));
+    } else {
+      withViewTransition(apply, dir);
+    }
   }, []);
 
   // Lắng nghe nút Back / Forward trên trình duyệt
@@ -101,16 +111,20 @@ export const App: React.FC = () => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
-      withViewTransition(() => {
-        if (path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard') {
-          setActiveView('dashboard');
-          if (path.startsWith('/admin')) {
-            setDashboardTab('admin');
+      const isHub = path.startsWith('/hub') || path.startsWith('/admin') || hash === '#hub' || hash === '#dashboard';
+      withViewTransition(
+        () => {
+          if (isHub) {
+            setActiveView('dashboard');
+            if (path.startsWith('/admin')) {
+              setDashboardTab('admin');
+            }
+          } else {
+            setActiveView('home');
           }
-        } else {
-          setActiveView('home');
-        }
-      });
+        },
+        isHub ? 'to-hub' : 'to-home'
+      );
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -175,10 +189,12 @@ export const App: React.FC = () => {
     <div className="relative min-h-dvh w-full overflow-x-clip bg-[#08060E] text-[#F8F5FF] selection:bg-pink-500/35 selection:text-pink-100">
       <a href="#main-content" className="hh-skip">Bỏ qua tới nội dung chính</a>
 
+      {/* Nền vũ trụ Orbit (AmbientField Canvas + CursorAura) dùng chung xuyên suốt Home & Hub, không remount */}
+      <AmbientField mode={activeView} />
+      <CursorAura />
+
       {activeView === 'home' ? (
-        <>
-          <AmbientField />
-          <CursorAura />
+        <div key="view-home" className="hh-view-stage relative z-10 w-full min-h-dvh">
           <Navbar
             theme={theme}
             onToggleTheme={toggleTheme}
@@ -242,31 +258,27 @@ export const App: React.FC = () => {
           </main>
 
           <Footer onOpenDashboard={openHub('get_exam')} />
-        </>
+        </div>
       ) : (
         /* HUB / BẢNG ĐIỀU KHIỂN */
-        <>
-          <AmbientField />
-          <CursorAura />
-          <div id="main-content" className="relative z-10 w-full min-h-screen">
-            <Suspense fallback={<HubFallback />}>
-              <Dashboard
-                user={discordUser}
-                initialTab={dashboardTab}
-                onTabChange={(tab) => {
-                  setDashboardTab(tab);
-                  const nextPath = tab === 'admin' ? '/admin' : '/hub';
-                  if (window.location.pathname !== nextPath) {
-                    window.history.replaceState(null, '', nextPath);
-                  }
-                }}
-                onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                onLogout={handleLogout}
-                onBackToHome={() => navigateTo('home')}
-              />
-            </Suspense>
-          </div>
-        </>
+        <div key="view-dashboard" id="main-content" className="hh-view-stage relative z-10 w-full min-h-dvh">
+          <Suspense fallback={<HubFallback />}>
+            <Dashboard
+              user={discordUser}
+              initialTab={dashboardTab}
+              onTabChange={(tab) => {
+                setDashboardTab(tab);
+                const nextPath = tab === 'admin' ? '/admin' : '/hub';
+                if (window.location.pathname !== nextPath) {
+                  window.history.replaceState(null, '', nextPath);
+                }
+              }}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              onLogout={handleLogout}
+              onBackToHome={() => navigateTo('home')}
+            />
+          </Suspense>
+        </div>
       )}
 
       {/* Discord OAuth2 & Account Link Modal */}

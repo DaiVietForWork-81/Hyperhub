@@ -83,11 +83,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    overflow-x: hidden;
   }
 
   body {
-    @apply bg-background text-foreground selection:bg-[#FF4FCB]/30 selection:text-[#FFB8E6] antialiased overflow-x-hidden;
+    @apply bg-background text-foreground selection:bg-[#FF4FCB]/30 selection:text-[#FFB8E6] antialiased overflow-x-clip;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 

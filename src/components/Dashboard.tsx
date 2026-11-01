@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   Home,
@@ -462,11 +462,17 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
   const handleTabChange = useCallback(
     (tab: 'overview' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
+      sound.playNavSwitch();
       setActiveTab(tab);
       onTabChange?.(tab);
     },
     [onTabChange]
   );
+
+  // Animate UI Moving Indicator cho thanh điều hướng bên trái (Sidebar Command Rail)
+  const sidebarNavRef = useRef<HTMLElement>(null);
+  const sidebarIndicatorRef = useRef<HTMLSpanElement>(null);
+  const sidebarItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     if (initialTab) {
@@ -2542,6 +2548,41 @@ const DashboardContent: React.FC<DashboardProps> = ({
   };
 
   const hubLocked = false;
+  const sidebarWidthPx = Math.max(268, config.sidebarWidth);
+
+  const activeSidebarKey = useMemo(() => {
+    if (activeTab === 'vault') {
+      return showBookmarksOnly ? 'bookmarks' : 'vault';
+    }
+    return activeTab;
+  }, [activeTab, showBookmarksOnly]);
+
+  const moveSidebarIndicator = useCallback((key: string, instant = false) => {
+    const nav = sidebarNavRef.current;
+    const ind = sidebarIndicatorRef.current;
+    const el = sidebarItemRefs.current[key];
+    if (!nav || !ind || !el) return;
+    const navRect = nav.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (elRect.height === 0) return;
+    if (instant) ind.style.transition = 'none';
+    ind.style.height = `${Math.round(elRect.height)}px`;
+    ind.style.transform = `translate3d(0, ${Math.round(elRect.top - navRect.top)}px, 0)`;
+    ind.style.opacity = '1';
+    nav.dataset.ready = 'true';
+    if (instant) {
+      void ind.offsetHeight;
+      ind.style.transition = '';
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    moveSidebarIndicator(activeSidebarKey, true);
+    const onResize = () => moveSidebarIndicator(activeSidebarKey, true);
+    window.addEventListener('resize', onResize);
+    document.fonts?.ready.then(() => moveSidebarIndicator(activeSidebarKey, true)).catch(() => {});
+    return () => window.removeEventListener('resize', onResize);
+  }, [activeSidebarKey, moveSidebarIndicator, isAdmin, totalDocsCount]);
 
   return (
     <div className="hh-hub-shell">
@@ -2654,33 +2695,34 @@ const DashboardContent: React.FC<DashboardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP COMMAND RAIL (SIDEBAR - ARCHITECTURAL PRECISION, NO ZOOM SLOP)   */}
+      {/* DESKTOP COMMAND RAIL (SIDEBAR - FIXED POSITION + ANIMATE UI GLIDING PILL) */}
       {/* ========================================================================= */}
       <aside
-        style={{ width: `${Math.max(256, config.sidebarWidth)}px` }}
-        className="hidden lg:flex sticky top-0 h-dvh hh-hub-sidebar flex-col justify-between shrink-0 p-4 z-30 overflow-y-auto no-scrollbar"
+        data-lenis-prevent
+        style={{ width: `${sidebarWidthPx}px` }}
+        className="hidden lg:flex lg:fixed lg:top-0 lg:left-0 lg:bottom-0 h-dvh hh-hub-sidebar flex-col justify-between shrink-0 p-3.5 z-30 overflow-y-auto overscroll-contain no-scrollbar"
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Brand Header with Crystal Ring Emblem */}
-          <div className="flex items-center justify-between pb-3.5 border-b border-[#1d1a29]">
+          <div className="flex items-center justify-between pb-3 border-b border-[#221a35]">
             <button
               type="button"
               onClick={onBackToHome}
-              className="flex items-center gap-3 group cursor-pointer text-left min-w-0"
+              className="flex items-center gap-2.5 group cursor-pointer text-left min-w-0"
               title="Quay về Trang Chủ Orbit | Vietnam"
             >
-              <span className="hh-orbit-logo-halo w-10 h-10 shrink-0">
+              <span className="hh-orbit-logo-halo w-9 h-9 shrink-0">
                 <img
                   src="/orbit_logo_transparent.png"
                   alt="Orbit | Vietnam"
-                  className="w-7 h-7 object-contain"
+                  className="w-6 h-6 object-contain"
                 />
               </span>
               <div className="min-w-0">
                 <div className="text-[15px] font-black text-white group-hover:text-[#FFB8E6] transition-colors flex items-center gap-1.5 truncate">
                   <span>Orbit | Vietnam</span>
                 </div>
-                <div className="text-xs font-mono text-[#C4A6FF]/75 mt-0.5">
+                <div className="text-xs font-mono text-[#C4A6FF]/75 mt-0.5 truncate">
                   Bàn điều khiển v2.5
                 </div>
               </div>
@@ -2703,7 +2745,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               sound.playClick();
               setIsCommandPaletteOpen(true);
             }}
-            className="w-full px-3 py-2.5 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#1d1a29] hover:border-[#422039] flex items-center justify-between gap-2 text-[13px] text-white/75 hover:text-white transition-colors cursor-pointer group"
+            className="w-full px-3 py-2 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] hover:border-[#422039] flex items-center justify-between gap-2 text-[13px] text-white/75 hover:text-white transition-colors cursor-pointer group"
           >
             <span className="flex items-center gap-2 truncate">
               <Search className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
@@ -2714,8 +2756,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
             </kbd>
           </button>
 
-          {/* Navigation Deck */}
-          <div className="space-y-1.5">
+          {/* Navigation Deck with Animate UI Vertical Gliding Indicator */}
+          <div className="space-y-1">
             <div className="px-2 pb-1 flex items-center justify-between">
               <span className="text-xs font-semibold text-white/55">
                 Trạm điều hành
@@ -2726,87 +2768,130 @@ const DashboardContent: React.FC<DashboardProps> = ({
               </span>
             </div>
 
-            <nav className="space-y-1" aria-label="Điều hướng Hub">
+            <nav
+              ref={sidebarNavRef}
+              className="hh-sidebar-nav space-y-1"
+              aria-label="Điều hướng Hub"
+              onPointerLeave={() => moveSidebarIndicator(activeSidebarKey)}
+            >
+              <span ref={sidebarIndicatorRef} className="hh-sidebar-indicator" aria-hidden="true" />
+
               <button
+                ref={(el) => {
+                  sidebarItemRefs.current['overview'] = el;
+                }}
                 type="button"
                 onClick={() => handleTabChange('overview')}
+                onPointerEnter={() => moveSidebarIndicator('overview')}
+                onFocus={() => moveSidebarIndicator('overview')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                 data-active={activeTab === 'overview'}
                 className="hh-hub-nav-item"
               >
                 <LayoutDashboard className="w-4 h-4 shrink-0 text-[#C4A6FF]" />
-                <span>Bàn Điều Khiển</span>
-                <span className="ml-auto font-mono text-xs text-white/40">01</span>
+                <span className="truncate">Bàn Điều Khiển</span>
+                <span className="ml-auto font-mono text-xs text-white/45 shrink-0">01</span>
               </button>
 
               <button
+                ref={(el) => {
+                  sidebarItemRefs.current['vault'] = el;
+                }}
                 type="button"
                 onClick={() => {
                   handleTabChange('vault');
                   setShowBookmarksOnly(false);
                 }}
+                onPointerEnter={() => moveSidebarIndicator('vault')}
+                onFocus={() => moveSidebarIndicator('vault')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                 data-active={activeTab === 'vault' && !showBookmarksOnly}
                 className="hh-hub-nav-item"
               >
                 <BookOpen className="w-4 h-4 shrink-0 text-[#FF4FCB]" />
-                <span>Kho Đề Thẩm Định</span>
-                <span className="ml-auto font-mono tabular-nums text-xs px-2 py-0.5 rounded-md bg-[#291524] text-[#FFB8E6] border border-[#422039]">
+                <span className="truncate">Kho Đề Thẩm Định</span>
+                <span className="ml-auto font-mono tabular-nums text-xs px-2 py-0.5 rounded-md bg-[#291524] text-[#FFB8E6] border border-[#422039] shrink-0">
                   {totalDocsCount}
                 </span>
               </button>
 
               <button
+                ref={(el) => {
+                  sidebarItemRefs.current['bookmarks'] = el;
+                }}
                 type="button"
                 onClick={() => {
                   handleTabChange('vault');
                   setShowBookmarksOnly(true);
                 }}
+                onPointerEnter={() => moveSidebarIndicator('bookmarks')}
+                onFocus={() => moveSidebarIndicator('bookmarks')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                 data-active={activeTab === 'vault' && showBookmarksOnly}
                 className="hh-hub-nav-item"
               >
                 <Star className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>Tủ Sách Cá Nhân</span>
-                <span className="ml-auto font-mono tabular-nums text-xs px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <span className="truncate">Tủ Sách Cá Nhân</span>
+                <span className="ml-auto font-mono tabular-nums text-xs px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
                   {bookmarkedIds.size}
                 </span>
               </button>
 
               <button
+                ref={(el) => {
+                  sidebarItemRefs.current['get_exam'] = el;
+                }}
                 type="button"
                 onClick={() => handleTabChange('get_exam')}
+                onPointerEnter={() => moveSidebarIndicator('get_exam')}
+                onFocus={() => moveSidebarIndicator('get_exam')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                 data-active={activeTab === 'get_exam'}
                 className="hh-hub-nav-item"
               >
                 <Dices className="w-4 h-4 shrink-0 text-[#38BDF8]" />
-                <span>Máy Bốc Đề Ngẫu Nhiên</span>
-                <span className="ml-auto font-mono text-xs text-[#38BDF8]/80">RNG</span>
+                <span className="truncate">Máy Bốc Đề</span>
+                <span className="ml-auto font-mono text-xs text-[#38BDF8]/80 shrink-0">RNG</span>
               </button>
 
               <button
+                ref={(el) => {
+                  sidebarItemRefs.current['submit_doc'] = el;
+                }}
                 type="button"
                 onClick={() => handleTabChange('submit_doc')}
+                onPointerEnter={() => moveSidebarIndicator('submit_doc')}
+                onFocus={() => moveSidebarIndicator('submit_doc')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                 data-active={activeTab === 'submit_doc'}
                 className="hh-hub-nav-item"
               >
                 <UploadCloud className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>Trạm Nộp Đề AI</span>
-                <span className="ml-auto font-mono text-xs text-emerald-300/80">+XP</span>
+                <span className="truncate">Trạm Nộp Đề AI</span>
+                <span className="ml-auto font-mono text-xs text-emerald-300/80 shrink-0">+XP</span>
               </button>
 
               {(isAdmin || readCachedAdmin()) && (
                 <button
+                  ref={(el) => {
+                    sidebarItemRefs.current['admin'] = el;
+                  }}
                   type="button"
                   onClick={() => handleTabChange('admin')}
+                  onPointerEnter={() => moveSidebarIndicator('admin')}
+                  onFocus={() => moveSidebarIndicator('admin')}
+                  onBlur={() => moveSidebarIndicator(activeSidebarKey)}
                   data-active={activeTab === 'admin'}
                   className="hh-hub-nav-item"
                 >
                   <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>Quản Trị Hệ Thống</span>
+                  <span className="truncate">Quản Trị Hệ Thống</span>
                   {hasSystemUpdate ? (
-                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-amber-400 text-black font-bold">
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-amber-400 text-black font-bold shrink-0">
                       Mới
                     </span>
                   ) : (
-                    <span className="ml-auto font-mono text-xs text-amber-300/75 flex items-center gap-1">
+                    <span className="ml-auto font-mono text-xs text-amber-300/75 flex items-center gap-1 shrink-0">
                       {justReconnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                       <span>{adminInfo?.role_name || 'Root'}</span>
                     </span>
@@ -2817,7 +2902,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
           </div>
 
           {/* LỌC NHANH THEO KHỐI LỚP (GỌN GÀNG, SẮC NÉT) */}
-          <div className="pt-3 border-t border-[#1d1a29] space-y-2">
+          <div className="pt-2.5 border-t border-[#221a35] space-y-1.5">
             <div className="px-1 flex items-center justify-between">
               <span className="text-xs font-semibold text-white/55">
                 Khối lớp trọng điểm
@@ -2854,20 +2939,20 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     setShowBookmarksOnly(false);
                     handleTabChange('vault');
                   }}
-                  className="px-2.5 py-2 rounded-lg bg-[#13111c] hover:bg-[#181622] border border-[#1d1a29] hover:border-[#422039] flex items-center justify-between text-[13px] transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-[#13111c] hover:bg-[#181622] border border-[#221a35] hover:border-[#422039] flex items-center justify-between text-[13px] transition-colors cursor-pointer"
                 >
-                  <span className="flex items-center gap-1.5 font-semibold text-white/85">
+                  <span className="flex items-center gap-1.5 font-semibold text-white/85 truncate">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: g.dot }} />
-                    <span>{g.label}</span>
+                    <span className="truncate">{g.label}</span>
                   </span>
-                  <span className="font-mono text-[13px] text-white/60 tabular-nums">{g.count}</span>
+                  <span className="font-mono text-[13px] text-white/60 tabular-nums shrink-0">{g.count}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* MINI LIVE ORBIT TELEMETRY PILL (POMODORO + STREAK LUÔN HIỂN THỊ KHI CHUYỂN TAB) */}
-          <div className="p-3 rounded-xl bg-[#13111c] border border-[#1d1a29] space-y-2.5">
+          <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#221a35] space-y-2">
             <div className="flex items-center justify-between text-[13px]">
               <button
                 type="button"
@@ -2897,16 +2982,16 @@ const DashboardContent: React.FC<DashboardProps> = ({
               onClick={() => triggerStudyCheckin('daily_checkin', 15)}
               className="w-full py-1.5 px-2.5 rounded-lg bg-[#241914] hover:bg-[#2e2019] border border-[#3d291d] text-amber-200 font-bold text-[13px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>{isCheckingIn ? 'Đang đồng bộ...' : 'Điểm danh hôm nay (+50 XP)'}</span>
+              <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+              <span className="truncate">{isCheckingIn ? 'Đang đồng bộ...' : 'Điểm danh (+50 XP)'}</span>
             </button>
           </div>
         </div>
 
         {/* Bottom: Discord Identity & Storage Channel Status */}
-        <div className="pt-3 mt-3 border-t border-[#1d1a29] space-y-2.5">
+        <div className="pt-2.5 mt-2 border-t border-[#221a35] space-y-2">
           {user ? (
-            <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#1d1a29] space-y-2">
+            <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#221a35] space-y-1.5">
               <div className="flex items-center gap-2.5">
                 <img
                   src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
@@ -2932,7 +3017,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex items-center justify-between text-xs font-mono pt-1.5 border-t border-[#1d1a29] text-white/50">
+              <div className="flex items-center justify-between text-xs font-mono pt-1.5 border-t border-[#221a35] text-white/50">
                 <span className="text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Turso + Discord Sync</span>
@@ -2941,7 +3026,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-xl bg-[#13111c] border border-[#1d1a29] space-y-2">
+            <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#221a35] space-y-2">
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-white/85 font-bold">Đồng bộ Discord</span>
                 <span className="font-mono text-xs text-[#FFB8E6]">Khách</span>
@@ -2949,7 +3034,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <PixelButton
                 variant="discord"
                 block
-                className="!min-h-[38px] !text-[13px]"
+                className="!min-h-[36px] !text-[13px]"
                 onClick={onOpenAuthModal}
                 icon={<UserCheck className="w-3.5 h-3.5" />}
               >
@@ -2961,16 +3046,23 @@ const DashboardContent: React.FC<DashboardProps> = ({
           <button
             type="button"
             onClick={onBackToHome}
-            className="w-full py-2 px-3 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#1d1a29] text-[13px] font-bold text-white/75 hover:text-white flex items-center justify-between cursor-pointer transition-colors"
+            className="w-full py-2 px-3 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] text-[13px] font-bold text-white/75 hover:text-white flex items-center justify-between cursor-pointer transition-colors"
           >
-            <span className="flex items-center gap-2">
-              <ArrowLeft className="w-3.5 h-3.5 text-[#FF4FCB]" />
-              <span>Về Trang Chủ Orbit</span>
+            <span className="flex items-center gap-2 truncate">
+              <ArrowLeft className="w-3.5 h-3.5 text-[#FF4FCB] shrink-0" />
+              <span className="truncate">Về Trang Chủ Orbit</span>
             </span>
-            <span className="font-mono text-xs text-white/40">ESC</span>
+            <span className="font-mono text-xs text-white/40 shrink-0">ESC</span>
           </button>
         </div>
       </aside>
+
+      {/* Spacer giữ chỗ cho Fixed Sidebar trên Desktop để nội dung không bao giờ bị che */}
+      <div
+        className="hidden lg:block shrink-0 pointer-events-none"
+        style={{ width: `${sidebarWidthPx}px` }}
+        aria-hidden="true"
+      />
 
       {/* ========================================================================= */}
       {/* MAIN WORKSPACE CONTENT                                                    */}

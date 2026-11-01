@@ -1430,7 +1430,7 @@ body {
     display: flex;
     flex-direction: column;
     color: var(--hh-text);
-    background-color: #08070c;
+    background-color: transparent;
   }
   @media (min-width: 1024px) {
     .hh-hub-shell { flex-direction: row; }
@@ -1459,29 +1459,64 @@ body {
 
   .hh-hub-sidebar {
     height: 100dvh;
-    background-color: #0b0a10;
-    border-right: 1px solid #191722;
+    background-color: rgba(12, 9, 20, 0.94);
+    border-right: 1px solid #221a35;
   }
 
   .hh-hub-mobile-bar {
-    background-color: #0b0a10;
-    border-bottom: 1px solid #191722;
+    background-color: rgba(12, 9, 20, 0.96);
+    border-bottom: 1px solid #221a35;
+  }
+
+  /* Animate UI Moving Indicator cho thanh Sidebar bên trái */
+  .hh-sidebar-nav {
+    position: relative;
+  }
+  .hh-sidebar-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 38px;
+    border-radius: 8px;
+    background-color: #1d152d;
+    border: 1px solid #302249;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition:
+      transform 280ms cubic-bezier(0.23, 1, 0.32, 1),
+      height 240ms cubic-bezier(0.23, 1, 0.32, 1),
+      opacity 180ms var(--hh-ease-soft);
+  }
+  .hh-sidebar-indicator::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 7px;
+    bottom: 7px;
+    width: 3px;
+    border-radius: 2px;
+    background-color: #ff4fcb;
   }
 
   .hh-hub-nav-item {
     position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     width: 100%;
-    min-height: 38px;
-    padding: 8px 12px;
+    min-height: 36px;
+    padding: 6px 10px;
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: #b4b4b4;
+    color: #b8b2c8;
     cursor: pointer;
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
     transition:
       color var(--hh-dur-hover) var(--hh-ease-soft),
       background-color var(--hh-dur-hover) var(--hh-ease-soft),
@@ -1489,23 +1524,30 @@ body {
   }
   .hh-hub-nav-item:hover {
     color: #ffffff;
-    background-color: #15131e;
+    background-color: #161224;
   }
-  .hh-hub-nav-item:active { transform: scale(0.99); }
+  .hh-hub-nav-item:active { transform: scale(0.98); }
   .hh-hub-nav-item[data-active='true'] {
     color: #ffffff;
     font-weight: 600;
-    background-color: #191624;
+    background-color: #1d152d;
   }
   .hh-hub-nav-item[data-active='true']::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 8px;
-    bottom: 8px;
+    top: 7px;
+    bottom: 7px;
     width: 3px;
     border-radius: 2px;
     background-color: #ff4fcb;
+  }
+  .hh-sidebar-nav[data-ready='true'] .hh-hub-nav-item:hover,
+  .hh-sidebar-nav[data-ready='true'] .hh-hub-nav-item[data-active='true'] {
+    background-color: transparent;
+  }
+  .hh-sidebar-nav[data-ready='true'] .hh-hub-nav-item[data-active='true']::before {
+    display: none;
   }
   .hh-hub-nav-idx {
     font-size: 12px;
@@ -1518,12 +1560,12 @@ body {
     color: #ffb8e6;
   }
 
-  /* Bề mặt kiến trúc trong Hub (App-screen discipline: 1px whisper border, flat tone step, 12px radius) */
+  /* Bề mặt kiến trúc trong Hub đồng bộ vũ trụ Orbit (1px whisper border, 12px radius, không glass blur) */
   .hh-hub-surface {
     position: relative;
     border-radius: 12px;
-    background-color: #100e17;
-    border: 1px solid #1b1826;
+    background-color: rgba(17, 13, 27, 0.92);
+    border: 1px solid #221a35;
     box-shadow: none;
     transition:
       border-color var(--hh-dur-hover) var(--hh-ease-soft),
@@ -1531,18 +1573,18 @@ body {
   }
   @media (hover: hover) and (pointer: fine) {
     .hh-hub-surface--interactive:hover {
-      border-color: #2f2942;
+      border-color: #342852;
       transform: translate3d(0, -1px, 0);
     }
   }
 
-  /* Signature Command Deck — True-Black Flat Elevation */
+  /* Signature Command Deck — Cosmic Nebula Flat Elevation */
   .hh-command-deck {
     position: relative;
     overflow: hidden;
     border-radius: 12px;
-    background-color: #100e17;
-    border: 1px solid #1b1826;
+    background-color: rgba(17, 13, 27, 0.92);
+    border: 1px solid #221a35;
     box-shadow: none;
   }
 
@@ -1560,15 +1602,15 @@ body {
   .hh-subject-cell {
     position: relative;
     border-radius: 12px;
-    background-color: #100e17;
-    border: 1px solid #1b1826;
+    background-color: rgba(17, 13, 27, 0.92);
+    border: 1px solid #221a35;
     border-left: 3px solid var(--subject-accent, #ff4fcb);
     padding: 14px 16px;
     transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
   }
   .hh-subject-cell:hover {
-    background-color: #161320;
-    border-color: #2d2740;
+    background-color: #181228;
+    border-color: #32264d;
     border-left-color: var(--subject-accent, #ff4fcb);
     transform: translateY(-1px);
   }
@@ -1576,13 +1618,13 @@ body {
   /* High-Density Dossier Table Row (App-Screen Standard) */
   .hh-dossier-row {
     border-radius: 12px;
-    background-color: #14121d;
-    border: 1px solid #1d1a29;
+    background-color: rgba(21, 16, 33, 0.94);
+    border: 1px solid #221a35;
     transition: background-color 140ms ease, border-color 140ms ease;
   }
   .hh-dossier-row:hover {
-    background-color: #191625;
-    border-color: #2c273d;
+    background-color: #1c152e;
+    border-color: #32264d;
   }
 
   .hh-voxel-frame {
