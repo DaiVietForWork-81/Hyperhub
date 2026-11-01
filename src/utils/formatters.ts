@@ -74,8 +74,8 @@ export function getExamTrackInfo(doc: {
     return {
       tier: 'QUOC_TE',
       label: 'Đề Quốc Tế',
-      badgeClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
-      icon: '🌍',
+      badgeClass: 'bg-[#13242b] text-[#7dd3fc] border-[#1f3b47]',
+      icon: '',
       difficultyNote: 'Kỳ thi Quốc Tế',
       description: 'Tham gia các kỳ thi quốc tế (IMO, AMC, Kangaroo/IKMC, SASMO, TIMO, SAT... cả tiếng Việt & Anh)',
     };
@@ -95,8 +95,8 @@ export function getExamTrackInfo(doc: {
     return {
       tier: 'CHUYEN',
       label: 'Đề Chuyên',
-      badgeClass: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 border-fuchsia-500/30',
-      icon: '👑',
+      badgeClass: 'bg-[#291524] text-[#ffb8e6] border-[#422039]',
+      icon: '',
       difficultyNote: 'Độ khó: Chuyên (Cao nhất)',
       description: 'Đề thi tuyển sinh vào lớp 10 Chuyên, THPT Chuyên (thường < hsg < chuyên)',
     };
@@ -112,8 +112,8 @@ export function getExamTrackInfo(doc: {
     return {
       tier: 'HSG',
       label: 'Đề HSG',
-      badgeClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
-      icon: '🏅',
+      badgeClass: 'bg-[#261f14] text-[#fcd34d] border-[#3d311e]',
+      icon: '',
       difficultyNote: 'Độ khó: HSG (Dễ hơn chuyên)',
       description: 'Đề thi chọn Học sinh giỏi cấp trường/quận/huyện/tỉnh (thường < hsg < chuyên)',
     };
@@ -134,8 +134,8 @@ export function getExamTrackInfo(doc: {
     return {
       tier: 'CHUNG',
       label: 'Đề Chung',
-      badgeClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
-      icon: '📚',
+      badgeClass: 'bg-[#1a1921] text-[#b4b4b4] border-[#292733]',
+      icon: '',
       difficultyNote: 'Tài liệu / Đề chung',
       description: 'Tài liệu lý thuyết, đề cương ôn tập tổng hợp chung (dễ gây hiểu lầm nếu coi là đề thi cụ thể)',
     };
@@ -145,8 +145,8 @@ export function getExamTrackInfo(doc: {
   return {
     tier: 'THUONG',
     label: 'Đề Thường',
-    badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
-    icon: '📘',
+    badgeClass: 'bg-[#15202b] text-[#93c5fd] border-[#213345]',
+    icon: '',
     difficultyNote: 'Độ khó: Thường (Cơ bản)',
     description: 'Đề thi đại trà, phổ thông, định kỳ, thi thử THPT (thường < hsg < chuyên)',
   };
@@ -161,71 +161,69 @@ export interface GradeBadgeStyle {
 
 /**
  * Lấy style badge và màu sắc đồng bộ với 7 Khối Lớp của Discord Server:
- * Lớp 12: Đỏ (#EF4444) | Lớp 11: Cam (#F97316) | Lớp 10: Hổ phách (#F59E0B)
- * Lớp 9: Lục (#10B981)  | Lớp 8: Cyan (#06B6D4) | Lớp 7: Lam (#3B82F6) | Lớp 6: Tím (#8B5CF6)
  */
 export function getGradeBadgeStyle(level?: string | null): GradeBadgeStyle {
   const l = (level || '').toLowerCase();
   if (l.includes('12') || l.includes('lớp 12')) {
     return {
       label: 'Lớp 12',
-      badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
-      accentColor: '#EF4444',
-      dotColor: 'bg-red-500',
+      badgeClass: 'bg-[#29161a] text-[#fca5a5] border-[#402228]',
+      accentColor: '#f87171',
+      dotColor: 'bg-[#f87171]',
     };
   }
   if (l.includes('11') || l.includes('lớp 11')) {
     return {
       label: 'Lớp 11',
-      badgeClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30',
-      accentColor: '#F97316',
-      dotColor: 'bg-orange-500',
+      badgeClass: 'bg-[#291c14] text-[#fdba74] border-[#402c1f]',
+      accentColor: '#fb923c',
+      dotColor: 'bg-[#fb923c]',
     };
   }
   if (l.includes('10') || l.includes('lớp 10')) {
     return {
       label: 'Lớp 10',
-      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
-      accentColor: '#F59E0B',
-      dotColor: 'bg-amber-500',
+      badgeClass: 'bg-[#262014] text-[#fcd34d] border-[#3d331f]',
+      accentColor: '#fbbf24',
+      dotColor: 'bg-[#fbbf24]',
     };
   }
   if (l.includes('9') || l.includes('lớp 9')) {
     return {
       label: 'Lớp 9',
-      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-      accentColor: '#10B981',
-      dotColor: 'bg-emerald-500',
+      badgeClass: 'bg-[#14261e] text-[#6ee7b7] border-[#1f3d30]',
+      accentColor: '#34d399',
+      dotColor: 'bg-[#34d399]',
     };
   }
   if (l.includes('8') || l.includes('lớp 8')) {
     return {
       label: 'Lớp 8',
-      badgeClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
-      accentColor: '#06B6D4',
-      dotColor: 'bg-cyan-500',
+      badgeClass: 'bg-[#142429] text-[#67e8f9] border-[#1f3940]',
+      accentColor: '#22d3ee',
+      dotColor: 'bg-[#22d3ee]',
     };
   }
   if (l.includes('7') || l.includes('lớp 7')) {
     return {
       label: 'Lớp 7',
-      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
-      accentColor: '#3B82F6',
-      dotColor: 'bg-blue-500',
+      badgeClass: 'bg-[#15202b] text-[#93c5fd] border-[#213345]',
+      accentColor: '#38bdf8',
+      dotColor: 'bg-[#38bdf8]',
     };
   }
   if (l.includes('6') || l.includes('lớp 6')) {
     return {
       label: 'Lớp 6',
-      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
-      accentColor: '#8B5CF6',
-      dotColor: 'bg-purple-500',
+      badgeClass: 'bg-[#261624] text-[#f9a8d4] border-[#3d2239]',
+      accentColor: '#f472b6',
+      dotColor: 'bg-[#f472b6]',
     };
   }
   return {
-    label: formatEstimatedLevel(level),
-    badgeClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
-    accentColor: '#64748B',
-    dotColor: 'bg-slate-400',
+    label: 'Chung (6–12)',
+    badgeClass: 'bg-[#1a1921] text-[#b4b4b4] border-[#292733]',
+    accentColor: '#94a3b8',
+    dotColor: 'bg-[#94a3b8]',
   };
 }

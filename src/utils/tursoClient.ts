@@ -367,21 +367,21 @@ export function computeStudyRankClient(xp: number): {
 } {
   const safeXp = Math.max(0, Math.floor(xp || 0));
   if (safeXp >= 3000) {
-    return { level: 6, title: '🌌 Huyền Thoại Orbit', next_xp: 5000, progress: Math.min(100, Math.floor((safeXp - 3000) / 20)) };
+    return { level: 6, title: 'Huyền Thoại Orbit', next_xp: 5000, progress: Math.min(100, Math.floor((safeXp - 3000) / 20)) };
   }
   if (safeXp >= 1500) {
-    return { level: 5, title: '👑 Thủ Khoa Khối', next_xp: 3000, progress: Math.floor(((safeXp - 1500) / 1500) * 100) };
+    return { level: 5, title: 'Thủ Khoa Khối', next_xp: 3000, progress: Math.floor(((safeXp - 1500) / 1500) * 100) };
   }
   if (safeXp >= 700) {
-    return { level: 4, title: '🏅 Học Giả Tinh Anh', next_xp: 1500, progress: Math.floor(((safeXp - 700) / 800) * 100) };
+    return { level: 4, title: 'Học Giả Tinh Anh', next_xp: 1500, progress: Math.floor(((safeXp - 700) / 800) * 100) };
   }
   if (safeXp >= 300) {
-    return { level: 3, title: '⚡ Chiến Binh Luyện Đề', next_xp: 700, progress: Math.floor(((safeXp - 300) / 400) * 100) };
+    return { level: 3, title: 'Chiến Binh Luyện Đề', next_xp: 700, progress: Math.floor(((safeXp - 300) / 400) * 100) };
   }
   if (safeXp >= 100) {
-    return { level: 2, title: '📘 Học Viên Chăm Chỉ', next_xp: 300, progress: Math.floor(((safeXp - 100) / 200) * 100) };
+    return { level: 2, title: 'Học Viên Chăm Chỉ', next_xp: 300, progress: Math.floor(((safeXp - 100) / 200) * 100) };
   }
-  return { level: 1, title: '🌱 Tân Binh Orbit', next_xp: 100, progress: Math.floor((safeXp / 100) * 100) };
+  return { level: 1, title: 'Tân Binh Orbit', next_xp: 100, progress: Math.floor((safeXp / 100) * 100) };
 }
 
 export function getVnDatesClient(): { todayStr: string; yesterdayStr: string } {
