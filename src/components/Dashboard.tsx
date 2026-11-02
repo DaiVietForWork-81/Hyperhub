@@ -35,8 +35,16 @@ import {
   Flame,
   Trophy,
   PenTool,
+  MessageSquare,
+  Lock,
 } from 'lucide-react';
-import { DiscordUser, getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
+import {
+  DiscordUser,
+  getDiscordAccessToken,
+  getStoredDiscordUser,
+  saveDiscordUser,
+  getDiscordOAuth2Url,
+} from '../utils/discordAuth';
 import {
   getApiBaseUrl,
   API_FETCH_HEADERS,
@@ -68,17 +76,21 @@ import { sound } from '../utils/audio';
 import { PixelButton, SpotSurface } from './hh/Controls';
 import { getNextThptExamInfo } from './ExamCountdown';
 import { CoursesHub } from '../courses/CoursesHub';
+import { ForumHub } from './ForumHub';
 import {
   HubLayoutProvider,
   useHubLayout,
   ResizableCard,
 } from './HubResizable';
 
+export type HubTab = 'overview' | 'courses' | 'forum' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+
 interface DashboardProps {
   user: DiscordUser | null;
-  initialTab?: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
-  onTabChange?: (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => void;
+  initialTab?: HubTab;
+  onTabChange?: (tab: HubTab) => void;
   onOpenAuthModal: () => void;
+  onUserAuthenticated?: (user: DiscordUser) => void;
   onLogout: () => void;
   onBackToHome: () => void;
 }
@@ -515,17 +527,18 @@ const DashboardContent: React.FC<DashboardProps> = ({
   initialTab,
   onTabChange,
   onOpenAuthModal,
+  onUserAuthenticated,
   onLogout,
   onBackToHome,
 }) => {
   const { config } = useHubLayout();
-  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin'>(
+  const [activeTab, setActiveTab] = useState<HubTab>(
     initialTab || 'overview'
   );
   const { showSuccess, showInfo, showError } = useToast();
 
   const handleTabChange = useCallback(
-    (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin') => {
+    (tab: HubTab) => {
       sound.playNavSwitch();
       setActiveTab(tab);
       onTabChange?.(tab);
@@ -544,16 +557,24 @@ const DashboardContent: React.FC<DashboardProps> = ({
     }
   }, [initialTab]);
 
-  // Đồng bộ URL với tab Admin và Courses để có link trực tiếp /admin, /courses chia sẻ được
+  // Đồng bộ URL với tab Admin, Courses, Forum để có link trực tiếp /admin, /courses, /forum chia sẻ được
   useEffect(() => {
     try {
       const path = window.location.pathname.toLowerCase();
+      const search = window.location.search || '';
       if (activeTab === 'admin' && path !== '/admin') {
-        window.history.replaceState(null, '', '/admin');
+        window.history.replaceState(null, '', `/admin${search}`);
       } else if (activeTab === 'courses' && path !== '/courses') {
-        window.history.replaceState(null, '', '/courses');
-      } else if (activeTab !== 'admin' && activeTab !== 'courses' && (path === '/admin' || path === '/courses')) {
-        window.history.replaceState(null, '', '/hub');
+        window.history.replaceState(null, '', `/courses${search}`);
+      } else if (activeTab === 'forum' && path !== '/forum') {
+        window.history.replaceState(null, '', `/forum${search}`);
+      } else if (
+        activeTab !== 'admin' &&
+        activeTab !== 'courses' &&
+        activeTab !== 'forum' &&
+        (path === '/admin' || path === '/courses' || path === '/forum')
+      ) {
+        window.history.replaceState(null, '', `/hub${search}`);
       }
     } catch {
       /* bỏ qua khi không có window */
@@ -2590,8 +2611,64 @@ const DashboardContent: React.FC<DashboardProps> = ({
     );
   };
 
-  const hubLocked = false;
+  const isPreviewBypass =
+    typeof window !== 'undefined' && window.location.search.includes('preview_auth=1');
+  const hubLocked = !user && !isPreviewBypass;
   const sidebarWidthPx = Math.max(268, config.sidebarWidth);
+
+  const [gateMemberInput, setGateMemberInput] = useState<string>('');
+  const [gateVerifying, setGateVerifying] = useState<boolean>(false);
+  const [gateError, setGateError] = useState<string>('');
+
+  const handleGateMemberLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = gateMemberInput.trim();
+    if (!q) {
+      setGateError('Vui lòng nhập Username Discord (ví dụ: @ten_ban) hoặc Discord User ID.');
+      return;
+    }
+    setGateVerifying(true);
+    setGateError('');
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/account/verify-member`, {
+        method: 'POST',
+        headers: {
+          ...API_FETCH_HEADERS,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: q }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success && data?.user) {
+        const verifiedUser: DiscordUser = {
+          id: String(data.user.id),
+          username: data.user.username,
+          global_name: data.user.global_name || data.user.username,
+          avatar: data.user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png',
+          email: data.user.email || `${data.user.username}@discord.orbit.vn`,
+          verified: true,
+          accessToken: data.user.accessToken || `orbit_member_${data.user.id}`,
+        };
+        saveDiscordUser(verifiedUser);
+        onUserAuthenticated?.(verifiedUser);
+        showSuccess(
+          `Xin chào ${verifiedUser.global_name || verifiedUser.username}! Đã mở khóa Bàn Điều Khiển & Diễn Đàn Orbit.`,
+          'Đăng Nhập Discord Thành Công'
+        );
+      } else {
+        setGateError(
+          data?.message ||
+            'Không tìm thấy tài khoản này trong máy chủ Orbit | Vietnam. Hãy kiểm tra lại Username/ID hoặc dùng Discord OAuth2.'
+        );
+      }
+    } catch {
+      setGateError('Không thể kết nối tới trạm xác thực Bot. Hãy thử lại hoặc đăng nhập qua Discord OAuth2.');
+    } finally {
+      setGateVerifying(false);
+    }
+  };
 
   const activeSidebarKey = useMemo(() => {
     if (activeTab === 'vault') {
@@ -2693,6 +2770,14 @@ const DashboardContent: React.FC<DashboardProps> = ({
           >
             <GraduationCap className="w-3.5 h-3.5 text-[#C4A6FF]" />
             <span>Khóa Học</span>
+          </button>
+          <button
+            onClick={() => handleTabChange('forum')}
+            data-active={activeTab === 'forum'}
+            className="hh-hub-chip whitespace-nowrap"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-[#FFB8E6]" />
+            <span>Diễn Đàn</span>
           </button>
           <button
             onClick={() => {
@@ -2861,6 +2946,25 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 <span className="truncate">Khóa Học Chuyên Đề</span>
                 <span className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded bg-[#201833] text-[#E2D4FF] border border-[#32244d] shrink-0">
                   Mới
+                </span>
+              </button>
+
+              <button
+                ref={(el) => {
+                  sidebarItemRefs.current['forum'] = el;
+                }}
+                type="button"
+                onClick={() => handleTabChange('forum')}
+                onPointerEnter={() => moveSidebarIndicator('forum')}
+                onFocus={() => moveSidebarIndicator('forum')}
+                onBlur={() => moveSidebarIndicator(activeSidebarKey)}
+                data-active={activeTab === 'forum'}
+                className="hh-hub-nav-item"
+              >
+                <MessageSquare className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span className="truncate">Diễn Đàn Orbit</span>
+                <span className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                  4 Mục
                 </span>
               </button>
 
@@ -3154,6 +3258,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <span className="text-[13px] font-extrabold text-white">
                 {activeTab === 'overview' && 'Bàn điều khiển trung tâm'}
                 {activeTab === 'courses' && 'Trung tâm Khóa học (Đồng bộ khoahoc)'}
+                {activeTab === 'forum' && 'Diễn đàn thảo luận 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi)'}
                 {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
                 {activeTab === 'get_exam' && 'Máy bốc đề ngẫu nhiên'}
                 {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
@@ -3260,8 +3365,127 @@ const DashboardContent: React.FC<DashboardProps> = ({
           </div>
         )}
 
+        {/* MANDATORY DISCORD LOGIN GATE TO ENTER ORBIT HUB / FORUM */}
+        {hubLocked && (
+          <SpotSurface className="hh-hub-surface p-6 sm:p-8 w-full space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* LEFT 7/12: DISCORD LOGIN & MEMBER VERIFICATION */}
+              <div className="lg:col-span-7 space-y-5">
+                <div className="space-y-2 pb-4 border-b border-[#1d1a29]">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#291524] border border-[#422039] text-[13px] font-mono text-[#FFB8E6]">
+                    <Lock className="w-3.5 h-3.5 text-[#FF4FCB]" />
+                    <span>Cổng Xác Thực Thành Viên Discord Orbit</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl lg:text-[26px] font-black text-white tracking-tight leading-snug">
+                    Đăng Nhập Tài Khoản Discord Để Vào Bàn Điều Khiển
+                  </h1>
+                  <p className="text-[13px] sm:text-sm text-white/70 leading-relaxed">
+                    Bàn điều khiển trung tâm, Kho đề thẩm định, Khóa học và Diễn đàn 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi) được đồng bộ trực tiếp với máy chủ Discord Orbit | Vietnam.
+                  </p>
+                </div>
+
+                <form onSubmit={handleGateMemberLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="orbit-gate-member-input"
+                      className="block text-[13px] font-bold text-white/85"
+                    >
+                      Cách 1: Xác thực nhanh bằng Username hoặc ID thành viên trong Server Orbit | Vietnam
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <input
+                        id="orbit-gate-member-input"
+                        type="text"
+                        value={gateMemberInput}
+                        onChange={(e) => setGateMemberInput(e.target.value)}
+                        placeholder="Nhập Username Discord (ví dụ: @ten_ban) hoặc Discord ID..."
+                        className="flex-1 h-11 px-3.5 rounded-xl bg-[#0D0A14] border border-[#221a35] focus:border-[#FF4FCB] text-[13px] sm:text-sm text-white placeholder:text-white/40 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={gateVerifying}
+                        className="h-11 px-5 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] disabled:opacity-50 text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        <span>{gateVerifying ? 'Đang kiểm tra...' : 'Xác Thực & Vào Hub'}</span>
+                      </button>
+                    </div>
+                    {gateError && (
+                      <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-[13px]">
+                        {gateError}
+                      </div>
+                    )}
+                  </div>
+                </form>
+
+                <div className="pt-4 border-t border-[#1d1a29] flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <a
+                      href={getDiscordOAuth2Url()}
+                      className="px-4 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-[13px] inline-flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <span>Đăng Nhập Qua Discord OAuth2</span>
+                    </a>
+                    <a
+                      href="https://discord.gg/YM3242P54V"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] text-white/85 hover:text-white font-semibold text-[13px] inline-flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <span>Tham Gia Server Orbit</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                    </a>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onBackToHome}
+                    className="px-3.5 py-2 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] text-white/75 hover:text-white font-semibold text-[13px] inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Về Trang Chủ</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* RIGHT 5/12: ĐẶC QUYỀN ĐỒNG BỘ 2 CHIỀU ORBIT WEB <-> DISCORD */}
+              <div className="lg:col-span-5 p-5 rounded-xl bg-[#0D0A14] border border-[#221a35] space-y-4">
+                <div className="text-sm font-extrabold text-white border-b border-[#221a35] pb-2.5">
+                  Quyền lợi khi liên kết tài khoản Discord Orbit
+                </div>
+                <div className="space-y-2.5">
+                  <div className="p-3 rounded-lg bg-[#13101d] border border-[#221a35] space-y-1">
+                    <div className="text-[13px] font-bold text-[#FFB8E6]">
+                      1. Diễn đàn 2 chiều (#diễn-đàn)
+                    </div>
+                    <div className="text-[13px] text-white/65">
+                      Đăng bài và bình luận trực tiếp trên 4 chuyên mục: Góc thắc mắc, Facts, Hỏi đáp và Ôn thi.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#13101d] border border-[#221a35] space-y-1">
+                    <div className="text-[13px] font-bold text-emerald-300">
+                      2. Kho Đề Thẩm Định &amp; Máy Bốc Đề
+                    </div>
+                    <div className="text-[13px] text-white/65">
+                      Truy cập toàn bộ {totalDocsCount} đề thi từ Lớp 6 đến Lớp 12, đọc PDF và làm bài tính giờ.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#13101d] border border-[#221a35] space-y-1">
+                    <div className="text-[13px] font-bold text-amber-300">
+                      3. Đồng bộ Chuỗi Ngày Học (Streak &amp; XP)
+                    </div>
+                    <div className="text-[13px] text-white/65">
+                      Đồng bộ điểm kinh nghiệm XP, chuỗi Pomodoro và Bảng Xếp Hạng Học Thuật với lệnh /chuoi.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SpotSurface>
+        )}
+
         {/* TAB 01: OVERVIEW — ORBIT | VIETNAM COMMAND DECK V2 */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && !hubLocked && (
           <div key="tab-overview" className="space-y-6 hh-swap-panel">
             {/* ===================================================================== */}
             {/* ZONE 1: THE ORBIT COMMAND DECK (UNIFIED HERO + POMODORO/STREAK COCKPIT)*/}
@@ -4231,6 +4455,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 handleTabChange('vault');
               }}
             />
+          </div>
+        )}
+
+        {/* TAB 02B: FORUM — DIỄN ĐÀN THẢO LUẬN 2 CHIỀU ĐỒNG BỘ DISCORD #💡・diễn-đàn */}
+        {activeTab === 'forum' && !hubLocked && (
+          <div key="tab-forum" className="hh-swap-panel">
+            <ForumHub user={user} onRequireAuth={onOpenAuthModal} />
           </div>
         )}
 

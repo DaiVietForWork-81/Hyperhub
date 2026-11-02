@@ -19,7 +19,7 @@ import { loadDashboard, preloadHubWhenIdle } from './hubLoader';
 import { sound } from './utils/audio';
 
 type View = 'home' | 'dashboard';
-type Tab = 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+type Tab = 'overview' | 'courses' | 'forum' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
 
 /**
  * Hub (Dashboard ~200KB nguồn) tách chunk riêng: trang chủ tải nhanh hơn,
@@ -59,9 +59,12 @@ export const App: React.FC = () => {
       path.startsWith('/hub') ||
       path.startsWith('/courses') ||
       path.startsWith('/khoahoc') ||
+      path.startsWith('/forum') ||
+      path.startsWith('/diendan') ||
       path.startsWith('/admin') ||
       hash === '#hub' ||
       hash === '#courses' ||
+      hash === '#forum' ||
       hash === '#dashboard'
     ) {
       return 'dashboard';
@@ -78,20 +81,24 @@ export const App: React.FC = () => {
     const hash = window.location.hash.toLowerCase();
     if (path.startsWith('/admin')) return 'admin';
     if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') return 'courses';
+    if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') return 'forum';
     return 'overview';
   });
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Điều hướng SPA chuẩn với URL /hub, /courses, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
+  // Điều hướng SPA chuẩn với URL /hub, /courses, /forum, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
   const navigateTo = useCallback((view: View, tab?: Tab) => {
+    const search = typeof window !== 'undefined' ? window.location.search || '' : '';
     const targetPath =
       view === 'dashboard'
         ? tab === 'admin'
-          ? '/admin'
+          ? `/admin${search}`
           : tab === 'courses'
-          ? '/courses'
-          : '/hub'
+          ? `/courses${search}`
+          : tab === 'forum'
+          ? `/forum${search}`
+          : `/hub${search}`
         : '/';
     const dir: 'to-hub' | 'to-home' = view === 'dashboard' ? 'to-hub' : 'to-home';
     const apply = () => {
@@ -123,9 +130,12 @@ export const App: React.FC = () => {
         path.startsWith('/hub') ||
         path.startsWith('/courses') ||
         path.startsWith('/khoahoc') ||
+        path.startsWith('/forum') ||
+        path.startsWith('/diendan') ||
         path.startsWith('/admin') ||
         hash === '#hub' ||
         hash === '#courses' ||
+        hash === '#forum' ||
         hash === '#dashboard';
       withViewTransition(
         () => {
@@ -135,6 +145,8 @@ export const App: React.FC = () => {
               setDashboardTab('admin');
             } else if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') {
               setDashboardTab('courses');
+            } else if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') {
+              setDashboardTab('forum');
             }
           } else {
             setActiveView('home');
@@ -285,12 +297,21 @@ export const App: React.FC = () => {
               initialTab={dashboardTab}
               onTabChange={(tab) => {
                 setDashboardTab(tab);
-                const nextPath = tab === 'admin' ? '/admin' : tab === 'courses' ? '/courses' : '/hub';
-                if (window.location.pathname !== nextPath) {
+                const search = window.location.search || '';
+                const nextPath =
+                  tab === 'admin'
+                    ? `/admin${search}`
+                    : tab === 'courses'
+                    ? `/courses${search}`
+                    : tab === 'forum'
+                    ? `/forum${search}`
+                    : `/hub${search}`;
+                if (window.location.pathname + window.location.search !== nextPath) {
                   window.history.replaceState(null, '', nextPath);
                 }
               }}
               onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              onUserAuthenticated={(user) => setDiscordUser(user)}
               onLogout={handleLogout}
               onBackToHome={() => navigateTo('home')}
             />

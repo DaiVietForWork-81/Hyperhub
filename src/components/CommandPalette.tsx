@@ -5,6 +5,7 @@ import {
   Dices,
   UploadCloud,
   GraduationCap,
+  MessageSquare,
   Home,
   X,
   ChevronRight,
@@ -17,7 +18,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   documents: ExamDocument[];
   onSelectExam: (doc: ExamDocument) => void;
-  onNavigateTab: (tab: 'overview' | 'courses' | 'vault' | 'get_exam' | 'submit_doc') => void;
+  onNavigateTab: (tab: 'overview' | 'courses' | 'forum' | 'vault' | 'get_exam' | 'submit_doc') => void;
   onNavigateHome: () => void;
   onTriggerRandomExam: () => void;
 }
@@ -59,6 +60,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     : [];
 
   const quickActions = [
+    {
+      id: 'action-forum',
+      title: 'Mở Diễn Đàn Orbit (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi)',
+      category: 'Diễn đàn Discord 2 chiều',
+      icon: <MessageSquare className="w-4 h-4 text-[#FFB8E6]" />,
+      action: () => {
+        onNavigateTab('forum');
+        onClose();
+      },
+    },
     {
       id: 'action-courses',
       title: 'Mở Trung Tâm Khóa Học (Toán · Văn · Anh · KHTN · Tin Học)',
