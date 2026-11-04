@@ -1295,6 +1295,124 @@ export default async function handler(req, res) {
       });
     }
 
+    // 6b. POST /api/account/verify-member (Xác thực thành viên Discord Server Orbit để mở khóa Hub & Diễn Đàn 24/7)
+    if (pathname === "/api/account/verify-member" && req.method === "POST") {
+      const body = req.body || {};
+      const identifier = String(body.identifier || "").trim();
+      if (!identifier) {
+        return res.status(400).json({
+          error: "Missing identifier",
+          message: "Vui lòng nhập Discord Username hoặc Discord ID của bạn.",
+        });
+      }
+
+      const cleanId = identifier.replace(/^<@!?/, "").replace(/>$/, "").trim();
+      const qLower = identifier.replace(/^@/, "").trim().toLowerCase();
+
+      // Kiểm tra nhanh trong snapshot admin_members trên Turso Cloud (<50ms, hoạt động cả khi tắt PC)
+      const kvMembers = await getKvValue("admin_members");
+      const memberList = kvMembers?.data?.members || [];
+      const matchedSnapshot = memberList.find(
+        (m) =>
+          !m.is_bot &&
+          (String(m.user_id) === cleanId ||
+            String(m.username || "").toLowerCase() === qLower ||
+            String(m.display_name || "").toLowerCase() === qLower)
+      );
+
+      if (matchedSnapshot) {
+        return res.status(200).json({
+          success: true,
+          user: {
+            id: String(matchedSnapshot.user_id),
+            username: String(matchedSnapshot.username || matchedSnapshot.user_id),
+            global_name: String(matchedSnapshot.display_name || matchedSnapshot.username || matchedSnapshot.user_id),
+            avatar:
+              matchedSnapshot.avatar_url ||
+              "https://orbit-psi-black.vercel.app/server_icon.png",
+            email: `${matchedSnapshot.username || matchedSnapshot.user_id}@discord.orbit.vn`,
+            verified: true,
+            roles: ["Member"],
+            connectedAt: new Date().toISOString(),
+          },
+        });
+      }
+
+      // Kiểm tra trong bảng linked_accounts trên Turso Cloud
+      try {
+        const linkedRes = await executeTurso(
+          `SELECT discord_id, username, global_name, avatar_url, email
+           FROM linked_accounts
+           WHERE CAST(discord_id AS TEXT) = ? OR LOWER(username) = ? OR LOWER(global_name) = ?
+           LIMIT 1`,
+          [cleanId, qLower, qLower]
+        );
+        const linkedRow = linkedRes.rows?.[0];
+        if (linkedRow) {
+          return res.status(200).json({
+            success: true,
+            user: {
+              id: String(linkedRow.discord_id),
+              username: String(linkedRow.username || linkedRow.discord_id),
+              global_name: String(linkedRow.global_name || linkedRow.username || linkedRow.discord_id),
+              avatar:
+                linkedRow.avatar_url ||
+                "https://orbit-psi-black.vercel.app/server_icon.png",
+              email: String(linkedRow.email || `${linkedRow.username}@discord.orbit.vn`),
+              verified: true,
+              roles: ["Member"],
+              connectedAt: new Date().toISOString(),
+            },
+          });
+        }
+      } catch {}
+
+      // Nếu thành viên mới vào server chưa kịp có trong snapshot, hỏi trực tiếp Bot qua RPC
+      const rpcVerify = await forwardRpcToBot(
+        "POST",
+        "/api/account/verify-member",
+        {},
+        body,
+        5500
+      );
+      if (rpcVerify.status === 202) {
+        return res.status(404).json({
+          error: "Member not found",
+          message: `Không tìm thấy thành viên '${identifier}' trong danh sách đồng bộ máy chủ Discord Orbit | Vietnam. Hãy chắc chắn bạn đã tham gia server Discord Orbit và nhập đúng Username hoặc ID!`,
+        });
+      }
+      return res.status(rpcVerify.status).json(rpcVerify.body);
+    }
+
+    // 6c. GET /api/forum/threads (Đồng bộ Diễn Đàn Orbit 2 chiều kèm bộ nhớ đệm Turso Cloud 24/7)
+    if (pathname === "/api/forum/threads" && req.method === "GET") {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const [kvForum, kvStatus] = await Promise.all([
+        getKvValue("forum_threads"),
+        getKvValue("status"),
+      ]);
+      const botOnline = Boolean(kvStatus?.data && nowSec - kvStatus.updated_at <= 90);
+
+      // Nếu snapshot diễn đàn trên Turso mới cập nhật trong 20s hoặc Bot đang nghỉ, trả về tức thì (<40ms)
+      if (kvForum?.data?.threads && (nowSec - kvForum.updated_at <= 20 || !botOnline)) {
+        return res.status(200).json(kvForum.data);
+      }
+
+      const rpcForum = await forwardRpcToBot("GET", "/api/forum/threads", {}, null, 5500);
+      if (rpcForum.status === 200 && rpcForum.body?.threads) {
+        return res.status(200).json(rpcForum.body);
+      }
+
+      return res.status(200).json(
+        kvForum?.data || {
+          channel_id: "1535557885721841744",
+          channel_name: "💡・diễn-đàn",
+          categories: ["Góc thắc mắc", "Facts", "Hỏi đáp", "Ôn thi"],
+          threads: [],
+        }
+      );
+    }
+
     // 7. GET /api/admin/check
     if (pathname === "/api/admin/check" && req.method === "GET") {
       const check = await verifyAdminAccess(req);
