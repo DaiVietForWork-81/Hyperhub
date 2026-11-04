@@ -203,12 +203,23 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (!user) {
+      onOpenAuthModal();
+      setGeneralError('Vui lòng kết nối tài khoản Discord để nộp đề thi và ghi nhận credit người đóng góp vĩnh viễn!');
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       addFilesToQueue(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) {
+      onOpenAuthModal();
+      setGeneralError('Vui lòng kết nối tài khoản Discord để nộp đề thi và ghi nhận credit người đóng góp vĩnh viễn!');
+      if (e.target) e.target.value = '';
+      return;
+    }
     if (e.target.files && e.target.files.length > 0) {
       addFilesToQueue(Array.from(e.target.files));
     }
@@ -220,6 +231,12 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   const addFilesToQueue = (files: File[]) => {
     setGeneralError('');
     setHasCompletedBatch(false);
+
+    if (!user) {
+      onOpenAuthModal();
+      setGeneralError('Vui lòng kết nối tài khoản Discord để nộp đề thi và ghi nhận credit người đóng góp vĩnh viễn!');
+      return;
+    }
 
     const validExtensions = ['.pdf', '.docx', '.doc', '.txt'];
     const newItems: QueuedFile[] = [];
@@ -310,6 +327,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     formData.append('uploader_name', displayUploaderName);
     if (user?.id) {
       formData.append('uploader_id', user.id);
+    }
+    if (user?.avatar) {
+      formData.append('uploader_avatar', user.avatar);
     }
 
     // Gửi kèm siêu dữ liệu đã kiểm định trước từ trình duyệt (Client Edge Inspector)
@@ -914,11 +934,81 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             </div>
           </div>
 
+          {/* BANNER CREDIT NGƯỜI ĐÓNG GÓP HOẶC YÊU CẦU LIÊN KẾT DISCORD */}
+          {user ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-purple-950/60 via-slate-900/80 to-blue-950/60 border border-purple-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center gap-3">
+                <img
+                  src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                  alt={user.global_name || user.username}
+                  className="w-10 h-10 rounded-2xl border border-purple-400/50 object-cover shadow-md shadow-purple-950/50"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                  }}
+                />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-extrabold text-white text-sm">
+                      {user.global_name || user.username}
+                    </span>
+                    <span className="text-xs font-mono text-purple-300">
+                      @{user.username}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wider">
+                      Người Đóng Góp
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Credit của bạn sẽ được hiển thị vĩnh viễn trên thẻ tài liệu và tích lũy XP trên Bảng Xếp Hạng!
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold shrink-0 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Đã kết nối Discord</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-950/50 via-slate-900/80 to-purple-950/50 border border-amber-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 sm:mt-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white text-sm">Yêu cầu liên kết Discord để nộp đề thi</h4>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase">
+                      Bắt buộc
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Chỉ cần kết nối tài khoản Discord để ghi nhận credit người đóng góp và vinh danh bạn trên kho đề (không yêu cầu xác minh email hay phân quyền).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-900/40 shrink-0 cursor-pointer flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+              >
+                <span>Kết Nối Discord Ngay</span>
+              </button>
+            </div>
+          )}
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => !isUploading && fileInputRef.current?.click()}
+            onClick={() => {
+              if (isUploading) return;
+              if (!user) {
+                onOpenAuthModal();
+                setGeneralError('Vui lòng kết nối tài khoản Discord để nộp đề thi và ghi nhận credit người đóng góp vĩnh viễn!');
+                return;
+              }
+              fileInputRef.current?.click();
+            }}
             className={`relative border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all duration-300 cursor-pointer ${
               isDragging
                 ? 'ux-drop-active border-purple-400 bg-purple-500/15 scale-[1.02]'
@@ -1508,6 +1598,68 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'gdrive_link' && (
         <div className="space-y-6">
+          {/* BANNER CREDIT NGƯỜI ĐÓNG GÓP HOẶC YÊU CẦU LIÊN KẾT DISCORD */}
+          {user ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900/80 to-teal-950/60 border border-emerald-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center gap-3">
+                <img
+                  src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                  alt={user.global_name || user.username}
+                  className="w-10 h-10 rounded-2xl border border-emerald-400/50 object-cover shadow-md shadow-emerald-950/50"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                  }}
+                />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-extrabold text-white text-sm">
+                      {user.global_name || user.username}
+                    </span>
+                    <span className="text-xs font-mono text-emerald-300">
+                      @{user.username}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                      Người Đóng Góp
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Đề nhập từ Google Drive sẽ được gắn credit vĩnh viễn với tài khoản Discord của bạn!
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold shrink-0 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Đã kết nối Discord</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-950/50 via-slate-900/80 to-emerald-950/50 border border-amber-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 sm:mt-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white text-sm">Yêu cầu liên kết Discord để nạp Google Drive</h4>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase">
+                      Bắt buộc
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Hệ thống cần tài khoản Discord của bạn để ghi nhận quyền đóng góp đề thi. Không yêu cầu xác minh email.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white shadow-lg shadow-emerald-900/40 shrink-0 cursor-pointer flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+              >
+                <span>Kết Nối Discord Ngay</span>
+              </button>
+            </div>
+          )}
+
           {/* Ô Nhập Link Google Drive */}
           <div className="rounded-3xl bg-slate-950/70 border border-emerald-500/20 p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />

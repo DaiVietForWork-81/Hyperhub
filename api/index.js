@@ -688,13 +688,15 @@ export default async function handler(req, res) {
       }
 
       const dataRes = await executeTurso(
-        `SELECT id, subject, title, file_name, file_size_bytes, file_type,
-                estimated_level, question_count, page_count, author_name,
-                jump_url, timestamp, file_hash, notes, academic_year, school_or_department,
-                verdict, exam_track, confidence, queue_status
-         FROM documents_archive
+        `SELECT d.id, d.subject, d.title, d.file_name, d.file_size_bytes, d.file_type,
+                d.estimated_level, d.question_count, d.page_count, d.author_name, d.author_id,
+                d.jump_url, d.timestamp, d.file_hash, d.notes, d.academic_year, d.school_or_department,
+                d.verdict, d.exam_track, d.confidence, d.queue_status,
+                la.avatar_url as author_avatar
+         FROM documents_archive d
+         LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
          ${whereSql}
-         ORDER BY id DESC
+         ORDER BY d.id DESC
          LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       );
@@ -708,8 +710,20 @@ export default async function handler(req, res) {
         const isDup = st.cnt > 1;
         const isDupCopy = Boolean(isDup && r.id !== st.minId);
 
+        let authorAvatar = r.author_avatar || null;
+        if (!authorAvatar && r.author_id) {
+          try {
+            const aid = String(r.author_id);
+            if (aid && aid.length > 10) {
+              const disc = (BigInt(aid) >> 22n) % 6n;
+              authorAvatar = `https://cdn.discordapp.com/embed/avatars/${Number(disc)}.png`;
+            }
+          } catch {}
+        }
+
         return {
           ...r,
+          author_avatar: authorAvatar,
           academic_year: acYear,
           school_or_department: schDept,
           is_duplicate: isDup,
@@ -744,14 +758,6 @@ export default async function handler(req, res) {
           reason: "no_token",
         });
       }
-      if (!userData.verified) {
-        return res.status(403).json({
-          success: false,
-          error: "Tài khoản Discord chưa xác minh Email",
-          message: "Vui lòng xác minh email trên Discord để nhận phát đề.",
-          reason: "unverified",
-        });
-      }
 
       const subject = (searchParams.get("subject") || "").trim();
       const grade = (searchParams.get("grade") || "").trim();
@@ -761,26 +767,28 @@ export default async function handler(req, res) {
       const clauses = [];
       const params = [];
       if (subject && subject.toUpperCase() !== "ALL") {
-        clauses.push("LOWER(subject) = LOWER(?)");
+        clauses.push("LOWER(d.subject) = LOWER(?)");
         params.push(subject);
       }
       if (grade && grade.toUpperCase() !== "ALL") {
-        clauses.push("(estimated_level LIKE ? OR title LIKE ?)");
+        clauses.push("(d.estimated_level LIKE ? OR d.title LIKE ?)");
         params.push(`%${grade}%`, `%${grade}%`);
       }
       applyExamTypeClause(examType, clauses, params);
       if (desc) {
-        clauses.push("(LOWER(title) LIKE ? OR LOWER(file_name) LIKE ?)");
+        clauses.push("(LOWER(d.title) LIKE ? OR LOWER(d.file_name) LIKE ?)");
         params.push(`%${desc.toLowerCase()}%`, `%${desc.toLowerCase()}%`);
       }
 
       const whereSql = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
       let rowRes = await executeTurso(
-        `SELECT id, subject, title, file_name, file_size_bytes, file_type,
-                estimated_level, question_count, page_count, author_name,
-                jump_url, timestamp, file_hash, notes, academic_year, school_or_department,
-                verdict, exam_track, confidence
-         FROM documents_archive
+        `SELECT d.id, d.subject, d.title, d.file_name, d.file_size_bytes, d.file_type,
+                d.estimated_level, d.question_count, d.page_count, d.author_name, d.author_id,
+                d.jump_url, d.timestamp, d.file_hash, d.notes, d.academic_year, d.school_or_department,
+                d.verdict, d.exam_track, d.confidence,
+                la.avatar_url as author_avatar
+         FROM documents_archive d
+         LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
          ${whereSql}
          ORDER BY RANDOM() LIMIT 1`,
         params
@@ -789,11 +797,13 @@ export default async function handler(req, res) {
       if (!rowRes.rows.length && clauses.length) {
         isExact = false;
         rowRes = await executeTurso(
-          `SELECT id, subject, title, file_name, file_size_bytes, file_type,
-                  estimated_level, question_count, page_count, author_name,
-                  jump_url, timestamp, file_hash, notes, academic_year, school_or_department,
-                  verdict, exam_track, confidence
-           FROM documents_archive
+          `SELECT d.id, d.subject, d.title, d.file_name, d.file_size_bytes, d.file_type,
+                  d.estimated_level, d.question_count, d.page_count, d.author_name, d.author_id,
+                  d.jump_url, d.timestamp, d.file_hash, d.notes, d.academic_year, d.school_or_department,
+                  d.verdict, d.exam_track, d.confidence,
+                  la.avatar_url as author_avatar
+           FROM documents_archive d
+           LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
            ORDER BY RANDOM() LIMIT 1`
         );
       }
@@ -806,12 +816,24 @@ export default async function handler(req, res) {
         });
       }
       const { acYear, schDept } = extractAcademicMeta(doc);
+      let authorAvatar = doc.author_avatar || null;
+      if (!authorAvatar && doc.author_id) {
+        try {
+          const aid = String(doc.author_id);
+          if (aid && aid.length > 10) {
+            const disc = (BigInt(aid) >> 22n) % 6n;
+            authorAvatar = `https://cdn.discordapp.com/embed/avatars/${Number(disc)}.png`;
+          }
+        } catch {}
+      }
+
       return res.status(200).json({
         success: true,
         bot_online: true,
         is_exact_match: isExact,
         document: {
           ...doc,
+          author_avatar: authorAvatar,
           academic_year: acYear,
           school_or_department: schDept,
           download_url: `/api/documents/${doc.id}/download`,

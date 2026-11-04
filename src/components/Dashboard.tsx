@@ -114,6 +114,8 @@ export interface ExamDocument {
   question_count: number;
   page_count: number;
   author_name: string;
+  author_id?: number | string;
+  author_avatar?: string;
   jump_url?: string;
   download_url?: string;
   timestamp: string;
@@ -2355,10 +2357,29 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 {doc.title || doc.file_name}
               </h4>
 
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-white/55">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-white/55">
                 <span>{doc.page_count || 1} trang</span>
                 {doc.question_count > 0 && <span>• {doc.question_count} câu hỏi</span>}
-                <span>• Nộp bởi {doc.author_name || 'Orbit Bot'}</span>
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-300 font-medium">
+                  {doc.author_avatar ? (
+                    <img
+                      src={doc.author_avatar}
+                      alt={doc.author_name || 'Contributor'}
+                      className="w-3.5 h-3.5 rounded-full object-cover border border-purple-400/40 shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                      }}
+                    />
+                  ) : (
+                    <span className="w-3.5 h-3.5 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-[8px] font-bold shrink-0">
+                      👤
+                    </span>
+                  )}
+                  <span className="text-[11px] text-purple-200/80">Đóng góp:</span>
+                  <strong className="text-[11px] text-purple-100 font-semibold truncate max-w-[120px]">
+                    {doc.author_name || 'Orbit Bot'}
+                  </strong>
+                </div>
               </div>
             </div>
 
@@ -4621,9 +4642,28 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <h2 className="text-xl sm:text-2xl font-black text-white">
                     {currentExam.title || currentExam.file_name}
                   </h2>
-                  <p className="text-[13px] text-white/50 font-mono mt-1">
-                    Tệp gốc: {currentExam.file_name} • Đóng góp: {currentExam.author_name || 'Admin'}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-[13px] text-white/50 font-mono mt-1">
+                    <span>Tệp gốc: {currentExam.file_name}</span>
+                    <span>•</span>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-200">
+                      {currentExam.author_avatar ? (
+                        <img
+                          src={currentExam.author_avatar}
+                          alt={currentExam.author_name || 'Contributor'}
+                          className="w-4 h-4 rounded-full object-cover border border-purple-400/40 shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                          }}
+                        />
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-purple-500/30 text-purple-300 flex items-center justify-center text-[9px] font-bold shrink-0">
+                          👤
+                        </span>
+                      )}
+                      <span className="text-[12px] text-purple-300">Đóng góp bởi:</span>
+                      <strong className="text-[12px] text-white font-bold">{currentExam.author_name || 'Admin'}</strong>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">

@@ -757,6 +757,26 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
                 <span>Lời Giải Chi Tiết</span>
               </span>
             )}
+
+            {/* Người đóng góp Credit Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/15 via-pink-500/15 to-indigo-500/15 border border-purple-500/30 text-xs text-purple-200">
+              {doc.author_avatar ? (
+                <img
+                  src={doc.author_avatar}
+                  alt={doc.author_name || 'Contributor'}
+                  className="w-4 h-4 rounded-full object-cover border border-purple-400/50 shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                  }}
+                />
+              ) : (
+                <span className="w-4 h-4 rounded-full bg-purple-500/30 text-purple-300 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  👤
+                </span>
+              )}
+              <span className="text-purple-300/80">Đóng góp bởi:</span>
+              <strong className="text-white font-bold">{doc.author_name || 'Thành viên Orbit'}</strong>
+            </div>
           </div>
 
           <h2 id="dossier-title" className="text-lg sm:text-2xl font-black text-white leading-tight">
@@ -766,7 +786,8 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
           <p className="text-xs text-slate-400 font-mono">
             Tệp gốc: <span className="text-slate-300">{doc.file_name}</span> • Dung lượng:{' '}
             <span className="text-slate-300">{formatFileSize(doc.file_size_bytes)}</span> • Quy mô:{' '}
-            <span className="text-slate-300">{doc.page_count || 1} trang</span>
+            <span className="text-slate-300">{doc.page_count || 1} trang</span> • Người đóng góp:{' '}
+            <span className="text-purple-300 font-semibold">{doc.author_name || 'Thành viên Orbit'}</span>
           </p>
         </div>
 
