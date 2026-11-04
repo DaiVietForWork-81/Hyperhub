@@ -948,7 +948,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
                 {updateStatus.commits && updateStatus.commits.length > 0
                   ? updateStatus.commits[0]
-                  : 'Có commit mới trên nhánh main của hyperhub-bot.'}
+                  : 'Có commit mới trên nhánh main của Orbit Bot.'}
               </p>
             </div>
           </div>

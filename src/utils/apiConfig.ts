@@ -1,6 +1,6 @@
 /**
  * utils/apiConfig.ts
- * Cấu hình kết nối API bảo mật cho HyperHub (Sử dụng trực tiếp Vercel Serverless Bridge + Turso Cloud).
+ * Cấu hình kết nối API bảo mật cho Orbit | Vietnam (Sử dụng trực tiếp Vercel Serverless Bridge + Turso Cloud).
  * Không cần ngrok hay Cloudflare Tunnel.
  */
 
@@ -17,7 +17,7 @@ const ALLOWED_API_HOSTS = [
   "localhost",
   "127.0.0.1",
   "orbit-psi-black.vercel.app",
-  "hyperhub-one.vercel.app",
+  "hyperhub-one.vercel.app", // domain cũ — giữ để tương thích URL/localStorage cũ
 ];
 
 function isSafeUrl(urlStr: string): boolean {
@@ -33,7 +33,7 @@ function isSafeUrl(urlStr: string): boolean {
 
 /**
  * Trả về API Base URL an toàn.
- * - Trên môi trường HTTPS (https://hyperhub-one.vercel.app): trả về "" (same-origin /api/* ngay trên chính Vercel!).
+ * - Trên môi trường HTTPS (https://orbit-psi-black.vercel.app): trả về "" (same-origin /api/* ngay trên chính Vercel!).
  * - Trên môi trường Local (http://localhost:5173): dùng http://localhost:8080 hoặc fallback về Vercel.
  */
 export function getApiBaseUrl(): string {

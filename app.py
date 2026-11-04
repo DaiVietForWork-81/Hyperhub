@@ -1,4 +1,4 @@
-"""HyperHub Web Server & Multi-Channel API Gateway.
+"""Orbit Web Server & Multi-Channel API Gateway.
 
 Khởi chạy ứng dụng Web độc lập kết nối hai chiều với Discord Bot và Discord API:
 1. Discord REST API (thông qua DISCORD_TOKEN)

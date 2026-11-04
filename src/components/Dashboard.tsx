@@ -1457,7 +1457,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
   };
 
   // ============================================================================
-  // MỤC TIÊU TRƯỜNG MƠ ƯỚC (ĐỒNG BỘ VỚI TRANG CHỦ HYPERHUB)
+  // MỤC TIÊU TRƯỜNG MƠ ƯỚC (ĐỒNG BỘ VỚI TRANG CHỦ ORBIT)
   // ============================================================================
   const [dreamGoal, setDreamGoal] = useState<{ school: string; score: string } | null>(null);
   const [isEditingDream, setIsEditingDream] = useState<boolean>(false);
