@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ExamCountdown } from './components/ExamCountdown';
 import { DiscordAuthModal } from './components/DiscordAuthModal';
+import { HubAuthWall } from './components/HubAuthWall';
 import { Footer } from './components/Footer';
 import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
 import { getApiBaseUrl } from './utils/apiConfig';
@@ -289,33 +290,40 @@ export const App: React.FC = () => {
           <Footer onOpenDashboard={openHub('get_exam')} />
         </div>
       ) : (
-        /* HUB / BẢNG ĐIỀU KHIỂN */
+        /* HUB / BẢNG ĐIỀU KHIỂN (YÊU CẦU ĐĂNG NHẬP DISCORD) */
         <div key="view-dashboard" id="main-content" className="hh-view-stage relative z-10 w-full min-h-dvh">
-          <Suspense fallback={<HubFallback />}>
-            <Dashboard
-              user={discordUser}
-              initialTab={dashboardTab}
-              onTabChange={(tab) => {
-                setDashboardTab(tab);
-                const search = window.location.search || '';
-                const nextPath =
-                  tab === 'admin'
-                    ? `/admin${search}`
-                    : tab === 'courses'
-                    ? `/courses${search}`
-                    : tab === 'forum'
-                    ? `/forum${search}`
-                    : `/hub${search}`;
-                if (window.location.pathname + window.location.search !== nextPath) {
-                  window.history.replaceState(null, '', nextPath);
-                }
-              }}
-              onOpenAuthModal={() => setIsAuthModalOpen(true)}
-              onUserAuthenticated={(user) => setDiscordUser(user)}
-              onLogout={handleLogout}
+          {!discordUser ? (
+            <HubAuthWall
+              onLogin={() => setIsAuthModalOpen(true)}
               onBackToHome={() => navigateTo('home')}
             />
-          </Suspense>
+          ) : (
+            <Suspense fallback={<HubFallback />}>
+              <Dashboard
+                user={discordUser}
+                initialTab={dashboardTab}
+                onTabChange={(tab) => {
+                  setDashboardTab(tab);
+                  const search = window.location.search || '';
+                  const nextPath =
+                    tab === 'admin'
+                      ? `/admin${search}`
+                      : tab === 'courses'
+                      ? `/courses${search}`
+                      : tab === 'forum'
+                      ? `/forum${search}`
+                      : `/hub${search}`;
+                  if (window.location.pathname + window.location.search !== nextPath) {
+                    window.history.replaceState(null, '', nextPath);
+                  }
+                }}
+                onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                onUserAuthenticated={(user) => setDiscordUser(user)}
+                onLogout={handleLogout}
+                onBackToHome={() => navigateTo('home')}
+              />
+            </Suspense>
+          )}
         </div>
       )}
 

@@ -13,6 +13,58 @@ const TURSO_AUTH_TOKEN =
 const BOT_OWNER_ID = "1529864608813416449";
 const DISCORD_GUILD_ID = "1532265330079174697";
 const DISCORD_DATABASE_CHANNEL_ID = process.env.DATABASE_ARCHIVE_CHANNEL_ID || "1548627763467128912";
+let localEnvToken = "";
+try {
+  const _fs = require("fs");
+  const _path = require("path");
+  const _envFile = _path.resolve(__dirname, "../../Bot/.env");
+  if (_fs.existsSync(_envFile)) {
+    const _raw = _fs.readFileSync(_envFile, "utf8");
+    const _m = _raw.match(/DISCORD_TOKEN=([^\r\n]+)/);
+    if (_m) localEnvToken = _m[1].trim();
+  }
+} catch {}
+
+const DISCORD_BOT_TOKEN =
+  process.env.DISCORD_TOKEN ||
+  process.env.DISCORD_BOT_TOKEN ||
+  localEnvToken;
+const DISCORD_FORUM_CHANNEL_ID = "1535557885721841744";
+
+const FORUM_CATEGORY_TO_TAG = {
+  "Góc thắc mắc": "1566808758728786134",
+  "Facts": "1566808758728786135",
+  "Hỏi đáp": "1566808758728786136",
+  "Ôn thi": "1566808758728786137",
+};
+
+const FORUM_TAG_TO_CATEGORY = {
+  "1566808758728786134": "Góc thắc mắc",
+  "1566808758728786135": "Facts",
+  "1566808758728786136": "Hỏi đáp",
+  "1566808758728786137": "Ôn thi",
+};
+
+async function callDiscordRest(endpoint, method = "GET", body = null) {
+  const url = `https://discord.com/api/v10${endpoint}`;
+  const headers = {
+    Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+    "User-Agent": "OrbitWebGateway/2.0",
+  };
+  if (body) {
+    headers["Content-Type"] = "application/json";
+  }
+  const opts = {
+    method,
+    headers,
+  };
+  if (body) {
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(url, opts);
+  const data = await resp.json().catch(() => null);
+  return { status: resp.status, ok: resp.ok, data };
+}
 
 async function executeTurso(sql, args = []) {
   const url = `${TURSO_DATABASE_URL.replace(/\/+$/, "")}/v2/pipeline`;
@@ -1384,33 +1436,269 @@ export default async function handler(req, res) {
       return res.status(rpcVerify.status).json(rpcVerify.body);
     }
 
-    // 6c. GET /api/forum/threads (Đồng bộ Diễn Đàn Orbit 2 chiều kèm bộ nhớ đệm Turso Cloud 24/7)
+    // 6c. GET /api/forum/threads (Đồng bộ Diễn Đàn Orbit 2 chiều Web <-> Discord #💡・diễn-đàn)
     if (pathname === "/api/forum/threads" && req.method === "GET") {
-      const nowSec = Math.floor(Date.now() / 1000);
-      const [kvForum, kvStatus] = await Promise.all([
-        getKvValue("forum_threads"),
-        getKvValue("status"),
-      ]);
-      const botOnline = Boolean(kvStatus?.data && nowSec - kvStatus.updated_at <= 90);
-
-      // Nếu snapshot diễn đàn trên Turso mới cập nhật trong 20s hoặc Bot đang nghỉ, trả về tức thì (<40ms)
-      if (kvForum?.data?.threads && (nowSec - kvForum.updated_at <= 20 || !botOnline)) {
-        return res.status(200).json(kvForum.data);
-      }
-
-      const rpcForum = await forwardRpcToBot("GET", "/api/forum/threads", {}, null, 5500);
-      if (rpcForum.status === 200 && rpcForum.body?.threads) {
+      // 1. Thử gọi RPC sang Bot nếu Bot online trên localhost/VPS
+      const rpcForum = await forwardRpcToBot("GET", "/api/forum/threads", {}, null, 3000);
+      if (rpcForum.status === 200 && rpcForum.body?.threads?.length) {
         return res.status(200).json(rpcForum.body);
       }
 
-      return res.status(200).json(
-        kvForum?.data || {
-          channel_id: "1535557885721841744",
+      // 2. Trực tiếp gọi Discord REST API 24/7
+      try {
+        const [activeRes, archivedRes] = await Promise.all([
+          callDiscordRest(`/guilds/${DISCORD_GUILD_ID}/threads/active`),
+          callDiscordRest(`/channels/${DISCORD_FORUM_CHANNEL_ID}/threads/archived/public`).catch(() => ({ ok: false, data: {} })),
+        ]);
+
+        const allThreads = [
+          ...(activeRes.ok && Array.isArray(activeRes.data?.threads) ? activeRes.data.threads : []),
+          ...(archivedRes.ok && Array.isArray(archivedRes.data?.threads) ? archivedRes.data.threads : []),
+        ].filter((t) => String(t.parent_id) === String(DISCORD_FORUM_CHANNEL_ID));
+
+        const threadsList = allThreads.map((t) => {
+          let category = "Góc thắc mắc";
+          if (Array.isArray(t.applied_tags)) {
+            for (const tagId of t.applied_tags) {
+              if (FORUM_TAG_TO_CATEGORY[tagId]) {
+                category = FORUM_TAG_TO_CATEGORY[tagId];
+                break;
+              }
+            }
+          }
+          if (category === "Góc thắc mắc") {
+            const nameLower = (t.name || "").toLowerCase();
+            if (nameLower.includes("facts") || nameLower.includes("sự thật")) category = "Facts";
+            else if (nameLower.includes("hỏi đáp") || nameLower.includes("bài tập")) category = "Hỏi đáp";
+            else if (nameLower.includes("ôn thi") || nameLower.includes("chiến thuật")) category = "Ôn thi";
+          }
+
+          return {
+            id: t.id,
+            title: t.name,
+            category,
+            author_id: t.owner_id || "",
+            author_name: "Thành viên Orbit",
+            author_avatar: "",
+            excerpt: `Chủ đề [${category}] trên diễn đàn Orbit Discord Server.`,
+            message_count: t.message_count || 1,
+            reply_count: Math.max(0, (t.total_message_sent || t.message_count || 1) - 1),
+            created_at: t.thread_metadata?.create_timestamp || new Date().toISOString(),
+            jump_url: `https://discord.com/channels/${DISCORD_GUILD_ID}/${t.id}`,
+          };
+        });
+
+        return res.status(200).json({
+          channel_id: DISCORD_FORUM_CHANNEL_ID,
+          channel_name: "💡・diễn-đàn",
+          categories: ["Góc thắc mắc", "Facts", "Hỏi đáp", "Ôn thi"],
+          threads: threadsList,
+        });
+      } catch (err) {
+        console.warn("Lỗi đọc threads từ Discord API:", err);
+        return res.status(200).json({
+          channel_id: DISCORD_FORUM_CHANNEL_ID,
           channel_name: "💡・diễn-đàn",
           categories: ["Góc thắc mắc", "Facts", "Hỏi đáp", "Ôn thi"],
           threads: [],
-        }
-      );
+        });
+      }
+    }
+
+    // 6d. GET /api/forum/threads/:id (Lấy chi tiết thread và tin nhắn thảo luận)
+    const forumThreadMatch = pathname.match(/^\/api\/forum\/threads\/(\d+)(?:\/messages)?$/);
+    if (forumThreadMatch && req.method === "GET") {
+      const threadId = forumThreadMatch[1];
+      // 1. Thử gọi RPC sang Bot
+      const rpcDetail = await forwardRpcToBot("GET", `/api/forum/threads/${threadId}`, {}, null, 3000);
+      if (rpcDetail.status === 200 && Array.isArray(rpcDetail.body?.messages)) {
+        return res.status(200).json(rpcDetail.body);
+      }
+
+      // 2. Trực tiếp gọi Discord REST API
+      try {
+        const [threadRes, msgsRes] = await Promise.all([
+          callDiscordRest(`/channels/${threadId}`),
+          callDiscordRest(`/channels/${threadId}/messages?limit=50`),
+        ]);
+
+        const rawMsgs = msgsRes.ok && Array.isArray(msgsRes.data) ? msgsRes.data : [];
+        rawMsgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        const parsedMessages = rawMsgs.map((m) => {
+          const isBot = Boolean(m.webhook_id || m.author?.bot);
+          let authorName = m.author?.global_name || m.author?.username || "Thành viên Orbit";
+          let authorAvatar = m.author?.avatar
+            ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png`
+            : "https://assets.codeforces.com/favicon-96x96.png";
+          let content = m.content || "";
+
+          // Bóc tách nếu là tin nhắn do Web gửi qua Bot
+          const webMatch = content.match(/^💬 \*\*\[Web — ([^\]]+)\]:\*\*\s*([\s\S]*)$/);
+          if (webMatch) {
+            authorName = webMatch[1];
+            content = webMatch[2];
+          }
+
+          return {
+            id: m.id,
+            author_id: m.author?.id || "",
+            author_name: authorName,
+            author_avatar: authorAvatar,
+            content,
+            created_at: m.timestamp,
+            source: webMatch ? "web" : (isBot ? "bot" : "discord"),
+            attachments: (m.attachments || []).map((a) => ({
+              id: a.id,
+              filename: a.filename,
+              url: a.url,
+              size: a.size,
+            })),
+          };
+        });
+
+        const threadInfo = threadRes.ok ? threadRes.data : {};
+        return res.status(200).json({
+          thread: {
+            id: threadId,
+            title: threadInfo.name || "Chủ đề thảo luận",
+            message_count: parsedMessages.length,
+          },
+          messages: parsedMessages,
+        });
+      } catch (err) {
+        console.warn("Lỗi đọc messages từ Discord API:", err);
+        return res.status(200).json({ thread: { id: threadId }, messages: [] });
+      }
+    }
+
+    // 6e. POST /api/forum/threads (Tạo bài viết mới từ Web -> Đẩy thẳng lên Discord #💡・diễn-đàn)
+    if (pathname === "/api/forum/threads" && req.method === "POST") {
+      let bodyData = {};
+      try {
+        bodyData = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      } catch {
+        bodyData = {};
+      }
+
+      const title = (bodyData.title || "").trim();
+      const content = (bodyData.content || "").trim();
+      const category = (bodyData.category || "Góc thắc mắc").trim();
+      const authorName = (bodyData.author_name || "Thành viên Web").trim();
+      const authorId = bodyData.author_id ? String(bodyData.author_id) : "";
+
+      if (!title || !content) {
+        return res.status(400).json({ error: "Tiêu đề và nội dung bài viết không được để trống." });
+      }
+
+      // 1. Thử gọi RPC sang Bot
+      const rpcCreate = await forwardRpcToBot("POST", "/api/forum/threads", {}, bodyData, 4500);
+      if (rpcCreate.status >= 200 && rpcCreate.status < 300 && rpcCreate.body?.thread_id) {
+        return res.status(201).json(rpcCreate.body);
+      }
+
+      // 2. Trực tiếp gọi Discord REST API
+      const tagId = FORUM_CATEGORY_TO_TAG[category] || FORUM_CATEGORY_TO_TAG["Góc thắc mắc"];
+      const starterContent = [
+        `🪐 **[Orbit Web Forum]**`,
+        `👤 **Người đăng:** **${authorName}** ${authorId ? `(<@${authorId}>)` : ""}`,
+        `🏷️ **Chuyên mục:** \`${category}\``,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        content,
+      ].join("\n");
+
+      const createRes = await callDiscordRest(`/channels/${DISCORD_FORUM_CHANNEL_ID}/threads`, "POST", {
+        name: `[${category}] ${title.slice(0, 80)}`,
+        auto_archive_duration: 4320, // 3 ngày
+        applied_tags: tagId ? [tagId] : [],
+        message: {
+          content: starterContent,
+        },
+      });
+
+      if (createRes.ok && createRes.data?.id) {
+        const createdThread = {
+          id: createRes.data.id,
+          title: createRes.data.name,
+          category,
+          author_id: authorId,
+          author_name: authorName,
+          author_avatar: "",
+          excerpt: content.slice(0, 160),
+          message_count: 1,
+          reply_count: 0,
+          created_at: new Date().toISOString(),
+          jump_url: `https://discord.com/channels/${DISCORD_GUILD_ID}/${createRes.data.id}`,
+        };
+        return res.status(201).json({
+          success: true,
+          thread: createdThread,
+          thread_id: createRes.data.id,
+          title: createRes.data.name,
+          category,
+          jump_url: createdThread.jump_url,
+        });
+      }
+
+      return res.status(createRes.status || 500).json({
+        error: "Không thể tạo bài thảo luận trên Discord.",
+        details: createRes.data,
+      });
+    }
+
+    // 6f. POST /api/forum/threads/:id/messages (Gửi bình luận phản hồi từ Web -> Đẩy thẳng vào Thread Discord)
+    const forumPostMsgMatch = pathname.match(/^\/api\/forum\/threads\/(\d+)\/messages$/);
+    if (forumPostMsgMatch && req.method === "POST") {
+      const threadId = forumPostMsgMatch[1];
+      let bodyData = {};
+      try {
+        bodyData = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      } catch {
+        bodyData = {};
+      }
+
+      const content = (bodyData.content || "").trim();
+      const authorName = (bodyData.author_name || "Thành viên Web").trim();
+      if (!content) {
+        return res.status(400).json({ error: "Nội dung bình luận không được để trống." });
+      }
+
+      // 1. Thử gọi RPC sang Bot
+      const rpcMsg = await forwardRpcToBot("POST", `/api/forum/threads/${threadId}/messages`, {}, bodyData, 4500);
+      if (rpcMsg.status >= 200 && rpcMsg.status < 300 && rpcMsg.body?.message_id) {
+        return res.status(201).json(rpcMsg.body);
+      }
+
+      // 2. Trực tiếp gọi Discord REST API
+      const replyContent = `💬 **[Web — ${authorName}]:**\n${content}`;
+      const msgRes = await callDiscordRest(`/channels/${threadId}/messages`, "POST", {
+        content: replyContent,
+      });
+
+      if (msgRes.ok && msgRes.data?.id) {
+        const createdMsg = {
+          id: msgRes.data.id,
+          author_id: bodyData.author_id || "",
+          author_name: authorName,
+          author_avatar: bodyData.author_avatar || "",
+          content,
+          created_at: msgRes.data.timestamp,
+          source: "web",
+        };
+        return res.status(201).json({
+          success: true,
+          message: createdMsg,
+          message_id: msgRes.data.id,
+          thread_id: threadId,
+          content,
+          created_at: msgRes.data.timestamp,
+        });
+      }
+
+      return res.status(msgRes.status || 500).json({
+        error: "Không thể gửi bình luận vào Discord thread.",
+        details: msgRes.data,
+      });
     }
 
     // 7. GET /api/admin/check
