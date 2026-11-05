@@ -1274,9 +1274,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
       }
       const dl = getSafeExternalUrl(doc.download_url);
       if (dl) return dl;
-      const jump = getSafeExternalUrl(doc.jump_url);
-      if (jump && !jump.includes('#vault')) return jump;
-      return '';
+      return `/api/documents/${doc.id}/download`;
     },
     [botStatus.online]
   );
@@ -2515,18 +2513,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
               >
                 <Download className="w-4 h-4" />
               </a>
-
-              {getSafeExternalUrl(doc.jump_url) && (
-                <a
-                  href={getSafeExternalUrl(doc.jump_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-lg bg-[#161618] hover:bg-[#5865F2] text-white/60 hover:text-white border border-[#242429] transition-colors cursor-pointer"
-                  title="Mở bài đăng gốc trên Discord"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
             </div>
           </div>
         </SpotSurface>
@@ -3339,10 +3325,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
               </span>
               <span className="text-white/20">|</span>
               <span className="text-[#FFB8E6] font-bold">{totalDocsCount} đề</span>
-              <span className="text-white/20">|</span>
-              <span className="text-emerald-300 font-bold" title="Kênh lưu trữ #database trên Discord">
-                DB #154862...
-              </span>
             </div>
 
             <button
@@ -4294,8 +4276,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       <span className="text-emerald-400 font-bold">Turso libSQL AWS</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-sans text-white/55">Kênh lưu trữ #database:</span>
-                      <span className="text-[#FFB8E6] font-bold tabular-nums">1548627763467128912</span>
+                      <span className="font-sans text-white/55">Lưu trữ đề thi:</span>
+                      <span className="text-[#FFB8E6] font-bold">Orbit Cloud CDN</span>
                     </div>
                   </div>
                 </div>

@@ -280,7 +280,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
   const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
   const trackInfo = getExamTrackInfo(doc);
   const fallbackJump =
-    doc.download_url || (doc.jump_url && !doc.jump_url.includes('#vault') ? doc.jump_url : '');
+    doc.download_url || `/api/documents/${doc.id}/download`;
   const downloadUrl = isServerlessOrBotActive
     ? `${apiBase}/api/documents/${doc.id}/download`
     : fallbackJump || '#quorum_dossier';

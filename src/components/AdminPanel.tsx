@@ -672,7 +672,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       }
       setSystemActionMsg({
         type: 'success',
-        text: '📢 Đã gửi thông báo khởi động và link Vercel vào kênh #1536199276273860638 thành công!',
+        text: '📢 Đã gửi thông báo khởi động và link Vercel vào kênh điều hành nội bộ thành công!',
       });
     } catch (err: any) {
       setSystemActionMsg({
@@ -1951,7 +1951,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kênh Đồng Bộ Discord</div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Kênh điều hành:</span>
-                  <span className="font-mono text-purple-300">#1536199276273860638</span>
+                  <span className="font-mono text-purple-300">Nội bộ (Staff)</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Cổng Web Vercel:</span>

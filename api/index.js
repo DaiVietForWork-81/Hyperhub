@@ -729,6 +729,7 @@ export default async function handler(req, res) {
           is_duplicate: isDup,
           is_duplicate_copy: isDupCopy,
           duplicate_count: st.cnt,
+          jump_url: 'https://orbit-psi-black.vercel.app/#vault',
           download_url: `/api/documents/${r.id}/download`,
         };
       });
@@ -836,6 +837,7 @@ export default async function handler(req, res) {
           author_avatar: authorAvatar,
           academic_year: acYear,
           school_or_department: schDept,
+          jump_url: 'https://orbit-psi-black.vercel.app/#vault',
           download_url: `/api/documents/${doc.id}/download`,
         },
       });
@@ -931,7 +933,7 @@ export default async function handler(req, res) {
           direct_url: resolved.directUrl || `/api/documents/${docId}/view`,
           download_url: `/api/documents/${docId}/download`,
           view_url: `/api/documents/${docId}/view`,
-          jump_url: resolved.row.jump_url,
+          jump_url: 'https://orbit-psi-black.vercel.app/#vault',
         });
       }
 
@@ -976,9 +978,7 @@ export default async function handler(req, res) {
         return res.redirect(302, resolved.directUrl);
       }
 
-      if (resolved.row.jump_url && resolved.row.jump_url.startsWith("http")) {
-        return res.redirect(302, resolved.row.jump_url);
-      }
+      
       return res.status(404).json({ error: "Không tìm thấy liên kết tải cho tệp này" });
     }
 

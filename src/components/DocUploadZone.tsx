@@ -1512,17 +1512,6 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               </button>
                             </div>
                           )}
-                          {item.duplicateInfo.jump_url && (
-                            <a
-                              href={item.duplicateInfo.jump_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 font-semibold pt-1"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>Xem bài nộp gốc trên Discord</span>
-                            </a>
-                          )}
                         </div>
                       )}
                     </div>

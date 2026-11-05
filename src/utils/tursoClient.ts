@@ -10,7 +10,7 @@
  */
 
 export const TURSO_DATABASE_URL = "https://daiviet-daiviet.aws-ap-northeast-1.turso.io";
-export const DISCORD_DATABASE_CHANNEL_ID = "1548627763467128912";
+export const DISCORD_DATABASE_CHANNEL_ID = "0";
 export const TURSO_AUTH_TOKEN =
   "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE3MzI5NDQsImlkIjoiMDFhMTJiOTktYTEwMS03OGFlLWI1ZTItNWRjODQ2ZjZjZjQ3Iiwia2lkIjoiRHBfR2JDeW01a1VKNk9NUkR4aFE5akxxdFlXR1ZTUF81ZzhZQ0xkSmVfWSIsInJpZCI6IjU0MjdjMWE1LWU3MWEtNGMzZi1iNWUxLTgwZjYwZTM3NDZjZCJ9.OuOzXvRrslun1bxyS5BZ9lDOSR97yhViOWRktdLBLrLG1a9Jmf_QlpSK1WwsLgQydNFO7IQhCJKZoyAP6o7fDA";
 
@@ -230,7 +230,7 @@ export async function fetchDocsFromTurso(limit = 500, offset = 0): Promise<any[]
     SELECT 
       id, subject, title, file_name, file_size_bytes, file_type,
       estimated_level, question_count, page_count, author_name,
-      jump_url, timestamp, file_hash, notes, academic_year, school_or_department,
+      timestamp, file_hash, notes, academic_year, school_or_department,
       verdict, exam_track, confidence,
       moet_2025_compliant, moet_part1_count, moet_part2_count, moet_part3_count,
       has_answer_keys, has_detailed_solutions, queue_status
