@@ -750,15 +750,7 @@ export default async function handler(req, res) {
       (pathname === "/api/documents/request_exam" || pathname === "/api/documents/random") &&
       req.method === "GET"
     ) {
-      const userData = await verifyDiscordBearerToken(req);
-      if (!userData) {
-        return res.status(401).json({
-          success: false,
-          error: "Chưa liên kết Discord",
-          message: "Bạn cần liên kết tài khoản Discord để lấy đề thi.",
-          reason: "no_token",
-        });
-      }
+      // Mở tự do tính năng bốc đề ngẫu nhiên 100% Free cho mọi học giả trên Web
 
       const subject = (searchParams.get("subject") || "").trim();
       const grade = (searchParams.get("grade") || "").trim();
@@ -1395,6 +1387,28 @@ export default async function handler(req, res) {
       );
 
       if (matchedSnapshot) {
+        try {
+          const nowIsoLa = new Date().toISOString();
+          await executeTurso(
+            `INSERT INTO linked_accounts (discord_id, username, global_name, avatar_url, email, verified, first_seen, last_seen, login_count)
+             VALUES (?, ?, ?, ?, ?, 1, ?, ?, 1)
+             ON CONFLICT(discord_id) DO UPDATE SET
+               username = excluded.username,
+               global_name = excluded.global_name,
+               avatar_url = CASE WHEN excluded.avatar_url != '' THEN excluded.avatar_url ELSE linked_accounts.avatar_url END,
+               last_seen = excluded.last_seen,
+               login_count = linked_accounts.login_count + 1`,
+            [
+              String(matchedSnapshot.user_id),
+              String(matchedSnapshot.username || matchedSnapshot.user_id),
+              String(matchedSnapshot.display_name || matchedSnapshot.username || matchedSnapshot.user_id),
+              matchedSnapshot.avatar_url || "https://orbit-psi-black.vercel.app/server_icon.png",
+              `${matchedSnapshot.username || matchedSnapshot.user_id}@discord.orbit.vn`,
+              nowIsoLa,
+              nowIsoLa,
+            ]
+          );
+        } catch {}
         return res.status(200).json({
           success: true,
           user: {

@@ -102,9 +102,9 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
               <ShieldCheck className="w-6 h-6" />
             </span>
             <div>
-              <span className="hh-tag">Xác thực tài khoản Discord bắt buộc</span>
+              <span className="hh-tag">Liên kết tài khoản Discord (Không cần xác minh Email)</span>
               <h2 id="hh-discord-auth-title" className="hh-card-title mt-1.5">
-                Đăng nhập Discord vào Orbit Hub
+                Liên kết Discord với Orbit Hub
               </h2>
             </div>
           </div>
@@ -120,9 +120,8 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
 
         <div className="hh-modal-body">
           <p className="hh-card-text">
-            Để truy cập <strong>Bàn Điều Khiển (Orbit Hub)</strong>, <strong>Khóa Học</strong> và{' '}
-            <strong>Diễn Đàn</strong>, bạn cần đăng nhập bằng tài khoản Discord đã tham gia máy chủ{' '}
-            <strong>Orbit | Vietnam</strong>.
+            Chỉ cần liên kết tài khoản Discord để được <strong>hiển thị Credit tác giả vĩnh viễn</strong> khi nộp đề thi, nhận{' '}
+            <strong>+100 Study XP</strong>, tự động nhận role <strong>✍️ Tác giả</strong> và thảo luận trên <strong>Diễn Đàn</strong>.
           </p>
 
           {/* Cách 1: Xác thực trực tiếp thành viên trong Server Orbit | Vietnam */}

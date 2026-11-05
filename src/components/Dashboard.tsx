@@ -1341,33 +1341,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
     }
   };
 
-  // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick)
+  // 5. Xử lý Bốc Đề Ngẫu Nhiên (Random Pick — Mở 100% Free cho mọi người)
   const handlePickRandomExam = async () => {
     setExamError('');
     setCurrentExam(null);
-
-    // Kiểm tra Bot online
-    if (!botStatus.online) {
-      setExamError(
-        'Discord Bot hiện đang không hoạt động (Offline). Vui lòng khởi động Bot Discord để hệ thống có thể bốc đề thi!'
-      );
-      return;
-    }
-
-    // Kiểm tra đăng nhập
-    if (!user) {
-      setExamError('Bạn cần liên kết tài khoản Discord trước khi bốc đề thi.');
-      onOpenAuthModal();
-      return;
-    }
-
-    if (!user.verified) {
-      setExamError(
-        'Tài khoản Discord của bạn chưa xác minh Email (Unverified). Discord Bot chỉ phát đề cho tài khoản đã xác minh email.'
-      );
-      return;
-    }
-
     setIsLoadingExam(true);
     try {
       // Luôn bốc qua server để Bot kiểm tra: đã vào server + verify email
@@ -2240,7 +2217,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     magnetic
                     loading={isLoadingExam}
                     onClick={handlePickRandomExam}
-                    disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
+                    disabled={isLoadingExam}
                     icon={<Dices className="w-4 h-4" />}
                   >
                     {isLoadingExam ? 'Bot Đang Bốc Đề...' : 'Bốc Ngẫu Nhiên Qua Bot Discord'}
@@ -4488,7 +4465,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     magnetic
                     loading={isLoadingExam}
                     onClick={handlePickRandomExam}
-                    disabled={!botStatus.online || !user || !user.verified || isLoadingExam}
+                    disabled={isLoadingExam}
                     icon={<Dices className="w-4 h-4" />}
                   >
                     {isLoadingExam ? 'Đang Quay Đề...' : 'Bốc Qua Bot Discord'}
@@ -4567,26 +4544,22 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* Thông báo gọn nếu chưa liên kết Discord (không chặn trải nghiệm vì đã có Bốc Thử Tức Thì!) */}
-              {(!user || !user.verified || !botStatus.online) && (
+              {/* Thông báo gọn nếu chưa liên kết Discord */}
+              {!user && (
                 <div className="p-3.5 rounded-xl bg-[#0B0911] border border-[#1d1a29] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[13px]">
                   <div className="flex items-center gap-2.5 text-white/75">
                     <CheckCircle2 className="w-4 h-4 text-[#FFB8E6] shrink-0" />
                     <span>
-                      {!botStatus.online
-                        ? 'Bot Discord đang tạm nghỉ, bạn có thể dùng nút "Bốc Thử Tức Thì" để lấy đề trực tiếp từ kho Cloud.'
-                        : 'Muốn Bot gửi đề qua Discord cá nhân? Hãy liên kết tài khoản Discord đã xác minh email (hoặc dùng "Bốc Thử Tức Thì" ngay trên web).'}
+                      Bạn có thể bốc đề &amp; đọc PDF hoàn toàn tự do. Liên kết tài khoản Discord (không cần xác minh email) để lưu chuỗi Streak, cộng XP và nhận Credit khi đóng góp đề!
                     </span>
                   </div>
-                  {(!user || !user.verified) && (
-                    <button
-                      type="button"
-                      onClick={onOpenAuthModal}
-                      className="px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold shrink-0 cursor-pointer"
-                    >
-                      Liên kết Discord
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={onOpenAuthModal}
+                    className="px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold shrink-0 cursor-pointer"
+                  >
+                    Liên kết Discord
+                  </button>
                 </div>
               )}
             </SpotSurface>

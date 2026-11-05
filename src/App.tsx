@@ -50,7 +50,7 @@ const withViewTransition = (update: () => void, dir: 'to-hub' | 'to-home' = 'to-
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
-  // Khởi tạo activeView dựa theo pathname (/hub, /courses, /admin) hoặc mặc định vào thẳng trang chủ
+  // Khởi tạo activeView dựa theo pathname (/hub, /vault, /courses, /forum, /admin) hoặc hash
   const [activeView, setActiveView] = useState<View>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.toLowerCase();
@@ -58,12 +58,19 @@ export const App: React.FC = () => {
 
     if (
       path.startsWith('/hub') ||
+      path.startsWith('/vault') ||
+      path.startsWith('/khode') ||
+      path.startsWith('/get_exam') ||
+      path.startsWith('/submit_doc') ||
       path.startsWith('/courses') ||
       path.startsWith('/khoahoc') ||
       path.startsWith('/forum') ||
       path.startsWith('/diendan') ||
       path.startsWith('/admin') ||
       hash === '#hub' ||
+      hash === '#vault' ||
+      hash === '#get_exam' ||
+      hash === '#submit_doc' ||
       hash === '#courses' ||
       hash === '#forum' ||
       hash === '#dashboard'
@@ -80,7 +87,10 @@ export const App: React.FC = () => {
     if (typeof window === 'undefined') return 'overview';
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/admin') || hash === '#admin') return 'admin';
+    if (path.startsWith('/vault') || path.startsWith('/khode') || hash === '#vault') return 'vault';
+    if (path.startsWith('/get_exam') || hash === '#get_exam') return 'get_exam';
+    if (path.startsWith('/submit_doc') || hash === '#submit_doc') return 'submit_doc';
     if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') return 'courses';
     if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') return 'forum';
     return 'overview';
@@ -122,19 +132,26 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Lắng nghe nút Back / Forward trên trình duyệt
+  // Lắng nghe nút Back / Forward & thay đổi hash (#vault, #forum, #submit_doc, #courses) trên trình duyệt
   useEffect(() => {
-    const handlePopState = () => {
+    const syncRouteFromLocation = () => {
       const path = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
       const isHub =
         path.startsWith('/hub') ||
+        path.startsWith('/vault') ||
+        path.startsWith('/khode') ||
+        path.startsWith('/get_exam') ||
+        path.startsWith('/submit_doc') ||
         path.startsWith('/courses') ||
         path.startsWith('/khoahoc') ||
         path.startsWith('/forum') ||
         path.startsWith('/diendan') ||
         path.startsWith('/admin') ||
         hash === '#hub' ||
+        hash === '#vault' ||
+        hash === '#get_exam' ||
+        hash === '#submit_doc' ||
         hash === '#courses' ||
         hash === '#forum' ||
         hash === '#dashboard';
@@ -142,8 +159,14 @@ export const App: React.FC = () => {
         () => {
           if (isHub) {
             setActiveView('dashboard');
-            if (path.startsWith('/admin')) {
+            if (path.startsWith('/admin') || hash === '#admin') {
               setDashboardTab('admin');
+            } else if (path.startsWith('/vault') || path.startsWith('/khode') || hash === '#vault') {
+              setDashboardTab('vault');
+            } else if (path.startsWith('/get_exam') || hash === '#get_exam') {
+              setDashboardTab('get_exam');
+            } else if (path.startsWith('/submit_doc') || hash === '#submit_doc') {
+              setDashboardTab('submit_doc');
             } else if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') {
               setDashboardTab('courses');
             } else if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') {
@@ -156,8 +179,12 @@ export const App: React.FC = () => {
         isHub ? 'to-hub' : 'to-home'
       );
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', syncRouteFromLocation);
+    window.addEventListener('hashchange', syncRouteFromLocation);
+    return () => {
+      window.removeEventListener('popstate', syncRouteFromLocation);
+      window.removeEventListener('hashchange', syncRouteFromLocation);
+    };
   }, []);
 
   // Xử lý nạp tài khoản & OAuth callback khi khởi tạo
@@ -182,8 +209,19 @@ export const App: React.FC = () => {
       }
     });
 
-    if (window.location.hash === '#dashboard' || window.location.hash === '#hub') {
+    const h = window.location.hash.toLowerCase();
+    if (h === '#dashboard' || h === '#hub') {
       navigateTo('dashboard');
+    } else if (h === '#vault') {
+      navigateTo('dashboard', 'vault');
+    } else if (h === '#get_exam') {
+      navigateTo('dashboard', 'get_exam');
+    } else if (h === '#submit_doc') {
+      navigateTo('dashboard', 'submit_doc');
+    } else if (h === '#forum') {
+      navigateTo('dashboard', 'forum');
+    } else if (h === '#courses') {
+      navigateTo('dashboard', 'courses');
     }
   }, [navigateTo]);
 
@@ -290,9 +328,9 @@ export const App: React.FC = () => {
           <Footer onOpenDashboard={openHub('get_exam')} />
         </div>
       ) : (
-        /* HUB / BẢNG ĐIỀU KHIỂN (YÊU CẦU ĐĂNG NHẬP DISCORD) */
+        /* HUB / BẢNG ĐIỀU KHIỂN (MỞ TỰ DO KHO ĐỀ, BỐC ĐỀ, DIỄN ĐÀN; CHỈ YÊU CẦU DISCORD KHI VÀO ADMIN) */
         <div key="view-dashboard" id="main-content" className="hh-view-stage relative z-10 w-full min-h-dvh">
-          {!discordUser ? (
+          {!discordUser && dashboardTab === 'admin' ? (
             <HubAuthWall
               onLogin={() => setIsAuthModalOpen(true)}
               onBackToHome={() => navigateTo('home')}

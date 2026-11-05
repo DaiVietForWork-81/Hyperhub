@@ -742,7 +742,12 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       const res = await fetch(`${apiBase}/api/documents/import_gdrive`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ url: cleanUrl }),
+        body: JSON.stringify({
+          url: cleanUrl,
+          uploader_id: user?.id || '',
+          uploader_name: user?.global_name || user?.username || '',
+          uploader_avatar: user?.avatar || '',
+        }),
       });
 
       clearTimeout(timerProbe);

@@ -1,32 +1,32 @@
 import React from 'react';
-import { Bot, Trophy, Check, ArrowUpRight, Globe, Database } from 'lucide-react';
+import { Award, MessageSquare, Check, ArrowUpRight, Globe, Database } from 'lucide-react';
 import { Reveal } from './hh/Reveal';
 import { SpotSurface, CountUp } from './hh/Controls';
 import { useHubPulse } from '../hooks/useHubPulse';
 import { hubIntentProps } from '../hubLoader';
 
 /**
- * LEARN · Hệ sinh thái Orbit - 4 trụ cột chức năng thật.
- * Bố cục có thứ bậc: Web Hub là khối chính (có CTA thật vào kho đề),
- * AI + Thư viện xếp cột phải, Chuyên đề Thuật toán là dải ngang.
+ * LEARN · Hệ sinh thái Orbit - 4 trụ cột chức năng thật (100% Free, không Token/AI Generator).
+ * Bố cục có thứ bậc: Kho Đề Thi Thực Chiến là khối chính,
+ * Đóng Góp & Vinh Danh Credit + Thẩm Định Tự Động xếp cột phải, Diễn Đàn & Tự Học là dải ngang.
  */
 
 const SIDE_PILLARS = [
   {
-    icon: Bot,
-    badge: 'Tạo đề tự động',
-    title: 'Bộ sinh đề nhiều mô hình',
-    desc: 'Ba mô hình phối hợp: Qwen 3.5:4B tạo đề, Gemma 3:4B phản biện logic hai vòng, Qwen 2.5:0.5B soát lỗi, xuất sẵn hai file đề và đáp án chuẩn in.',
-    features: ['3 mô hình phối hợp', 'Tách đề & đáp án', 'Hoàn 100% token nếu lỗi'],
+    icon: Award,
+    badge: 'Đóng góp học thuật',
+    title: 'Vinh danh Tác giả & Credit',
+    desc: 'Chỉ cần liên kết tài khoản Discord (không cần xác minh email) để nộp đề thi, hiển thị Tên & Avatar vĩnh viễn trên thẻ đề, nhận +100 XP và Role ✍️ Tác giả.',
+    features: ['Ghi nhận Credit vĩnh viễn', 'Tự động cấp Role ✍️ Tác giả', 'Cộng +100 Study XP / đề'],
     tone: 'pink',
     preset: 'slide-r' as const,
   },
   {
     icon: Database,
     badge: 'Kiểm duyệt tài liệu',
-    title: 'Thư viện đề tự động',
-    desc: 'Quét mã băm SHA-256 chống trùng lặp, tự bóc tách năm học, trường và sở ra đề bằng bộ xử lý C++ hiệu năng cao.',
-    features: ['Xử lý C++ tốc độ cao', 'Chống trùng SHA-256', 'Nhận dạng OCR & năm học'],
+    title: 'Thẩm định & Phân loại tự động',
+    desc: 'Quét mã băm SHA-256 chống trùng lặp, tự bóc tách môn học, khối lớp, năm học, trường và sở ra đề theo chuẩn Bộ GD&ĐT 2025.',
+    features: ['Chuẩn cấu trúc 2025', 'Chống trùng SHA-256', 'Nhận diện trường & năm học'],
     tone: 'cyan',
     preset: 'slide-r' as const,
   },
@@ -42,28 +42,27 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
           Bốn trụ cột của quỹ đạo Orbit
         </Reveal>
         <Reveal as="p" preset="fade" delay={80} className="hh-section-sub">
-          Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại Orbit để học hỏi, bứt phá năng lực và cùng tiến xa hơn.
+          Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại Orbit để chia sẻ học liệu, rèn luyện kỷ luật và cùng tiến xa hơn.
         </Reveal>
       </div>
 
       <div className="hh-eco-grid">
-        {/* Trụ cột chính: Web Hub */}
+        {/* Trụ cột chính: Web Hub & Kho Đề Thi */}
         <Reveal preset="panel" className="hh-eco-main-wrap">
           <SpotSurface className="hh-card hh-card--hero hh-eco-main hh-lift" data-ui="orbit-workspace" spotColor="rgba(255, 60, 166, 0.16)">
             <div className="hh-card-top">
               <span className="hh-icon-tile hh-tone-violet">
                 <Globe className="w-6 h-6 hh-nudge" aria-hidden="true" />
               </span>
-              <h4 className="hh-card-title hh-card-title--lg">Không gian học tập Orbit</h4>
+              <h4 className="hh-card-title hh-card-title--lg">Kho Đề Thi Thực Chiến (Doc Vault)</h4>
             </div>
             <p className="hh-card-text">
-              Ngân hàng đề thi chuẩn hóa, tra cứu toàn văn FTS5 siêu tốc, bảng điều khiển cá nhân hóa và tủ sách đề thi
-              trực tuyến 24/7.
+              Ngân hàng đề thi THCS, THPT, Chuyên &amp; ĐGNL miễn phí 100%, hỗ trợ tìm kiếm toàn văn siêu tốc, xem trước PDF và bốc đề ngẫu nhiên 24/7.
             </p>
             <ul className="hh-checks">
               <li><Check aria-hidden="true" />Kho đề đã thẩm định &amp; phân loại tự động</li>
-              <li><Check aria-hidden="true" />Tủ sách cá nhân &amp; đồng bộ tài khoản Discord</li>
-              <li><Check aria-hidden="true" />Bộ lọc sâu theo Khối lớp, Môn học, Trường &amp; Sở</li>
+              <li><Check aria-hidden="true" />Xem trực tiếp PDF &amp; tải nguyên bản miễn phí</li>
+              <li><Check aria-hidden="true" />Bộ lọc sâu theo Khối lớp, Môn học, Trường &amp; Năm học</li>
               <li><Check aria-hidden="true" />Máy phát đề ngẫu nhiên &amp; đồng hồ Pomodoro 25/5</li>
             </ul>
             {/* Minh họa "kho khối": các ô đề xếp tầng, nhô lên thành sóng khi hover thẻ */}
@@ -115,22 +114,22 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
           })}
         </div>
 
-        {/* Dải ngang: Sàn đấu Thuật toán & Olympic */}
+        {/* Dải ngang: Diễn Đàn Học Thuật 2 Chiều & Phòng Tự Học */}
         <Reveal preset="rise" delay={80} className="hh-eco-strip-wrap">
           <SpotSurface className="hh-card hh-eco-strip hh-lift" data-ui="orbit-olympic" spotColor="rgba(255, 179, 150, 0.16)">
             <span className="hh-icon-tile hh-tone-amber">
-              <Trophy className="w-5 h-5 hh-nudge" aria-hidden="true" />
+              <MessageSquare className="w-5 h-5 hh-nudge" aria-hidden="true" />
             </span>
             <div className="hh-eco-strip-body">
-              <h4 className="hh-card-title">Sàn đấu Thuật toán &amp; Olympic</h4>
+              <h4 className="hh-card-title">Diễn Đàn Học Thuật 2 Chiều &amp; Tự Học Pomodoro</h4>
               <p className="hh-card-text">
-                Nuôi dưỡng tư duy Tin học, lập trình thi đấu (Competitive Programming), kết nối bảng xếp hạng Codeforces và kho chuyên đề HSG Tỉnh, Olympic C++/Python.
+                Đặt câu hỏi bài tập, thảo luận phương pháp ôn thi đồng bộ tức thì với kênh #diễn-đàn trên Discord, kết hợp phòng tự học Pomodoro và Bảng Xếp Hạng Học Giả.
               </p>
             </div>
             <ul className="hh-checks hh-checks--inline">
-              <li><Check aria-hidden="true" />Liên kết Codeforces &amp; thi đấu 1v1</li>
-              <li><Check aria-hidden="true" />Thuật toán C++ &amp; Python</li>
-              <li><Check aria-hidden="true" />Chuyên đề HSG Tin &amp; Toán</li>
+              <li><Check aria-hidden="true" />Đồng bộ 2 chiều Web &amp; Discord</li>
+              <li><Check aria-hidden="true" />Phòng tự học Lofi &amp; Pomodoro</li>
+              <li><Check aria-hidden="true" />Đua chuỗi Streak &amp; Bảng xếp hạng XP</li>
             </ul>
           </SpotSurface>
         </Reveal>
@@ -140,19 +139,19 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
       <div className="hh-metrics-band">
         <Reveal preset="fade" className="hh-metrics" as="dl" data-ui="orbit-metrics">
           <div>
-            <dt>Phi lợi nhuận</dt>
+            <dt>Học liệu mở</dt>
             <dd>100%</dd>
-            <dd className="hh-metric-sub">Vì học sinh Việt Nam</dd>
+            <dd className="hh-metric-sub">Miễn phí vì học sinh Việt Nam</dd>
           </div>
           <div>
-            <dt>Mô hình AI phối hợp</dt>
-            <dd>3</dd>
-            <dd className="hh-metric-sub">Qwen 3.5, Gemma 3 &amp; Qwen 2.5</dd>
+            <dt>Môn &amp; Phân ban</dt>
+            <dd>10+</dd>
+            <dd className="hh-metric-sub">THCS, THPT, HSG &amp; ĐGNL 2025</dd>
           </div>
           <div>
             <dt>Học tập trực tuyến</dt>
             <dd>24/7</dd>
-            <dd className="hh-metric-sub">Web Hub &amp; Discord Bot</dd>
+            <dd className="hh-metric-sub">Đồng bộ Web Hub &amp; Discord</dd>
           </div>
         </Reveal>
 
