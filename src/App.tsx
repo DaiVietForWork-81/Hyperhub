@@ -7,7 +7,7 @@ import { ExamCountdown } from './components/ExamCountdown';
 import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { HubAuthWall } from './components/HubAuthWall';
 import { Footer } from './components/Footer';
-import { DiscordUser, getStoredDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
+import { DiscordUser, getStoredDiscordUser, getPendingDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
 import { getApiBaseUrl } from './utils/apiConfig';
 import { DreamAspirations } from './components/DreamAspirations';
 import { CommunityIntro } from './components/CommunityIntro';
@@ -189,9 +189,13 @@ export const App: React.FC = () => {
 
   // Xử lý nạp tài khoản & OAuth callback khi khởi tạo
   useEffect(() => {
+    const h = window.location.hash.toLowerCase();
+    const isOAuthCallbackHash = h.includes('access_token');
+
     handleDiscordOAuthCallback().then((user) => {
       if (user) {
         syncLinkedAccount(getApiBaseUrl());
+        window.dispatchEvent(new PopStateEvent('popstate'));
         setIsAuthModalOpen(true);
         return;
       }
@@ -205,23 +209,37 @@ export const App: React.FC = () => {
             setDiscordUser(null);
           }
         });
+      } else if (getPendingDiscordUser()) {
+        // Nếu người dùng đã liên kết Discord ở bước 1 và vừa mở lại Web từ kênh #🔐・verify để nhập mã 6 số
+        setIsAuthModalOpen(true);
       }
     });
 
-    const h = window.location.hash.toLowerCase();
-    if (h === '#dashboard' || h === '#hub') {
-      navigateTo('dashboard');
-    } else if (h === '#vault') {
-      navigateTo('dashboard', 'vault');
-    } else if (h === '#get_exam') {
-      navigateTo('dashboard', 'get_exam');
-    } else if (h === '#submit_doc') {
-      navigateTo('dashboard', 'submit_doc');
-    } else if (h === '#forum') {
-      navigateTo('dashboard', 'forum');
-    } else if (h === '#courses') {
-      navigateTo('dashboard', 'courses');
+    const onStorageSync = () => {
+      const latestStored = getStoredDiscordUser();
+      setDiscordUser(latestStored);
+    };
+    window.addEventListener('storage', onStorageSync);
+
+    if (!isOAuthCallbackHash) {
+      if (h === '#dashboard' || h === '#hub') {
+        navigateTo('dashboard');
+      } else if (h === '#vault') {
+        navigateTo('dashboard', 'vault');
+      } else if (h === '#get_exam') {
+        navigateTo('dashboard', 'get_exam');
+      } else if (h === '#submit_doc') {
+        navigateTo('dashboard', 'submit_doc');
+      } else if (h === '#forum') {
+        navigateTo('dashboard', 'forum');
+      } else if (h === '#courses') {
+        navigateTo('dashboard', 'courses');
+      }
     }
+
+    return () => {
+      window.removeEventListener('storage', onStorageSync);
+    };
   }, [navigateTo]);
 
   const handleLogout = () => {

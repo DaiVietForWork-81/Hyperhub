@@ -13,7 +13,7 @@ import {
 import {
   DiscordUser,
   DISCORD_VERIFY_CHANNEL_URL,
-  getDiscordOAuth2Url,
+  startDiscordOAuthLogin,
   saveDiscordUser,
   getPendingDiscordUser,
   clearPendingDiscordUser,
@@ -40,11 +40,21 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    const syncPending = () => {
+      setPendingUser(getPendingDiscordUser());
+    };
+    syncPending();
+    window.addEventListener('orbit:pending-user-changed', syncPending as EventListener);
+    window.addEventListener('storage', syncPending);
+    return () => {
+      window.removeEventListener('orbit:pending-user-changed', syncPending as EventListener);
+      window.removeEventListener('storage', syncPending);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
-    const savedPending = getPendingDiscordUser();
-    if (savedPending) {
-      setPendingUser(savedPending);
-    }
+    setPendingUser(getPendingDiscordUser());
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     window.__lenis?.stop();
@@ -63,8 +73,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   if (!isOpen) return null;
 
   const handleOAuthLogin = () => {
-    const url = getDiscordOAuth2Url();
-    window.location.href = url;
+    startDiscordOAuthLogin();
   };
 
   // Bước 2: Xác thực mã 6 số (hiệu lực 5 phút) lấy từ kênh #🔐・verify

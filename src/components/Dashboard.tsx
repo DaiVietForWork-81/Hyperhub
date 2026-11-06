@@ -40,10 +40,14 @@ import {
 } from 'lucide-react';
 import {
   DiscordUser,
+  DISCORD_VERIFY_CHANNEL_URL,
   getDiscordAccessToken,
   getStoredDiscordUser,
+  getPendingDiscordUser,
+  clearPendingDiscordUser,
   saveDiscordUser,
-  getDiscordOAuth2Url,
+  startDiscordOAuthLogin,
+  syncLinkedAccount,
 } from '../utils/discordAuth';
 import {
   getApiBaseUrl,
@@ -2600,55 +2604,71 @@ const DashboardContent: React.FC<DashboardProps> = ({
   const hubLocked = !user && !isPreviewBypass;
   const sidebarWidthPx = Math.max(268, config.sidebarWidth);
 
-  const [gateMemberInput, setGateMemberInput] = useState<string>('');
+  const [gatePendingUser, setGatePendingUser] = useState<DiscordUser | null>(() => getPendingDiscordUser());
+  const [gateCodeInput, setGateCodeInput] = useState<string>('');
   const [gateVerifying, setGateVerifying] = useState<boolean>(false);
   const [gateError, setGateError] = useState<string>('');
 
-  const handleGateMemberLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    const syncGatePending = () => {
+      setGatePendingUser(getPendingDiscordUser());
+    };
+    syncGatePending();
+    window.addEventListener('orbit:pending-user-changed', syncGatePending as EventListener);
+    window.addEventListener('storage', syncGatePending);
+    return () => {
+      window.removeEventListener('orbit:pending-user-changed', syncGatePending as EventListener);
+      window.removeEventListener('storage', syncGatePending);
+    };
+  }, []);
+
+  const handleGateVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const q = gateMemberInput.trim();
-    if (!q) {
-      setGateError('Vui lòng nhập Username Discord (ví dụ: @ten_ban) hoặc Discord User ID.');
+    if (!gatePendingUser) return;
+    const cleanCode = gateCodeInput.trim().replace(/\s+/g, '');
+    if (!cleanCode) {
+      setGateError('Vui lòng nhập mã xác minh 6 số lấy từ kênh #🔐・verify.');
       return;
     }
     setGateVerifying(true);
     setGateError('');
     try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/account/verify-member`, {
+      const apiBase = (getApiBaseUrl() || '').replace(/\/+$/, '');
+      const res = await fetch(`${apiBase}/api/account/verify-code`, {
         method: 'POST',
         headers: {
           ...API_FETCH_HEADERS,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({
+          discord_id: gatePendingUser.id,
+          code: cleanCode,
+        }),
         signal: AbortSignal.timeout(10000),
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && data?.success && data?.user) {
-        const verifiedUser: DiscordUser = {
-          id: String(data.user.id),
-          username: data.user.username,
-          global_name: data.user.global_name || data.user.username,
-          avatar: data.user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png',
-          email: data.user.email || `${data.user.username}@discord.orbit.vn`,
-          verified: true,
-          accessToken: data.user.accessToken || `orbit_member_${data.user.id}`,
+      if (res.ok && data?.success) {
+        const finalUser: DiscordUser = {
+          ...gatePendingUser,
+          ...(data.user || {}),
+          accessToken: gatePendingUser.accessToken,
         };
-        saveDiscordUser(verifiedUser);
-        onUserAuthenticated?.(verifiedUser);
+        clearPendingDiscordUser();
+        saveDiscordUser(finalUser);
+        syncLinkedAccount(getApiBaseUrl());
+        onUserAuthenticated?.(finalUser);
         showSuccess(
-          `Xin chào ${verifiedUser.global_name || verifiedUser.username}! Đã mở khóa Bàn Điều Khiển & Diễn Đàn Orbit.`,
+          `Xin chào ${finalUser.global_name || finalUser.username}! Đã xác thực mã 5 phút và mở khóa Bàn Điều Khiển Orbit.`,
           'Đăng Nhập Discord Thành Công'
         );
       } else {
         setGateError(
           data?.message ||
-            'Không tìm thấy tài khoản này trong máy chủ Orbit | Vietnam. Hãy kiểm tra lại Username/ID hoặc dùng Discord OAuth2.'
+            'Mã xác minh không chính xác hoặc đã hết hạn (5 phút). Vui lòng bấm nút Lấy Mã mới trong kênh #🔐・verify!'
         );
       }
     } catch {
-      setGateError('Không thể kết nối tới trạm xác thực Bot. Hãy thử lại hoặc đăng nhập qua Discord OAuth2.');
+      setGateError('Không thể kết nối tới trạm xác thực mã. Vui lòng thử lại sau giây lát.');
     } finally {
       setGateVerifying(false);
     }
@@ -3364,30 +3384,103 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </p>
                 </div>
 
-                <form onSubmit={handleGateMemberLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="orbit-gate-member-input"
-                      className="block text-[13px] font-bold text-white/85"
-                    >
-                      Cách 1: Xác thực nhanh bằng Username hoặc ID thành viên trong Server Orbit | Vietnam
-                    </label>
+                {!gatePendingUser ? (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-[#0D0A14] border border-[#221a35] space-y-3">
+                      <div className="text-[13px] text-white/80 space-y-1.5 leading-relaxed">
+                        <div>
+                          <strong className="text-white">Bước 1:</strong> Bấm nút bên dưới để xác minh &amp; liên kết tài khoản Discord chính chủ với Web/Bot.
+                        </div>
+                        <div>
+                          <strong className="text-white">Bước 2:</strong> Vào kênh <code>#🔐・verify</code> trên server <strong>Orbit | Vietnam</strong> bấm nút <strong>Lấy Mã (5 Phút)</strong> và nhập mã 6 số để mở khóa Hub.
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={startDiscordOAuthLogin}
+                          className="px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-extrabold text-[13px] inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          <span>Xác minh &amp; Liên kết tài khoản Discord</span>
+                        </button>
+                        <a
+                          href="https://discord.gg/Xeb2pNH2"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2.5 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] text-white/85 hover:text-white font-semibold text-[13px] inline-flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <span>Tham Gia Server Orbit</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-[#C4A6FF]" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleGateVerifyCode} className="p-4 rounded-xl bg-[#0D0A14] border border-[#221a35] space-y-3.5">
+                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#221a35]">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={gatePendingUser.avatar || 'https://orbit-psi-black.vercel.app/server_icon.png'}
+                          alt={gatePendingUser.global_name || gatePendingUser.username}
+                          className="w-9 h-9 rounded-full border border-emerald-400/40 object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm font-extrabold text-white truncate">
+                            {gatePendingUser.global_name || gatePendingUser.username}
+                          </div>
+                          <div className="text-xs text-emerald-300 font-mono truncate">
+                            @{gatePendingUser.username} · Bước 2/2: Nhập mã xác minh 5 phút
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearPendingDiscordUser();
+                          setGatePendingUser(null);
+                          setGateCodeInput('');
+                          setGateError('');
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/75 hover:text-white cursor-pointer"
+                      >
+                        Đổi tài khoản
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs text-white/75">
+                        Bấm nút lấy mã 6 số trong kênh <code>#🔐・verify</code> (mỗi mã dùng trong 5 phút, tạo mã mới sẽ tự hủy mã cũ):
+                      </span>
+                      <a
+                        href={DISCORD_VERIFY_CHANNEL_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#c7d2fe] hover:text-white"
+                      >
+                        <span>Mở kênh #🔐・verify</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-2.5">
                       <input
-                        id="orbit-gate-member-input"
+                        id="orbit-gate-code-input"
                         type="text"
-                        value={gateMemberInput}
-                        onChange={(e) => setGateMemberInput(e.target.value)}
-                        placeholder="Nhập Username Discord (ví dụ: @ten_ban) hoặc Discord ID..."
-                        className="flex-1 h-11 px-3.5 rounded-xl bg-[#0D0A14] border border-[#221a35] focus:border-[#FF4FCB] text-[13px] sm:text-sm text-white placeholder:text-white/40 focus:outline-none"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={gateCodeInput}
+                        onChange={(e) => setGateCodeInput(e.target.value)}
+                        placeholder="Nhập mã xác minh 6 số (VD: 842915)..."
+                        className="flex-1 h-11 px-4 rounded-xl bg-[#130f1e] border border-[#2c2247] focus:border-[#FF4FCB] text-base font-mono tracking-widest text-white placeholder:text-white/35 placeholder:tracking-normal placeholder:font-sans focus:outline-none"
                       />
                       <button
                         type="submit"
-                        disabled={gateVerifying}
+                        disabled={gateVerifying || !gateCodeInput.trim()}
                         className="h-11 px-5 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] disabled:opacity-50 text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0"
                       >
                         <UserCheck className="w-4 h-4" />
-                        <span>{gateVerifying ? 'Đang kiểm tra...' : 'Xác Thực & Vào Hub'}</span>
+                        <span>{gateVerifying ? 'Đang xác minh...' : 'Xác Nhận & Vào Hub'}</span>
                       </button>
                     </div>
                     {gateError && (
@@ -3395,28 +3488,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         {gateError}
                       </div>
                     )}
-                  </div>
-                </form>
+                  </form>
+                )}
 
-                <div className="pt-4 border-t border-[#1d1a29] flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <a
-                      href={getDiscordOAuth2Url()}
-                      className="px-4 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-[13px] inline-flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <span>Đăng Nhập Qua Discord OAuth2</span>
-                    </a>
-                    <a
-                      href="https://discord.gg/YM3242P54V"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2.5 rounded-xl bg-[#13111c] hover:bg-[#181622] border border-[#221a35] text-white/85 hover:text-white font-semibold text-[13px] inline-flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <span>Tham Gia Server Orbit</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-[#C4A6FF]" />
-                    </a>
-                  </div>
-
+                <div className="pt-3 border-t border-[#1d1a29] flex items-center justify-end">
                   <button
                     type="button"
                     onClick={onBackToHome}
