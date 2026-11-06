@@ -135,7 +135,7 @@ export const HubAuthWall: React.FC<HubAuthWallProps> = ({ onLogin, onBackToHome 
             </button>
 
             <a
-              href="https://discord.gg/orbit"
+              href="https://discord.gg/Xeb2pNH2"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-[#38BDF8]/80 hover:text-[#38BDF8] transition-colors"

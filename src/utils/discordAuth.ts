@@ -19,10 +19,13 @@ export interface DiscordUser {
 }
 
 const STORAGE_KEY = "hyperhub_discord_user";
+const PENDING_STORAGE_KEY = "hyperhub_pending_discord_user";
 const TOKEN_STORAGE_KEY = "hyperhub_discord_token";
 const STATE_STORAGE_KEY = "hyperhub_oauth_state";
 
 export const DISCORD_CLIENT_ID = "1536298634990325871";
+export const DISCORD_VERIFY_CHANNEL_URL =
+  "https://discord.com/channels/1532265330079174697/1568268605085454416";
 
 export function getStoredDiscordUser(): DiscordUser | null {
   try {
@@ -61,18 +64,51 @@ export function getDiscordAccessToken(): string | null {
 export function saveDiscordUser(user: DiscordUser): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    if (user.accessToken && typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(PENDING_STORAGE_KEY);
+      if (user.accessToken) {
+        sessionStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
+      }
     }
   } catch (e) {
     console.error("Không thể lưu tài khoản Discord:", e);
   }
 }
 
+export function savePendingDiscordUser(user: DiscordUser): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(user));
+    }
+  } catch (e) {
+    console.error("Không thể lưu tài khoản chờ xác minh mã:", e);
+  }
+}
+
+export function getPendingDiscordUser(): DiscordUser | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem(PENDING_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DiscordUser;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingDiscordUser(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(PENDING_STORAGE_KEY);
+    }
+  } catch {}
+}
+
 export function removeDiscordUser(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
     if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(PENDING_STORAGE_KEY);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(STATE_STORAGE_KEY);
     }
@@ -222,7 +258,8 @@ export async function handleDiscordOAuthCallback(): Promise<DiscordUser | null> 
       accessToken: accessToken,
     };
 
-    saveDiscordUser(discordUser);
+    // Lưu vào trạng thái chờ nhập mã xác minh 5 phút từ kênh #🔐・verify trước khi hoàn tất đăng nhập
+    savePendingDiscordUser(discordUser);
     return discordUser;
   } catch (err) {
     console.error("Lỗi xử lý Discord OAuth2 callback:", err);

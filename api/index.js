@@ -1472,6 +1472,91 @@ export default async function handler(req, res) {
       return res.status(rpcVerify.status).json(rpcVerify.body);
     }
 
+    // 6b-2. POST /api/account/verify-code (Xác thực mã OTP 6 số hiệu lực 5 phút từ kênh #🔐・verify)
+    if (pathname === "/api/account/verify-code" && req.method === "POST") {
+      const body = req.body || {};
+      const discordId = String(body.discord_id || "").trim();
+      const cleanCode = String(body.code || "").trim().replace(/\s+/g, "");
+
+      if (!discordId || !cleanCode) {
+        return res.status(400).json({
+          error: "Missing parameters",
+          message: "Vui lòng nhập đầy đủ mã xác minh 6 số từ kênh #🔐・verify.",
+        });
+      }
+
+      try {
+        await executeTurso(
+          `CREATE TABLE IF NOT EXISTS web_verify_codes (
+            discord_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            avatar_url TEXT NOT NULL,
+            code TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+          )`
+        ).catch(() => {});
+
+        const codeRes = await executeTurso(
+          `SELECT code, expires_at, username, display_name, avatar_url
+           FROM web_verify_codes
+           WHERE discord_id = ? LIMIT 1`,
+          [discordId]
+        );
+        const row = codeRes.rows?.[0];
+
+        if (row) {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const expiresAt = Number(row.expires_at || 0);
+          const savedCode = String(row.code || "").trim();
+
+          if (nowSec > expiresAt) {
+            await executeTurso("DELETE FROM web_verify_codes WHERE discord_id = ?", [discordId]).catch(() => {});
+            return res.status(400).json({
+              error: "Code expired",
+              message: "Mã xác minh đã hết hạn (quá 5 phút). Vui lòng bấm nút lấy mã mới trong kênh #🔐・verify!",
+            });
+          }
+
+          if (savedCode !== cleanCode) {
+            return res.status(400).json({
+              error: "Invalid code",
+              message: "Mã xác minh không chính xác (hoặc đã bị hủy do bạn vừa ấn tạo mã mới). Vui lòng nhập mã 6 số mới nhất!",
+            });
+          }
+
+          // Mã hợp lệ -> Hủy mã ngay sau khi dùng 1 lần
+          await executeTurso("DELETE FROM web_verify_codes WHERE discord_id = ?", [discordId]).catch(() => {});
+          forwardRpcToBot("POST", "/api/account/verify-code", {}, body, 1500).catch(() => {});
+
+          return res.status(200).json({
+            success: true,
+            verified_code: true,
+            user: {
+              id: discordId,
+              username: String(row.username || discordId),
+              global_name: String(row.display_name || row.username || discordId),
+              avatar: row.avatar_url || "https://orbit-psi-black.vercel.app/server_icon.png",
+              email: `${row.username || discordId}@discord.orbit.vn`,
+              verified: true,
+              connectedAt: new Date().toISOString(),
+            },
+          });
+        }
+      } catch {}
+
+      // Fallback hỏi trực tiếp Bot qua RPC nếu Turso chưa kịp đồng bộ
+      const rpcCode = await forwardRpcToBot("POST", "/api/account/verify-code", {}, body, 4500);
+      if (rpcCode.status === 202) {
+        return res.status(400).json({
+          error: "No active code",
+          message: "Bạn chưa lấy mã xác minh hoặc mã đã được sử dụng. Hãy vào kênh #🔐・verify trên Discord và bấm nút 'Lấy Mã Đăng Nhập Web (5 Phút) 🔑'!",
+        });
+      }
+      return res.status(rpcCode.status).json(rpcCode.body);
+    }
+
     // 6c. GET /api/forum/threads (Đồng bộ Diễn Đàn Orbit 2 chiều Web <-> Discord #💡・diễn-đàn)
     if (pathname === "/api/forum/threads" && req.method === "GET") {
       // 1. Thử gọi RPC sang Bot nếu Bot online trên localhost/VPS

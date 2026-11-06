@@ -191,9 +191,8 @@ export const App: React.FC = () => {
   useEffect(() => {
     handleDiscordOAuthCallback().then((user) => {
       if (user) {
-        setDiscordUser(user);
         syncLinkedAccount(getApiBaseUrl());
-        navigateTo('dashboard');
+        setIsAuthModalOpen(true);
         return;
       }
       const stored = getStoredDiscordUser();
