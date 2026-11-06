@@ -6,7 +6,6 @@ import {
   LogIn,
   ExternalLink,
   Lock,
-  UserCheck,
   AlertCircle,
   KeyRound,
   RefreshCw,
@@ -16,7 +15,6 @@ import {
   DISCORD_VERIFY_CHANNEL_URL,
   getDiscordOAuth2Url,
   saveDiscordUser,
-  savePendingDiscordUser,
   getPendingDiscordUser,
   clearPendingDiscordUser,
   syncLinkedAccount,
@@ -36,9 +34,8 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   onSuccess,
 }) => {
   const [pendingUser, setPendingUser] = useState<DiscordUser | null>(() => getPendingDiscordUser());
-  const [memberInput, setMemberInput] = useState<string>('');
   const [codeInput, setCodeInput] = useState<string>('');
-  const [verifyChannelUrl, setVerifyChannelUrl] = useState<string>(DISCORD_VERIFY_CHANNEL_URL);
+  const [verifyChannelUrl] = useState<string>(DISCORD_VERIFY_CHANNEL_URL);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -68,44 +65,6 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   const handleOAuthLogin = () => {
     const url = getDiscordOAuth2Url();
     window.location.href = url;
-  };
-
-  // Bước 1: Xác minh & liên kết tài khoản Discord với Web/Bot
-  const handleVerifyServerMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = memberInput.trim();
-    if (!trimmed) return;
-
-    setIsVerifying(true);
-    setErrorMsg(null);
-    try {
-      const base = (getApiBaseUrl() || '').replace(/\/+$/, '');
-      const res = await fetch(`${base}/api/account/verify-member`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: trimmed }),
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.user) {
-        const linkedUser: DiscordUser = data.user;
-        if (data.verify_channel_url) {
-          setVerifyChannelUrl(data.verify_channel_url);
-        }
-        savePendingDiscordUser(linkedUser);
-        setPendingUser(linkedUser);
-        setCodeInput('');
-        setErrorMsg(null);
-      } else {
-        setErrorMsg(
-          data?.message ||
-            'Không tìm thấy tài khoản trong máy chủ Discord Orbit | Vietnam. Hãy kiểm tra lại Username hoặc Discord ID!'
-        );
-      }
-    } catch {
-      setErrorMsg('Không thể kết nối tới Bot xác thực. Vui lòng thử lại sau giây lát.');
-    } finally {
-      setIsVerifying(false);
-    }
   };
 
   // Bước 2: Xác thực mã 6 số (hiệu lực 5 phút) lấy từ kênh #🔐・verify
@@ -179,7 +138,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
               <span className="hh-tag">
                 {pendingUser
                   ? 'Bước 2/2 · Nhập Mã Xác Minh 5 Phút từ kênh #🔐・verify'
-                  : 'Bước 1/2 · Liên kết tài khoản Discord với Web / Bot'}
+                  : 'Bước 1/2 · Xác minh & Liên kết tài khoản Discord'}
               </span>
               <h2 id="hh-discord-auth-title" className="hh-card-title mt-1.5">
                 {pendingUser ? 'Nhập Mã Xác Minh Đăng Nhập' : 'Liên kết Discord với Orbit Hub'}
@@ -198,58 +157,24 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
 
         <div className="hh-modal-body">
           {!pendingUser ? (
-            <>
+            <div className="space-y-4">
               <p className="hh-card-text">
-                Để đăng nhập vào <strong>Orbit Hub</strong>, trước tiên hãy liên kết tài khoản Discord của bạn, sau đó nhập{' '}
-                <strong>mã xác minh 5 phút</strong> lấy từ kênh <code>#🔐・verify</code> trên server Discord{' '}
+                Để đăng nhập vào <strong>Orbit Hub</strong>, vui lòng xác minh và liên kết tài khoản Discord của bạn với Web/Bot, sau đó nhập{' '}
+                <strong>mã xác minh 5 phút</strong> lấy từ kênh <code>#🔐・verify</code> trên server{' '}
                 <strong>Orbit | Vietnam</strong>.
               </p>
 
-              {/* Bước 1 - Cách 1: Liên kết bằng Username / Discord ID */}
-              <form
-                onSubmit={handleVerifyServerMember}
-                className="p-4 rounded-xl bg-[#130f1e] border border-[#2c2247] space-y-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-extrabold text-white flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-[#FF4FCB]" />
-                    <span>Cách 1: Liên kết tài khoản thành viên Server Orbit</span>
-                  </span>
-                  <span className="text-xs font-mono text-emerald-300">Nhanh nhất</span>
-                </div>
-                <p className="text-xs text-white/65 leading-relaxed">
-                  Nhập <strong>Username Discord</strong> (ví dụ: <code>nam8152.chill</code>) hoặc{' '}
-                  <strong>Discord ID</strong> của bạn trong server <strong>Orbit | Vietnam</strong>:
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={memberInput}
-                    onChange={(e) => setMemberInput(e.target.value)}
-                    placeholder="Nhập Discord Username hoặc ID..."
-                    className="flex-1 h-10 px-3.5 rounded-xl bg-[#0D0A14] border border-[#221a35] focus:border-[#FF4FCB] text-[13px] text-white placeholder:text-white/40 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isVerifying || !memberInput.trim()}
-                    className="px-4 h-10 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] disabled:opacity-50 text-[13px] font-extrabold text-white shrink-0 cursor-pointer transition-colors"
-                  >
-                    {isVerifying ? 'Đang kiểm tra...' : 'Tiếp tục lấy mã ➔'}
-                  </button>
-                </div>
-                {errorMsg && (
-                  <div className="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                    <span>{errorMsg}</span>
+              <div className="p-4 rounded-xl bg-[#130f1e] border border-[#2c2247] space-y-3">
+                <div className="text-xs text-white/75 space-y-1.5 leading-relaxed">
+                  <div>
+                    <strong className="text-white">Bước 1:</strong> Bấm nút bên dưới để ủy quyền &amp; liên kết tài khoản Discord với hệ thống.
                   </div>
-                )}
-              </form>
+                  <div>
+                    <strong className="text-white">Bước 2:</strong> Sau khi liên kết xong, vào kênh <code>#🔐・verify</code> bấm nút{' '}
+                    <strong>Lấy Mã (5 Phút)</strong> và điền mã 6 số lên Web.
+                  </div>
+                </div>
 
-              {/* Bước 1 - Cách 2: Liên kết qua Discord OAuth2 */}
-              <div className="space-y-2 pt-1">
-                <span className="block text-xs font-bold text-white/60">
-                  Cách 2: Ủy quyền qua cổng Discord OAuth2 chính thức
-                </span>
                 <PixelButton
                   variant="discord"
                   block
@@ -257,10 +182,10 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
                   icon={<LogIn className="w-4 h-4" aria-hidden="true" />}
                   trailing={<ExternalLink className="w-4 h-4" aria-hidden="true" />}
                 >
-                  Liên kết bằng Discord OAuth2
+                  Xác minh &amp; Liên kết tài khoản Discord
                 </PixelButton>
               </div>
-            </>
+            </div>
           ) : (
             /* Bước 2: Hiển thị tài khoản đã liên kết & Ô nhập mã 6 số hiệu lực 5 phút từ kênh #🔐・verify */
             <div className="space-y-4">
