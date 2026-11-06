@@ -303,7 +303,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
                 Bảo mật xác thực 2 bước Discord ↔ Web
               </h3>
               <p className="hh-cd-session-sub">
-                Đảm bảo chỉ chính chủ thành viên Discord mới có thể đăng nhập tài khoản trên Web, bảo vệ chuỗi Streak XP và Credit tác giả.
+                Đảm bảo chỉ chính chủ thành viên Discord mới có thể đăng nhập tài khoản trên Web, bảo vệ quyền đóng góp đề thi (Credit Tác giả) và thảo luận trên Diễn đàn.
               </p>
             </div>
           </div>

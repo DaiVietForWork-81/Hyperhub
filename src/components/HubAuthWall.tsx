@@ -93,9 +93,9 @@ export const HubAuthWall: React.FC<HubAuthWallProps> = ({ onLogin, onBackToHome 
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Chuỗi Học & Pomodoro</h3>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Không Gian Tự Học Pomodoro</h3>
               <p className="text-xs text-white/50 mt-0.5">
-                Ghi nhận Streak hàng ngày, tích lũy XP học giả và rèn luyện tập trung.
+                Đồng hồ bấm giờ Pomodoro 25/5 giúp rèn luyện sự tập trung khi giải đề.
               </p>
             </div>
           </div>

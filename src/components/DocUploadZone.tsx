@@ -964,7 +964,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Credit của bạn sẽ được hiển thị vĩnh viễn trên thẻ tài liệu và tích lũy XP trên Bảng Xếp Hạng!
+                    Credit của bạn sẽ được hiển thị vĩnh viễn trên thẻ tài liệu và tự động cấp Role ✍️ Tác giả!
                   </p>
                 </div>
               </div>

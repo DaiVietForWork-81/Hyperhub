@@ -32,7 +32,7 @@ import {
   Pause,
   RotateCcw,
   Target,
-  Flame,
+
   Trophy,
   PenTool,
   MessageSquare,
@@ -439,8 +439,8 @@ export function getEducationLevelBadgeInfo(doc: { estimated_level?: string; subj
   };
 }
 
-const stripEmoji = (s?: string | null): string =>
-  (s || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+
+
 
 // Gợi ý từ khóa nhanh
 const QUICK_KEYWORD_TAGS = [
@@ -1472,8 +1472,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
     return null;
   });
   const [leaderboardList, setLeaderboardList] = useState<AcademicScholarEntry[]>([]);
-  const [leaderboardSort, setLeaderboardSort] = useState<'xp' | 'streak' | 'contrib'>('xp');
-  const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
+
+  const [, setIsCheckingIn] = useState<boolean>(false);
 
   const fetchStudyProfileAndLeaderboard = useCallback(async () => {
     const apiBase = getApiBaseUrl();
@@ -1626,11 +1626,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
         }
 
         if (action === 'daily_checkin') {
-          showSuccess('Đã điểm danh chuỗi học tập hôm nay (+50 XP)! Đồng bộ Discord & Web.', 'Chuỗi Học Tập');
+          showSuccess('Đã đồng bộ hoạt động học tập giữa Discord & Web!', 'Hồ Sơ Học Tập');
         } else if (action === 'pomodoro') {
-          showSuccess('Hoàn thành phiên Pomodoro 25 phút (+40 XP)!', 'Pomodoro Đồng Bộ');
+          showSuccess('Hoàn thành phiên Pomodoro 25 phút!', 'Pomodoro Đồng Bộ');
         } else if (action === 'exam_complete') {
-          showSuccess('Đã ghi nhận hoàn thành luyện đề (+100 XP) vào Bảng Xếp Hạng!', 'Phòng Thi Thực Chiến');
+          showSuccess('Đã ghi nhận hoàn thành phiên luyện đề thực chiến!', 'Phòng Thi Thực Chiến');
         }
 
         fetchStudyProfileAndLeaderboard();
@@ -1662,7 +1662,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
           setPomoMode(nextMode);
           showInfo(
             nextMode === 'chill'
-              ? 'Đã hoàn thành 25 phút tập trung (+40 XP)! Nghỉ ngơi 5 phút nhé.'
+              ? 'Đã hoàn thành 25 phút tập trung! Nghỉ ngơi 5 phút nhé.'
               : 'Hết giờ nghỉ! Bắt đầu phiên tập trung mới.',
             'Pomodoro Hub'
           );
@@ -3130,8 +3130,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* MINI LIVE ORBIT TELEMETRY PILL (POMODORO + STREAK LUÔN HIỂN THỊ KHI CHUYỂN TAB) */}
-          <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#221a35] space-y-2">
+          {/* MINI LIVE ORBIT POMODORO PILL */}
+          <div className="p-2.5 rounded-xl bg-[#13111c] border border-[#221a35]">
             <div className="flex items-center justify-between text-[13px]">
               <button
                 type="button"
@@ -3145,25 +3145,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 <Clock className="w-3.5 h-3.5 text-[#FF4FCB]" />
                 <span className="font-mono tabular-nums">{formatPomo(pomoSeconds)}</span>
                 <span className="text-xs px-1.5 py-0.5 rounded bg-[#291524] text-[#FFB8E6]">
-                  {pomoRunning ? 'Đang chạy' : 'Pomo'}
+                  {pomoRunning ? 'Đang chạy' : 'Pomodoro 25/5'}
                 </span>
               </button>
-
-              <span className="font-mono font-bold text-amber-300 tabular-nums flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
-                <span>{studyProfile?.current_streak || 0}d</span>
-              </span>
             </div>
-
-            <button
-              type="button"
-              disabled={isCheckingIn}
-              onClick={() => triggerStudyCheckin('daily_checkin', 15)}
-              className="w-full py-1.5 px-2.5 rounded-lg bg-[#241914] hover:bg-[#2e2019] border border-[#3d291d] text-amber-200 font-bold text-[13px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-              <span className="truncate">{isCheckingIn ? 'Đang đồng bộ...' : 'Điểm danh (+50 XP)'}</span>
-            </button>
           </div>
         </div>
 
@@ -3185,7 +3170,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     {user.global_name || user.username}
                   </div>
                   <div className="text-xs text-white/50 truncate font-mono">
-                    {stripEmoji(studyProfile?.rank_title) || `@${user.username}`}
+                    `@${user.username}`
                   </div>
                 </div>
                 <button
@@ -3201,7 +3186,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Turso + Discord Sync</span>
                 </span>
-                <span className="tabular-nums text-[#FFB8E6] font-bold">{studyProfile?.study_xp || 0} XP</span>
+                <span className="tabular-nums text-[#FFB8E6] font-bold">Đã xác thực</span>
               </div>
             </div>
           ) : (
@@ -3527,10 +3512,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                   <div className="p-3 rounded-lg bg-[#13101d] border border-[#221a35] space-y-1">
                     <div className="text-[13px] font-bold text-amber-300">
-                      3. Đồng bộ Chuỗi Ngày Học (Streak &amp; XP)
+                      3. Vinh danh Credit Tác Giả &amp; Role ✍️ Tác giả
                     </div>
                     <div className="text-[13px] text-white/65">
-                      Đồng bộ điểm kinh nghiệm XP, chuỗi Pomodoro và Bảng Xếp Hạng Học Thuật với lệnh /chuoi.
+                      Ghi nhận Tên &amp; Avatar vĩnh viễn trên thẻ đề đóng góp và tự động cấp Role Tác giả trên Discord.
                     </div>
                   </div>
                 </div>
@@ -3792,16 +3777,16 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* RIGHT 5/12: ORBITAL FOCUS & STREAK COCKPIT (SVG RADIAL RING + STREAK/XP) */}
+                {/* RIGHT 5/12: ORBITAL FOCUS POMODORO COCKPIT (SVG RADIAL RING) */}
                 <div className="xl:col-span-5 rounded-xl bg-[#0B0911] border border-[#1d1a29] p-5 sm:p-6 flex flex-col justify-between gap-4">
-                  {/* Top Bar: Pomodoro Mode Switcher & Streak Pill */}
+                  {/* Top Bar: Pomodoro Mode Switcher */}
                   <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#1d1a29]">
                     <div>
                       <div className="text-[13px] font-semibold text-[#C4A6FF]">
                         Buồng lái tập trung · Orbit Timer
                       </div>
                       <div className="text-sm font-extrabold text-white mt-0.5">
-                        Đồng Hồ Pomodoro &amp; Chuỗi Học Thuật
+                        Đồng Hồ Tập Trung Pomodoro 25/5
                       </div>
                     </div>
 
@@ -3869,7 +3854,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Controls + Live Rank & XP Progress */}
+                    {/* Controls + Focus Summary */}
                     <div className="sm:col-span-7 space-y-3">
                       <div className="flex items-center gap-2">
                         <button
@@ -3896,70 +3881,45 @@ const DashboardContent: React.FC<DashboardProps> = ({
                         </button>
                       </div>
 
-                      {/* Rank & XP Bar */}
                       <div className="p-3 rounded-xl bg-[#13111c] border border-[#1d1a29] space-y-1.5">
                         <div className="flex items-center justify-between text-[13px]">
                           <span className="font-extrabold text-[#FFB8E6] truncate">
-                            {stripEmoji(studyProfile?.rank_title) || 'Tân Binh Orbit'}
+                            {user ? user.global_name || user.username : 'Thành viên Orbit'}
                           </span>
-                          <span className="font-mono font-black text-emerald-300 tabular-nums">
-                            {studyProfile?.study_xp || 0} XP
+                          <span className="font-mono font-bold text-emerald-300">
+                            Pomodoro 25/5
                           </span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-[#1d1a29] overflow-hidden">
-                          <div
-                            className="h-full bg-[#d61f79] transition-all duration-500"
-                            style={{
-                              width: `${Math.max(8, Math.round((((studyProfile?.study_xp || 0) % 500) / 500) * 100))}%`,
-                            }}
-                          />
                         </div>
                         <div className="flex items-center justify-between text-xs font-mono text-white/55 tabular-nums">
-                          <span>Chuỗi {studyProfile?.current_streak || 0} ngày</span>
+                          <span>{studyProfile?.pomodoro_count || 0} phiên tập trung</span>
                           <span>{studyProfile?.exams_completed || 0} đề đã luyện</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bottom: 4 Compact Telemetry Metrics + Daily Checkin CTA */}
-                  <div className="pt-3 border-t border-[#1d1a29] space-y-3">
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-[#13111c] border border-[#1d1a29]">
-                        <div className="text-xs font-semibold text-white/55">Chuỗi</div>
-                        <div className="text-sm font-black text-amber-300 tabular-nums mt-0.5">
-                          {studyProfile?.current_streak || 0}d
-                        </div>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[#13111c] border border-[#1d1a29]">
-                        <div className="text-xs font-semibold text-white/55">Kỷ lục</div>
-                        <div className="text-sm font-black text-orange-300 tabular-nums mt-0.5">
-                          {studyProfile?.max_streak || 0}d
-                        </div>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[#13111c] border border-[#1d1a29]">
+                  {/* Bottom: 3 Clean Academic Metrics */}
+                  <div className="pt-3 border-t border-[#1d1a29]">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2.5 rounded-lg bg-[#13111c] border border-[#1d1a29]">
                         <div className="text-xs font-semibold text-white/55">Pomodoro</div>
                         <div className="text-sm font-black text-[#E2CEFF] tabular-nums mt-0.5">
-                          {studyProfile?.pomodoro_count || 0}
+                          {studyProfile?.pomodoro_count || 0} phiên
                         </div>
                       </div>
-                      <div className="p-2 rounded-lg bg-[#13111c] border border-[#1d1a29]">
+                      <div className="p-2.5 rounded-lg bg-[#13111c] border border-[#1d1a29]">
+                        <div className="text-xs font-semibold text-white/55">Đề đã luyện</div>
+                        <div className="text-sm font-black text-sky-300 tabular-nums mt-0.5">
+                          {studyProfile?.exams_completed || 0} đề
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-[#13111c] border border-[#1d1a29]">
                         <div className="text-xs font-semibold text-white/55">Đóng góp</div>
                         <div className="text-sm font-black text-emerald-300 tabular-nums mt-0.5">
-                          {studyProfile?.docs_contributed || 0}
+                          {studyProfile?.docs_contributed || 0} đề
                         </div>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      disabled={isCheckingIn}
-                      onClick={() => triggerStudyCheckin('daily_checkin', 15)}
-                      className="w-full py-2.5 px-4 rounded-xl bg-[#d61f79] hover:bg-[#e11d84] text-white font-extrabold text-[13px] flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Flame className="w-4 h-4" />
-                      <span>{isCheckingIn ? 'Đang đồng bộ Turso Cloud...' : 'Điểm Danh Hôm Nay (+50 XP)'}</span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -4337,7 +4297,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             </div>
 
             {/* ===================================================================== */}
-            {/* ZONE 4: BẢNG VÀNG HỌC THUẬT ORBIT (RANKED SCHOLARS + 5-TIER LADDER)   */}
+            {/* ZONE 4: BẢNG VÀNG HỌC THUẬT ORBIT (TOP TÁC GIẢ ĐÓNG GÓP & LUYỆN ĐỀ)   */}
             {/* ===================================================================== */}
             <SpotSurface className="hh-hub-surface p-5 sm:p-6 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1d1a29] pb-3.5">
@@ -4347,152 +4307,65 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     <span>Bảng vàng học thuật liên thông Discord ↔ Web</span>
                   </div>
                   <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
-                    Top Học Giả Luyện Đề, Giữ Chuỗi Streak &amp; Đóng Góp Tài Liệu
+                    Vinh Danh Tác Giả Đóng Góp Tài Liệu &amp; Học Giả Luyện Đề
                   </h3>
-                </div>
-
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0911] border border-[#1d1a29] self-start sm:self-center">
-                  {[
-                    { id: 'xp', label: 'Điểm XP' },
-                    { id: 'streak', label: 'Chuỗi Ngày' },
-                    { id: 'contrib', label: 'Đóng Góp' },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setLeaderboardSort(t.id as any)}
-                      className={`px-3 py-1 rounded-lg text-[13px] font-extrabold cursor-pointer transition-colors ${
-                        leaderboardSort === t.id
-                          ? 'bg-[#291524] text-[#FFB8E6] border border-[#422039]'
-                          : 'text-white/60 hover:text-white'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
               {(() => {
-                const sortedScholars = [...leaderboardList].sort((a, b) => {
-                  if (leaderboardSort === 'streak')
-                    return b.current_streak - a.current_streak || b.study_xp - a.study_xp;
-                  if (leaderboardSort === 'contrib')
-                    return b.docs_contributed - a.docs_contributed || b.study_xp - a.study_xp;
-                  return b.study_xp - a.study_xp;
-                });
+                const sortedScholars = [...leaderboardList].sort(
+                  (a, b) => b.docs_contributed - a.docs_contributed || b.exams_completed - a.exams_completed
+                );
                 const topScholars = sortedScholars.slice(0, 5);
-                const rankTiers = [
-                  { lvl: 'Cấp 6', name: 'Huyền Thoại Orbit', xp: '3.000+ XP', tone: 'text-[#FFB8E6]' },
-                  { lvl: 'Cấp 5', name: 'Thủ Khoa Khối', xp: '1.500+ XP', tone: 'text-amber-300' },
-                  { lvl: 'Cấp 4', name: 'Học Giả Tinh Anh', xp: '700+ XP', tone: 'text-[#C4A6FF]' },
-                  { lvl: 'Cấp 3', name: 'Chiến Binh Luyện Đề', xp: '300+ XP', tone: 'text-sky-300' },
-                  { lvl: 'Cấp 2', name: 'Học Viên Chăm Chỉ', xp: '100+ XP', tone: 'text-emerald-300' },
-                ];
 
                 return (
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
-                    {/* Left 7/12: Full-width Ranked Scholar Rows (never leaves empty grid columns) */}
-                    <div className="xl:col-span-7 flex flex-col justify-between gap-2.5">
-                      <div className="space-y-2.5">
-                        {topScholars.map((scholar, idx) => {
-                          const isTop1 = idx === 0;
-                          return (
-                            <div
-                              key={`scholar-${scholar.discord_id}-${idx}`}
-                              className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  <div className="space-y-2.5">
+                    {topScholars.map((scholar, idx) => {
+                      const isTop1 = idx === 0;
+                      return (
+                        <div
+                          key={`scholar-${scholar.discord_id}-${idx}`}
+                          className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isTop1
+                              ? 'bg-[#1a1510] border-[#3d2e18]'
+                              : 'bg-[#0B0911] border-[#1d1a29]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`px-2.5 py-1 rounded-lg font-mono text-xs font-black shrink-0 tabular-nums ${
                                 isTop1
-                                  ? 'bg-[#1a1510] border-[#3d2e18]'
-                                  : 'bg-[#0B0911] border-[#1d1a29]'
+                                  ? 'bg-amber-400 text-black'
+                                  : 'bg-[#171522] text-white/80 border border-[#242033]'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <span
-                                  className={`px-2.5 py-1 rounded-lg font-mono text-xs font-black shrink-0 tabular-nums ${
-                                    isTop1
-                                      ? 'bg-amber-400 text-black'
-                                      : 'bg-[#171522] text-white/80 border border-[#242033]'
-                                  }`}
-                                >
-                                  Hạng #{idx + 1}
+                              Hạng #{idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-black text-sm sm:text-base text-white truncate">
+                                  {scholar.display_name || scholar.username}
                                 </span>
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="font-black text-sm sm:text-base text-white truncate">
-                                      {scholar.display_name || scholar.username}
-                                    </span>
-                                    <span className="text-xs px-2 py-0.5 rounded bg-[#181622] text-[#FFB8E6] border border-[#262235] font-semibold">
-                                      {stripEmoji(scholar.rank_title) || 'Học giả Orbit'}
-                                    </span>
-                                  </div>
-                                  <div className="text-[13px] font-mono text-white/55 flex flex-wrap items-center gap-3 mt-1 tabular-nums">
-                                    <span>Chuỗi: {scholar.current_streak} ngày</span>
-                                    <span>• Đề đã giải: {scholar.exams_completed}</span>
-                                    <span>• Đóng góp: {scholar.docs_contributed} tệp</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1d1a29]">
-                                <span className="text-xs text-white/45 sm:hidden">Tổng điểm tích lũy</span>
-                                <span className="font-mono text-base sm:text-lg font-black text-emerald-300 tabular-nums">
-                                  {scholar.study_xp} XP
+                                <span className="text-xs px-2 py-0.5 rounded bg-[#181622] text-[#FFB8E6] border border-[#262235] font-semibold">
+                                  Thành viên Orbit
                                 </span>
                               </div>
+                              <div className="text-[13px] font-mono text-white/55 flex flex-wrap items-center gap-3 mt-1 tabular-nums">
+                                <span>Đề đã luyện: {scholar.exams_completed}</span>
+                                <span>• Pomodoro: {scholar.pomodoro_count || 0} phiên</span>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
 
-                      {/* Personal Progress Callout inside Left Column */}
-                      <div className="p-3.5 rounded-xl bg-[#0B0911] border border-[#1d1a29] flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-[13px] text-white/70">
-                          Hồ sơ của bạn:{' '}
-                          <strong className="text-white">
-                            {user ? user.global_name || user.username : 'Học viên Orbit'}
-                          </strong>{' '}
-                          • <span className="text-[#FFB8E6] font-bold">{stripEmoji(studyProfile?.rank_title) || 'Tân Binh Orbit'}</span> ({studyProfile?.study_xp || 0} XP)
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => triggerStudyCheckin('daily_checkin', 15)}
-                          className="px-3 py-1.5 rounded-lg bg-[#291524] hover:bg-[#d61f79] border border-[#422039] text-[13px] font-bold text-white cursor-pointer transition-colors"
-                        >
-                          Điểm danh nhận +50 XP
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Right 5/12: 5-Tier Academic Rank Ladder (Thang Học Vị Orbit) */}
-                    <div className="xl:col-span-5 p-4 rounded-xl bg-[#0B0911] border border-[#1d1a29] flex flex-col justify-between gap-3">
-                      <div className="flex items-center justify-between border-b border-[#1d1a29] pb-2.5">
-                        <span className="text-[13px] font-bold text-white">
-                          Thang học vị &amp; đặc quyền XP
-                        </span>
-                        <span className="font-mono text-xs text-white/50">Đồng bộ lệnh /chuoi</span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {rankTiers.map((tier) => (
-                          <div
-                            key={tier.lvl}
-                            className="px-3 py-2 rounded-lg bg-[#12101b] border border-[#1d1a29] flex items-center justify-between text-[13px]"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-white/45">{tier.lvl}</span>
-                              <span className={`font-bold ${tier.tone}`}>{tier.name}</span>
-                            </div>
-                            <span className="font-mono text-xs font-bold text-white/70 tabular-nums">
-                              {tier.xp}
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1d1a29]">
+                            <span className="text-xs text-white/45 sm:hidden">Tài liệu đóng góp</span>
+                            <span className="font-mono text-base sm:text-lg font-black text-emerald-300 tabular-nums">
+                              {scholar.docs_contributed} đề đóng góp
                             </span>
                           </div>
-                        ))}
-                      </div>
-
-                      <div className="text-xs text-white/55 pt-1 border-t border-[#1d1a29]">
-                        Điểm danh mỗi ngày (+50 XP), hoàn thành phiên Pomodoro (+35 XP) hoặc nộp bài trong Phòng Thi Thực Chiến (+100 XP) để thăng cấp.
-                      </div>
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -4625,7 +4498,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <div className="flex items-center gap-2.5 text-white/75">
                     <CheckCircle2 className="w-4 h-4 text-[#FFB8E6] shrink-0" />
                     <span>
-                      Bạn có thể bốc đề &amp; đọc PDF hoàn toàn tự do. Liên kết tài khoản Discord (không cần xác minh email) để lưu chuỗi Streak, cộng XP và nhận Credit khi đóng góp đề!
+                      Bạn có thể bốc đề &amp; đọc PDF hoàn toàn tự do. Liên kết tài khoản Discord để nhận Credit vĩnh viễn và Role ✍️ Tác giả khi đóng góp đề!
                     </span>
                   </div>
                   <button

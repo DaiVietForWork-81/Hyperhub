@@ -24,7 +24,7 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Flame,
+
   Sparkles,
   Clock,
   Award,
@@ -928,7 +928,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
                 <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 space-y-1.5 animate-in fade-in duration-200">
                   <div className="flex items-center gap-2 text-emerald-300 font-black text-sm">
                     <Award className="w-4 h-4 text-emerald-400" />
-                    <span>Đã hoàn thành phiên luyện đề! (+100 XP &amp; Duy trì 🔥 Streak)</span>
+                    <span>Đã hoàn thành phiên luyện đề thực chiến!</span>
                   </div>
                   <p className="text-xs text-emerald-100/90">{examScoreSummary}</p>
                 </div>
@@ -1117,8 +1117,8 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
                   onClick={handleSubmitPracticeExam}
                   className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FF3CA6] via-purple-600 to-indigo-600 hover:opacity-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF3CA6]/30 cursor-pointer"
                 >
-                  <Flame className="w-4 h-4 text-amber-300" />
-                  <span>Nộp Bài &amp; Cộng Chuỗi Ngày Học (+100 XP)</span>
+                  <Award className="w-4 h-4 text-amber-300" />
+                  <span>Hoàn Tất &amp; Nộp Bài Luyện Đề</span>
                 </button>
               </div>
             </div>

@@ -16,8 +16,8 @@ const SIDE_PILLARS = [
     icon: Award,
     badge: 'Đóng góp học thuật',
     title: 'Vinh danh Tác giả & Credit',
-    desc: 'Chỉ cần liên kết tài khoản Discord (không cần xác minh email) để nộp đề thi, hiển thị Tên & Avatar vĩnh viễn trên thẻ đề, nhận +100 XP và Role ✍️ Tác giả.',
-    features: ['Ghi nhận Credit vĩnh viễn', 'Tự động cấp Role ✍️ Tác giả', 'Cộng +100 Study XP / đề'],
+    desc: 'Chỉ cần liên kết tài khoản Discord để nộp đề thi, hiển thị Tên & Avatar vĩnh viễn trên thẻ đề và tự động nhận Role ✍️ Tác giả.',
+    features: ['Ghi nhận Credit vĩnh viễn', 'Tự động cấp Role ✍️ Tác giả', 'Đồng bộ tức thì Web & Discord'],
     tone: 'pink',
     preset: 'slide-r' as const,
   },
@@ -123,13 +123,13 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
             <div className="hh-eco-strip-body">
               <h4 className="hh-card-title">Diễn Đàn Học Thuật 2 Chiều &amp; Tự Học Pomodoro</h4>
               <p className="hh-card-text">
-                Đặt câu hỏi bài tập, thảo luận phương pháp ôn thi đồng bộ tức thì với kênh #diễn-đàn trên Discord, kết hợp phòng tự học Pomodoro và Bảng Xếp Hạng Học Giả.
+                Đặt câu hỏi bài tập, thảo luận phương pháp ôn thi đồng bộ tức thì với kênh #diễn-đàn trên Discord, kết hợp phòng tự học Pomodoro và vinh danh Tác giả đóng góp.
               </p>
             </div>
             <ul className="hh-checks hh-checks--inline">
               <li><Check aria-hidden="true" />Đồng bộ 2 chiều Web &amp; Discord</li>
               <li><Check aria-hidden="true" />Phòng tự học Lofi &amp; Pomodoro</li>
-              <li><Check aria-hidden="true" />Đua chuỗi Streak &amp; Bảng xếp hạng XP</li>
+              <li><Check aria-hidden="true" />Vinh danh Tác giả đóng góp tài liệu</li>
             </ul>
           </SpotSurface>
         </Reveal>
