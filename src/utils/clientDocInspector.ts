@@ -926,7 +926,7 @@ async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: str
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 11_000);
+  const timeoutId = setTimeout(() => controller.abort(), 45_000); // Cho phép tối đa 45s (< 1 phút / 1 file) để model 550B đọc & phân tích sâu
   try {
     const verifyResp = await fetch('/api/documents/deep_verify', {
       method: 'POST',

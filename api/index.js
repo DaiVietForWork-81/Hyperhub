@@ -1964,8 +1964,8 @@ export default async function handler(req, res) {
 
       let apiKey = process.env.NVIDIA_API_KEY || "";
       let baseUrl = process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
-      let primaryModel = "nvidia/nemotron-3.5-super-vl-120b-a12b";
-      let fallbackModel = "nvidia/nemotron-3.5-lightning-30b-a3b";
+      let primaryModel = "nvidia/nemotron-3-ultra-550b-a55b";
+      let fallbackModel = "nvidia/nemotron-3.5-super-vl-120b-a12b";
 
       if (!apiKey) {
         const kvCfg = await getKvValue("nvidia_cloud_config");
@@ -2009,29 +2009,49 @@ Trả về đúng 1 JSON:
 
       const userPrompt = `Tên tệp: ${fileName}\nNội dung đề:\n${snippet}\n\nChỉ trả về JSON:`;
 
-      for (const model of [primaryModel, fallbackModel, "nvidia/nemotron-3.5-bolt-e4b"]) {
+      const modelChain = Array.from(
+        new Set([
+          primaryModel,
+          fallbackModel,
+          "nvidia/nemotron-3-ultra-550b-a55b",
+          "nvidia/nemotron-3.5-super-vl-120b-a12b",
+          "google/gemma-4-31b-it",
+          "z-ai/glm-5.3-flash",
+          "nvidia/nemotron-3.5-bolt-e4b",
+        ].filter(Boolean))
+      );
+
+      for (const model of modelChain) {
         try {
+          const isDeepReasoning =
+            model.includes("ultra-550b") ||
+            model.includes("glm-5.3") ||
+            model.includes("deepseek");
+          const reqPayload = {
+            model,
+            messages: [
+              { role: "system", content: sysPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: isDeepReasoning ? 1300 : 320,
+            temperature: 0.0,
+          };
+          if (!isDeepReasoning) {
+            reqPayload.chat_template_kwargs = {
+              thinking: false,
+              enable_thinking: false,
+            };
+          }
+
           const controller = new AbortController();
-          const tId = setTimeout(() => controller.abort(), 7500);
+          const tId = setTimeout(() => controller.abort(), 28000);
           const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: "system", content: sysPrompt },
-                { role: "user", content: userPrompt },
-              ],
-              max_tokens: 260,
-              temperature: 0.0,
-              chat_template_kwargs: {
-                thinking: false,
-                enable_thinking: false,
-              },
-            }),
+            body: JSON.stringify(reqPayload),
             signal: controller.signal,
           });
           clearTimeout(tId);
@@ -2039,9 +2059,12 @@ Trả về đúng 1 JSON:
           const j = await r.json();
           const msg = j?.choices?.[0]?.message || {};
           const content = String(msg.content || msg.reasoning_content || "").trim();
-          const mJson = content.match(/\{[\s\S]*\}/);
-          if (mJson) {
-            const parsed = JSON.parse(mJson[0]);
+          const allJsonMatches = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+          const jsonCandidate = allJsonMatches
+            ? allJsonMatches[allJsonMatches.length - 1]
+            : (content.match(/\{[\s\S]*\}/) || [])[0];
+          if (jsonCandidate) {
+            const parsed = JSON.parse(jsonCandidate);
             if (parsed && parsed.subject) {
               if (globalThis._deepVerifyCache.size > 1500) {
                 const firstKey = globalThis._deepVerifyCache.keys().next().value;

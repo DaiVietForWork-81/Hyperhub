@@ -246,6 +246,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     const validExtensions = ['.pdf', '.docx', '.doc', '.txt'];
     const newItems: QueuedFile[] = [];
     const errors: string[] = [];
+    const seenInThisBatch = new Set<string>();
 
     files.forEach((file) => {
       const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
@@ -256,14 +257,16 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       }
 
       if (file.size > 25 * 1024 * 1024) {
-        errors.push(`Tệp "${file.name}" vượt quá 25MB`);
+        errors.push(`Tệp "${file.name}" vượt quá giới hạn 25MB/tệp`);
         return;
       }
 
-      const alreadyInQueue = fileQueue.some(
-        (q) => q.file.name === file.name && q.file.size === file.size
-      );
+      const batchKey = `${file.name}::${file.size}`;
+      const alreadyInQueue =
+        seenInThisBatch.has(batchKey) ||
+        fileQueue.some((q) => q.file.name === file.name && q.file.size === file.size);
       if (alreadyInQueue) return;
+      seenInThisBatch.add(batchKey);
 
       const newItem: QueuedFile = {
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
@@ -271,15 +274,30 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         status: 'pending',
       };
       newItems.push(newItem);
+    });
 
-      // Chạy tiền kiểm định trên Trình duyệt (Client-side Edge Inspector) để giảm tải CPU VPS
-      inspectDocumentClient(file)
-        .then(async (report) => {
-          // Kiểm tra trùng lặp nhanh trên Turso Cloud (< 50ms)
+    if (errors.length > 0) {
+      // Hiện tất cả tệp bị loại (kể cả khi vẫn còn tệp hợp lệ được giữ lại)
+      setGeneralError(errors.join('. '));
+      if (newItems.length === 0) return;
+    }
+
+    setFileQueue((prev) => [...prev, ...newItems]);
+
+    // Chạy kiểm định theo luồng điều phối (tối đa 3 tệp đồng thời) để hỗ trợ gửi hàng chục tệp cùng lúc (miễn mỗi tệp <= 25MB) mà không làm đơ trình duyệt
+    const CONCURRENCY = 3;
+    let cursor = 0;
+    const runWorker = async () => {
+      while (cursor < newItems.length) {
+        const currentIdx = cursor++;
+        const currentItem = newItems[currentIdx];
+        if (!currentItem) continue;
+        try {
+          const report = await inspectDocumentClient(currentItem.file);
           const dup = await checkHashExistsTurso(report.fileHash);
           setFileQueue((prev) =>
             prev.map((q) => {
-              if (q.id === newItem.id) {
+              if (q.id === currentItem.id) {
                 if (dup.exists) {
                   return {
                     ...q,
@@ -298,19 +316,14 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
               return q;
             })
           );
-        })
-        .catch((err) => {
+        } catch (err) {
           console.warn('[DocUploadZone] Lỗi client-side inspection:', err);
-        });
-    });
-
-    if (errors.length > 0) {
-      // Hiện tất cả tệp bị loại (kể cả khi vẫn còn tệp hợp lệ được giữ lại)
-      setGeneralError(errors.join('. '));
-      if (newItems.length === 0) return;
+        }
+      }
+    };
+    for (let w = 0; w < Math.min(CONCURRENCY, newItems.length); w++) {
+      void runWorker();
     }
-
-    setFileQueue((prev) => [...prev, ...newItems]);
   };
 
   const removeFileFromQueue = (id: string) => {
