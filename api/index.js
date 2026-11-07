@@ -1942,8 +1942,8 @@ export default async function handler(req, res) {
 
       let apiKey = process.env.NVIDIA_API_KEY || "";
       let baseUrl = process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
-      let primaryModel = "nvidia/nemotron-3.5-bolt-e4b";
-      let fallbackModel = "mistralai/mistral-large-4-1t-a52b";
+      let primaryModel = "nvidia/nemotron-3.5-super-vl-120b-a12b";
+      let fallbackModel = "nvidia/nemotron-3.5-lightning-30b-a3b";
 
       if (!apiKey) {
         const kvCfg = await getKvValue("nvidia_cloud_config");
@@ -1987,7 +1987,7 @@ Trả về đúng 1 JSON:
 
       const userPrompt = `Tên tệp: ${fileName}\nNội dung đề:\n${snippet}\n\nChỉ trả về JSON:`;
 
-      for (const model of [primaryModel, fallbackModel]) {
+      for (const model of [primaryModel, fallbackModel, "nvidia/nemotron-3.5-bolt-e4b"]) {
         try {
           const controller = new AbortController();
           const tId = setTimeout(() => controller.abort(), 4200);
@@ -2005,6 +2005,10 @@ Trả về đúng 1 JSON:
               ],
               max_tokens: 260,
               temperature: 0.0,
+              chat_template_kwargs: {
+                thinking: false,
+                enable_thinking: false,
+              },
             }),
             signal: controller.signal,
           });
