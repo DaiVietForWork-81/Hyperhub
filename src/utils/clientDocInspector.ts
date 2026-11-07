@@ -8,6 +8,13 @@
  * 3. Hoàn toàn Zero External NPM Dependencies (Dùng Web Crypto, DecompressionStream native).
  */
 
+export interface VerificationCheckStep {
+  stepNumber: number;
+  title: string;
+  status: 'passed' | 'warning';
+  detail: string;
+}
+
 export interface ClientInspectionReport {
   fileHash: string;
   fileName: string;
@@ -16,6 +23,7 @@ export interface ClientInspectionReport {
   detectedSubjectVi: string;
   estimatedLevel: string;
   examType: string;
+  examTypeVi?: string;
   confidenceScore: number;
   questionCount: number;
   pageCount: number;
@@ -31,7 +39,48 @@ export interface ClientInspectionReport {
   hasDetailedSolutions: boolean;
   rawTextSnippet: string;
   summary: string;
+  verificationSteps?: VerificationCheckStep[];
+  ambiguityWarnings?: string[];
+  needsUserReview?: boolean;
 }
+
+export const SUBJECT_SELECT_OPTIONS: Array<{ value: string; label: string; cap: 'CHUNG' | 'CAP_2' | 'CAP_3' }> = [
+  { value: 'MATHEMATICS', label: 'Toán', cap: 'CHUNG' },
+  { value: 'PHYSICS', label: 'Vật lí', cap: 'CAP_3' },
+  { value: 'CHEMISTRY', label: 'Hóa học', cap: 'CAP_3' },
+  { value: 'BIOLOGY', label: 'Sinh học', cap: 'CAP_3' },
+  { value: 'INFORMATICS', label: 'Tin học', cap: 'CHUNG' },
+  { value: 'LITERATURE', label: 'Ngữ văn', cap: 'CHUNG' },
+  { value: 'ENGLISH', label: 'Ngoại ngữ 1 (Tiếng Anh)', cap: 'CHUNG' },
+  { value: 'HISTORY', label: 'Lịch sử', cap: 'CHUNG' },
+  { value: 'GEOGRAPHY', label: 'Địa lí', cap: 'CAP_3' },
+  { value: 'NATURAL_SCIENCE', label: 'Khoa học tự nhiên (Cấp 2)', cap: 'CAP_2' },
+  { value: 'HISTORY_GEOGRAPHY', label: 'Lịch sử và Địa lí (Cấp 2)', cap: 'CAP_2' },
+  { value: 'CIVIC_EDUCATION', label: 'Giáo dục công dân (Cấp 2)', cap: 'CAP_2' },
+  { value: 'ECONOMIC_LEGAL_EDU', label: 'Giáo dục kinh tế và pháp luật (Cấp 3)', cap: 'CAP_3' },
+  { value: 'TECHNOLOGY', label: 'Công nghệ', cap: 'CHUNG' },
+  { value: 'DEFENSE_SECURITY_EDU', label: 'Giáo dục quốc phòng và an ninh', cap: 'CAP_3' },
+  { value: 'GENERAL', label: 'Tài liệu chung / Tổng hợp', cap: 'CHUNG' },
+];
+
+export const GRADE_SELECT_OPTIONS: string[] = [
+  'Khối 12 (Ôn thi THPT)',
+  'Khối 11',
+  'Khối 10',
+  'Khối 9 (Ôn Vào 10)',
+  'Khối 8',
+  'Khối 7',
+  'Khối 6',
+  'Khối THCS',
+];
+
+export const EXAM_TYPE_SELECT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'THI_THU_THPT', label: 'Đề thi thử / Tốt nghiệp THPT' },
+  { value: 'KIEM_TRA_DINH_KY', label: 'Đề kiểm tra Giữa kỳ / Học kỳ' },
+  { value: 'TUYEN_SINH_10', label: 'Đề thi tuyển sinh vào lớp 10' },
+  { value: 'DE_CHUYEN_HSG', label: 'Đề thi HSG / Chuyên / Olympic' },
+  { value: 'TAI_LIEU_ON_TAP', label: 'Chuyên đề / Đề cương ôn tập' },
+];
 
 // ============================================================================
 // 1. TÍNH SHA-256 BẰNG WEB CRYPTO API (HARDWARE-ACCELERATED, ~2ms)
@@ -380,51 +429,173 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
 
   // Kết hợp text trích xuất và tên file để nhận diện (tăng lên 30,000 ký tự)
   const searchCorpus = `${file.name} ${extractedText.slice(0, 30000)}`;
+  const headerSnippet = `${file.name} ${extractedText.slice(0, 1500)}`;
+  const ambiguityWarnings: string[] = [];
+  const verificationSteps: VerificationCheckStep[] = [];
 
-  // 1. Nhận diện Môn học theo thang điểm đa tầng (Frequency Scoring + Filename Boost)
-  const subjectScores: Record<string, number> = {};
-  for (const key of Object.keys(SUBJECT_MAP)) {
-    subjectScores[key] = 0;
+  // =========================================================================
+  // BƯỚC 1: KIỂM TRA ĐỊNH DẠNG TỆP & CẤU TRÚC CÂU HỎI
+  // =========================================================================
+  const qMatches = searchCorpus.match(/(?:câu|cau|bài|bai|question)\s*([0-9]{1,3})[:.)]/gi) || [];
+  const questionCount = qMatches.length;
+  const pageCount = Math.max(1, Math.ceil(file.size / (150 * 1024)));
+  const hasAnswerKeys = RE_ANSWER_KEYS.test(searchCorpus);
+  const hasDetailedSolutions = /(?:lời\s*giải\s*chi\s*tiết|hướng\s*dẫn\s*giải)/i.test(searchCorpus);
+
+  if (extractedText.trim().length < 80 && ext === '.pdf') {
+    ambiguityWarnings.push(
+      'Tệp PDF có ít văn bản trực tiếp (có thể là bản quét dạng ảnh). Vui lòng kiểm tra kỹ Môn học và Khối lớp bên dưới trước khi xác nhận.'
+    );
+    verificationSteps.push({
+      stepNumber: 1,
+      title: 'Bước 1: Kiểm tra tệp & cấu trúc câu hỏi',
+      status: 'warning',
+      detail: `Bản PDF dạng ảnh/ít chữ (${pageCount} trang) — cần đối chiếu thông tin phân loại bên dưới.`,
+    });
+  } else if (questionCount === 0) {
+    ambiguityWarnings.push(
+      'Chưa phát hiện đánh số câu hỏi rõ ràng (có thể là đề cương lý thuyết, chuyên đề ôn tập hoặc đề tự luận ngắn). Vui lòng kiểm tra mục Loại đề.'
+    );
+    verificationSteps.push({
+      stepNumber: 1,
+      title: 'Bước 1: Kiểm tra tệp & cấu trúc câu hỏi',
+      status: 'warning',
+      detail: `Đọc được nội dung (${pageCount} trang) nhưng chưa thấy đánh số câu hỏi — phân loại mặc định là Tài liệu / Đề cương ôn tập.`,
+    });
+  } else {
+    verificationSteps.push({
+      stepNumber: 1,
+      title: 'Bước 1: Kiểm tra tệp & cấu trúc câu hỏi',
+      status: 'passed',
+      detail: `Hợp lệ: Nhận diện ${questionCount} câu hỏi • Khoảng ${pageCount} trang • ${
+        hasDetailedSolutions ? 'Có lời giải chi tiết' : hasAnswerKeys ? 'Có bảng đáp án' : 'Đề bài'
+      }.`,
+    });
   }
 
-  // Filename boost (+60 điểm nếu tên file khớp hint đặc thù)
+  // =========================================================================
+  // BƯỚC 2: ĐỐI CHIẾU MÔN HỌC ĐA BƯỚC (TIÊU ĐỀ ĐẦU TRANG ↔ TÊN TỆP ↔ NỘI DUNG)
+  // =========================================================================
+  const subjectScores: Record<string, number> = {};
+  const bodyOnlyScores: Record<string, number> = {};
+  for (const key of Object.keys(SUBJECT_MAP)) {
+    subjectScores[key] = 0;
+    bodyOnlyScores[key] = 0;
+  }
+
+  // 2a. Nhận diện từ tên tệp (+60 điểm)
+  let filenameSubject: string | undefined;
   const cleanFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   for (const [key, hintRe] of Object.entries(FILENAME_SUBJECT_HINTS)) {
     if (hintRe.test(cleanFileName) || hintRe.test(file.name.toLowerCase())) {
       subjectScores[key] = (subjectScores[key] || 0) + 60;
+      if (!filenameSubject) filenameSubject = key;
     }
   }
 
-  // Corpus occurrences (Mỗi lần xuất hiện +5 điểm)
+  // 2b. Nhận diện Tiêu đề chính thức ở đầu đề thi ("MÔN: ...", "Bài thi: ...", "Đề thi môn ...") (+160 điểm)
+  const explicitHeaderPatterns: Array<{ key: string; re: RegExp }> = [
+    { key: 'PHYSICS', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*vật\s*l[íy]/i },
+    { key: 'CHEMISTRY', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*hóa\s*học/i },
+    { key: 'BIOLOGY', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*sinh\s*học/i },
+    { key: 'INFORMATICS', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*tin\s*học/i },
+    { key: 'LITERATURE', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*ngữ\s*văn/i },
+    { key: 'ENGLISH', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*(?:tiếng\s*anh|ngoại\s*ngữ)/i },
+    { key: 'HISTORY_GEOGRAPHY', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*lịch\s*sử\s*(?:và|&)\s*địa\s*l[íy]/i },
+    { key: 'NATURAL_SCIENCE', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*(?:khoa\s*học\s*tự\s*nhiên|khtn)/i },
+    { key: 'ECONOMIC_LEGAL_EDU', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*(?:giáo\s*dục\s*)?kinh\s*tế\s*(?:và|&)\s*pháp\s*luật/i },
+    { key: 'CIVIC_EDUCATION', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*(?:giáo\s*dục\s*công\s*dân|gdcd)/i },
+    { key: 'HISTORY', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*lịch\s*sử(?!\s*(?:và|&)\s*địa)/i },
+    { key: 'GEOGRAPHY', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*địa\s*l[íy]/i },
+    { key: 'MATHEMATICS', re: /(?:môn(?:\s+thi|\s+kiểm\s+tra)?|bài\s+thi)\s*[:\-–—]?\s*toán(?:\s*học)?/i },
+  ];
+  let headerExplicitSubject: string | undefined;
+  for (const item of explicitHeaderPatterns) {
+    if (item.re.test(headerSnippet)) {
+      subjectScores[item.key] = (subjectScores[item.key] || 0) + 160;
+      headerExplicitSubject = item.key;
+      break;
+    }
+  }
+
+  // 2c. Quét tần suất thuật ngữ chuyên môn trong văn bản
   for (const [key, val] of Object.entries(SUBJECT_MAP)) {
     const globalRe = new RegExp(val.re.source, 'gi');
-    const matches = searchCorpus.match(globalRe);
+    const matches = extractedText.slice(0, 30000).match(globalRe);
     if (matches) {
-      subjectScores[key] = (subjectScores[key] || 0) + matches.length * 5;
+      const pts = matches.length * 5;
+      subjectScores[key] = (subjectScores[key] || 0) + pts;
+      bodyOnlyScores[key] = pts;
     }
   }
 
+  const sortedSubjects = Object.entries(subjectScores).sort((a, b) => b[1] - a[1]);
   let detectedSubject = 'GENERAL';
   let detectedSubjectVi = 'Tài liệu chung';
-  let highestScore = 0;
-  for (const [key, score] of Object.entries(subjectScores)) {
-    if (score > highestScore) {
-      highestScore = score;
-      detectedSubject = key;
-      detectedSubjectVi = SUBJECT_MAP[key].vi;
-    }
+  const highestScore = sortedSubjects[0]?.[1] || 0;
+  const secondScore = sortedSubjects[1]?.[1] || 0;
+
+  if (highestScore > 0 && sortedSubjects[0]) {
+    detectedSubject = sortedSubjects[0][0];
+    detectedSubjectVi = SUBJECT_MAP[detectedSubject]?.vi || 'Tài liệu chung';
   }
 
-  // 2. Nhận diện Khối lớp
+  // Kiểm tra lệch giữa Tên tệp và Nội dung bên trong
+  const topBodyEntry = Object.entries(bodyOnlyScores).sort((a, b) => b[1] - a[1])[0];
+  const topBodySubject = topBodyEntry && topBodyEntry[1] >= 25 ? topBodyEntry[0] : undefined;
+
+  if (filenameSubject && topBodySubject && filenameSubject !== topBodySubject) {
+    const fnVi = SUBJECT_MAP[filenameSubject]?.vi || filenameSubject;
+    const bodyVi = SUBJECT_MAP[topBodySubject]?.vi || topBodySubject;
+    ambiguityWarnings.push(
+      `Tên tệp gợi ý môn "${fnVi}" nhưng nội dung câu hỏi bên trong mang đặc trưng môn "${bodyVi}". Vui lòng kiểm tra và chọn lại môn học đúng.`
+    );
+    verificationSteps.push({
+      stepNumber: 2,
+      title: 'Bước 2: Đối chiếu môn học (Tiêu đề & Nội dung)',
+      status: 'warning',
+      detail: `Phát hiện khác biệt giữa tên tệp (${fnVi}) và nội dung câu hỏi (${bodyVi}).`,
+    });
+  } else if (!headerExplicitSubject && highestScore > 0 && secondScore > 0 && secondScore / highestScore >= 0.78) {
+    const s1Vi = SUBJECT_MAP[sortedSubjects[0][0]]?.vi || sortedSubjects[0][0];
+    const s2Vi = SUBJECT_MAP[sortedSubjects[1][0]]?.vi || sortedSubjects[1][0];
+    ambiguityWarnings.push(
+      `Tài liệu có thuật ngữ giao thoa giữa môn "${s1Vi}" và "${s2Vi}". Vui lòng xác nhận môn học bên dưới.`
+    );
+    verificationSteps.push({
+      stepNumber: 2,
+      title: 'Bước 2: Đối chiếu môn học (Tiêu đề & Nội dung)',
+      status: 'warning',
+      detail: `Có từ vựng liên môn giữa ${s1Vi} và ${s2Vi} — đã chọn ${detectedSubjectVi}.`,
+    });
+  } else {
+    verificationSteps.push({
+      stepNumber: 2,
+      title: 'Bước 2: Đối chiếu môn học (Tiêu đề & Nội dung)',
+      status: 'passed',
+      detail: `Đồng nhất môn ${detectedSubjectVi}${
+        headerExplicitSubject ? ' (khớp trực tiếp tiêu đề môn thi trên đầu đề)' : ''
+      }.`,
+    });
+  }
+
+  // =========================================================================
+  // BƯỚC 3: PHÂN ĐỊNH KHỐI LỚP & CẤP HỌC (TRÁNH NHẦM "THI VÀO 10" VỚI "LỚP 10")
+  // =========================================================================
+  const isEntranceGrade10 =
+    /(?:tuyển\s*sinh\s*(?:vào\s*)?(?:lớp\s*)?10|thi\s*vào\s*(?:lớp\s*)?10|ôn\s*thi\s*(?:vào\s*)?(?:lớp\s*)?10)/i.test(
+      searchCorpus
+    ) && !/(?:khảo\s*sát\s*đầu\s*năm\s*lớp\s*10|giữa\s*kỳ\s*[12]\s*lớp\s*10|học\s*kỳ\s*[12]\s*lớp\s*10)/i.test(searchCorpus);
+
   let estimatedLevel = 'Khối 12 (Ôn thi THPT)';
-  if (/lớp\s*10|khối\s*10|k10\b|10th/i.test(searchCorpus)) {
-    estimatedLevel = 'Khối 10';
+  if (isEntranceGrade10 || /lớp\s*9|khối\s*9|k9\b|9th/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 9 (Ôn Vào 10)';
+  } else if (/lớp\s*12|khối\s*12|k12\b|12th|thpt\s*quốc\s*gia|tốt\s*nghiệp\s*thpt/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 12 (Ôn thi THPT)';
   } else if (/lớp\s*11|khối\s*11|k11\b|11th/i.test(searchCorpus)) {
     estimatedLevel = 'Khối 11';
-  } else if (/lớp\s*12|khối\s*12|k12\b|12th|thpt\s*quốc\s*gia/i.test(searchCorpus)) {
-    estimatedLevel = 'Khối 12 (Ôn thi THPT)';
-  } else if (/lớp\s*9|khối\s*9|k9\b|9th|vào\s*10/i.test(searchCorpus)) {
-    estimatedLevel = 'Khối 9 (Ôn Vào 10)';
+  } else if (/lớp\s*10|khối\s*10|k10\b|10th/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 10';
   } else if (/lớp\s*8|khối\s*8|k8\b|8th/i.test(searchCorpus)) {
     estimatedLevel = 'Khối 8';
   } else if (/lớp\s*7|khối\s*7|k7\b|7th/i.test(searchCorpus)) {
@@ -435,7 +606,7 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     estimatedLevel = 'Khối THCS';
   }
 
-  // 3. Phân loại Bậc Giáo Dục (Chung, Cấp 2, Cấp 3)
+  // Phân loại Bậc Giáo Dục (Chung, Cấp 2, Cấp 3)
   let educationalLevel: 'CHUNG' | 'CAP_2' | 'CAP_3' = 'CHUNG';
   const matchedSubjObj = SUBJECT_MAP[detectedSubject];
   if (matchedSubjObj?.cap === 'CAP_2') {
@@ -444,11 +615,19 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     educationalLevel = 'CAP_3';
   }
 
-  // Tinh chỉnh theo khối lớp
-  if (/lớp\s*[6-9]|khối\s*[6-9]|k[6-9]\b|[6-9]th|thcs|vào\s*10/i.test(searchCorpus)) {
+  if (isEntranceGrade10 || /Khối [6-9]|Khối THCS/.test(estimatedLevel)) {
     educationalLevel = 'CAP_2';
-  } else if (/lớp\s*(?:10|11|12)|khối\s*(?:10|11|12)|k(?:10|11|12)\b|(?:10|11|12)th|thpt|tốt\s*nghiệp|đại\s*học/i.test(searchCorpus)) {
+  } else if (/Khối 10|Khối 11|Khối 12/.test(estimatedLevel)) {
     educationalLevel = 'CAP_3';
+  }
+
+  // Đồng bộ chéo Môn học theo Cấp học (GDPT 2018: Cấp 2 là GDCD, Cấp 3 là GDKT&PL)
+  if (educationalLevel === 'CAP_3' && detectedSubject === 'CIVIC_EDUCATION') {
+    detectedSubject = 'ECONOMIC_LEGAL_EDU';
+    detectedSubjectVi = SUBJECT_MAP.ECONOMIC_LEGAL_EDU.vi;
+  } else if (educationalLevel === 'CAP_2' && detectedSubject === 'ECONOMIC_LEGAL_EDU') {
+    detectedSubject = 'CIVIC_EDUCATION';
+    detectedSubjectVi = SUBJECT_MAP.CIVIC_EDUCATION.vi;
   }
 
   const educationalLevelVi =
@@ -458,7 +637,26 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
       ? 'Cấp 3 (THPT)'
       : 'Chung (Cả 2 cấp)';
 
-  // 4. Nhận diện Năm học & Trường ra đề
+  if (isEntranceGrade10) {
+    verificationSteps.push({
+      stepNumber: 3,
+      title: 'Bước 3: Đối chiếu Khối lớp & Bậc học',
+      status: 'passed',
+      detail:
+        'Đã phân định rõ: Đề thi tuyển sinh vào lớp 10 thuộc chương trình Khối 9 (Ôn Vào 10 — Cấp 2 THCS), tránh nhầm sang chương trình Lớp 10 THPT.',
+    });
+  } else {
+    verificationSteps.push({
+      stepNumber: 3,
+      title: 'Bước 3: Đối chiếu Khối lớp & Bậc học',
+      status: 'passed',
+      detail: `Xác định ${estimatedLevel} • Bậc ${educationalLevelVi}.`,
+    });
+  }
+
+  // =========================================================================
+  // BƯỚC 4: PHÂN ĐỊNH LOẠI ĐỀ & NGUỒN TRƯỜNG (TRÁNH NHẦM TRƯỜNG CHUYÊN VỚI ĐỀ CHUYÊN)
+  // =========================================================================
   let academicYear: string | undefined;
   const yearMatch = searchCorpus.match(RE_ACADEMIC_YEAR);
   if (yearMatch) {
@@ -471,18 +669,13 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     schoolOrDepartment = schoolMatch[0].trim().replace(/[-–—]+$/, '');
   }
 
-  // 5. Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (Chỉ áp dụng đề thi trắc nghiệm, không áp dụng Ngữ văn)
+  // Nhận diện Cấu trúc Chuẩn Bộ GD&ĐT 2025 (Chỉ áp dụng đề thi trắc nghiệm, không áp dụng Ngữ văn)
   const isMcqExam = detectedSubject !== 'LITERATURE';
   const hasPart1 = RE_MOET_PART1.test(searchCorpus);
   const hasPart2 = RE_MOET_PART2.test(searchCorpus);
   const hasPart3 = RE_MOET_PART3.test(searchCorpus);
   const moet2025Compliant = isMcqExam && hasPart1 && (hasPart2 || hasPart3);
 
-  // Đếm sơ bộ câu hỏi trắc nghiệm
-  const qMatches = searchCorpus.match(/(?:câu|cau|bài|bai|question)\s*([0-9]{1,3})[:.)]/gi) || [];
-  const questionCount = qMatches.length;
-
-  // Đếm thực tế theo từng phần nếu là chuẩn 2025 (fallback về chuẩn khung của Bộ nếu cắt lát thiếu)
   let p1Count = 0;
   let p2Count = 0;
   let p3Count = 0;
@@ -509,21 +702,60 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     if (p3Count === 0) p3Count = detectedSubject === 'MATHEMATICS' ? 6 : 4;
   }
 
-  const hasAnswerKeys = RE_ANSWER_KEYS.test(searchCorpus);
-  const hasDetailedSolutions = /(?:lời\s*giải\s*chi\s*tiết|hướng\s*dẫn\s*giải)/i.test(searchCorpus);
+  // Khử từ "Trường THPT Chuyên ..." và "Chuyên đề ..." trước khi xét đề thi Chuyên/HSG
+  const corpusWithoutSchoolAndTopic = headerSnippet
+    .replace(/(?:trường\s*)?thpt\s*chuyên\s+[a-zA-ZÀ-ỹ0-9\s\-–]{2,35}/gi, ' ')
+    .replace(/chuyên\s*(?:đề|ngành|mục|cần|sâu)/gi, ' ');
 
-  // Loại đề
+  const hasChuyenSchoolHeader = /(?:trường\s*)?thpt\s*chuyên/i.test(headerSnippet);
+  const isTrueGiftedOrChuyenExam =
+    /(?:học\s*sinh\s*giỏi|\bhsg\b|chọn\s*đội\s*tuyển|olympic|vào\s*(?:lớp\s*)?10\s*chuyên|tuyển\s*sinh\s*lớp\s*10\s*chuyên|đề\s*thi\s*chuyên)/i.test(
+      corpusWithoutSchoolAndTopic
+    );
+
   let examType = 'TAI_LIEU_ON_TAP';
-  if (/thi\s*thử|kỳ\s*thi\s*thử/i.test(searchCorpus)) {
+  let examTypeVi = 'Chuyên đề / Đề cương ôn tập';
+
+  if (isEntranceGrade10 && !isTrueGiftedOrChuyenExam) {
+    examType = 'TUYEN_SINH_10';
+    examTypeVi = 'Đề thi tuyển sinh vào lớp 10';
+  } else if (/thi\s*thử|tốt\s*nghiệp\s*thpt|thpt\s*quốc\s*gia/i.test(headerSnippet)) {
     examType = 'THI_THU_THPT';
-  } else if (/giữa\s*kỳ|học\s*kỳ|cuối\s*kỳ/i.test(searchCorpus)) {
+    examTypeVi = 'Đề thi thử / Tốt nghiệp THPT';
+  } else if (/giữa\s*(?:học\s*)?kỳ|cuối\s*(?:học\s*)?kỳ|học\s*kỳ\s*[12]|kiểm\s*tra\s*định\s*kỳ/i.test(headerSnippet)) {
     examType = 'KIEM_TRA_DINH_KY';
+    examTypeVi = 'Đề kiểm tra Giữa kỳ / Học kỳ';
+  } else if (isTrueGiftedOrChuyenExam) {
+    examType = 'DE_CHUYEN_HSG';
+    examTypeVi = 'Đề thi HSG / Chuyên / Olympic';
+  } else if (questionCount >= 10) {
+    examType = 'KIEM_TRA_DINH_KY';
+    examTypeVi = 'Đề kiểm tra Giữa kỳ / Học kỳ';
+  }
+
+  if (hasChuyenSchoolHeader && (examType === 'THI_THU_THPT' || examType === 'KIEM_TRA_DINH_KY')) {
+    verificationSteps.push({
+      stepNumber: 4,
+      title: 'Bước 4: Phân định Loại đề & Đơn vị ra đề',
+      status: 'passed',
+      detail: `Đã tách biệt: Đề do Trường THPT Chuyên biên soạn nhưng là "${examTypeVi}" (không nhầm với Đề thi chọn HSG/Chuyên).`,
+    });
+  } else {
+    verificationSteps.push({
+      stepNumber: 4,
+      title: 'Bước 4: Phân định Loại đề & Đơn vị ra đề',
+      status: 'passed',
+      detail: `Loại đề: ${examTypeVi}${schoolOrDepartment ? ` • Nguồn: ${schoolOrDepartment}` : ''}${
+        academicYear ? ` • Năm học: ${academicYear}` : ''
+      }.`,
+    });
   }
 
   const summary = [
     `Bậc: ${educationalLevelVi}`,
     `Môn: ${detectedSubjectVi}`,
     `Khối: ${estimatedLevel}`,
+    `Loại: ${examTypeVi}`,
     moet2025Compliant ? `Chuẩn 2025 (P1: ${p1Count}, P2: ${p2Count}, P3: ${p3Count})` : null,
     academicYear ? `Năm học: ${academicYear}` : null,
     schoolOrDepartment ? `Nguồn: ${schoolOrDepartment}` : null,
@@ -543,9 +775,10 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     detectedSubjectVi,
     estimatedLevel,
     examType,
-    confidenceScore: 0.95,
+    examTypeVi,
+    confidenceScore: ambiguityWarnings.length > 0 ? 0.82 : 0.96,
     questionCount,
-    pageCount: Math.max(1, Math.ceil(file.size / (150 * 1024))),
+    pageCount,
     academicYear,
     schoolOrDepartment,
     educationalLevel,
@@ -558,5 +791,8 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     hasDetailedSolutions,
     rawTextSnippet: extractedText.slice(0, 5000),
     summary,
+    verificationSteps,
+    ambiguityWarnings,
+    needsUserReview: ambiguityWarnings.length > 0,
   };
 }

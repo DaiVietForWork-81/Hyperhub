@@ -41,6 +41,9 @@ import { useToast } from '../context/ToastContext';
 import {
   inspectDocumentClient,
   ClientInspectionReport,
+  SUBJECT_SELECT_OPTIONS,
+  GRADE_SELECT_OPTIONS,
+  EXAM_TYPE_SELECT_OPTIONS,
 } from '../utils/clientDocInspector';
 import {
   checkHashExistsTurso,
@@ -134,6 +137,8 @@ interface QueuedFile {
   result?: InspectionResult;
   errorMessage?: string;
   duplicateInfo?: DuplicateInfo;
+  userConfirmed?: boolean;
+  isEditingMeta?: boolean;
 }
 
 interface GDriveBlockedDetail {
@@ -283,7 +288,12 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     errorMessage: `Tài liệu đã tồn tại trong kho (nộp bởi ${dup.existingDoc?.author_name || 'thành viên'} vào ${dup.existingDoc?.timestamp || 'trước đó'})`,
                   };
                 }
-                return { ...q, clientReport: report };
+                return {
+                  ...q,
+                  clientReport: report,
+                  userConfirmed: !report.needsUserReview,
+                  isEditingMeta: Boolean(report.needsUserReview),
+                };
               }
               return q;
             })
@@ -312,6 +322,93 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     if (isUploading) return;
     setFileQueue([]);
     setHasCompletedBatch(false);
+    setGeneralError('');
+  };
+
+  const toggleEditQueueItem = (id: string) => {
+    if (isUploading) return;
+    setFileQueue((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, isEditingMeta: !item.isEditingMeta } : item
+      )
+    );
+  };
+
+  const updateQueueItemReport = (
+    id: string,
+    patch: Partial<ClientInspectionReport>
+  ) => {
+    setFileQueue((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || !item.clientReport) return item;
+        const nextReport: ClientInspectionReport = {
+          ...item.clientReport,
+          ...patch,
+        };
+        if (patch.detectedSubject) {
+          const found = SUBJECT_SELECT_OPTIONS.find((s) => s.value === patch.detectedSubject);
+          if (found) {
+            nextReport.detectedSubjectVi = found.label;
+            if (found.cap !== 'CHUNG') {
+              nextReport.educationalLevel = found.cap;
+              nextReport.educationalLevelVi =
+                found.cap === 'CAP_2' ? 'Cấp 2 (THCS)' : 'Cấp 3 (THPT)';
+            }
+          }
+        }
+        if (patch.estimatedLevel) {
+          if (/Khối [6-9]|Khối THCS/.test(patch.estimatedLevel)) {
+            nextReport.educationalLevel = 'CAP_2';
+            nextReport.educationalLevelVi = 'Cấp 2 (THCS)';
+          } else if (/Khối 10|Khối 11|Khối 12/.test(patch.estimatedLevel)) {
+            nextReport.educationalLevel = 'CAP_3';
+            nextReport.educationalLevelVi = 'Cấp 3 (THPT)';
+          }
+        }
+        if (patch.examType) {
+          const foundType = EXAM_TYPE_SELECT_OPTIONS.find((t) => t.value === patch.examType);
+          if (foundType) {
+            nextReport.examTypeVi = foundType.label;
+          }
+        }
+        nextReport.summary = [
+          `Bậc: ${nextReport.educationalLevelVi}`,
+          `Môn: ${nextReport.detectedSubjectVi}`,
+          `Khối: ${nextReport.estimatedLevel}`,
+          nextReport.examTypeVi ? `Loại: ${nextReport.examTypeVi}` : null,
+          nextReport.academicYear ? `Năm học: ${nextReport.academicYear}` : null,
+          nextReport.schoolOrDepartment ? `Nguồn: ${nextReport.schoolOrDepartment}` : null,
+          nextReport.hasAnswerKeys ? 'Có đáp án' : null,
+        ]
+          .filter(Boolean)
+          .join(' | ');
+        return {
+          ...item,
+          clientReport: nextReport,
+        };
+      })
+    );
+  };
+
+  const confirmQueueItem = (id: string) => {
+    setFileQueue((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, userConfirmed: true, isEditingMeta: false }
+          : item
+      )
+    );
+    setGeneralError('');
+  };
+
+  const confirmAllPendingItems = () => {
+    setFileQueue((prev) =>
+      prev.map((item) =>
+        item.status === 'pending'
+          ? { ...item, userConfirmed: true, isEditingMeta: false }
+          : item
+      )
+    );
     setGeneralError('');
   };
 
@@ -481,6 +578,19 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
   const handleBatchUpload = async () => {
     if (fileQueue.length === 0) return;
+
+    const unconfirmedItems = fileQueue.filter(
+      (it) =>
+        it.status === 'pending' &&
+        it.clientReport?.needsUserReview &&
+        !it.userConfirmed
+    );
+    if (unconfirmedItems.length > 0) {
+      setGeneralError(
+        `Có ${unconfirmedItems.length} đề thi cần bạn kiểm tra và bấm "Xác nhận đúng thông tin" ở bên dưới để tránh nhầm lẫn phân loại trước khi nộp!`
+      );
+      return;
+    }
 
     setIsUploading(true);
     setGeneralError('');
@@ -1029,6 +1139,19 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {!isUploading &&
+                    !hasCompletedBatch &&
+                    fileQueue.some((f) => f.status === 'pending' && !f.userConfirmed) && (
+                      <button
+                        type="button"
+                        onClick={confirmAllPendingItems}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Xác nhận tất cả</span>
+                      </button>
+                    )}
+
                   {!isUploading && !hasCompletedBatch && (
                     <button
                       type="button"
@@ -1225,7 +1348,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               )}
                             </div>
 
-                            {/* HIỂN THỊ TIỀN KIỂM ĐỊNH TỪ TRÌNH DUYỆT (Client-side Edge Inspector) */}
+                            {/* HIỂN THỊ TÓM TẮT PHÂN LOẠI ĐỀ */}
                             {item.clientReport && item.status !== 'success' && (
                               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                 <span
@@ -1250,6 +1373,11 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                   <FileText className="w-2.5 h-2.5 text-purple-400" />
                                   <span>{item.clientReport.detectedSubjectVi} • {item.clientReport.estimatedLevel}</span>
                                 </span>
+                                {item.clientReport.examTypeVi && (
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25 flex items-center gap-1">
+                                    <span>{item.clientReport.examTypeVi}</span>
+                                  </span>
+                                )}
                                 {item.clientReport.moet2025Compliant && (
                                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 flex items-center gap-1">
                                     <Layers className="w-3 h-3 text-cyan-400" />
@@ -1266,6 +1394,27 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                   <span className="px-1.5 py-0.5 rounded-md text-[10px] text-slate-300 bg-white/5 border border-white/10 truncate max-w-[200px] flex items-center gap-1">
                                     <School className="w-2.5 h-2.5 text-slate-400" />
                                     <span>{item.clientReport.schoolOrDepartment}</span>
+                                  </span>
+                                )}
+                                {item.status === 'pending' && (
+                                  <span
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 ${
+                                      item.userConfirmed
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                    }`}
+                                  >
+                                    {item.userConfirmed ? (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                        <span>Đã kiểm tra 4 bước</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <AlertTriangle className="w-3 h-3 text-amber-400" />
+                                        <span>Cần xác nhận phân loại</span>
+                                      </>
+                                    )}
                                   </span>
                                 )}
                               </div>
@@ -1319,13 +1468,201 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
 
 
-                      {/* CẢNH BÁO CHỐNG NỘP TRÙNG TUYỆT ĐỐI (DUPLICATE GUARD) */}
+                      {/* QUY TRÌNH KIỂM TRA ĐỀ THI 4 BƯỚC (TRÁNH HIỂU LẦM PHÂN LOẠI) */}
+                      {item.clientReport && item.status === 'pending' && (
+                        <div className="mt-3.5 p-3.5 rounded-2xl bg-slate-950/75 border border-white/10 space-y-3 text-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 font-bold text-slate-200">
+                              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span>Kiểm Tra Đề Thi Đa Bước (Tránh Nhầm Lẫn Môn Học • Khối Lớp • Loại Đề)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleEditQueueItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/5 hover:bg-white/15 text-purple-300 border border-purple-500/30 transition-all cursor-pointer"
+                              >
+                                {item.isEditingMeta ? 'Ẩn chỉnh sửa' : 'Chỉnh sửa phân loại'}
+                              </button>
+                              {!item.userConfirmed && (
+                                <button
+                                  type="button"
+                                  onClick={() => confirmQueueItem(item.id)}
+                                  className="px-3 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Xác nhận đúng thông tin</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 4 BƯỚC ĐỐI CHIẾU CHI TIẾT */}
+                          {item.clientReport.verificationSteps && item.clientReport.verificationSteps.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {item.clientReport.verificationSteps.map((st) => (
+                                <div
+                                  key={st.stepNumber}
+                                  className={`p-2.5 rounded-xl border ${
+                                    st.status === 'warning'
+                                      ? 'bg-amber-950/30 border-amber-500/35 text-amber-200'
+                                      : 'bg-white/[0.02] border-white/10 text-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                                    {st.status === 'warning' ? (
+                                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                    ) : (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                    )}
+                                    <span>{st.title}</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                                    {st.detail}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* CẢNH BÁO ĐIỂM DỄ GÂY HIỂU LẦM NẾU CÓ */}
+                          {item.clientReport.ambiguityWarnings && item.clientReport.ambiguityWarnings.length > 0 && (
+                            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1.5">
+                              <div className="font-bold text-amber-300 text-[11px] flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span>Lưu ý cần kiểm tra để tránh hiểu lầm:</span>
+                              </div>
+                              <ul className="list-disc list-inside text-[11px] text-amber-200/90 space-y-1">
+                                {item.clientReport.ambiguityWarnings.map((warn, wIdx) => (
+                                  <li key={wIdx}>{warn}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* BẢNG CHỈNH SỬA & XÁC NHẬN TRỰC TIẾP THÔNG TIN ĐỀ */}
+                          {item.isEditingMeta && (
+                            <div className="p-3 rounded-xl bg-black/50 border border-purple-500/30 space-y-3">
+                              <div className="text-[11px] font-bold text-purple-300">
+                                Kiểm tra &amp; điều chỉnh thông tin đề thi (nếu cần):
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                    Môn học
+                                  </label>
+                                  <select
+                                    value={item.clientReport.detectedSubject}
+                                    onChange={(e) =>
+                                      updateQueueItemReport(item.id, { detectedSubject: e.target.value })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-white text-xs focus:border-purple-400 focus:outline-none"
+                                  >
+                                    {SUBJECT_SELECT_OPTIONS.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                    Khối lớp
+                                  </label>
+                                  <select
+                                    value={item.clientReport.estimatedLevel}
+                                    onChange={(e) =>
+                                      updateQueueItemReport(item.id, { estimatedLevel: e.target.value })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-white text-xs focus:border-purple-400 focus:outline-none"
+                                  >
+                                    {GRADE_SELECT_OPTIONS.map((g) => (
+                                      <option key={g} value={g}>
+                                        {g}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                    Loại đề thi / Tài liệu
+                                  </label>
+                                  <select
+                                    value={item.clientReport.examType}
+                                    onChange={(e) =>
+                                      updateQueueItemReport(item.id, { examType: e.target.value })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-white text-xs focus:border-purple-400 focus:outline-none"
+                                  >
+                                    {EXAM_TYPE_SELECT_OPTIONS.map((t) => (
+                                      <option key={t.value} value={t.value}>
+                                        {t.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                    Trường / Sở GD&amp;ĐT (Tùy chọn)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.clientReport.schoolOrDepartment || ''}
+                                    onChange={(e) =>
+                                      updateQueueItemReport(item.id, {
+                                        schoolOrDepartment: e.target.value || undefined,
+                                      })
+                                    }
+                                    placeholder="Ví dụ: THPT Chuyên Phan Bội Châu / Sở GD&ĐT Hà Nội"
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-white text-xs focus:border-purple-400 focus:outline-none"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                    Năm học (Tùy chọn)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.clientReport.academicYear || ''}
+                                    onChange={(e) =>
+                                      updateQueueItemReport(item.id, {
+                                        academicYear: e.target.value || undefined,
+                                      })
+                                    }
+                                    placeholder="Ví dụ: 2025-2026"
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-white text-xs focus:border-purple-400 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => confirmQueueItem(item.id)}
+                                  className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Lưu &amp; Xác nhận thông tin đề này</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* CẢNH BÁO TÀI LIỆU TRÙNG LẶP */}
                       {item.status === 'duplicate' && item.duplicateInfo && (
                         <div className="mt-3.5 p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-amber-300 font-bold">
                               <ShieldAlert className="w-4 h-4 text-amber-400" />
-                              <span>Chống Nộp Trùng Tuyệt Đối (Duplicate Guard)</span>
+                              <span>Cảnh Báo Trùng Lặp Tài Liệu</span>
                             </div>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/30 uppercase">
                               {item.duplicateInfo.match_type || 'Trùng Lặp'}
@@ -1825,7 +2162,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 flex items-center gap-1.5 transition-all cursor-pointer"
                             >
                               <Scale className="w-3.5 h-3.5" />
-                              <span>Dự Thảo 3+1</span>
+                              <span>Chi Tiết Đề</span>
                             </button>
                           )}
 
@@ -1898,9 +2235,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                 </div>
                 <div>
                   <h3 id="dossier-modal-title" className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <span>Biên Bản Giám Định Pháp Quy 3+1</span>
+                    <span>Bản Tóm Tắt Thông Tin Đề Thi</span>
                     <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                      Hội Đồng Trọng Tài
+                      Đã Kiểm Duyệt
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400 truncate max-w-md font-mono mt-0.5">
