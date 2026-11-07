@@ -872,18 +872,9 @@ function makeClientFingerprint(fileName: string, text: string): string {
   return `${normName}::${head.length}::${head.slice(0, 240)}::${tail.slice(0, 120)}`;
 }
 
-function shouldInvokeDeepVerifyClient(fileName: string, text: string, hasAmbiguity: boolean): boolean {
-  const fp = makeClientFingerprint(fileName, text);
-  if (CLIENT_VERIFY_CACHE.has(fp)) return true;
-  if (hasAmbiguity) return true;
-
-  const now = Date.now();
-  while (CLIENT_MINUTE_TIMESTAMPS.length > 0 && now - CLIENT_MINUTE_TIMESTAMPS[0] >= 60_000) {
-    CLIENT_MINUTE_TIMESTAMPS.shift();
-  }
-  // Khi hàng đợi đang thông thoáng (< 12 req/phút), cho phép đối chiếu 100%
-  // Khi người dùng kéo thả hàng loạt file cùng lúc (>= 12 req/phút), chỉ ưu tiên file có nguy cơ nhầm lẫn
-  return CLIENT_MINUTE_TIMESTAMPS.length < 12;
+function shouldInvokeDeepVerifyClient(_fileName: string, text: string, _hasAmbiguity: boolean): boolean {
+  // Quét 100% mọi tệp hợp lệ qua Cloud Model 550B (đã có hàng đợi điều tốc chống chạm trần 40 RPM)
+  return text.trim().length >= 25;
 }
 
 async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: string): Promise<any | null> {
