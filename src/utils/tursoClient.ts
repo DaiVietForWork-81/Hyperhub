@@ -658,7 +658,7 @@ export async function fetchAcademicLeaderboardTurso(): Promise<AcademicScholarEn
                 pomodoro_count, study_minutes, exams_completed, docs_contributed,
                 dream_school, dream_score
          FROM study_profiles
-         ORDER BY study_xp DESC, current_streak DESC
+         ORDER BY docs_contributed DESC, exams_completed DESC, pomodoro_count DESC
          LIMIT 30`
       ).catch(() => ({ rows: [] })),
       executeTurso(
@@ -736,7 +736,7 @@ export async function fetchAcademicLeaderboardTurso(): Promise<AcademicScholarEn
     }
 
     const list = Array.from(map.values()).sort(
-      (a, b) => b.study_xp - a.study_xp || b.current_streak - a.current_streak || b.docs_contributed - a.docs_contributed
+      (a, b) => b.docs_contributed - a.docs_contributed || b.exams_completed - a.exams_completed || b.pomodoro_count - a.pomodoro_count
     );
     return list.slice(0, 25).map((item, idx) => ({ ...item, rank: idx + 1 }));
   } catch (err) {

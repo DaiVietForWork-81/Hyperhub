@@ -3956,7 +3956,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       className="px-3.5 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[13px] font-extrabold flex items-center gap-1.5 cursor-pointer"
                     >
                       <PenTool className="w-3.5 h-3.5" />
-                      <span>Làm Bài (+100 XP)</span>
+                      <span>Làm Bài Thực Chiến</span>
                     </button>
                     <button
                       type="button"
@@ -4129,7 +4129,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 )}
 
                 <div className="pt-2.5 border-t border-[#1d1a29] flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/60">
-                  <span>Bấm trực tiếp vào tên đề để mở trình đọc PDF hoặc Phòng Thi Thực Chiến (+100 XP)</span>
+                  <span>Bấm trực tiếp vào tên đề để mở trình đọc PDF hoặc Phòng Thi Thực Chiến</span>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
@@ -4583,7 +4583,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     onClick={() => openExamModal(currentExam, 'practice_room')}
                     icon={<PenTool className="w-4 h-4 text-emerald-400" />}
                   >
-                    Mở Phòng Thi Thực Chiến (+100 XP)
+                    Mở Phòng Thi Thực Chiến
                   </PixelButton>
 
                   <PixelButton

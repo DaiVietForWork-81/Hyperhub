@@ -821,7 +821,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             }`}
           >
             <PenTool className="w-4 h-4" />
-            <span>Làm Đề Thực Chiến (+100 XP)</span>
+            <span>Làm Đề Thực Chiến</span>
           </button>
 
           <button
