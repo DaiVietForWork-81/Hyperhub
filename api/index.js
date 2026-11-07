@@ -1990,15 +1990,68 @@ export default async function handler(req, res) {
             rawText.slice(-8000)
           : rawText;
 
-      const sysPrompt = `Bạn là hệ thống kiểm định và phân loại đề thi chương trình giáo dục phổ thông Việt Nam (GDPT 2018).
-Nhiệm vụ của bạn là đọc tên tệp và nội dung trích xuất của đề thi, thực hiện đối chiếu 4 bước và trả về DUY NHẤT 1 chuỗi JSON hợp lệ.
-QUY TẮC BẮT BUỘC:
-1. Tách biệt "Trường THPT Chuyên" và "Đề thi Chuyên / HSG": Nếu đầu đề ghi "Trường THPT Chuyên ..." nhưng kỳ thi là "Thi thử Tốt nghiệp THPT", "Khảo sát chất lượng", "Giữa kỳ", "Học kỳ" thì exam_type PHẢI LÀ "THI_THU_THPT" hoặc "KIEM_TRA_DINH_KY" (KHÔNG ĐƯỢC xếp vào "DE_CHUYEN_HSG"). Chỉ xếp "DE_CHUYEN_HSG" khi đề thi chọn Học sinh giỏi, Tuyển sinh vào 10 Chuyên, hoặc Olympic.
-2. Phân biệt "Tuyển sinh vào lớp 10" và "Lớp 10 THPT": Đề ghi "Kỳ thi tuyển sinh vào lớp 10 THPT" / "Thi vào lớp 10" / "Ôn thi vào 10" là dành cho học sinh Lớp 9 (THCS) -> estimated_level = "Khối 9 (Ôn Vào 10)", educational_level = "CAP_2", exam_type = "TUYEN_SINH_10".
-3. Phân biệt môn học chuẩn GDPT 2018:
-   - Cấp 2 (Lớp 6-9): Khoa học tự nhiên -> "NATURAL_SCIENCE", Lịch sử và Địa lí -> "HISTORY_GEOGRAPHY", Giáo dục công dân -> "CIVIC_EDUCATION".
-   - Cấp 3 (Lớp 10-12): Vật lí -> "PHYSICS", Hóa học -> "CHEMISTRY", Sinh học -> "BIOLOGY", Toán -> "MATHEMATICS", Tin học -> "INFORMATICS", Ngữ văn -> "LITERATURE", Tiếng Anh -> "ENGLISH", Lịch sử -> "HISTORY", Địa lí -> "GEOGRAPHY", Giáo dục kinh tế và pháp luật -> "ECONOMIC_LEGAL_EDU".
-4. Trong trường verification_note: Viết 1 câu tiếng Việt tự nhiên xác nhận lý do phân loại (tuyệt đối KHÔNG nhắc chữ AI hay thuật ngữ kỹ thuật).
+      const sysPrompt = `Bạn là Hội đồng Thẩm định & Phân loại Học thuật Quốc gia (Chương trình GDPT 2018 - Bộ GD&ĐT Việt Nam).
+Nhiệm vụ của bạn là đọc tên tệp và nội dung đề thi, thực hiện QUY TRÌNH TƯ DUY ĐỌC ĐỀ 6 BƯỚC và trả về DUY NHẤT 1 đối tượng JSON hợp lệ.
+
+=====================================================================
+QUY TRÌNH TƯ DUY ĐỌC ĐỀ 6 BƯỚC (BẮT BUỘC SUY LUẬN TRƯỚC KHI KẾT LUẬN)
+=====================================================================
+BƯỚC 1 — QUÉT TIÊU ĐỀ HÀNH CHÍNH (15-25 DÒNG ĐẦU TIÊN):
+- Tìm cơ quan ban hành: "SỞ GD&ĐT ...", "PHÒNG GD&ĐT ...", "TRƯỜNG THPT ...", "TRƯỜNG THCS ...", "ĐẠI HỌC QUỐC GIA ...".
+- Tìm tên kỳ thi chính thức: "ĐỀ THI THỬ TỐT NGHIỆP THPT", "ĐỀ KIỂM TRA GIỮA HỌC KỲ 1", "ĐỀ KIỂM TRA CUỐI HỌC KỲ 2", "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT", "KỲ THI CHỌN HỌC SINH GIỎI".
+- Tìm dòng khai báo môn thi & khối lớp: "MÔN: ...", "LỚP 12 / 11 / 10 / 9 / 8 / 7 / 6".
+
+BƯỚC 2 — GIẢI BẪY NGỮ CẢNH PHỔ BIẾN (CỰC KỲ QUAN TRỌNG):
+- BẪY 1 ("Trường THPT Chuyên" vs "Đề thi Chuyên/HSG"):
+  + Nếu đầu đề ghi "TRƯỜNG THPT CHUYÊN ..." nhưng kỳ thi là "ĐỀ THI THỬ TỐT NGHIỆP THPT", "KHẢO SÁT CHẤT LƯỢNG", "ĐỀ KIỂM TRA GIỮA KỲ / HỌC KỲ" -> exam_type PHẢI LÀ "THI_THU_THPT" hoặc "KIEM_TRA_DINH_KY" (TUYỆT ĐỐI KHÔNG xếp vào "DE_CHUYEN_HSG").
+  + Chỉ xếp "DE_CHUYEN_HSG" khi bản thân kỳ thi là "CHỌN HỌC SINH GIỎI", "TUYỂN SINH VÀO LỚP 10 CHUYÊN", "MÔN: ... (CHUYÊN)", hoặc "OLYMPIC".
+- BẪY 2 ("Tuyển sinh vào lớp 10" vs "Lớp 10 THPT"):
+  + Đề ghi "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT", "THI VÀO LỚP 10", "ÔN THI VÀO 10" -> Đối tượng dự thi là HỌC SINH LỚP 9 (Cấp THCS). Do đó: estimated_level = "Khối 9 (Ôn Vào 10)", educational_level = "CAP_2", exam_type = "TUYEN_SINH_10".
+- BẪY 3 ("Trường THPT Chuyên Khoa học Tự nhiên" vs "Môn Khoa học tự nhiên"):
+  + "Trường THPT Chuyên Khoa học Tự nhiên (ĐHQGHN)" là TÊN TRƯỜNG CẤP 3. KHÔNG ĐƯỢC vì chữ "Khoa học Tự nhiên" trong tên trường mà gán nhầm môn "NATURAL_SCIENCE". Môn "NATURAL_SCIENCE" chỉ tồn tại ở Cấp 2 (Lớp 6, 7, 8, 9).
+- BẪY 4 ("Ký hiệu Toán học trong đề Vật lí / Hóa học / Sinh học"):
+  + Đề Vật lí (dao động điều hòa cos/sin, mạch điện, hạt nhân) và Hóa học (pH, tốc độ phản ứng, mol) chứa rất nhiều công thức. Phải ưu tiên dòng "MÔN: ..." ở tiêu đề và bản chất hiện tượng khoa học, KHÔNG gán nhầm sang Toán.
+
+BƯỚC 3 — ĐỐI CHIẾU BẢN ĐỒ KIẾN THỨC CHƯƠNG TRÌNH GDPT 2018 (DÙNG KHI TIÊU ĐỀ KHUYẾT LỚP HOẶC MÔN):
+1. MÔN TOÁN (MATHEMATICS):
+   - Lớp 12: Khảo sát & đồ thị hàm số (cực trị, tiệm cận, đơn điệu), Nguyên hàm - Tích phân, Vectơ & Tọa độ Oxyz trong không gian, Xác suất có điều kiện (công thức Bayes).
+   - Lớp 11: Lượng giác, Dãy số - Cấp số cộng - Cấp số nhân, Giới hạn - Hàm số liên tục, Hàm số mũ & Lôgarit, Đạo hàm, Quan hệ vuông góc trong không gian.
+   - Lớp 10: Mệnh đề - Tập hợp, Bất phương trình bậc nhất hai ẩn, Hệ thức lượng trong tam giác, Vectơ mặt phẳng Oxy, Đại số tổ hợp (hoán vị, chỉnh hợp, tổ hợp, nhị thức Newton).
+   - Lớp 9 (Ôn vào 10): Căn bậc hai - căn bậc ba, Hệ hai phương trình bậc nhất hai ẩn, Phương trình bậc hai & Định lý Vi-ét, Đường tròn & Tứ giác nội tiếp.
+   - Lớp 8: Đa thức nhiều biến, Hằng đẳng thức đáng nhớ, Phân thức đại số, Định lý Thalès, Hình chóp tam giác đều / tứ giác đều.
+   - Lớp 7: Số hữu tỉ, Số thực, Tỉ lệ thức & Dãy tỉ số bằng nhau, Hai tam giác bằng nhau.
+   - Lớp 6: Tập hợp số tự nhiên, Số nguyên, Phân số, Số thập phân, ƯCLN & BCNN.
+2. MÔN VẬT LÍ (PHYSICS - Cấp 3: Lớp 10-12):
+   - Lớp 12: Vật lí nhiệt (nội năng, nhiệt nóng chảy, nhiệt hóa hơi), Khí lí tưởng (Boyle, Charles, pV=nRT), Từ trường (lực từ, cảm ứng từ, từ thông, dòng điện xoay chiều), Vật lí hạt nhân (độ hụt khối, phóng xạ, phản ứng hạt nhân).
+   - Lớp 11: Dao động điều hòa (con lắc lò xo, con lắc đơn), Sóng cơ & Sóng điện từ, Giao thoa ánh sáng, Điện trường (định luật Coulomb, tụ điện), Dòng điện không đổi.
+   - Lớp 10: Động học (chuyển động thẳng biến đổi đều, rơi tự do), Động lực học (3 định luật Newton), Năng lượng - Công - Công suất, Động lượng.
+3. MÔN HÓA HỌC (CHEMISTRY - Cấp 3: Lớp 10-12):
+   - Lớp 12: Ester - Lipid, Carbohydrate (Glucose, Fructose, Saccharose, Tinh bột, Cellulose), Hợp chất chứa Nitrogen (Amine, Amino acid, Peptide, Protein), Polymer, Pin điện & Điện phân, Đại cương Kim loại, Nguyên tố nhóm IA, IIA, Kim loại chuyển tiếp dãy thứ nhất & Phức chất.
+   - Lớp 11: Cân bằng hóa học, pH, Nitrogen - Sulfur, Đại cương Hóa hữu cơ, Hydrocarbon (Alkane, Alkene, Alkyne, Arene), Dẫn xuất Halogen - Alcohol - Phenol, Hợp chất Carbonyl (Aldehyde, Ketone) - Carboxylic acid.
+   - Lớp 10: Cấu tạo nguyên tử (orbital, cấu hình electron), Bảng tuần hoàn, Liên kết hóa học, Phản ứng oxi hóa - khử, Enthalpy (nhiệt phản ứng), Tốc độ phản ứng, Nhóm Halogen.
+4. MÔN SINH HỌC (BIOLOGY - Cấp 3: Lớp 10-12):
+   - Lớp 12: Di truyền phân tử (DNA, phiên mã, dịch mã, điều hòa biểu hiện gene - Operon Lac, đột biến gene), Di truyền nhiễm sắc thể (Quy luật Mendel, liên kết gene & hoán vị gene Morgan, di truyền giới tính), Di truyền quần thể (Hardy-Weinberg), Tiến hóa, Sinh thái học.
+   - Lớp 11: Trao đổi chất và chuyển hóa năng lượng (quang hợp, hô hấp ở thực vật/động vật), Cảm ứng, Sinh trưởng và phát triển, Sinh sản.
+   - Lớp 10: Thành phần hóa học của tế bào, Cấu trúc tế bào nhân sơ/nhân thực, Chu kỳ tế bào & Nguyên phân - Giảm phân, Vi sinh vật & Virus.
+5. MÔN KHOA HỌC TỰ NHIÊN (NATURAL_SCIENCE - Chỉ Cấp 2: Lớp 6-9):
+   - Tích hợp Lí - Hóa - Sinh ở THCS (Khối lượng riêng, Áp suất, Acid - Base - Oxide - Muối, Quang hợp, Điện từ, Năng lượng cơ học, Khúc xạ ánh sáng, Di truyền cơ bản).
+6. MÔN LỊCH SỬ & ĐỊA LÍ:
+   - Cấp 2 (Lớp 6-9): Môn tích hợp "Lịch sử và Địa lí" -> "HISTORY_GEOGRAPHY".
+   - Cấp 3 (Lớp 10-12): Tách riêng Lịch sử -> "HISTORY", Địa lí -> "GEOGRAPHY".
+7. MÔN GIÁO DỤC CÔNG DÂN / KINH TẾ & PHÁP LUẬT:
+   - Cấp 2 (Lớp 6-9): Giáo dục công dân -> "CIVIC_EDUCATION".
+   - Cấp 3 (Lớp 10-12): Giáo dục kinh tế và pháp luật -> "ECONOMIC_LEGAL_EDU".
+
+BƯỚC 4 — KIỂM ĐỊNH CẤU TRÚC ĐỀ:
+- Kiểm tra cấu trúc chuẩn Bộ GD&ĐT 2025 (Phần I Trắc nghiệm 4 lựa chọn, Phần II Trắc nghiệm Đúng/Sai a,b,c,d, Phần III Trả lời ngắn) và sự hiện diện của bảng đáp án / lời giải.
+
+BƯỚC 5 — TỰ PHẢN BIỆN CHÉO:
+- Lớp 10-12 KHÔNG BAO GIỜ có môn NATURAL_SCIENCE, HISTORY_GEOGRAPHY, CIVIC_EDUCATION.
+- Lớp 6-9 KHÔNG BAO GIỜ có môn ECONOMIC_LEGAL_EDU.
+- Trường THPT Chuyên nhưng thi thử tốt nghiệp / học kỳ -> KHÔNG BAO GIỜ là DE_CHUYEN_HSG.
+
+BƯỚC 6 — XUẤT JSON CHUẨN XÁC:
+- Trong trường verification_note: Viết 1 câu tiếng Việt tự nhiên xác nhận lý do phân loại (tuyệt đối KHÔNG nhắc chữ AI hay thuật ngữ kỹ thuật).
 
 Trả về đúng 1 JSON:
 {
@@ -2008,10 +2061,45 @@ Trả về đúng 1 JSON:
   "exam_type": "THI_THU_THPT | KIEM_TRA_DINH_KY | TUYEN_SINH_10 | DE_CHUYEN_HSG | TAI_LIEU_ON_TAP",
   "school_or_department": "Tên Trường hoặc Sở GD&ĐT nếu có, hoặc null",
   "academic_year": "YYYY-YYYY nếu có, hoặc null",
+  "confidence": 0.98,
   "verification_note": "1 câu xác nhận ngắn gọn bằng tiếng Việt"
 }`;
 
       const userPrompt = `Tên tệp: ${fileName}\nNội dung đề:\n${snippet}\n\nChỉ trả về JSON:`;
+
+      const postAuditWebResult = (parsed) => {
+        if (!parsed || typeof parsed !== "object") return parsed;
+        const headerNorm = `${fileName}\n${rawText.slice(0, 3500)}`.toLowerCase();
+        // Rule 1: Tuyển sinh vào lớp 10 -> Lớp 9 (CAP_2, TUYEN_SINH_10)
+        if (
+          /(tuyển\s+sinh\s+(?:vào\s+)?lớp\s*10|thi\s+vào\s+lớp\s*10|ôn\s+thi\s+vào\s*(?:lớp\s*)?10)/i.test(headerNorm) &&
+          !/(giữa\s+(?:học\s+)?k[ỳì]|cuối\s+(?:học\s+)?k[ỳì]|học\s+k[ỳì]\s*[12i]|khảo\s+sát\s+chất\s+lượng\s+lớp\s*10)/i.test(headerNorm)
+        ) {
+          parsed.estimated_level = "Khối 9 (Ôn Vào 10)";
+          parsed.educational_level = "CAP_2";
+          if (!/(chuyên|môn\s+chuyên|hệ\s+chuyên)/i.test(headerNorm)) {
+            parsed.exam_type = "TUYEN_SINH_10";
+          } else {
+            parsed.exam_type = "DE_CHUYEN_HSG";
+          }
+        }
+        // Rule 2: Trường THPT Chuyên nhưng thi thử tốt nghiệp / học kỳ / giữa kỳ -> không phải DE_CHUYEN_HSG
+        const isRegularExam = /(thi\s+thử\s+tốt\s+nghiệp|tốt\s+nghiệp\s+thpt|giữa\s+(?:học\s+)?k[ỳì]|cuối\s+(?:học\s+)?k[ỳì]|kiểm\s+tra\s+học\s+k[ỳì]|khảo\s+sát\s+chất\s+lượng)/i.test(headerNorm);
+        const isTrueHsg = /(học\s+sinh\s+giỏi|chọn\s+hsg|đội\s+tuyển|olympic|tuyển\s+sinh\s+vào\s+lớp\s*10\s+chuyên)/i.test(headerNorm);
+        if (isRegularExam && !isTrueHsg && parsed.exam_type === "DE_CHUYEN_HSG") {
+          parsed.exam_type = /tốt\s+nghiệp|thi\s+thử/i.test(headerNorm) ? "THI_THU_THPT" : "KIEM_TRA_DINH_KY";
+        }
+        // Rule 3: Đồng bộ môn học theo cấp học GDPT 2018
+        const isCap2 = parsed.educational_level === "CAP_2" || /Khối [6789]|THCS/i.test(String(parsed.estimated_level || ""));
+        const isCap3 = parsed.educational_level === "CAP_3" || /Khối 1[012]/i.test(String(parsed.estimated_level || ""));
+        if (isCap2 && parsed.subject === "ECONOMIC_LEGAL_EDU") {
+          parsed.subject = "CIVIC_EDUCATION";
+        }
+        if (isCap3 && parsed.subject === "CIVIC_EDUCATION") {
+          parsed.subject = "ECONOMIC_LEGAL_EDU";
+        }
+        return parsed;
+      };
 
       const modelChain = Array.from(
         new Set([
@@ -2066,7 +2154,7 @@ Trả về đúng 1 JSON:
             ? allJsonMatches[allJsonMatches.length - 1]
             : (content.match(/\{[\s\S]*\}/) || [])[0];
           if (jsonCandidate) {
-            const parsed = JSON.parse(jsonCandidate);
+            const parsed = postAuditWebResult(JSON.parse(jsonCandidate));
             if (parsed && parsed.subject) {
               if (globalThis._deepVerifyCache.size > 1500) {
                 const firstKey = globalThis._deepVerifyCache.keys().next().value;
