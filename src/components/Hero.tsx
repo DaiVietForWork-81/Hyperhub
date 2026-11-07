@@ -70,7 +70,7 @@ const TECH_TOPICS = [
   { name: 'C / C++', subjectId: 'INFORMATICS', icon: Code2, tone: '#8FA8FF' },
   { name: 'Lập Trình Thuật Toán', subjectId: 'INFORMATICS', icon: Trophy, tone: '#FF8FD0' },
   { name: 'Lập Trình Cơ Bản & Nâng Cao', subjectId: 'INFORMATICS', icon: Code2, tone: '#6FD8F0' },
-  { name: 'Khoa Học Dữ Liệu & AI', subjectId: 'INFORMATICS', icon: Brain, tone: '#B89BFF' },
+  { name: 'Cấu Trúc Dữ Liệu & Thuật Toán', subjectId: 'INFORMATICS', icon: Brain, tone: '#B89BFF' },
   { name: 'Phát Triển Web & Phần Mềm', subjectId: 'INFORMATICS', icon: Laptop, tone: '#7FD4FF' },
   { name: 'Ôn Thi Chuyên & HSG', subjectId: 'ALL', examType: 'CHUYEN', icon: Award, tone: '#F08BFF' },
   { name: 'Luyện Thi THPT Quốc Gia', subjectId: 'ALL', grade: '12', icon: GraduationCap, tone: '#FF8F8F' },

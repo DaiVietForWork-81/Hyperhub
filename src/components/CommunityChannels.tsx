@@ -34,17 +34,17 @@ export const CommunityChannels: React.FC = () => {
               <h4 className="hh-card-title hh-card-title--lg" style={{ margin: 0 }}>Máy chủ Discord Orbit</h4>
             </div>
             <p className="hh-card-text">
-              Trung tâm học tập sôi động: bot thẩm định đề tự động, phòng học Lo-fi voice 24/7, chuyên mục theo từng môn và các
+              Trung tâm học tập sôi động: kho đề thi chọn lọc, phòng học Lo-fi voice 24/7, chuyên mục theo từng môn và các
               buổi thi thử định kỳ.
             </p>
             <div className="mb-3">
               <span className="hh-status hh-status--compact" data-state={pulse.bot}>
                 <span className="hh-status-dot" aria-hidden="true" />
-                {pulse.bot === 'online' ? 'Bot trực tuyến' : pulse.bot === 'offline' ? 'Kho Cloud trực tuyến' : 'Đang kiểm tra'}
+                Hoạt động 24/7
               </span>
             </div>
             <ul className="hh-feature-list">
-              <li><Bot aria-hidden="true" />Bot kiểm định đề &amp; bốc đề tự động</li>
+              <li><Bot aria-hidden="true" />Tra cứu &amp; bốc đề luyện tập 24/7</li>
               <li><Headphones aria-hidden="true" />Phòng học voice Pomodoro &amp; Lo-fi</li>
               <li><Users aria-hidden="true" />Cộng đồng học sinh, sinh viên văn minh</li>
             </ul>

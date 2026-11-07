@@ -26,7 +26,6 @@ import {
   FileCheck,
   Eye,
   ArrowRight,
-  Scale,
   Clock,
   Play,
   Pause,
@@ -1933,7 +1932,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 className="w-full h-11 px-3.5 rounded-xl bg-[#0D0A14] border border-[#1d1a29] focus:border-[#9B5CFF] text-[13px] sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
               >
                 <option value="newest">Mới cập nhật nhất</option>
-                <option value="confidence">Độ tin cậy AI cao nhất</option>
+                <option value="confidence">Độ hoàn thiện hồ sơ cao nhất</option>
                 <option value="pages">Nhiều trang nhất</option>
                 <option value="size">Dung lượng lớn nhất</option>
               </select>
@@ -2266,7 +2265,6 @@ const DashboardContent: React.FC<DashboardProps> = ({
     const trackInfo = getExamTrackInfo(doc);
     const eduBadge = getEducationLevelBadgeInfo(doc);
     const isBookmarked = bookmarkedIds.has(doc.id);
-    const confPct = doc.confidence != null ? Math.round(Number(doc.confidence) * 100) : 95;
 
     return (
       <ResizableCard key={doc.id} id={`doc_${doc.id}`} allowResizeWidth={false} className="h-full">
@@ -2296,27 +2294,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dotColor}`} />
                   <span>{gradeStyle.label}</span>
                 </span>
-                {doc.quorum_status && (
-                  <span
-                    className={`text-[13px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 ${
-                      doc.quorum_status.includes('UNANIMOUS')
-                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                    }`}
-                  >
-                    {doc.quorum_status.includes('UNANIMOUS') ? (
-                      <>
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                        <span>3/3 Quorum</span>
-                      </>
-                    ) : (
-                      <>
-                        <Scale className="w-3 h-3 text-amber-400" />
-                        <span>3+1 Trọng Tài</span>
-                      </>
-                    )}
-                  </span>
-                )}
+
               </div>
 
               <div className="flex items-center gap-1.5 font-mono text-[13px] text-white/50">
@@ -2409,20 +2387,8 @@ const DashboardContent: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Bottom Confidence Meter + Action Footer */}
+          {/* Action Footer */}
           <div className="space-y-3 pt-3 border-t border-[#1d1a29]">
-            <div className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="text-white/50 font-mono">Độ tin cậy AI · Quorum</span>
-              <div className="flex items-center gap-2 flex-1 max-w-[150px]">
-                <div className="w-full h-1.5 rounded-full bg-[#181622] overflow-hidden">
-                  <div
-                    className="h-full bg-[#d61f79]"
-                    style={{ width: `${Math.min(100, Math.max(50, confPct))}%` }}
-                  />
-                </div>
-                <span className="font-mono font-bold text-[#FFB8E6]">{confPct}%</span>
-              </div>
-            </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -2472,7 +2438,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 type="button"
                 onClick={() => openExamModal(doc, 'overview')}
                 className="px-2.5 py-2 rounded-lg bg-[#161618] hover:bg-[#1e1e22] border border-[#242429] text-white/80 hover:text-white font-bold text-[13px] transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap"
-                title="Xem Hồ Sơ Kiểm Định AI"
+                title="Xem chi tiết đề thi"
               >
                 <Eye className="w-3.5 h-3.5 text-[#C4A6FF]" />
                 <span className="hidden sm:inline">Hồ Sơ</span>
@@ -2819,7 +2785,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             className="hh-hub-chip whitespace-nowrap"
           >
             <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Nộp Đề AI</span>
+            <span>Đóng Góp Đề</span>
           </button>
           {(isAdmin || readCachedAdmin()) && (
             <button
@@ -2988,7 +2954,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 className="hh-hub-nav-item"
               >
                 <BookOpen className="w-4 h-4 shrink-0 text-[#FF4FCB]" />
-                <span className="truncate">Kho Đề Thẩm Định</span>
+                <span className="truncate">Kho Đề Thi</span>
                 <span className="ml-auto font-mono tabular-nums text-xs px-2 py-0.5 rounded-md bg-[#291524] text-[#FFB8E6] border border-[#422039] shrink-0">
                   {totalDocsCount}
                 </span>
@@ -3046,7 +3012,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 className="hh-hub-nav-item"
               >
                 <UploadCloud className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span className="truncate">Trạm Nộp Đề AI</span>
+                <span className="truncate">Đóng Góp Đề Thi</span>
                 <span className="ml-auto font-mono text-xs text-emerald-300/80 shrink-0">+XP</span>
               </button>
 
@@ -3184,7 +3150,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <div className="flex items-center justify-between text-xs font-mono pt-1.5 border-t border-[#221a35] text-white/50">
                 <span className="text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  <span>Turso + Discord Sync</span>
+                  <span>Đã liên kết Discord</span>
                 </span>
                 <span className="tabular-nums text-[#FFB8E6] font-bold">Đã xác thực</span>
               </div>
@@ -3248,9 +3214,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 {activeTab === 'overview' && 'Bàn điều khiển trung tâm'}
                 {activeTab === 'courses' && 'Trung tâm Khóa học (Đồng bộ khoahoc)'}
                 {activeTab === 'forum' && 'Diễn đàn thảo luận 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi)'}
-                {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thẩm định')}
+                {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thi')}
                 {activeTab === 'get_exam' && 'Máy bốc đề ngẫu nhiên'}
-                {activeTab === 'submit_doc' && 'Trạm nộp đề AI'}
+                {activeTab === 'submit_doc' && 'Đóng góp đề thi'}
                 {activeTab === 'admin' && 'Quản trị hệ thống'}
               </span>
             </div>
@@ -3303,7 +3269,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 }`}
               />
               <span className="text-white/80 font-sans font-semibold">
-                {botStatus.online ? `Orbit Bot (${botStatus.ping_ms || 24}ms)` : 'Turso + Discord CDN'}
+                'Trực tuyến'
               </span>
               <span className="text-white/20">|</span>
               <span className="text-[#FFB8E6] font-bold">{totalDocsCount} đề</span>
@@ -3315,7 +3281,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 checkBotStatus();
                 fetchDocStats();
                 fetchDocuments();
-                showInfo('Đã đồng bộ lại dữ liệu kho đề từ Turso Cloud & Discord CDN.');
+                showInfo('Đã làm mới danh sách đề thi.');
               }}
               className="p-2 rounded-xl bg-[#161618] hover:bg-[#1e1e22] border border-[#242429] text-white/70 hover:text-white transition-colors cursor-pointer"
               title="Làm mới dữ liệu"
@@ -3365,7 +3331,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     Đăng Nhập Tài Khoản Discord Để Vào Bàn Điều Khiển
                   </h1>
                   <p className="text-[13px] sm:text-sm text-white/70 leading-relaxed">
-                    Bàn điều khiển trung tâm, Kho đề thẩm định, Khóa học và Diễn đàn 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi) được đồng bộ trực tiếp với máy chủ Discord Orbit | Vietnam.
+                    Bàn điều khiển trung tâm, Kho đề thi, Khóa học và Diễn đàn 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi) được đồng bộ trực tiếp với máy chủ Discord Orbit | Vietnam.
                   </p>
                 </div>
 
@@ -3504,7 +3470,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                   <div className="p-3 rounded-lg bg-[#13101d] border border-[#221a35] space-y-1">
                     <div className="text-[13px] font-bold text-emerald-300">
-                      2. Kho Đề Thẩm Định &amp; Máy Bốc Đề
+                      2. Kho Đề Thi &amp; Máy Bốc Đề
                     </div>
                     <div className="text-[13px] text-white/65">
                       Truy cập toàn bộ {totalDocsCount} đề thi từ Lớp 6 đến Lớp 12, đọc PDF và làm bài tính giờ.
@@ -3550,7 +3516,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                             Orbit | Vietnam · Trung tâm điều hành học thuật
                           </div>
                           <div className="text-[13px] text-white/60">
-                            Đồng bộ trực tiếp Turso Cloud &amp; Discord Bot
+                            Không gian học tập &amp; Kho đề thi mở
                           </div>
                         </div>
                       </div>
@@ -4040,7 +4006,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       <div className="space-y-1.5">
                         <div className="flex items-baseline justify-between">
                           <span className="text-xl font-black text-white tabular-nums">{subj.count}</span>
-                          <span className="text-xs text-white/55 font-mono">đề thẩm định</span>
+                          <span className="text-xs text-white/55 font-mono">đề thi</span>
                         </div>
                         <div className="w-full h-1 rounded-full bg-[#1a1726] overflow-hidden">
                           <div
@@ -4067,7 +4033,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1d1a29] pb-3.5">
                   <div>
                     <div className="text-[13px] font-semibold text-[#FF4FCB]">
-                      Bàn thẩm định &amp; luyện đề mới nhất
+                      Đề thi &amp; tài liệu mới nhất
                     </div>
                     <h3 className="font-extrabold text-base sm:text-lg text-white mt-0.5">
                       Đề Thi Vừa Kiểm Duyệt Lên Kho Cloud
@@ -4268,28 +4234,28 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Live Data & Discord #database Archive Telemetry */}
+                {/* Academic Summary */}
                 <div className="pt-3 border-t border-[#1d1a29] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-white/55">
-                      Liên kết hạ tầng dữ liệu
+                      Phạm vi kho học liệu
                     </span>
                     <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      Đồng bộ
+                      100% Miễn phí
                     </span>
                   </div>
                   <div className="space-y-1.5 text-[13px] text-white/70 font-mono">
                     <div className="flex justify-between">
-                      <span className="font-sans text-white/55">Discord Bot:</span>
-                      <span className="text-white font-bold">{botStatus.bot_user || 'Orbit#0594'}</span>
+                      <span className="font-sans text-white/55">Cấp học:</span>
+                      <span className="text-white font-bold">THCS &amp; THPT (Lớp 6–12)</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-sans text-white/55">Cloud Database:</span>
-                      <span className="text-emerald-400 font-bold">Turso libSQL AWS</span>
+                      <span className="font-sans text-white/55">Định dạng:</span>
+                      <span className="text-emerald-400 font-bold">PDF, Word &amp; Đáp án</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-sans text-white/55">Lưu trữ đề thi:</span>
-                      <span className="text-[#FFB8E6] font-bold">Orbit Cloud CDN</span>
+                      <span className="font-sans text-white/55">Cộng đồng:</span>
+                      <span className="text-[#FFB8E6] font-bold">Orbit | Vietnam</span>
                     </div>
                   </div>
                 </div>
@@ -4620,7 +4586,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   Orbit | Vietnam · Kho lưu trữ đề thi
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex flex-wrap items-center gap-3">
-                  <span>{showBookmarksOnly ? 'Tủ Sách Ôn Luyện Của Tôi' : 'Kho Đề Thi Đã Thẩm Định'}</span>
+                  <span>{showBookmarksOnly ? 'Tủ Sách Ôn Luyện Của Tôi' : 'Kho Đề Thi Thực Chiến'}</span>
                   <span className="font-mono tabular-nums text-[13px] sm:text-sm px-3 py-1 rounded-xl bg-[#201833] border border-[#32244d] text-[#E2D4FF]">
                     {displayedDocuments.length} đề
                   </span>
@@ -4765,42 +4731,22 @@ const DashboardContent: React.FC<DashboardProps> = ({
         {/* TAB 05: SUBMIT_DOC */}
         {activeTab === 'submit_doc' && !hubLocked && (
           <div key="tab-submit-doc" className="space-y-6 hh-swap-panel">
-            <SpotSurface className="hh-hub-surface p-6 sm:p-8 space-y-5">
+            <SpotSurface className="hh-hub-surface p-6 sm:p-8">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Đóng Góp &amp; Kiểm Duyệt Đề Thi
+                    Đóng Góp Đề Thi &amp; Tài Liệu Học Tập
                   </h1>
                   <p className="text-[13px] sm:text-sm text-white/65 mt-1 max-w-2xl">
-                    Mỗi tài liệu tải lên (PDF, DOCX, TXT) hoặc liên kết Google Drive đều đi qua quy trình 5 bước kiểm định bảo mật và phân loại trước khi đồng bộ lên Kho Đề.
+                    Chia sẻ đề thi hoặc chuyên đề ôn tập (PDF, DOCX, TXT, Google Drive) để đóng góp cho cộng đồng và nhận vinh danh Credit Tác giả vĩnh viễn.
                   </p>
                 </div>
-              </div>
-
-              {/* 5-Step Pipeline Visualizer */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2">
-                {[
-                  { step: 'Bước 1', name: 'Định danh tệp', desc: 'PDF / DOCX / Drive' },
-                  { step: 'Bước 2', name: 'Quét Magic Byte', desc: 'Chống mã độc' },
-                  { step: 'Bước 3', name: 'Băm SHA-256', desc: 'Chống trùng lặp' },
-                  { step: 'Bước 4', name: 'Đối chiếu 3 bước', desc: 'Phân loại Khối & Môn' },
-                  { step: 'Bước 5', name: 'Đồng bộ Cloud', desc: 'Discord + Turso DB' },
-                ].map((item) => (
-                  <div
-                    key={item.step}
-                    className="p-3 rounded-xl bg-[#0B0911] border border-[#1d1a29] space-y-1"
-                  >
-                    <div className="text-[13px] font-semibold text-[#FFB8E6]">{item.step}</div>
-                    <div className="text-[13px] font-extrabold text-white">{item.name}</div>
-                    <div className="text-[13px] text-white/50">{item.desc}</div>
-                  </div>
-                ))}
               </div>
             </SpotSurface>
 
             <Suspense
               fallback={
-                <div className="p-8 text-center text-[13px] text-white/50">Đang nạp Cổng Đóng Góp &amp; Kiểm Duyệt 5 Bước...</div>
+                <div className="p-8 text-center text-[13px] text-white/50">Đang mở cổng đóng góp tài liệu...</div>
               }
             >
               <DocUploadZone

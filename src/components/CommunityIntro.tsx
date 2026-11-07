@@ -24,9 +24,9 @@ const SIDE_PILLARS = [
   {
     icon: Database,
     badge: 'Kiểm duyệt tài liệu',
-    title: 'Thẩm định & Phân loại tự động',
-    desc: 'Quét mã băm SHA-256 chống trùng lặp, tự bóc tách môn học, khối lớp, năm học, trường và sở ra đề theo chuẩn Bộ GD&ĐT 2025.',
-    features: ['Chuẩn cấu trúc 2025', 'Chống trùng SHA-256', 'Nhận diện trường & năm học'],
+    title: 'Kho Học Liệu Chuẩn Hóa',
+    desc: 'Đề thi và chuyên đề được sắp xếp khoa học theo môn học, khối lớp, năm học và trường/sở theo chương trình GDPT 2018 & chuẩn 2025.',
+    features: ['Chuẩn cấu trúc 2025', 'Đầy đủ khối lớp 6 – 12', 'Theo trường & năm học'],
     tone: 'cyan',
     preset: 'slide-r' as const,
   },
@@ -60,7 +60,7 @@ export const CommunityIntro: React.FC<{ onOpenVault?: () => void }> = ({ onOpenV
               Ngân hàng đề thi THCS, THPT, Chuyên &amp; ĐGNL miễn phí 100%, hỗ trợ tìm kiếm toàn văn siêu tốc, xem trước PDF và bốc đề ngẫu nhiên 24/7.
             </p>
             <ul className="hh-checks">
-              <li><Check aria-hidden="true" />Kho đề đã thẩm định &amp; phân loại tự động</li>
+              <li><Check aria-hidden="true" />Kho đề chọn lọc từ các trường Chuyên &amp; Sở GD&amp;ĐT</li>
               <li><Check aria-hidden="true" />Xem trực tiếp PDF &amp; tải nguyên bản miễn phí</li>
               <li><Check aria-hidden="true" />Bộ lọc sâu theo Khối lớp, Môn học, Trường &amp; Năm học</li>
               <li><Check aria-hidden="true" />Máy phát đề ngẫu nhiên &amp; đồng hồ Pomodoro 25/5</li>

@@ -23,10 +23,10 @@ import {
   GraduationCap,
   Globe,
   Copy,
-  ExternalLink,
+
   Clock,
   Layers,
-  Search,
+
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import { formatEstimatedLevel, formatFileSize } from '../utils/formatters';
@@ -835,7 +835,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                  Kho Nộp Đề Trực Tuyến & Bot Thẩm Định AI
+                  Đóng Góp Đề Thi & Tài Liệu Học Tập
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <Lock className="w-3 h-3 text-emerald-400" />
@@ -843,7 +843,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-300 mt-1">
-                Tiếp nhận đề thi qua tệp trực tiếp hoặc liên kết Google Drive. Hệ thống tự động xác thực và phân loại tài liệu vào kho đề.
+                Tải lên đề thi qua tệp trực tiếp (PDF, Word) hoặc liên kết Google Drive để chia sẻ cùng cộng đồng.
               </p>
             </div>
           </div>
@@ -884,60 +884,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'file_upload' && (
         <div className="space-y-6">
-          {/* CƠ CHẾ THẨM ĐỊNH 3+1 QUORUM & CHỐNG TRÙNG LẶP */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/60 border border-purple-500/20 backdrop-blur-xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-white/5">
-              <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
-                <Scale className="w-4 h-4 text-purple-400" />
-                <span>Quy trình Thẩm định 3+1 Quorum &amp; Chống Trùng Tuyệt Đối 2 Tầng</span>
-              </div>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                <span>100% Heuristic • Tự Nhiên &amp; Minh Bạch • $0 API</span>
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
-                <div className="font-bold text-purple-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-[10px] font-black">1</span>
-                  <span>Lần 1: Vùng Tiêu Đề</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Phân tích không gian tiêu đề (0-1500 ký tự), bóc tách Quốc hiệu, Sở GD&amp;ĐT, Trường, Năm học và Môn.
-                </p>
-              </div>
 
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
-                <div className="font-bold text-cyan-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-black">2</span>
-                  <span>Lần 2: BM25 Toàn Thân</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Khảo sát phân bố tần suất từ khóa chuyên sâu toàn tài liệu, loại trừ mẫu từ vựng hành chính và hợp đồng.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
-                <div className="font-bold text-pink-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-pink-500/20 text-pink-300 flex items-center justify-center text-[10px] font-black">3</span>
-                  <span>Lần 3: Cấu Trúc &amp; Cú Pháp</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Quét cấu trúc câu hỏi, bảng đáp án, công thức hóa/toán &amp; 3 phần chuẩn Bộ GD&amp;ĐT form 2025.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
-                <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px] font-black">4</span>
-                  <span>Lần 4: Trọng Tài 3+1</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Kích hoạt khi có bất đồng biểu quyết (2 vs 1) hoặc triệt tiêu đối soát tương phản (Tin vs Toán, Hóa vs Hành chính).
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* BANNER CREDIT NGƯỜI ĐÓNG GÓP HOẶC YÊU CẦU LIÊN KẾT DISCORD */}
           {user ? (
@@ -1234,7 +1181,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                 <span className="text-slate-500">• Đang chờ nộp</span>
                               )}
                               {item.status === 'uploading' && (
-                                <span className="text-purple-400 font-semibold">• Đang tiến hành thẩm định 3+1...</span>
+                                <span className="text-purple-400 font-semibold">• Đang tải lên kho đề...</span>
                               )}
                               {item.status === 'success' && res && (
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -1268,7 +1215,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                               )}
                               {item.status === 'queued' && (
                                 <span className="text-sky-400 font-semibold">
-                                  • Đã bảo lưu trên Turso Cloud (5GB) • Tự động đồng bộ Discord khi Bot online
+                                  • Đã lưu vào kho đề thi Orbit
                                 </span>
                               )}
                               {item.status === 'error' && (
@@ -1329,21 +1276,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                           {item.status === 'success' && res && (
                             <>
-                              {res.draft_dossier_markdown && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setDossierModalContent({
-                                      title: res.title || res.file_name,
-                                      markdown: res.draft_dossier_markdown!,
-                                    })
-                                  }
-                                  className="px-3 py-1.5 rounded-xl font-bold text-xs bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 flex items-center gap-1.5 transition-all cursor-pointer"
-                                >
-                                  <Scale className="w-3.5 h-3.5 text-purple-400" />
-                                  <span>Dự Thảo 3+1</span>
-                                </button>
-                              )}
+
 
                               {onPreviewDoc && (
                                 <button
@@ -1384,102 +1317,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                         </div>
                       </div>
 
-                      {/* KHỐI KẾT QUẢ THẨM ĐỊNH 3+1 QUORUM ARBITRATION */}
-                      {item.status === 'success' && res?.quorum && (
-                        <div className="mt-3.5 p-3.5 rounded-2xl bg-slate-900/90 border border-purple-500/30 space-y-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-                            <div className="flex items-center gap-2">
-                              <Scale className="w-4 h-4 text-purple-400" />
-                              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                                Hội Đồng Thẩm Định 3+1 (Quorum Arbitration)
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border flex items-center gap-1 ${
-                                  res.quorum.is_unanimous
-                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                }`}
-                              >
-                                {res.quorum.is_unanimous ? (
-                                  <>
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                    <span>Đồng Thuận 3/3</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Scale className="w-3 h-3 text-amber-400" />
-                                    <span>Trọng Tài Đối Soát 3+1</span>
-                                  </>
-                                )}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-400 bg-black/40 px-2 py-0.5 rounded border border-white/5 flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                                <span>{res.quorum.total_execution_time_ms || 0} ms</span>
-                              </span>
-                            </div>
-                          </div>
 
-                          {/* 4 Lần Quét Matrix */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                            {res.quorum.scans.map((scan) => (
-                              <div
-                                key={scan.pass_number}
-                                className={`p-2.5 rounded-xl border text-xs space-y-1 ${
-                                  scan.pass_number === 4
-                                    ? 'bg-amber-500/10 border-amber-500/30'
-                                    : 'bg-white/[0.03] border-white/5'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                                    {scan.pass_number === 1 && <FileText className="w-3 h-3 text-indigo-400" />}
-                                    {scan.pass_number === 2 && <Search className="w-3 h-3 text-cyan-400" />}
-                                    {scan.pass_number === 3 && <Layers className="w-3 h-3 text-pink-400" />}
-                                    {scan.pass_number === 4 && <Scale className="w-3 h-3 text-amber-400" />}
-                                    <span>Lần {scan.pass_number}</span>
-                                  </span>
-                                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                                    {Math.round(scan.confidence * 100)}%
-                                  </span>
-                                </div>
-                                <div className="font-bold text-white text-[11px] truncate" title={scan.pass_name}>
-                                  {scan.pass_name}
-                                </div>
-                                <div className="text-[11px] text-purple-300 font-semibold truncate">
-                                  {scan.subject_vi} • {scan.grade_vi}
-                                </div>
-                                <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed" title={scan.rationale}>
-                                  {scan.rationale}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Trigger nút mở Dự Thảo */}
-                          {res.draft_dossier_markdown && (
-                            <div className="flex items-center justify-between pt-1">
-                              <span className="text-[11px] text-slate-400 italic">
-                                Biên bản thẩm định pháp quy được lập tự động từ kết quả biểu quyết
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDossierModalContent({
-                                    title: res.title || res.file_name,
-                                    markdown: res.draft_dossier_markdown!,
-                                  })
-                                }
-                                className="text-purple-300 hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <span>Xem toàn văn dự thảo</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
 
                       {/* CẢNH BÁO CHỐNG NỘP TRÙNG TUYỆT ĐỐI (DUPLICATE GUARD) */}
                       {item.status === 'duplicate' && item.duplicateInfo && (
@@ -1498,25 +1336,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                             <strong>{item.duplicateInfo.author || 'thành viên khác'}</strong> vào lúc{' '}
                             <em>{item.duplicateInfo.timestamp || 'trước đây'}</em>.
                           </p>
-                          {item.duplicateInfo.file_hash && (
-                            <div className="flex items-center justify-between gap-2 bg-black/60 p-2 rounded-xl border border-white/10 font-mono text-[10px] text-slate-400">
-                              <div className="truncate">
-                                <span className="text-amber-400 font-bold">SHA-256: </span>
-                                {item.duplicateInfo.file_hash}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(item.duplicateInfo!.file_hash!);
-                                  showInfo('Đã sao chép mã băm SHA-256', 'Bảo Mật');
-                                }}
-                                className="text-purple-300 hover:text-white flex items-center gap-1 cursor-pointer shrink-0"
-                              >
-                                <Copy className="w-3 h-3" />
-                                <span>Chép</span>
-                              </button>
-                            </div>
-                          )}
+
                         </div>
                       )}
                     </div>
@@ -2108,7 +1928,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             <div className="p-4 border-t border-white/10 flex items-center justify-between bg-slate-950/80">
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
                 <ShieldCheck className="w-4 h-4" />
-                <span>100% Deterministic • Non-AI Intelligence</span>
+                <span>Orbit | Vietnam • Kho Học Liệu Mở</span>
               </div>
 
               <div className="flex items-center gap-2">

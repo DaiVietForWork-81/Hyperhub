@@ -9,11 +9,9 @@ import {
   Calendar,
   School,
   FileText,
-  Hash,
   Layers,
   Scale,
   CheckCircle2,
-  Info,
   BookOpen,
   PenTool,
   ZoomIn,
@@ -66,7 +64,6 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 }) => {
   const { showSuccess, showInfo } = useToast();
   const [modalTab, setModalTab] = useState<DossierModalTab>(initialTab);
-  const [copiedHash, setCopiedHash] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [copiedDossier, setCopiedDossier] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -292,14 +289,6 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
     ? `${apiBase}/api/documents/${doc.id}/view#toolbar=1&navpanes=0&zoom=${pdfZoom}`
     : '';
 
-  const handleCopyHash = () => {
-    if (doc.file_hash) {
-      navigator.clipboard.writeText(doc.file_hash);
-      setCopiedHash(true);
-      showInfo('Đã sao chép mã băm SHA-256 vào bộ nhớ tạm.', 'Bảo Mật');
-      setTimeout(() => setCopiedHash(false), 2000);
-    }
-  };
 
   const handleCopyShareLink = () => {
     const shareUrl = `${window.location.origin}/hub#exam-${doc.id}`;
@@ -713,26 +702,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
               <span>{trackInfo.label}</span>
             </span>
 
-            {/* Trạng thái Thẩm định 3+1 Quorum */}
-            <span
-              className={`text-xs font-bold px-2.5 py-1 rounded-md border flex items-center gap-1.5 ${
-                isUnanimousQuorum
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-              }`}
-            >
-              {isUnanimousQuorum ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Đồng Thuận 3/3</span>
-                </>
-              ) : (
-                <>
-                  <Scale className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Trọng Tài 3+1</span>
-                </>
-              )}
-            </span>
+
 
             {/* Chuẩn Bộ GD&ĐT 2025 */}
             {(doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) && (
@@ -837,18 +807,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
             <span>Tổng Quan Hồ Sơ</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setModalTab('quorum_dossier')}
-            className={`px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-1.5 ${
-              modalTab === 'quorum_dossier'
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Scale className="w-3.5 h-3.5" />
-            <span>Dự Thảo 3+1</span>
-          </button>
+
         </div>
 
         {/* ================================================================= */}
@@ -1261,59 +1220,7 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
               </div>
             )}
 
-            {/* Thanh Độ Tin Cậy & Thẩm Định DocInspector */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-black/40 to-indigo-950/40 border border-purple-500/20 space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-purple-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                  Độ Tin Cậy Phân Loại DocInspector
-                </span>
-                <span className="font-mono font-bold text-white bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/30">
-                  {confidencePercent}%
-                </span>
-              </div>
 
-              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-emerald-400 rounded-full transition-all duration-500"
-                  style={{ width: `${confidencePercent}%` }}
-                />
-              </div>
-
-              {doc.notes && (
-                <p className="text-xs text-slate-300 italic pt-1 border-t border-white/10 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>Ghi chú hệ thống: {doc.notes}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Xác Thực Cryptographic SHA-256 (Chống Giả Mạo & Trùng Lặp) */}
-            {doc.file_hash && (
-              <div className="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Hash className="w-3.5 h-3.5 text-emerald-400" />
-                    Mã Băm Nhị Phân SHA-256 (C++ Fast Engine)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyHash}
-                    className="text-[11px] text-purple-300 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    {copiedHash ? (
-                      <Check className="w-3 h-3 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3 h-3" />
-                    )}
-                    <span>{copiedHash ? 'Đã chép' : 'Sao chép'}</span>
-                  </button>
-                </div>
-                <div className="font-mono text-[10px] text-slate-400 break-all bg-black/80 p-2 rounded-xl border border-white/5 selection:bg-purple-500 selection:text-white">
-                  {doc.file_hash}
-                </div>
-              </div>
-            )}
           </>
         )}
 
