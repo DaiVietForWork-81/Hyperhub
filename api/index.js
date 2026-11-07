@@ -2033,15 +2033,13 @@ Trả về đúng 1 JSON:
               { role: "system", content: sysPrompt },
               { role: "user", content: userPrompt },
             ],
-            max_tokens: isDeepReasoning ? 1300 : 320,
+            max_tokens: isDeepReasoning ? 2048 : 320,
             temperature: 0.0,
+            chat_template_kwargs: {
+              thinking: isDeepReasoning,
+              enable_thinking: isDeepReasoning,
+            },
           };
-          if (!isDeepReasoning) {
-            reqPayload.chat_template_kwargs = {
-              thinking: false,
-              enable_thinking: false,
-            };
-          }
 
           const controller = new AbortController();
           const tId = setTimeout(() => controller.abort(), 28000);
