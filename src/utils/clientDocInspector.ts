@@ -918,13 +918,22 @@ async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: str
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45_000); // Cho phép tối đa 45s (< 1 phút / 1 file) để model 550B đọc & phân tích sâu
+  const fullOrSampledText =
+    extractedText.length > 32_000
+      ? extractedText.slice(0, 16_000) +
+        '\n...[PHẦN GIỮA ĐỀ]...\n' +
+        extractedText.slice(Math.floor(extractedText.length / 2) - 4_000, Math.floor(extractedText.length / 2) + 4_000) +
+        '\n...[PHẦN CUỐI ĐỀ & ĐÁP ÁN]...\n' +
+        extractedText.slice(-8_000)
+      : extractedText;
+
   try {
     const verifyResp = await fetch('/api/documents/deep_verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         file_name: fileName,
-        text_snippet: extractedText.slice(0, 4000),
+        text_snippet: fullOrSampledText,
       }),
       signal: controller.signal,
     });

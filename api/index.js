@@ -1982,8 +1982,12 @@ export default async function handler(req, res) {
       }
 
       const snippet =
-        rawText.length > 3500
-          ? rawText.slice(0, 2800) + "\n...\n" + rawText.slice(-700)
+        rawText.length > 32000
+          ? rawText.slice(0, 16000) +
+            "\n...[PHẦN GIỮA ĐỀ]...\n" +
+            rawText.slice(Math.floor(rawText.length / 2) - 4000, Math.floor(rawText.length / 2) + 4000) +
+            "\n...[PHẦN CUỐI ĐỀ & ĐÁP ÁN]...\n" +
+            rawText.slice(-8000)
           : rawText;
 
       const sysPrompt = `Bạn là hệ thống kiểm định và phân loại đề thi chương trình giáo dục phổ thông Việt Nam (GDPT 2018).
@@ -2033,7 +2037,7 @@ Trả về đúng 1 JSON:
               { role: "system", content: sysPrompt },
               { role: "user", content: userPrompt },
             ],
-            max_tokens: isDeepReasoning ? 2048 : 320,
+            max_tokens: isDeepReasoning ? 16384 : 2048,
             temperature: 0.0,
             chat_template_kwargs: {
               thinking: isDeepReasoning,
