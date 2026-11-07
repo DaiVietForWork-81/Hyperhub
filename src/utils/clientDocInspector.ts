@@ -630,7 +630,7 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     detectedSubjectVi = SUBJECT_MAP.CIVIC_EDUCATION.vi;
   }
 
-  const educationalLevelVi =
+  let educationalLevelVi =
     educationalLevel === 'CAP_2'
       ? 'Cấp 2 (THCS)'
       : educationalLevel === 'CAP_3'
@@ -749,6 +749,72 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
         academicYear ? ` • Năm học: ${academicYear}` : ''
       }.`,
     });
+  }
+
+  // =========================================================================
+  // ĐỐI CHIẾU SÂU QUA CLOUD ENGINE (/api/documents/deep_verify)
+  // =========================================================================
+  if (extractedText.trim().length >= 30) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const verifyResp = await fetch('/api/documents/deep_verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: file.name,
+          text_snippet: extractedText.slice(0, 4000),
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (verifyResp.ok) {
+        const verifyData = await verifyResp.json();
+        const v = verifyData?.verified;
+        if (verifyData?.success && v) {
+          if (v.subject && SUBJECT_MAP[v.subject]) {
+            detectedSubject = v.subject;
+            detectedSubjectVi = SUBJECT_MAP[v.subject].vi;
+          }
+          if (v.estimated_level && GRADE_SELECT_OPTIONS.includes(v.estimated_level)) {
+            estimatedLevel = v.estimated_level;
+          }
+          if (v.educational_level === 'CAP_2' || v.educational_level === 'CAP_3' || v.educational_level === 'CHUNG') {
+            educationalLevel = v.educational_level;
+            educationalLevelVi =
+              educationalLevel === 'CAP_2'
+                ? 'Cấp 2 (THCS)'
+                : educationalLevel === 'CAP_3'
+                ? 'Cấp 3 (THPT)'
+                : 'Chung (Cả 2 cấp)';
+          }
+          if (v.exam_type) {
+            const matchedType = EXAM_TYPE_SELECT_OPTIONS.find((t) => t.value === v.exam_type);
+            if (matchedType) {
+              examType = matchedType.value;
+              examTypeVi = matchedType.label;
+            }
+          }
+          if (v.school_or_department && v.school_or_department !== 'null' && !schoolOrDepartment) {
+            schoolOrDepartment = String(v.school_or_department).trim();
+          }
+          if (v.academic_year && v.academic_year !== 'null' && !academicYear) {
+            academicYear = String(v.academic_year).trim();
+          }
+          if (v.verification_note && verificationSteps.length >= 4) {
+            verificationSteps[3] = {
+              stepNumber: 4,
+              title: 'Bước 4: Phân định Loại đề & Đơn vị ra đề',
+              status: 'passed',
+              detail: String(v.verification_note).trim(),
+            };
+          }
+        }
+      }
+    } catch {
+      // Giữ nguyên kết quả kiểm tra cục bộ nếu mất kết nối
+    }
   }
 
   const summary = [

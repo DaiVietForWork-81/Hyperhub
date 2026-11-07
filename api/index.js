@@ -1931,6 +1931,102 @@ export default async function handler(req, res) {
       }
     }
 
+    // 9b. POST /api/documents/deep_verify — Đối chiếu sâu đề thi 4 bước qua Cloud Engine
+    if (pathname === "/api/documents/deep_verify" && req.method === "POST") {
+      const body = req.body || {};
+      const fileName = String(body.file_name || "").trim();
+      const rawText = String(body.text_snippet || "").trim();
+      if (!rawText || rawText.length < 20) {
+        return res.status(200).json({ success: false, reason: "short_text" });
+      }
+
+      let apiKey = process.env.NVIDIA_API_KEY || "";
+      let baseUrl = process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
+      let primaryModel = "nvidia/nemotron-3.5-bolt-e4b";
+      let fallbackModel = "mistralai/mistral-large-4-1t-a52b";
+
+      if (!apiKey) {
+        const kvCfg = await getKvValue("nvidia_cloud_config");
+        if (kvCfg?.data?.api_key) {
+          apiKey = kvCfg.data.api_key;
+          baseUrl = kvCfg.data.base_url || baseUrl;
+          primaryModel = kvCfg.data.primary_model || primaryModel;
+          fallbackModel = kvCfg.data.fallback_model || fallbackModel;
+        }
+      }
+
+      if (!apiKey) {
+        return res.status(200).json({ success: false, reason: "no_config" });
+      }
+
+      const snippet =
+        rawText.length > 3500
+          ? rawText.slice(0, 2800) + "\n...\n" + rawText.slice(-700)
+          : rawText;
+
+      const sysPrompt = `Bạn là hệ thống kiểm định và phân loại đề thi chương trình giáo dục phổ thông Việt Nam (GDPT 2018).
+Nhiệm vụ của bạn là đọc tên tệp và nội dung trích xuất của đề thi, thực hiện đối chiếu 4 bước và trả về DUY NHẤT 1 chuỗi JSON hợp lệ.
+QUY TẮC BẮT BUỘC:
+1. Tách biệt "Trường THPT Chuyên" và "Đề thi Chuyên / HSG": Nếu đầu đề ghi "Trường THPT Chuyên ..." nhưng kỳ thi là "Thi thử Tốt nghiệp THPT", "Khảo sát chất lượng", "Giữa kỳ", "Học kỳ" thì exam_type PHẢI LÀ "THI_THU_THPT" hoặc "KIEM_TRA_DINH_KY" (KHÔNG ĐƯỢC xếp vào "DE_CHUYEN_HSG"). Chỉ xếp "DE_CHUYEN_HSG" khi đề thi chọn Học sinh giỏi, Tuyển sinh vào 10 Chuyên, hoặc Olympic.
+2. Phân biệt "Tuyển sinh vào lớp 10" và "Lớp 10 THPT": Đề ghi "Kỳ thi tuyển sinh vào lớp 10 THPT" / "Thi vào lớp 10" / "Ôn thi vào 10" là dành cho học sinh Lớp 9 (THCS) -> estimated_level = "Khối 9 (Ôn Vào 10)", educational_level = "CAP_2", exam_type = "TUYEN_SINH_10".
+3. Phân biệt môn học chuẩn GDPT 2018:
+   - Cấp 2 (Lớp 6-9): Khoa học tự nhiên -> "NATURAL_SCIENCE", Lịch sử và Địa lí -> "HISTORY_GEOGRAPHY", Giáo dục công dân -> "CIVIC_EDUCATION".
+   - Cấp 3 (Lớp 10-12): Vật lí -> "PHYSICS", Hóa học -> "CHEMISTRY", Sinh học -> "BIOLOGY", Toán -> "MATHEMATICS", Tin học -> "INFORMATICS", Ngữ văn -> "LITERATURE", Tiếng Anh -> "ENGLISH", Lịch sử -> "HISTORY", Địa lí -> "GEOGRAPHY", Giáo dục kinh tế và pháp luật -> "ECONOMIC_LEGAL_EDU".
+4. Trong trường verification_note: Viết 1 câu tiếng Việt tự nhiên xác nhận lý do phân loại (tuyệt đối KHÔNG nhắc chữ AI hay thuật ngữ kỹ thuật).
+
+Trả về đúng 1 JSON:
+{
+  "subject": "MATHEMATICS | PHYSICS | CHEMISTRY | BIOLOGY | INFORMATICS | LITERATURE | ENGLISH | HISTORY | GEOGRAPHY | NATURAL_SCIENCE | HISTORY_GEOGRAPHY | CIVIC_EDUCATION | ECONOMIC_LEGAL_EDU | TECHNOLOGY | DEFENSE_SECURITY_EDU | GENERAL",
+  "estimated_level": "Khối 12 (Ôn thi THPT) | Khối 11 | Khối 10 | Khối 9 (Ôn Vào 10) | Khối 8 | Khối 7 | Khối 6 | Khối THCS",
+  "educational_level": "CAP_2 | CAP_3 | CHUNG",
+  "exam_type": "THI_THU_THPT | KIEM_TRA_DINH_KY | TUYEN_SINH_10 | DE_CHUYEN_HSG | TAI_LIEU_ON_TAP",
+  "school_or_department": "Tên Trường hoặc Sở GD&ĐT nếu có, hoặc null",
+  "academic_year": "YYYY-YYYY nếu có, hoặc null",
+  "verification_note": "1 câu xác nhận ngắn gọn bằng tiếng Việt"
+}`;
+
+      const userPrompt = `Tên tệp: ${fileName}\nNội dung đề:\n${snippet}\n\nChỉ trả về JSON:`;
+
+      for (const model of [primaryModel, fallbackModel]) {
+        try {
+          const controller = new AbortController();
+          const tId = setTimeout(() => controller.abort(), 4200);
+          const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: sysPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              max_tokens: 260,
+              temperature: 0.0,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(tId);
+          if (!r.ok) continue;
+          const j = await r.json();
+          const msg = j?.choices?.[0]?.message || {};
+          const content = String(msg.content || msg.reasoning_content || "").trim();
+          const mJson = content.match(/\{[\s\S]*\}/);
+          if (mJson) {
+            const parsed = JSON.parse(mJson[0]);
+            if (parsed && parsed.subject) {
+              return res.status(200).json({ success: true, verified: parsed });
+            }
+          }
+        } catch {
+          // Thử model tiếp theo
+        }
+      }
+      return res.status(200).json({ success: false, reason: "timeout" });
+    }
+
     // 10. Interactive RPC endpoints (notify, ban, unban, kick, timeout, import_gdrive, system/*)
     const isAdminAction =
       pathname.startsWith("/api/admin/") ||
