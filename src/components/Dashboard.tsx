@@ -2739,7 +2739,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
             className="hh-hub-chip whitespace-nowrap"
           >
             <GraduationCap className="w-3.5 h-3.5 text-[#C4A6FF]" />
-            <span>Khóa Học</span>
+            <span>Khóa Học (Beta)</span>
           </button>
           <button
             onClick={() => handleTabChange('forum')}
@@ -2913,9 +2913,9 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 className="hh-hub-nav-item"
               >
                 <GraduationCap className="w-4 h-4 shrink-0 text-[#FFB8E6]" />
-                <span className="truncate">Khóa Học Chuyên Đề</span>
-                <span className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded bg-[#201833] text-[#E2D4FF] border border-[#32244d] shrink-0">
-                  Mới
+                <span className="truncate">Khóa Học (Chưa hoàn thiện)</span>
+                <span className="ml-auto font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                  Beta
                 </span>
               </button>
 
@@ -3212,7 +3212,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <span className="text-white/25">/</span>
               <span className="text-[13px] font-extrabold text-white">
                 {activeTab === 'overview' && 'Bàn điều khiển trung tâm'}
-                {activeTab === 'courses' && 'Trung tâm Khóa học (Đồng bộ khoahoc)'}
+                {activeTab === 'courses' && 'Trung tâm Khóa học — Beta (Chưa hoàn thiện)'}
                 {activeTab === 'forum' && 'Diễn đàn thảo luận 2 chiều (Góc thắc mắc · Facts · Hỏi đáp · Ôn thi)'}
                 {activeTab === 'vault' && (showBookmarksOnly ? 'Tủ sách cá nhân' : 'Kho đề thi')}
                 {activeTab === 'get_exam' && 'Máy bốc đề ngẫu nhiên'}
@@ -3717,7 +3717,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                       onClick={() => handleTabChange('courses')}
                       icon={<GraduationCap className="w-4 h-4 text-[#C4A6FF]" />}
                     >
-                      Khóa Học Chuyên Đề
+                      Khóa Học (Beta · Chưa hoàn thiện)
                     </PixelButton>
 
                     <PixelButton

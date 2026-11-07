@@ -29,7 +29,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', view: 'home', label: 'Trang chủ', mobileLabel: 'Trang chủ', icon: Home },
-  { key: 'courses', view: 'dashboard', tab: 'courses', label: 'Khóa học', mobileLabel: 'Khóa học', icon: GraduationCap },
+  { key: 'courses', view: 'dashboard', tab: 'courses', label: 'Khóa học', mobileLabel: 'Khóa học (Beta • Chưa hoàn thiện)', icon: GraduationCap },
   { key: 'forum', view: 'dashboard', tab: 'forum', label: 'Diễn đàn', mobileLabel: 'Diễn đàn Orbit', icon: MessageSquare },
   { key: 'vault', view: 'dashboard', tab: 'vault', label: 'Kho đề', mobileLabel: 'Kho đề thi', icon: BookOpen },
   { key: 'get_exam', view: 'dashboard', tab: 'get_exam', label: 'Lấy đề', mobileLabel: 'Lấy đề nhanh', icon: Dices },
@@ -186,6 +186,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeView, activeTab = 'overvie
                   >
                     <Icon className="hh-nav-icon" aria-hidden="true" />
                     <span>{item.label}</span>
+                    {item.key === 'courses' && (
+                      <span
+                        className="ml-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                        title="Phiên bản thử nghiệm Beta (Chưa hoàn thiện)"
+                      >
+                        Beta
+                      </span>
+                    )}
                     {item.key === 'vault' && countBadge(true)}
                   </button>
                 </li>

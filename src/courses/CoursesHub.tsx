@@ -107,18 +107,18 @@ export const CoursesHub: React.FC<CoursesHubProps> = ({ onOpenExamVaultForSubjec
   const getStatusBadge = (status: CourseItem['status']) => {
     if (status === 'ready') {
       return {
-        label: 'Sẵn sàng học',
-        className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        label: 'Bản thử nghiệm Beta',
+        className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
       };
     }
     if (status === 'draft') {
       return {
-        label: 'Khung bản thô (Đang mở rộng)',
-        className: 'bg-[#291524] text-[#FFB8E6] border-[#422039]',
+        label: 'Beta · Chưa hoàn thiện',
+        className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
       };
     }
     return {
-      label: 'Sắp ra mắt',
+      label: 'Đang phát triển (Chưa hoàn thiện)',
       className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
     };
   };
@@ -126,28 +126,45 @@ export const CoursesHub: React.FC<CoursesHubProps> = ({ onOpenExamVaultForSubjec
   return (
     <div className="space-y-6">
       {/* ===================================================================== */}
+      {/* BANNER CẢNH BÁO BETA (CHƯA HOÀN THIỆN)                                 */}
+      {/* ===================================================================== */}
+      <div className="rounded-2xl bg-amber-500/10 border border-amber-500/35 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3">
+          <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider shrink-0">
+            BETA · CHƯA HOÀN THIỆN
+          </span>
+          <p className="text-xs sm:text-sm text-amber-100/90 leading-relaxed">
+            Phân hệ <strong>Khóa Học Chuyên Đề</strong> hiện đang trong giai đoạn thử nghiệm (<strong>Beta — Chưa hoàn thiện</strong>). Một số bài giảng, video và bài tập tự luyện đang được đội ngũ tiếp tục biên soạn và cập nhật.
+          </p>
+        </div>
+      </div>
+
+      {/* ===================================================================== */}
       {/* HEADER BANNER: TRUNG TÂM KHÓA HỌC ORBIT & CẦU NỐI REPO KHOAHOC       */}
       {/* ===================================================================== */}
       <div className="hh-command-deck p-5 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#221a35]">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-bold px-2.5 py-1 rounded-lg bg-[#291524] text-[#FFB8E6] border border-[#422039] flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5 text-[#FF4FCB]" />
-                <span>Phân hệ Khóa Học · Bản Thô v{catalog.version}</span>
+              <span className="text-[13px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/35 flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
+                <span>Phân hệ Khóa Học · BETA (Chưa hoàn thiện)</span>
               </span>
-              <span className="text-[13px] font-mono px-2.5 py-1 rounded-lg bg-[#15131f] text-emerald-300 border border-[#221e30] flex items-center gap-1.5 tabular-nums">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-[13px] font-mono px-2.5 py-1 rounded-lg bg-[#15131f] text-amber-200 border border-[#221e30] flex items-center gap-1.5 tabular-nums">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
                 <span>
                   {syncedLive
-                    ? 'Đã đồng bộ Live từ DaiVietForWork-81/khoahoc'
-                    : 'Đang chạy khung dữ liệu chuẩn khoahoc'}
+                    ? 'Đang hoàn thiện nội dung (Đồng bộ khoahoc)'
+                    : 'Đang trong quá trình xây dựng & hoàn thiện nội dung'}
                 </span>
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl lg:text-[28px] font-black text-white tracking-tight leading-[1.18]">
-              Trung tâm khóa học chuyên đề Orbit
+            <h1 className="text-xl sm:text-2xl lg:text-[28px] font-black text-white tracking-tight leading-[1.18] flex flex-wrap items-center gap-2.5">
+              <span>Trung tâm khóa học chuyên đề Orbit</span>
+              <span className="text-xs sm:text-sm font-mono font-bold px-2.5 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/35">
+                Beta · Chưa hoàn thiện
+              </span>
             </h1>
             <p className="text-[13px] sm:text-sm text-white/65 max-w-3xl leading-relaxed">
               Khung lộ trình học tập theo chương trình GDPT 2018 &amp; Ôn thi Chuyên/HSG (Toán, Văn, Anh, Lý, Hóa, Sinh, Tin, Sử–Địa). Nội dung bài giảng được đồng bộ 1 chiều từ kho{' '}
