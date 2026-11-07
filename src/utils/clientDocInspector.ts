@@ -379,12 +379,12 @@ const SUBJECT_MAP: Record<string, { vi: string; re: RegExp; cap?: 'CAP_2' | 'CAP
 
 // Gợi ý môn học dựa trên tên file
 const FILENAME_SUBJECT_HINTS: Record<string, RegExp> = {
-  LITERATURE: /(?:^|[_\-.\s])(?:nlxh|nlvh|nghi[_\s-]?luan|van|ngu[_\s-]?van|chuyen[_\s-]?van)(?:[_\-.\s]|$)/i,
-  MATHEMATICS: /(?:^|[_\-.\s])(?:toan|math|giai[_\s-]?tich|hinh[_\s-]?hoc)(?:[_\-.\s]|$)/i,
+  LITERATURE: /(?:^|[_\-.\s])(?:nlxh|nlvh|nghi[_\s-]?luan|dien[_\s-]?tich|dien[_\s-]?co|van|ngu[_\s-]?van|chuyen[_\s-]?van)(?:[_\-.\s]|$)/i,
+  MATHEMATICS: /(?:^|[_\-.\s])(?:toan|math|giai[_\s-]?tich|hinh[_\s-]?hoc|vach[_\s-]?ngan|to[_\s-]?hop|bat[_\s-]?dang[_\s-]?thuc)(?:[_\-.\s]|$)/i,
   PHYSICS: /(?:^|[_\-.\s])(?:vat[_\s-]?li|vat[_\s-]?ly|physics|ly)(?:[_\-.\s]|$)/i,
   CHEMISTRY: /(?:^|[_\-.\s])(?:hoa[_\s-]?hoc|chemistry|hoa)(?:[_\-.\s]|$)/i,
   BIOLOGY: /(?:^|[_\-.\s])(?:sinh[_\s-]?hoc|biology|sinh)(?:[_\-.\s]|$)/i,
-  ENGLISH: /(?:^|[_\-.\s])(?:tieng[_\s-]?anh|english|anh)(?:[_\-.\s]|$)/i,
+  ENGLISH: /(?:^|[_\-.\s])(?:tieng[_\s-]?anh|english|anh|ielts|toeic|grammar|idioms|vocabulary)(?:[_\-.\s]|$)/i,
   HISTORY: /(?:^|[_\-.\s])(?:lich[_\s-]?su|history|su)(?:[_\-.\s]|$)/i,
   GEOGRAPHY: /(?:^|[_\-.\s])(?:dia[_\s-]?li|dia[_\s-]?ly|geography|dia)(?:[_\-.\s]|$)/i,
   INFORMATICS: /(?:^|[_\-.\s])(?:tin[_\s-]?hoc|informatics|lap[_\s-]?trinh|tin)(?:[_\-.\s]|$)/i,
@@ -604,6 +604,20 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     estimatedLevel = 'Khối 6';
   } else if (/thcs/i.test(searchCorpus)) {
     estimatedLevel = 'Khối THCS';
+  } else if (/(?:nguyên\s+hàm|tích\s+phân|tiệm\s+cận|oxyz|ester|carbohydrate|saccharose|amino\s+acid|peptide|pin\s+điện|galvani|vật\s+lí\s+hạt\s+nhân|độ\s+hụt\s+khối|phóng\s+xạ|khí\s+lí\s+tưởng|phiên\s+mã|dịch\s+mã|operon\s+lac)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 12 (Ôn thi THPT)';
+  } else if (/(?:cấp\s+số\s+cộng|cấp\s+số\s+nhân|hàm\s+số\s+liên\s+tục|dao\s+động\s+điều\s+hòa|con\s+lắc\s+lò\s+xo|sóng\s+cơ|giao\s+thoa\s+ánh\s+sáng|cân\s+bằng\s+hóa\s+học|alkane|alkene|alkyne|aldehyde|carboxylic\s+acid)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 11';
+  } else if (/(?:mệnh\s+đề\s+toán\s+học|hệ\s+thức\s+lượng\s+trong\s+tam\s+giác|rơi\s+tự\s+do|định\s+luật\s+newton|orbital\s+nguyên\s+tử|cấu\s+hình\s+electron|biến\s+thiên\s+enthalpy|nguyên\s+phân|giảm\s+phân)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 10';
+  } else if (/(?:căn\s+bậc\s+hai|hệ\s+thức\s+vi[\-\s]*ét|định\s+lý\s+vi[\-\s]*ét|tứ\s+giác\s+nội\s+tiếp|thấu\s+kính\s+hội\s+tụ|khúc\s+xạ\s+ánh\s+sáng)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 9 (Ôn Vào 10)';
+  } else if (/(?:hằng\s+đẳng\s+thức\s+đáng\s+nhớ|phân\s+thức\s+đại\s+số|định\s+lý\s+thal[eè]s|khối\s+lượng\s+riêng|áp\s+suất\s+chất\s+lỏng)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 8';
+  } else if (/(?:số\s+hữu\s+tỉ|tỉ\s+lệ\s+thức|dãy\s+tỉ\s+số\s+bằng\s+nhau|hai\s+tam\s+giác\s+bằng\s+nhau)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 7';
+  } else if (/(?:ước\s+chung\s+lớn\s+nhất|bội\s+chung\s+nhỏ\s+nhất|ưcln|bcnn)/i.test(searchCorpus)) {
+    estimatedLevel = 'Khối 6';
   }
 
   // Phân loại Bậc Giáo Dục (Chung, Cấp 2, Cấp 3)
