@@ -753,63 +753,55 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
 
   // =========================================================================
   // ĐỐI CHIẾU SÂU QUA CLOUD ENGINE (/api/documents/deep_verify)
+  // Tích hợp Cache + Pacing Queue (<= 34 req/phút) + Lọc thông minh bảo vệ 10k req/ngày
   // =========================================================================
-  if (extractedText.trim().length >= 30) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
-      const verifyResp = await fetch('/api/documents/deep_verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_name: file.name,
-          text_snippet: extractedText.slice(0, 4000),
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+  const hasAmbiguity =
+    ambiguityWarnings.length > 0 ||
+    detectedSubject === 'GENERAL' ||
+    hasChuyenSchoolHeader ||
+    isEntranceGrade10 ||
+    educationalLevel === 'CAP_2';
 
-      if (verifyResp.ok) {
-        const verifyData = await verifyResp.json();
-        const v = verifyData?.verified;
-        if (verifyData?.success && v) {
-          if (v.subject && SUBJECT_MAP[v.subject]) {
-            detectedSubject = v.subject;
-            detectedSubjectVi = SUBJECT_MAP[v.subject].vi;
+  if (extractedText.trim().length >= 30 && shouldInvokeDeepVerifyClient(file.name, extractedText, hasAmbiguity)) {
+    try {
+      const v = await callDeepVerifyWithQuotaGuard(file.name, extractedText);
+      if (v) {
+        if (v.subject && SUBJECT_MAP[v.subject]) {
+          detectedSubject = v.subject;
+          detectedSubjectVi = SUBJECT_MAP[v.subject].vi;
+        }
+        if (v.estimated_level && GRADE_SELECT_OPTIONS.includes(v.estimated_level)) {
+          estimatedLevel = v.estimated_level;
+        }
+        if (v.educational_level === 'CAP_2' || v.educational_level === 'CAP_3' || v.educational_level === 'CHUNG') {
+          educationalLevel = v.educational_level;
+          educationalLevelVi =
+            educationalLevel === 'CAP_2'
+              ? 'Cấp 2 (THCS)'
+              : educationalLevel === 'CAP_3'
+              ? 'Cấp 3 (THPT)'
+              : 'Chung (Cả 2 cấp)';
+        }
+        if (v.exam_type) {
+          const matchedType = EXAM_TYPE_SELECT_OPTIONS.find((t) => t.value === v.exam_type);
+          if (matchedType) {
+            examType = matchedType.value;
+            examTypeVi = matchedType.label;
           }
-          if (v.estimated_level && GRADE_SELECT_OPTIONS.includes(v.estimated_level)) {
-            estimatedLevel = v.estimated_level;
-          }
-          if (v.educational_level === 'CAP_2' || v.educational_level === 'CAP_3' || v.educational_level === 'CHUNG') {
-            educationalLevel = v.educational_level;
-            educationalLevelVi =
-              educationalLevel === 'CAP_2'
-                ? 'Cấp 2 (THCS)'
-                : educationalLevel === 'CAP_3'
-                ? 'Cấp 3 (THPT)'
-                : 'Chung (Cả 2 cấp)';
-          }
-          if (v.exam_type) {
-            const matchedType = EXAM_TYPE_SELECT_OPTIONS.find((t) => t.value === v.exam_type);
-            if (matchedType) {
-              examType = matchedType.value;
-              examTypeVi = matchedType.label;
-            }
-          }
-          if (v.school_or_department && v.school_or_department !== 'null' && !schoolOrDepartment) {
-            schoolOrDepartment = String(v.school_or_department).trim();
-          }
-          if (v.academic_year && v.academic_year !== 'null' && !academicYear) {
-            academicYear = String(v.academic_year).trim();
-          }
-          if (v.verification_note && verificationSteps.length >= 4) {
-            verificationSteps[3] = {
-              stepNumber: 4,
-              title: 'Bước 4: Phân định Loại đề & Đơn vị ra đề',
-              status: 'passed',
-              detail: String(v.verification_note).trim(),
-            };
-          }
+        }
+        if (v.school_or_department && v.school_or_department !== 'null' && !schoolOrDepartment) {
+          schoolOrDepartment = String(v.school_or_department).trim();
+        }
+        if (v.academic_year && v.academic_year !== 'null' && !academicYear) {
+          academicYear = String(v.academic_year).trim();
+        }
+        if (v.verification_note && verificationSteps.length >= 4) {
+          verificationSteps[3] = {
+            stepNumber: 4,
+            title: 'Bước 4: Phân định Loại đề & Đơn vị ra đề',
+            status: 'passed',
+            detail: String(v.verification_note).trim(),
+          };
         }
       }
     } catch {
@@ -861,4 +853,99 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     ambiguityWarnings,
     needsUserReview: ambiguityWarnings.length > 0,
   };
+}
+
+// =========================================================================
+// BỘ ĐIỀU TỐC & CACHE BẢO VỆ QUOTA (34 REQ/PHÚT & 10.000 REQ/NGÀY)
+// =========================================================================
+const CLIENT_VERIFY_CACHE = new Map<string, any>();
+const CLIENT_MINUTE_TIMESTAMPS: number[] = [];
+const CLIENT_MAX_RPM = 34;
+const CLIENT_MIN_INTERVAL_MS = 1600;
+let clientLastRequestTs = 0;
+let clientQueuePromise: Promise<void> = Promise.resolve();
+
+function makeClientFingerprint(fileName: string, text: string): string {
+  const normName = fileName.trim().toLowerCase().replace(/\s+/g, ' ');
+  const head = text.slice(0, 1200).trim().toLowerCase().replace(/\s+/g, ' ');
+  const tail = text.slice(-300).trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${normName}::${head.length}::${head.slice(0, 240)}::${tail.slice(0, 120)}`;
+}
+
+function shouldInvokeDeepVerifyClient(fileName: string, text: string, hasAmbiguity: boolean): boolean {
+  const fp = makeClientFingerprint(fileName, text);
+  if (CLIENT_VERIFY_CACHE.has(fp)) return true;
+  if (hasAmbiguity) return true;
+
+  const now = Date.now();
+  while (CLIENT_MINUTE_TIMESTAMPS.length > 0 && now - CLIENT_MINUTE_TIMESTAMPS[0] >= 60_000) {
+    CLIENT_MINUTE_TIMESTAMPS.shift();
+  }
+  // Khi hàng đợi đang thông thoáng (< 12 req/phút), cho phép đối chiếu 100%
+  // Khi người dùng kéo thả hàng loạt file cùng lúc (>= 12 req/phút), chỉ ưu tiên file có nguy cơ nhầm lẫn
+  return CLIENT_MINUTE_TIMESTAMPS.length < 12;
+}
+
+async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: string): Promise<any | null> {
+  const fp = makeClientFingerprint(fileName, extractedText);
+  if (CLIENT_VERIFY_CACHE.has(fp)) {
+    return CLIENT_VERIFY_CACHE.get(fp);
+  }
+
+  // Xếp hàng tuần tự cách nhau tối thiểu 1.6s để không bao giờ vượt 40 req/phút
+  let releaseQueue!: () => void;
+  const prevQueue = clientQueuePromise;
+  clientQueuePromise = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await prevQueue;
+  try {
+    const now = Date.now();
+    while (CLIENT_MINUTE_TIMESTAMPS.length > 0 && now - CLIENT_MINUTE_TIMESTAMPS[0] >= 60_000) {
+      CLIENT_MINUTE_TIMESTAMPS.shift();
+    }
+    if (CLIENT_MINUTE_TIMESTAMPS.length >= CLIENT_MAX_RPM) {
+      const waitWindowMs = 60_000 - (now - CLIENT_MINUTE_TIMESTAMPS[0]) + 150;
+      if (waitWindowMs > 0 && waitWindowMs <= 12_000) {
+        await new Promise((r) => setTimeout(r, waitWindowMs));
+      } else if (waitWindowMs > 12_000) {
+        return null;
+      }
+    }
+
+    const elapsedSinceLast = Date.now() - clientLastRequestTs;
+    if (elapsedSinceLast < CLIENT_MIN_INTERVAL_MS) {
+      await new Promise((r) => setTimeout(r, CLIENT_MIN_INTERVAL_MS - elapsedSinceLast));
+    }
+
+    clientLastRequestTs = Date.now();
+    CLIENT_MINUTE_TIMESTAMPS.push(clientLastRequestTs);
+  } finally {
+    releaseQueue();
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 11_000);
+  try {
+    const verifyResp = await fetch('/api/documents/deep_verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_name: fileName,
+        text_snippet: extractedText.slice(0, 4000),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!verifyResp.ok) return null;
+    const verifyData = await verifyResp.json();
+    if (verifyData?.success && verifyData?.verified) {
+      CLIENT_VERIFY_CACHE.set(fp, verifyData.verified);
+      return verifyData.verified;
+    }
+  } catch {
+    clearTimeout(timeoutId);
+  }
+  return null;
 }

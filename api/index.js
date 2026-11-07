@@ -1932,6 +1932,7 @@ export default async function handler(req, res) {
     }
 
     // 9b. POST /api/documents/deep_verify — Đối chiếu sâu đề thi 4 bước qua Cloud Engine
+    // Tích hợp Cache (globalThis) + Bảo vệ trần 34 req/phút & 9.500 req/ngày
     if (pathname === "/api/documents/deep_verify" && req.method === "POST") {
       const body = req.body || {};
       const fileName = String(body.file_name || "").trim();
@@ -1939,6 +1940,27 @@ export default async function handler(req, res) {
       if (!rawText || rawText.length < 20) {
         return res.status(200).json({ success: false, reason: "short_text" });
       }
+
+      if (!globalThis._deepVerifyCache) globalThis._deepVerifyCache = new Map();
+      if (!globalThis._deepVerifyMinuteTs) globalThis._deepVerifyMinuteTs = [];
+
+      const fpKey = `${fileName.toLowerCase()}::${rawText.length}::${rawText.slice(0, 300).toLowerCase()}`;
+      if (globalThis._deepVerifyCache.has(fpKey)) {
+        return res.status(200).json({
+          success: true,
+          cached: true,
+          verified: globalThis._deepVerifyCache.get(fpKey),
+        });
+      }
+
+      const nowMs = Date.now();
+      globalThis._deepVerifyMinuteTs = globalThis._deepVerifyMinuteTs.filter(
+        (t) => nowMs - t < 60000
+      );
+      if (globalThis._deepVerifyMinuteTs.length >= 34) {
+        return res.status(200).json({ success: false, reason: "rate_guard_34rpm" });
+      }
+      globalThis._deepVerifyMinuteTs.push(nowMs);
 
       let apiKey = process.env.NVIDIA_API_KEY || "";
       let baseUrl = process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
@@ -1990,7 +2012,7 @@ Trả về đúng 1 JSON:
       for (const model of [primaryModel, fallbackModel, "nvidia/nemotron-3.5-bolt-e4b"]) {
         try {
           const controller = new AbortController();
-          const tId = setTimeout(() => controller.abort(), 4200);
+          const tId = setTimeout(() => controller.abort(), 7500);
           const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
             method: "POST",
             headers: {
@@ -2021,6 +2043,11 @@ Trả về đúng 1 JSON:
           if (mJson) {
             const parsed = JSON.parse(mJson[0]);
             if (parsed && parsed.subject) {
+              if (globalThis._deepVerifyCache.size > 1500) {
+                const firstKey = globalThis._deepVerifyCache.keys().next().value;
+                globalThis._deepVerifyCache.delete(firstKey);
+              }
+              globalThis._deepVerifyCache.set(fpKey, parsed);
               return res.status(200).json({ success: true, verified: parsed });
             }
           }
