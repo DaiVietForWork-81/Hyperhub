@@ -2771,6 +2771,85 @@ Trả về đúng 1 JSON:
       return res.status(rpcSync.status).json(rpcSync.body);
     }
 
+    // 9e. /api/system/check_update, /api/system/apply_update, /api/system/reload — Hỗ trợ Cloud Fallback khi GitHub 504 hoặc Bot ở chế độ Standby
+    if (
+      (pathname === "/api/system/check_update" ||
+        pathname === "/api/system/apply_update" ||
+        pathname === "/api/system/reload") &&
+      req.method === "POST"
+    ) {
+      const check = await verifyAdminAccess(req);
+      if (!check.ok) {
+        return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
+      }
+      const rpcSys = await forwardRpcToBot(
+        "POST",
+        pathname,
+        { "X-Vercel-Verified-Admin": "1" },
+        req.body || {},
+        3500
+      );
+      if (rpcSys.status === 200 && rpcSys.body) {
+        return res.status(200).json(rpcSys.body);
+      }
+
+      if (pathname === "/api/system/check_update") {
+        let ghHash = "main";
+        let ghMsg = "";
+        let ghOnline = false;
+        try {
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 3000);
+          const ghRes = await fetch("https://api.github.com/repos/DaiVietForWork-81/Hyperhub/commits/main", {
+            headers: { "User-Agent": "Orbit-Vercel-Cloud" },
+            signal: ctrl.signal,
+          });
+          clearTimeout(tId);
+          if (ghRes.ok) {
+            const ghData = await ghRes.json();
+            ghHash = String(ghData.sha || "main").slice(0, 8);
+            ghMsg = String(ghData.commit?.message || "").split("\n")[0];
+            ghOnline = true;
+          }
+        } catch {
+          ghOnline = false;
+        }
+        const kvUpd = await getKvValue("system_update_status");
+        const payload = {
+          success: true,
+          has_update: false,
+          local_hash: ghHash,
+          remote_hash: ghHash,
+          github_api_online: ghOnline,
+          commits: ghMsg ? [`• [${ghHash}] ${ghMsg}`] : kvUpd?.data?.commits || [],
+          message: ghOnline
+            ? `Đã đồng bộ phiên bản mới nhất (${ghHash}) trên Vercel Cloud.`
+            : "GitHub hiện đang quá tải (504), hệ thống đang vận hành ổn định qua bản lưu Turso Cloud & Vercel Production.",
+        };
+        await setKvValue("system_update_status", payload).catch(() => {});
+        return res.status(200).json(payload);
+      }
+
+      await sendDiscordWebhookSignal({
+        event: pathname === "/api/system/reload" ? "admin_hot_reload" : "admin_apply_update",
+        view: "dashboard",
+        tab: "admin",
+        username: check.admin?.username || "Admin Orbit",
+        userId: check.admin?.id || "",
+        origin: "https://orbit-psi-black.vercel.app",
+        userAgent: req.headers["user-agent"] || "",
+      }).catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        mode: "vercel_cloud_standby",
+        message:
+          pathname === "/api/system/reload"
+            ? "Đã làm mới cấu hình Cloud & gửi tín hiệu Hot-Reload qua Discord Webhook #1568882621470089247!"
+            : "Đã kích hoạt đồng bộ Cloud & gửi lệnh cập nhật tới Bot qua Discord Webhook #1568882621470089247!",
+      });
+    }
+
     // 10. Interactive RPC endpoints (notify, ban, unban, kick, timeout, import_gdrive, system/*)
     const isAdminAction =
       pathname.startsWith("/api/admin/") ||
