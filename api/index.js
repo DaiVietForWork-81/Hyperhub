@@ -862,7 +862,7 @@ export default async function handler(req, res) {
                 d.verdict, d.exam_track, d.confidence, d.queue_status,
                 la.avatar_url as author_avatar
          FROM documents_archive d
-         LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
+         LEFT JOIN linked_accounts la ON CAST(d.author_id AS TEXT) = CAST(la.discord_id AS TEXT)
          ${whereSql}
          ORDER BY d.id DESC
          LIMIT ? OFFSET ?`,
@@ -954,7 +954,7 @@ export default async function handler(req, res) {
                 d.verdict, d.exam_track, d.confidence,
                 la.avatar_url as author_avatar
          FROM documents_archive d
-         LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
+         LEFT JOIN linked_accounts la ON CAST(d.author_id AS TEXT) = CAST(la.discord_id AS TEXT)
          ${whereSql}
          ORDER BY RANDOM() LIMIT 1`,
         params
@@ -969,7 +969,7 @@ export default async function handler(req, res) {
                   d.verdict, d.exam_track, d.confidence,
                   la.avatar_url as author_avatar
            FROM documents_archive d
-           LEFT JOIN linked_accounts la ON d.author_id = la.discord_id
+           LEFT JOIN linked_accounts la ON CAST(d.author_id AS TEXT) = CAST(la.discord_id AS TEXT)
            ORDER BY RANDOM() LIMIT 1`
         );
       }

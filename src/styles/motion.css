@@ -227,6 +227,94 @@
   .hh-swap-panel { animation: hh-panel-swap-in 180ms var(--hh-ease-out) both; }
   .hh-swap-icon { animation: hh-icon-swap-in 180ms var(--hh-ease-out) both; }
 
+  /* Staggered Card & Queue Item Entrance (Emil Kowalski Spring-Out 60fps) */
+  @keyframes hh-card-pop-in {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0) scale(0.985);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+  @keyframes hh-badge-pop-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+    70% {
+      transform: scale(1.03);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes hh-float-bob {
+    0%, 100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -4px, 0);
+    }
+  }
+  @keyframes hh-shimmer-sweep {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes hh-avatar-halo-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255, 79, 203, 0.38), 0 0 10px rgba(155, 92, 255, 0.25);
+    }
+    50% {
+      box-shadow: 0 0 0 3px rgba(255, 79, 203, 0.14), 0 0 16px rgba(255, 79, 203, 0.42);
+    }
+  }
+
+  .hh-card-pop {
+    animation: hh-card-pop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(min(var(--stagger-idx, 0), 10) * 32ms);
+  }
+  .hh-badge-pop {
+    animation: hh-badge-pop-in 280ms cubic-bezier(0.34, 1.42, 0.64, 1) both;
+  }
+  .hh-float-icon {
+    animation: hh-float-bob 3.2s ease-in-out infinite;
+  }
+  .hh-shimmer-bar {
+    background-image: linear-gradient(
+      90deg,
+      rgba(214, 31, 121, 0.9) 0%,
+      rgba(255, 118, 214, 1) 45%,
+      rgba(155, 92, 255, 0.95) 55%,
+      rgba(214, 31, 121, 0.9) 100%
+    );
+    background-size: 200% 100%;
+    animation: hh-shimmer-sweep 1.8s linear infinite;
+  }
+  .hh-avatar-ring {
+    animation: hh-avatar-halo-pulse 2.8s ease-in-out infinite;
+  }
+  .hh-author-pill {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hh-author-pill:hover {
+      transform: translate3d(0, -1px, 0) scale(1.02);
+      border-color: rgba(255, 79, 203, 0.55) !important;
+      box-shadow: 0 4px 14px rgba(214, 31, 121, 0.22);
+    }
+  }
+
   /* Chỉ áp dụng hover khi thiết bị thật sự hover được */
   @media (hover: hover) and (pointer: fine) {
     .hh-lift:hover { transform: translate3d(0, var(--hh-lift), 0); }
@@ -281,6 +369,11 @@
   .hh-intro-words .hh-word-inner,
   .hh-swap-panel,
   .hh-swap-icon,
+  .hh-card-pop,
+  .hh-badge-pop,
+  .hh-float-icon,
+  .hh-shimmer-bar,
+  .hh-avatar-ring,
   .hh-block {
     opacity: 1 !important;
     transform: none !important;

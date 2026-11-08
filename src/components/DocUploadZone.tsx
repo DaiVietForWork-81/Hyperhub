@@ -106,6 +106,11 @@ export interface InspectionResult {
   confidence_score: number;
   question_count: number;
   page_count: number;
+  author_name?: string;
+  author_id?: string;
+  author_avatar?: string;
+  short_label?: string;
+  exam_description?: string;
   academic_year?: string;
   school_or_department?: string;
   summary: string;
@@ -526,7 +531,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           questionCount: clientReport.questionCount,
           pageCount: clientReport.pageCount,
           authorName: displayUploaderName,
-          authorId: user?.id ? parseInt(user.id, 10) : 0,
+          authorId: user?.id || '0',
+          authorAvatar: user?.avatar,
+          notes: clientReport.examDescription || clientReport.summary,
           fileHash: clientReport.fileHash,
           rawTextSnippet: clientReport.rawTextSnippet,
           academicYear: clientReport.academicYear,
@@ -553,7 +560,12 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         confidence_score: 0.95,
         question_count: clientReport.questionCount,
         page_count: clientReport.pageCount,
-        summary: clientReport.summary,
+        author_name: displayUploaderName,
+        author_id: user?.id,
+        author_avatar: user?.avatar,
+        short_label: clientReport.shortLabel,
+        exam_description: clientReport.examDescription,
+        summary: clientReport.examDescription || clientReport.summary,
         academic_year: clientReport.academicYear,
         school_or_department: clientReport.schoolOrDepartment,
         file_hash: clientReport.fileHash,
@@ -653,7 +665,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                 questionCount: item.clientReport.questionCount,
                 pageCount: item.clientReport.pageCount,
                 authorName: displayUploaderName,
-                authorId: user?.id ? parseInt(user.id, 10) : 0,
+                authorId: user?.id || '0',
+                authorAvatar: user?.avatar,
+                notes: item.clientReport.examDescription || item.clientReport.summary,
                 fileHash: item.clientReport.fileHash,
                 rawTextSnippet: item.clientReport.rawTextSnippet,
                 academicYear: item.clientReport.academicYear,
@@ -710,7 +724,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                   questionCount: item.clientReport.questionCount,
                   pageCount: item.clientReport.pageCount,
                   authorName: displayUploaderName,
-                  authorId: user?.id ? parseInt(user.id, 10) : 0,
+                  authorId: user?.id || '0',
+                  authorAvatar: user?.avatar,
+                  notes: item.clientReport.examDescription || item.clientReport.summary,
                   fileHash: item.clientReport.fileHash,
                   rawTextSnippet: item.clientReport.rawTextSnippet,
                   academicYear: item.clientReport.academicYear,
@@ -1019,36 +1035,61 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
           {/* BANNER CREDIT NGƯỜI ĐÓNG GÓP HOẶC YÊU CẦU LIÊN KẾT DISCORD */}
           {user ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-purple-950/60 via-slate-900/80 to-blue-950/60 border border-purple-500/30 backdrop-blur-xl shadow-lg">
-              <div className="flex items-center gap-3">
-                <img
-                  src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
-                  alt={user.global_name || user.username}
-                  className="w-10 h-10 rounded-2xl border border-purple-400/50 object-cover shadow-md shadow-purple-950/50"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                  }}
-                />
+            <div className="hh-card-pop flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-purple-950/60 via-slate-900/80 to-blue-950/60 border border-purple-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  <img
+                    src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                    alt={user.global_name || user.username}
+                    className="hh-avatar-ring w-11 h-11 rounded-2xl border border-purple-400/60 object-cover shadow-md shadow-purple-950/50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }}
+                  />
+                  <span
+                    className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center"
+                    title="Đã liên kết tài khoản Discord"
+                  >
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </span>
+                </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300/90">
+                      Tác giả nộp đề:
+                    </span>
                     <span className="font-extrabold text-white text-sm">
                       {user.global_name || user.username}
                     </span>
                     <span className="text-xs font-mono text-purple-300">
                       @{user.username}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wider">
-                      Người Đóng Góp
+                    <span className="hh-badge-pop px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/40 text-[10px] font-bold uppercase tracking-wider">
+                      ✍️ Tác giả
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Credit của bạn sẽ được hiển thị vĩnh viễn trên thẻ tài liệu và tự động cấp Role ✍️ Tác giả!
+                    Tên &amp; Avatar Discord của bạn sẽ hiển thị trực tiếp trên từng đề thi đang nộp và lưu vĩnh viễn trong Kho Đề!
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold shrink-0 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Đã kết nối Discord</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="hh-author-pill flex items-center gap-2 bg-purple-950/50 border border-purple-500/35 px-3 py-1.5 rounded-2xl">
+                  <img
+                    src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                    alt={user.global_name || user.username}
+                    className="w-5 h-5 rounded-full object-cover ring-1 ring-purple-400/50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }}
+                  />
+                  <span className="text-xs font-bold text-purple-100">
+                    {user.global_name || user.username}
+                  </span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Đang hiển thị
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1109,7 +1150,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             />
 
             <div className="max-w-md mx-auto space-y-4">
-              <div className={`w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg shadow-purple-950/20 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : 'hover:scale-105'}`}>
+              <div className={`hh-float-icon w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg shadow-purple-950/20 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : 'hover:scale-105'}`}>
                 {isUploading ? (
                   <Loader2 className="w-8 h-8 animate-spin text-pink-400" />
                 ) : (
@@ -1227,9 +1268,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                       {Math.round(((currentProcessingIndex + 1) / fileQueue.length) * 100)}%
                     </span>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-emerald-400 transition-all duration-300"
+                      className="hh-shimmer-bar h-full transition-all duration-300"
                       style={{
                         width: `${((currentProcessingIndex + 1) / fileQueue.length) * 100}%`,
                       }}
@@ -1266,12 +1307,19 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
               )}
 
               <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
-                {fileQueue.map((item) => {
+                {fileQueue.map((item, idx) => {
                   const res = item.result;
+                  const cardAuthorName = res?.author_name || user?.global_name || user?.username || 'Khách';
+                  const cardAuthorAvatar =
+                    res?.author_avatar ||
+                    user?.avatar ||
+                    'https://cdn.discordapp.com/embed/avatars/0.png';
+                  const cardAuthorHandle = user?.username ? `@${user.username}` : '';
                   return (
                     <div
                       key={item.id}
-                      className={`p-4 rounded-2xl border transition-all ${
+                      style={{ '--stagger-idx': idx } as React.CSSProperties}
+                      className={`hh-card-pop p-4 rounded-2xl border transition-all duration-200 ${
                         item.status === 'uploading'
                           ? 'bg-purple-950/30 border-purple-500/50 shadow-md'
                           : item.status === 'success'
@@ -1282,7 +1330,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                           ? 'bg-sky-950/20 border-sky-500/40'
                           : item.status === 'error'
                           ? 'bg-rose-950/20 border-rose-500/40'
-                          : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                          : 'bg-white/[0.02] border-white/5 hover:border-purple-500/30 hover:-translate-y-0.5'
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1316,8 +1364,36 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                           </div>
 
                           <div className="overflow-hidden">
-                            <div className="font-bold text-xs sm:text-sm text-white truncate max-w-md">
-                              {item.file.name}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="font-bold text-xs sm:text-sm text-white truncate max-w-md">
+                                {item.file.name}
+                              </div>
+                              {/* HUY HIỆU TÁC GIẢ (DISCORD USER + AVATAR) HIỂN THỊ TRỰC TIẾP LÚC NỘP ĐỀ */}
+                              <span
+                                className="hh-author-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-950/60 border border-purple-500/35 text-[11px] text-purple-100 shrink-0"
+                                title={`Tác giả đóng góp: ${cardAuthorName} ${cardAuthorHandle}`}
+                              >
+                                <img
+                                  src={cardAuthorAvatar}
+                                  alt={cardAuthorName}
+                                  className="hh-avatar-ring w-4 h-4 rounded-full object-cover ring-1 ring-purple-400/60 shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src =
+                                      'https://cdn.discordapp.com/embed/avatars/0.png';
+                                  }}
+                                />
+                                <span className="font-bold text-white truncate max-w-[130px]">
+                                  {cardAuthorName}
+                                </span>
+                                {cardAuthorHandle && (
+                                  <span className="text-[10px] font-mono text-purple-300 hidden sm:inline">
+                                    {cardAuthorHandle}
+                                  </span>
+                                )}
+                                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-purple-500/25 text-purple-200 border border-purple-400/30">
+                                  ✍️ Tác giả
+                                </span>
+                              </span>
                             </div>
                             <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                               <span>{formatFileSize(item.file.size)}</span>
@@ -1780,36 +1856,61 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         <div className="space-y-6">
           {/* BANNER CREDIT NGƯỜI ĐÓNG GÓP HOẶC YÊU CẦU LIÊN KẾT DISCORD */}
           {user ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900/80 to-teal-950/60 border border-emerald-500/30 backdrop-blur-xl shadow-lg">
-              <div className="flex items-center gap-3">
-                <img
-                  src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
-                  alt={user.global_name || user.username}
-                  className="w-10 h-10 rounded-2xl border border-emerald-400/50 object-cover shadow-md shadow-emerald-950/50"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                  }}
-                />
+            <div className="hh-card-pop flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900/80 to-teal-950/60 border border-emerald-500/30 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  <img
+                    src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                    alt={user.global_name || user.username}
+                    className="hh-avatar-ring w-11 h-11 rounded-2xl border border-emerald-400/60 object-cover shadow-md shadow-emerald-950/50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }}
+                  />
+                  <span
+                    className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center"
+                    title="Đã liên kết tài khoản Discord"
+                  >
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </span>
+                </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/90">
+                      Tác giả nộp đề:
+                    </span>
                     <span className="font-extrabold text-white text-sm">
                       {user.global_name || user.username}
                     </span>
                     <span className="text-xs font-mono text-emerald-300">
                       @{user.username}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
-                      Người Đóng Góp
+                    <span className="hh-badge-pop px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                      ✍️ Tác giả
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Đề nhập từ Google Drive sẽ được gắn credit vĩnh viễn với tài khoản Discord của bạn!
+                    Đề nhập từ Google Drive sẽ được gắn tên &amp; Avatar Discord của bạn vĩnh viễn trên Kho Đề!
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold shrink-0 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Đã kết nối Discord</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="hh-author-pill flex items-center gap-2 bg-emerald-950/50 border border-emerald-500/35 px-3 py-1.5 rounded-2xl">
+                  <img
+                    src={user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                    alt={user.global_name || user.username}
+                    className="w-5 h-5 rounded-full object-cover ring-1 ring-emerald-400/50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }}
+                  />
+                  <span className="text-xs font-bold text-emerald-100">
+                    {user.global_name || user.username}
+                  </span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Đang hiển thị
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -2115,10 +2216,18 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
               <div className="space-y-3">
                 {gdriveResults
                   .filter((r) => r.success)
-                  .map((item) => (
+                  .map((item, idx) => {
+                    const gdAuthorName = item.author_name || user?.global_name || user?.username || 'Khách';
+                    const gdAuthorAvatar =
+                      item.author_avatar ||
+                      user?.avatar ||
+                      'https://cdn.discordapp.com/embed/avatars/0.png';
+                    const gdAuthorHandle = user?.username ? `@${user.username}` : '';
+                    return (
                     <div
                       key={item.id}
-                      className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 space-y-3"
+                      style={{ '--stagger-idx': idx } as React.CSSProperties}
+                      className="hh-card-pop p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 space-y-3"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-start sm:items-center gap-3 overflow-hidden">
@@ -2126,8 +2235,35 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                             {item.file_type || 'PDF'}
                           </div>
                           <div>
-                            <div className="font-bold text-sm text-white truncate max-w-lg">
-                              {item.title || item.file_name}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="font-bold text-sm text-white truncate max-w-lg">
+                                {item.title || item.file_name}
+                              </div>
+                              <span
+                                className="hh-author-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-950/60 border border-purple-500/35 text-[11px] text-purple-100 shrink-0"
+                                title={`Tác giả đóng góp: ${gdAuthorName} ${gdAuthorHandle}`}
+                              >
+                                <img
+                                  src={gdAuthorAvatar}
+                                  alt={gdAuthorName}
+                                  className="hh-avatar-ring w-4 h-4 rounded-full object-cover ring-1 ring-purple-400/60 shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src =
+                                      'https://cdn.discordapp.com/embed/avatars/0.png';
+                                  }}
+                                />
+                                <span className="font-bold text-white truncate max-w-[130px]">
+                                  {gdAuthorName}
+                                </span>
+                                {gdAuthorHandle && (
+                                  <span className="text-[10px] font-mono text-purple-300 hidden sm:inline">
+                                    {gdAuthorHandle}
+                                  </span>
+                                )}
+                                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-purple-500/25 text-purple-200 border border-purple-400/30">
+                                  ✍️ Tác giả
+                                </span>
+                              </span>
                             </div>
                             <div className="text-xs text-slate-300 flex flex-wrap items-center gap-2 mt-1">
                               <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">
@@ -2236,7 +2372,8 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                         </div>
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
               </div>
             </div>
           )}

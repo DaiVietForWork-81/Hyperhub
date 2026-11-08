@@ -2412,18 +2412,50 @@ const DashboardContent: React.FC<DashboardProps> = ({
   // ============================================================================
   // RENDER CARD ĐỀ THI CHUẨN DOSSIER PIXEL BLOOM
   // ============================================================================
-  const renderExamDossierCard = (doc: ExamDocument) => {
+  const resolveDocAuthorInfo = (doc: ExamDocument) => {
+    const authorName = doc.author_name || 'Orbit Bot';
+    let authorAvatar = doc.author_avatar || '';
+    if (
+      !authorAvatar &&
+      user &&
+      user.avatar &&
+      ((doc.author_id && String(doc.author_id) === String(user.id)) ||
+        (doc.author_name &&
+          (doc.author_name === user.global_name || doc.author_name === user.username)))
+    ) {
+      authorAvatar = user.avatar;
+    }
+    if (!authorAvatar && doc.author_id) {
+      try {
+        const aid = String(doc.author_id).trim();
+        if (aid.length > 10 && /^\d+$/.test(aid)) {
+          const idx = Number((BigInt(aid) >> 22n) % 6n);
+          authorAvatar = `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!authorAvatar) {
+      authorAvatar = 'https://cdn.discordapp.com/embed/avatars/0.png';
+    }
+    return { authorName, authorAvatar };
+  };
+
+  const renderExamDossierCard = (doc: ExamDocument, idx: number = 0) => {
     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
     const trackInfo = getExamTrackInfo(doc);
     const eduBadge = getEducationLevelBadgeInfo(doc);
     const descInfo = getExamDescriptionInfo(doc);
+    const { authorName, authorAvatar } = resolveDocAuthorInfo(doc);
     const isBookmarked = bookmarkedIds.has(doc.id);
 
     return (
       <ResizableCard key={doc.id} id={`doc_${doc.id}`} allowResizeWidth={false} className="h-full">
         <SpotSurface
           as="article"
-          className={`hh-hub-surface hh-hub-surface--interactive h-full p-5 sm:p-6 flex flex-col justify-between gap-4 group ${
+          style={{ '--stagger-idx': idx } as React.CSSProperties}
+          className={`hh-card-pop hh-hub-surface hh-hub-surface--interactive h-full p-5 sm:p-6 flex flex-col justify-between gap-4 group ${
             doc.is_duplicate_copy ? 'border-amber-500/40' : ''
           }`}
         >
@@ -2477,24 +2509,18 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-white/55">
                 <span>{doc.page_count || 1} trang</span>
                 {doc.question_count > 0 && <span>• {doc.question_count} câu hỏi</span>}
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-300 font-medium">
-                  {doc.author_avatar ? (
-                    <img
-                      src={doc.author_avatar}
-                      alt={doc.author_name || 'Contributor'}
-                      className="w-3.5 h-3.5 rounded-full object-cover border border-purple-400/40 shrink-0"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                      }}
-                    />
-                  ) : (
-                    <span className="w-3.5 h-3.5 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-[8px] font-bold shrink-0">
-                      👤
-                    </span>
-                  )}
-                  <span className="text-[11px] text-purple-200/80">Đóng góp:</span>
-                  <strong className="text-[11px] text-purple-100 font-semibold truncate max-w-[120px]">
-                    {doc.author_name || 'Orbit Bot'}
+                <div className="hh-author-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-200 font-medium">
+                  <img
+                    src={authorAvatar}
+                    alt={authorName}
+                    className="hh-avatar-ring w-4 h-4 rounded-full object-cover border border-purple-400/50 shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }}
+                  />
+                  <span className="text-[11px] text-purple-200/85">Tác giả:</span>
+                  <strong className="text-[11px] text-white font-bold truncate max-w-[130px]">
+                    {authorName}
                   </strong>
                 </div>
               </div>
@@ -2630,17 +2656,19 @@ const DashboardContent: React.FC<DashboardProps> = ({
   // ===========================================================================
   // SUB-RENDER: COMPACT TABLE ROW FOR HIGH-DENSITY WORKBENCH / VAULT TABLE VIEW
   // ===========================================================================
-  const renderExamCompactRow = (doc: ExamDocument) => {
+  const renderExamCompactRow = (doc: ExamDocument, idx: number = 0) => {
     const isBookmarked = bookmarkedIds.has(doc.id);
     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
     const trackInfo = getExamTrackInfo(doc);
     const descInfo = getExamDescriptionInfo(doc);
+    const { authorName, authorAvatar } = resolveDocAuthorInfo(doc);
     const resolvedDownloadUrl = resolveExamFileUrl(doc);
 
     return (
       <div
         key={`row-${doc.id}`}
-        className="hh-dossier-row px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group"
+        style={{ '--stagger-idx': idx } as React.CSSProperties}
+        className="hh-card-pop hh-dossier-row px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group"
       >
         <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5">
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
@@ -2665,15 +2693,31 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <div className="font-bold text-[13px] sm:text-sm text-white group-hover:text-[#FFB8E6] transition-colors truncate">
               {doc.title || doc.file_name}
             </div>
-            <div className="text-[11px] text-white/60 truncate mt-0.5">
-              <span className="font-bold text-[#C4A6FF]">{descInfo.shortLabel}</span>
-              <span className="mx-1 text-white/35">—</span>
-              <span>{descInfo.bodyDescription}</span>
+            <div className="text-[11px] text-white/60 truncate mt-0.5 flex items-center gap-1.5">
+              <span className="font-bold text-[#C4A6FF] shrink-0">{descInfo.shortLabel}</span>
+              <span className="text-white/35 shrink-0">—</span>
+              <span className="truncate">{descInfo.bodyDescription}</span>
             </div>
           </button>
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+          {/* HUY HIỆU TÁC GIẢ (DISCORD USER + AVATAR) TRÊN DÒNG ĐỀ THI */}
+          <div
+            className="hh-author-pill inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-[11px] text-purple-100 shrink-0"
+            title={`Tác giả đóng góp: ${authorName}`}
+          >
+            <img
+              src={authorAvatar}
+              alt={authorName}
+              className="hh-avatar-ring w-3.5 h-3.5 rounded-full object-cover border border-purple-400/50 shrink-0"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+              }}
+            />
+            <span className="font-bold text-white truncate max-w-[96px]">{authorName}</span>
+          </div>
+
           <div className="hidden 2xl:flex items-center gap-1.5 text-[13px] text-white/55 font-mono tabular-nums pr-1">
             <span>{doc.page_count || 1}tr</span>
             <span>•</span>

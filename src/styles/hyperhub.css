@@ -1596,12 +1596,16 @@ body {
     box-shadow: none;
     transition:
       border-color var(--hh-dur-hover) var(--hh-ease-soft),
+      background-color var(--hh-dur-hover) var(--hh-ease-soft),
+      box-shadow var(--hh-dur-hover) var(--hh-ease-soft),
       transform var(--hh-dur-hover) var(--hh-ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
     .hh-hub-surface--interactive:hover {
-      border-color: #342852;
-      transform: translate3d(0, -1px, 0);
+      border-color: #46326e;
+      background-color: rgba(24, 18, 38, 0.96);
+      box-shadow: 0 8px 24px -8px rgba(155, 92, 255, 0.22);
+      transform: translate3d(0, -2px, 0);
     }
   }
 
@@ -1633,13 +1637,14 @@ body {
     border: 1px solid #221a35;
     border-left: 3px solid var(--subject-accent, #ff4fcb);
     padding: 14px 16px;
-    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    transition: border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
   }
   .hh-subject-cell:hover {
     background-color: #181228;
-    border-color: #32264d;
+    border-color: #3f2e63;
     border-left-color: var(--subject-accent, #ff4fcb);
-    transform: translateY(-1px);
+    box-shadow: 0 6px 18px -6px rgba(214, 31, 121, 0.2);
+    transform: translate3d(0, -2px, 0);
   }
 
   /* High-Density Dossier Table Row (App-Screen Standard) */
@@ -1647,11 +1652,17 @@ body {
     border-radius: 12px;
     background-color: rgba(21, 16, 33, 0.94);
     border: 1px solid #221a35;
-    transition: background-color 140ms ease, border-color 140ms ease;
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms ease;
   }
   .hh-dossier-row:hover {
     background-color: #1c152e;
-    border-color: #32264d;
+    border-color: #412f66;
+    box-shadow: 0 6px 20px -8px rgba(155, 92, 255, 0.22);
+    transform: translate3d(0, -1.5px, 0);
   }
 
   .hh-voxel-frame {

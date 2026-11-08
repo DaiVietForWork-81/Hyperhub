@@ -144,8 +144,10 @@ export async function saveDocumentToTurso(
     estimatedLevel: string;
     questionCount: number;
     pageCount: number;
-    authorId?: number;
+    authorId?: string | number;
     authorName?: string;
+    authorAvatar?: string;
+    notes?: string;
     fileHash: string;
     rawTextSnippet: string;
     academicYear?: string;
@@ -161,6 +163,24 @@ export async function saveDocumentToTurso(
   queueStatus: "pending_bot" | "synced_discord" = "pending_bot"
 ): Promise<number> {
   const nowIso = new Date().toISOString();
+  const authorIdStr = doc.authorId ? String(doc.authorId) : "0";
+
+  if (authorIdStr !== "0" && doc.authorAvatar) {
+    try {
+      await executeTurso(
+        `INSERT INTO linked_accounts (discord_id, username, global_name, avatar_url, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(discord_id) DO UPDATE SET
+           avatar_url = excluded.avatar_url,
+           global_name = COALESCE(excluded.global_name, linked_accounts.global_name),
+           updated_at = excluded.updated_at`,
+        [authorIdStr, doc.authorName || "Scholar", doc.authorName || "Scholar", doc.authorAvatar, Math.floor(Date.now() / 1000)]
+      );
+    } catch {
+      // Bỏ qua nếu bảng linked_accounts chưa khởi tạo
+    }
+  }
+
   const sql = `
     INSERT INTO documents_archive (
       subject, title, file_name, file_size_bytes, file_type,
@@ -168,7 +188,7 @@ export async function saveDocumentToTurso(
       author_name, channel_id, message_id, jump_url, timestamp,
       file_hash, raw_text, notes, academic_year, school_or_department,
       verdict, exam_track, confidence, moet_2025_compliant,
-      moet_part1_count, moet_part2_count, moet_part3_count,
+      moet_part1_count, moet_part2_count, moet_part3Count,
       has_answer_keys, has_detailed_solutions, queue_status,
       client_pre_parsed, file_content_base64, created_via
     ) VALUES (
@@ -181,7 +201,7 @@ export async function saveDocumentToTurso(
       ?, ?, ?,
       ?, ?, ?
     )
-  `;
+  `.replace("moet_part3Count", "moet_part3_count");
 
   const args = [
     doc.subject,
@@ -192,7 +212,7 @@ export async function saveDocumentToTurso(
     doc.estimatedLevel,
     doc.questionCount,
     doc.pageCount,
-    doc.authorId || 0,
+    authorIdStr,
     doc.authorName || "Khách (Web)",
     DISCORD_DATABASE_CHANNEL_ID, // channel_id (#database trên Discord)
     0, // message_id
@@ -200,7 +220,7 @@ export async function saveDocumentToTurso(
     nowIso,
     doc.fileHash,
     doc.rawTextSnippet.slice(0, 50000),
-    `[Pre-parsed by Client] ${doc.title}`,
+    doc.notes || `${doc.estimatedLevel} — ${doc.title}`,
     doc.academicYear || null,
     doc.schoolOrDepartment || null,
     "XAC_MINH",
@@ -228,14 +248,16 @@ export async function saveDocumentToTurso(
 export async function fetchDocsFromTurso(limit = 500, offset = 0): Promise<any[]> {
   const sql = `
     SELECT 
-      id, subject, title, file_name, file_size_bytes, file_type,
-      estimated_level, question_count, page_count, author_name,
-      timestamp, file_hash, notes, academic_year, school_or_department,
-      verdict, exam_track, confidence,
-      moet_2025_compliant, moet_part1_count, moet_part2_count, moet_part3_count,
-      has_answer_keys, has_detailed_solutions, queue_status
-    FROM documents_archive
-    ORDER BY id DESC
+      d.id, d.subject, d.title, d.file_name, d.file_size_bytes, d.file_type,
+      d.estimated_level, d.question_count, d.page_count, d.author_name, d.author_id,
+      d.timestamp, d.file_hash, d.notes, d.academic_year, d.school_or_department,
+      d.verdict, d.exam_track, d.confidence,
+      d.moet_2025_compliant, d.moet_part1_count, d.moet_part2_count, d.moet_part3_count,
+      d.has_answer_keys, d.has_detailed_solutions, d.queue_status,
+      la.avatar_url as author_avatar
+    FROM documents_archive d
+    LEFT JOIN linked_accounts la ON CAST(d.author_id AS TEXT) = CAST(la.discord_id AS TEXT)
+    ORDER BY d.id DESC
     LIMIT ? OFFSET ?
   `;
   const res = await executeTurso(sql, [limit, offset]);
