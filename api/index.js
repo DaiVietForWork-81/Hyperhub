@@ -2246,6 +2246,71 @@ export default async function handler(req, res) {
       });
     }
 
+    // 7b. GET /api/admin/bootstrap — Nạp toàn bộ dữ liệu khởi tạo Admin Hub trong 1 request duy nhất (~20ms từ Turso Snapshot)
+    if (pathname === "/api/admin/bootstrap" && req.method === "GET") {
+      const check = await verifyAdminAccess(req);
+      if (!check.ok) {
+        return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
+      }
+      const reqGuildId = (parsedUrl.searchParams.get("guild_id") || "").trim();
+      const forceLive = parsedUrl.searchParams.get("live") === "1";
+
+      // Nếu chọn máy chủ phụ (khác máy chủ chính 1532265330079174697) hoặc ép làm mới trực tiếp từ Bot
+      if (forceLive || (reqGuildId && reqGuildId !== DISCORD_GUILD_ID)) {
+        const liveRpc = await forwardRpcToBot(
+          "GET",
+          `/api/admin/bootstrap?guild_id=${encodeURIComponent(reqGuildId || DISCORD_GUILD_ID)}`,
+          { "X-Vercel-Verified-Admin": "1" },
+          null,
+          3500
+        );
+        if (liveRpc.status === 200 && liveRpc.body) {
+          return res.status(200).json({
+            ...liveRpc.body,
+            admin: check.admin,
+          });
+        }
+      }
+
+      const kvRes = await executeTurso(
+        `SELECT key, value, updated_at FROM bot_kv_store
+         WHERE key IN ('status', 'web_connection', 'admin_roles', 'admin_members', 'admin_bans', 'admin_channels', 'admin_config', 'system_update_status')`
+      );
+      const kvMap = {};
+      for (const r of kvRes.rows || []) {
+        try {
+          kvMap[r.key] = {
+            data: JSON.parse(r.value),
+            updated_at: Number(r.updated_at || 0),
+          };
+        } catch {}
+      }
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const statusKv = kvMap.status;
+      const botOnline = Boolean(statusKv && statusKv.data && nowSec - statusKv.updated_at <= 90);
+
+      return res.status(200).json({
+        success: true,
+        admin: check.admin,
+        bot_online: botOnline,
+        status: statusKv?.data || {
+          status: "online",
+          bot_user: "Orbit Cloud Engine (Vercel + Turso 24/7)",
+          ping_ms: 18,
+          bridge_mode: "vercel_cloud_standby",
+          webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID,
+        },
+        web_connection: kvMap.web_connection?.data || null,
+        roles_data: kvMap.admin_roles?.data || { roles: [], guilds: [] },
+        members_data: kvMap.admin_members?.data || { members: [] },
+        bans_data: kvMap.admin_bans?.data || { bans: [] },
+        channels_data: kvMap.admin_channels?.data || { channels: [], categories: [] },
+        config_data: kvMap.admin_config?.data || null,
+        update_status: kvMap.system_update_status?.data || null,
+      });
+    }
+
     // 8. Admin Read Snapshots (/api/admin/roles, channels, members, bans, logs, config, audit-logs, /api/system/update_status)
     const snapshotMap = {
       "/api/admin/roles": { key: "admin_roles", fallback: { success: true, total: 0, roles: [] } },
@@ -2271,8 +2336,13 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
         }
       }
-      // Nếu có query guild_id khác mặc định hoặc search, ưu tiên hỏi trực tiếp Bot RPC trước
-      const hasCustomQuery = Boolean(parsedUrl.searchParams.get("guild_id") || parsedUrl.searchParams.get("search"));
+      // Chỉ gọi RPC sang Bot khi guild_id khác máy chủ chính (1532265330079174697), có từ khóa search riêng, hoặc có cờ live=1
+      const reqGuildId = (parsedUrl.searchParams.get("guild_id") || "").trim();
+      const reqSearch = (parsedUrl.searchParams.get("search") || "").trim();
+      const forceLive = parsedUrl.searchParams.get("live") === "1";
+      const hasCustomQuery = Boolean(
+        forceLive || (reqGuildId && reqGuildId !== DISCORD_GUILD_ID) || reqSearch
+      );
       if (hasCustomQuery) {
         const liveRpc = await forwardRpcToBot(
           "GET",

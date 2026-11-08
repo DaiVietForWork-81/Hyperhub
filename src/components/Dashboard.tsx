@@ -53,6 +53,7 @@ import {
   API_FETCH_HEADERS,
   DEFAULT_TUNNEL_URL,
   setCustomApiUrl,
+  notifyBotViaWebhookHandshake,
 } from '../utils/apiConfig';
 const DocUploadZone = lazy(() =>
   import('./DocUploadZone').then((m) => ({ default: m.DocUploadZone }))
@@ -3362,7 +3363,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                     {user.global_name || user.username}
                   </div>
                   <div className="text-xs text-white/50 truncate font-mono">
-                    `@${user.username}`
+                    @{user.username}
                   </div>
                 </div>
                 <button
@@ -3495,7 +3496,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 }`}
               />
               <span className="text-white/80 font-sans font-semibold">
-                'Trực tuyến'
+                {botStatus.online ? 'Bot trực tuyến' : 'Cloud trực tuyến'}
               </span>
               <span className="text-white/20">|</span>
               <span className="text-[#FFB8E6] font-bold">{totalDocsCount} đề</span>
@@ -3504,15 +3505,24 @@ const DashboardContent: React.FC<DashboardProps> = ({
             <button
               type="button"
               onClick={() => {
+                notifyBotViaWebhookHandshake({
+                  event: 'manual_sync',
+                  view: 'dashboard',
+                  tab: activeTab,
+                  username: user?.global_name || user?.username || 'Học Sinh Orbit',
+                  userId: user?.id,
+                  force: true,
+                });
                 checkBotStatus();
                 fetchDocStats();
                 fetchDocuments();
-                showInfo('Đã làm mới danh sách đề thi.');
+                showInfo('Đã gửi tín hiệu đồng bộ Webhook Bot ↔ Web & làm mới kho đề thi.');
               }}
-              className="p-2 rounded-xl bg-[#161618] hover:bg-[#1e1e22] border border-[#242429] text-white/70 hover:text-white transition-colors cursor-pointer"
-              title="Làm mới dữ liệu"
+              className="px-3 py-1.5 rounded-xl bg-[#13111c] hover:bg-[#1a1726] border border-[#241f35] text-[13px] font-semibold text-white/80 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+              title="Đồng bộ dữ liệu & đánh thức Bot qua Discord Webhook #1568882621470089247"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5 text-[#C6F24E]" />
+              <span>Đồng bộ Bot</span>
             </button>
           </div>
         </div>

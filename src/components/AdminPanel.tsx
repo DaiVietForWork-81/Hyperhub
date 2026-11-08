@@ -30,7 +30,6 @@ import {
   GitBranch,
   ArrowUpCircle,
   ExternalLink,
-  Database,
   HardDrive,
   Cloud,
   Crown,
@@ -132,7 +131,25 @@ interface AdminExamDocument {
   timestamp: string;
   notes?: string;
   jump_url?: string;
+  download_url?: string;
   is_chunked?: number;
+  is_duplicate?: boolean;
+  is_duplicate_copy?: boolean;
+  duplicate_count?: number;
+  queue_status?: string;
+}
+
+interface BotBridgeStatus {
+  status?: string;
+  bot_user?: string;
+  bot_id?: string | number;
+  ping_ms?: number;
+  uptime_seconds?: number;
+  bridge_mode?: string;
+  web_connected?: boolean;
+  last_web_signal_ts?: number;
+  web_handshake_count?: number;
+  webhook_id?: string;
 }
 
 interface AdminIdentity {
@@ -246,6 +263,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     { id: '1567904557076316250', name: 'Orbit | Toán', member_count: 2 },
   ]);
   const [adminIdentity, setAdminIdentity] = useState<AdminIdentity | null>(null);
+  const [botBridgeStatus, setBotBridgeStatus] = useState<BotBridgeStatus | null>(null);
+  const [botOnline, setBotOnline] = useState<boolean>(true);
+  const [syncingSystem, setSyncingSystem] = useState<boolean>(false);
+  const bootstrappedGuildRef = useRef<string>('');
 
   // Sliding Indicator cho thanh Tab Navigation
   const tabBarRef = useRef<HTMLDivElement | null>(null);
@@ -288,6 +309,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [memberSearch, setMemberSearch] = useState<string>('');
   const [memberRoleFilter, setMemberRoleFilter] = useState<string>('ALL');
   const [selectedMemberForRoles, setSelectedMemberForRoles] = useState<DiscordMemberItem | null>(null);
+  const [modalRoleSearch, setModalRoleSearch] = useState<string>('');
   const [togglingRoleId, setTogglingRoleId] = useState<string | null>(null);
 
   const [bans, setBans] = useState<BannedUser[]>([]);
@@ -304,6 +326,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [docSubjectFilter, setDocSubjectFilter] = useState<string>('ALL');
   const [docLevelFilter, setDocLevelFilter] = useState<string>('ALL');
   const [docTrackFilter, setDocTrackFilter] = useState<string>('ALL');
+  const [docStatusFilter, setDocStatusFilter] = useState<'ALL' | 'UNIQUE' | 'DUPLICATE' | 'PENDING_BOT'>('ALL');
+  const [docPage, setDocPage] = useState<number>(1);
+  const DOC_PAGE_SIZE = 30;
   const [selectedDocIds, setSelectedDocIds] = useState<Set<number>>(new Set());
   const [bulkSubject, setBulkSubject] = useState<string>('');
   const [bulkLevel, setBulkLevel] = useState<string>('');
@@ -326,6 +351,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [channels, setChannels] = useState<DiscordChannelItem[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [loadingChannels, setLoadingChannels] = useState<boolean>(false);
+  const [channelSearch, setChannelSearch] = useState<string>('');
+  const [channelKindFilter, setChannelKindFilter] = useState<'ALL' | 'PUBLIC' | 'PRIVATE' | 'TEXT' | 'VOICE'>('ALL');
   const [newChannelName, setNewChannelName] = useState<string>('');
   const [newChannelKind, setNewChannelKind] = useState<'voice' | 'text'>('text');
   const [newChannelCategoryId, setNewChannelCategoryId] = useState<string>('');
@@ -433,25 +460,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   }, [editingRole, editingDoc, selectedMemberForRoles]);
 
   // ================= FETCHERS =================
-  const fetchAdminIdentity = useCallback(async () => {
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/check`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.admin) setAdminIdentity(data.admin);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [getAuthHeaders]);
-
   const fetchRoles = useCallback(
-    async (guildId: string = selectedGuildId) => {
+    async (guildId: string = selectedGuildId, forceLive: boolean = false) => {
       setLoadingRoles(true);
       try {
         const apiBase = getApiBaseUrl();
-        const res = await fetch(`${apiBase}/api/admin/roles?guild_id=${encodeURIComponent(guildId)}`, {
+        const qs = new URLSearchParams({ guild_id: guildId });
+        if (forceLive) qs.set('live', '1');
+        const res = await fetch(`${apiBase}/api/admin/roles?${qs.toString()}`, {
           headers: getAuthHeaders(),
         });
         const data = await res.json();
@@ -473,15 +489,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   );
 
   const fetchMembers = useCallback(
-    async (searchQuery: string = '', guildId: string = selectedGuildId) => {
+    async (searchQuery: string = '', guildId: string = selectedGuildId, forceLive: boolean = false) => {
       setLoadingMembers(true);
       try {
         const apiBase = getApiBaseUrl();
         const qs = new URLSearchParams({
-          limit: '120',
+          limit: '150',
           guild_id: guildId,
         });
         if (searchQuery.trim()) qs.set('search', searchQuery.trim());
+        if (forceLive) qs.set('live', '1');
         const res = await fetch(`${apiBase}/api/admin/members?${qs.toString()}`, {
           headers: getAuthHeaders(),
         });
@@ -519,7 +536,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     try {
       const apiBase = getApiBaseUrl();
       const [res, tursoUsage] = await Promise.all([
-        fetch(`${apiBase}/api/documents?limit=250`, { headers: API_FETCH_HEADERS }),
+        fetch(`${apiBase}/api/documents?limit=1000`, { headers: API_FETCH_HEADERS }),
         getTursoStorageUsage(),
       ]);
       const data = await res.json();
@@ -535,11 +552,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   }, [showFeedback]);
 
   const fetchChannels = useCallback(
-    async (guildId: string = selectedGuildId) => {
+    async (guildId: string = selectedGuildId, forceLive: boolean = false) => {
       setLoadingChannels(true);
       try {
         const apiBase = getApiBaseUrl();
-        const res = await fetch(`${apiBase}/api/admin/channels?guild_id=${encodeURIComponent(guildId)}`, {
+        const qs = new URLSearchParams({ guild_id: guildId });
+        if (forceLive) qs.set('live', '1');
+        const res = await fetch(`${apiBase}/api/admin/channels?${qs.toString()}`, {
           headers: getAuthHeaders(),
         });
         const data = await res.json();
@@ -562,19 +581,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     [selectedGuildId, selectedChannelId, getAuthHeaders]
   );
 
-  const fetchConfig = useCallback(async () => {
+  const fetchConfig = useCallback(async (forceLive: boolean = false) => {
     setLoadingConfig(true);
     try {
       const apiBase = getApiBaseUrl();
-      const [cfgRes, updRes] = await Promise.allSettled([
-        fetch(`${apiBase}/api/admin/config`, { headers: getAuthHeaders() }),
-        fetch(`${apiBase}/api/system/update_status`, { headers: getAuthHeaders() }),
+      const suffix = forceLive ? '?live=1' : '';
+      const [cfgRes, updRes, stRes] = await Promise.allSettled([
+        fetch(`${apiBase}/api/admin/config${suffix}`, { headers: getAuthHeaders() }),
+        fetch(`${apiBase}/api/system/update_status${suffix}`, { headers: getAuthHeaders() }),
+        fetch(`${apiBase}/api/status`, { headers: API_FETCH_HEADERS }),
       ]);
       if (cfgRes.status === 'fulfilled' && cfgRes.value.ok) {
         setConfigData(await cfgRes.value.json());
       }
       if (updRes.status === 'fulfilled' && updRes.value.ok) {
         setUpdateStatus(await updRes.value.json());
+      }
+      if (stRes.status === 'fulfilled' && stRes.value.ok) {
+        const stData = await stRes.value.json();
+        setBotBridgeStatus(stData);
+        setBotOnline(stData.bridge_mode !== 'vercel_cloud_standby');
       }
     } catch {
       /* ignore */
@@ -620,42 +646,138 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   }, [getAuthHeaders]);
 
-  // Initial load & tab switching
-  useEffect(() => {
-    fetchAdminIdentity();
-  }, [fetchAdminIdentity]);
+  /**
+   * Nạp hợp nhất toàn bộ dữ liệu Admin Hub trong 1 request duy nhất (/api/admin/bootstrap)
+   * giúp loại bỏ hoàn toàn hiện tượng thác nước (Waterfall) và chuyển tab 0ms!
+   */
+  const fetchAdminBootstrap = useCallback(
+    async (guildId: string = selectedGuildId, forceLive: boolean = false) => {
+      setLoadingRoles(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const qs = new URLSearchParams({ guild_id: guildId });
+        if (forceLive) qs.set('live', '1');
+        const res = await fetch(`${apiBase}/api/admin/bootstrap?${qs.toString()}`, {
+          headers: getAuthHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.admin) setAdminIdentity(data.admin);
+          if (data.status) {
+            setBotBridgeStatus(data.status);
+            setBotOnline(Boolean(data.bot_online ?? (data.status.bridge_mode !== 'vercel_cloud_standby')));
+          }
+          if (data.roles_data?.roles) {
+            setRoles(data.roles_data.roles);
+            if (Array.isArray(data.roles_data.guilds) && data.roles_data.guilds.length > 0) {
+              setGuilds(data.roles_data.guilds);
+            }
+          }
+          if (data.members_data?.members) {
+            setMembers(data.members_data.members);
+          }
+          if (data.bans_data?.bans) {
+            setBans(data.bans_data.bans);
+          }
+          if (data.channels_data?.channels) {
+            setChannels(data.channels_data.channels);
+            if (Array.isArray(data.channels_data.categories)) {
+              setCategories(data.channels_data.categories);
+            }
+            const firstText = data.channels_data.channels.find((c: DiscordChannelItem) => c.kind !== 'voice');
+            if (!selectedChannelId && firstText) {
+              setSelectedChannelId(firstText.channel_id);
+            }
+          }
+          if (data.config_data) {
+            setConfigData(data.config_data);
+          }
+          if (data.update_status) {
+            setUpdateStatus(data.update_status);
+          }
+          bootstrappedGuildRef.current = guildId;
+          return;
+        }
+      } catch {
+        /* fallback bên dưới */
+      } finally {
+        setLoadingRoles(false);
+      }
+      // Fallback nếu chạy trên bản cũ chưa có /api/admin/bootstrap
+      await Promise.allSettled([
+        fetchRoles(guildId, forceLive),
+        fetchMembers('', guildId, forceLive),
+        fetchBans(),
+        fetchChannels(guildId, forceLive),
+        fetchConfig(forceLive),
+      ]);
+      bootstrappedGuildRef.current = guildId;
+    },
+    [selectedGuildId, selectedChannelId, getAuthHeaders, fetchRoles, fetchMembers, fetchBans, fetchChannels, fetchConfig]
+  );
 
+  const handleFullSystemSync = useCallback(async () => {
+    setSyncingSystem(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const stored = getStoredDiscordUser();
+      const [whRes, syncDocRes] = await Promise.allSettled([
+        notifyBotViaWebhookHandshake({
+          event: 'manual_sync',
+          view: 'dashboard',
+          tab: 'admin',
+          username: stored?.global_name || stored?.username || 'Admin Orbit',
+          userId: stored?.id,
+          force: true,
+        }),
+        fetch(`${apiBase}/api/documents/sync_pending`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        }).then((r) => r.json().catch(() => ({}))),
+      ]);
+
+      await Promise.allSettled([
+        fetchAdminBootstrap(selectedGuildId, true),
+        fetchDocs(),
+      ]);
+      onRefreshParentDocs?.();
+
+      const syncedPending =
+        syncDocRes.status === 'fulfilled' ? Number(syncDocRes.value?.synced_pending || 0) : 0;
+      const whOk = whRes.status === 'fulfilled' && whRes.value.ok;
+      showFeedback(
+        'success',
+        `⚡ Đã đồng bộ 2 chiều Bot ↔ Web qua Webhook 1568882621470089247${
+          syncedPending > 0 ? ` • Đã đồng bộ ${syncedPending} đề chờ lên Discord` : ''
+        }${whOk ? ' • Tín hiệu Bot Active!' : '!'}`
+      );
+    } catch {
+      showFeedback('error', 'Không thể thực hiện đồng bộ toàn hệ thống.');
+    } finally {
+      setSyncingSystem(false);
+    }
+  }, [selectedGuildId, getAuthHeaders, fetchAdminBootstrap, fetchDocs, onRefreshParentDocs, showFeedback]);
+
+  // Khởi tạo song song 1 lần khi mở Admin Hub hoặc khi đổi Máy chủ Discord
   useEffect(() => {
-    if (activeTab === 'roles') {
-      fetchRoles(selectedGuildId);
-    } else if (activeTab === 'members') {
-      fetchMembers(memberSearch, selectedGuildId);
-      fetchRoles(selectedGuildId);
-      fetchBans();
-    } else if (activeTab === 'documents') {
+    if (bootstrappedGuildRef.current !== selectedGuildId) {
+      fetchAdminBootstrap(selectedGuildId, false);
       fetchDocs();
-    } else if (activeTab === 'channels') {
-      fetchChannels(selectedGuildId);
-    } else if (activeTab === 'config') {
-      fetchConfig();
-    } else if (activeTab === 'logs') {
+    }
+  }, [selectedGuildId, fetchAdminBootstrap, fetchDocs]);
+
+  // Chỉ tải Logs / Audit khi người dùng mở sang tab Logs
+  useEffect(() => {
+    if (activeTab === 'logs') {
       if (logSubView === 'console') fetchLogs();
       else fetchAuditLogs();
     }
-  }, [
-    activeTab,
-    selectedGuildId,
-    logSubView,
-    fetchRoles,
-    fetchMembers,
-    fetchBans,
-    fetchDocs,
-    fetchChannels,
-    fetchConfig,
-    fetchLogs,
-    fetchAuditLogs,
-    memberSearch,
-  ]);
+  }, [activeTab, logSubView, fetchLogs, fetchAuditLogs]);
+
+  // Reset trang kho đề về 1 khi thay đổi bộ lọc
+  useEffect(() => {
+    setDocPage(1);
+  }, [docSearch, docSubjectFilter, docLevelFilter, docTrackFilter, docStatusFilter]);
 
   useEffect(() => {
     if (activeTab !== 'logs' || !autoRefreshLogs || logSubView !== 'console') return;
@@ -1274,7 +1396,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   };
 
-  // ================= FILTERED DATA =================
+  // ================= FILTERED DATA & TELEMETRY COUNTERS =================
   const filteredRoles = useMemo(() => {
     return roles.filter((r) => {
       if (roleTierFilter !== 'ALL' && r.tier !== roleTierFilter) return false;
@@ -1305,8 +1427,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     });
   }, [members, memberRoleFilter, memberSearch]);
 
+  const selectedTargetMember = useMemo(() => {
+    const clean = targetUserId.trim();
+    if (!clean) return null;
+    return members.find((m) => m.user_id === clean) || null;
+  }, [members, targetUserId]);
+
+  const duplicateDocsCount = useMemo(
+    () => docs.filter((d) => d.is_duplicate_copy).length,
+    [docs]
+  );
+  const pendingBotDocsCount = useMemo(
+    () => docs.filter((d) => d.queue_status === 'pending_bot').length,
+    [docs]
+  );
+  const uniqueDocsCount = useMemo(
+    () => docs.filter((d) => !d.is_duplicate_copy).length,
+    [docs]
+  );
+  const privateChannelsCount = useMemo(
+    () => channels.filter((c) => c.is_private).length,
+    [channels]
+  );
+
   const filteredDocs = useMemo(() => {
     return docs.filter((d) => {
+      if (docStatusFilter === 'UNIQUE' && d.is_duplicate_copy) return false;
+      if (docStatusFilter === 'DUPLICATE' && !d.is_duplicate_copy) return false;
+      if (docStatusFilter === 'PENDING_BOT' && d.queue_status !== 'pending_bot') return false;
       if (docSubjectFilter !== 'ALL' && d.subject !== docSubjectFilter) return false;
       if (docLevelFilter !== 'ALL' && !(d.estimated_level || '').includes(docLevelFilter)) return false;
       if (docTrackFilter !== 'ALL' && (d.exam_track || 'Thường') !== docTrackFilter) return false;
@@ -1317,7 +1465,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       }
       return true;
     });
-  }, [docs, docSubjectFilter, docLevelFilter, docTrackFilter, docSearch]);
+  }, [docs, docStatusFilter, docSubjectFilter, docLevelFilter, docTrackFilter, docSearch]);
+
+  const totalDocPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredDocs.length / DOC_PAGE_SIZE)),
+    [filteredDocs.length, DOC_PAGE_SIZE]
+  );
+
+  const paginatedDocs = useMemo(() => {
+    const start = (docPage - 1) * DOC_PAGE_SIZE;
+    return filteredDocs.slice(start, start + DOC_PAGE_SIZE);
+  }, [filteredDocs, docPage, DOC_PAGE_SIZE]);
+
+  const filteredChannels = useMemo(() => {
+    return channels.filter((ch) => {
+      if (channelKindFilter === 'PUBLIC' && ch.is_private) return false;
+      if (channelKindFilter === 'PRIVATE' && !ch.is_private) return false;
+      if (channelKindFilter === 'TEXT' && ch.kind === 'voice') return false;
+      if (channelKindFilter === 'VOICE' && ch.kind !== 'voice') return false;
+      if (channelSearch.trim()) {
+        const q = channelSearch.toLowerCase();
+        const hay = `${ch.name} ${ch.category} ${ch.topic || ''} ${ch.channel_id}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [channels, channelKindFilter, channelSearch]);
 
   const filteredLogLines = useMemo(() => {
     if (!logFilter.trim()) return logLines;
@@ -1341,46 +1514,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto my-4 bg-[#0D0B14]/95 border border-purple-500/30 rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.75)] overflow-hidden text-white backdrop-blur-xl hh-card-pop">
-      {/* ================= TOP COMMAND HEADER ================= */}
-      <div className="relative px-6 py-5 bg-gradient-to-r from-[#171226] via-[#1E1533] to-[#141022] border-b border-purple-500/25">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400/25 via-fuchsia-500/25 to-purple-600/25 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-[0_0_25px_rgba(245,158,11,0.25)] shrink-0">
-              <Crown className="w-6 h-6" />
+    <div className="w-full max-w-[1440px] mx-auto my-2 bg-[#0B0911] border border-[#1E1B2B] rounded-2xl overflow-hidden text-white">
+      {/* ================= TOP COMMAND HEADER (RULED T-FRAME) ================= */}
+      <div className="relative px-6 pt-5 pb-0 bg-[#110F18] border-b border-[#1E1B2B]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                Trung tâm quản trị Orbit
+              </h1>
+              <span className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-[#1D1A2B] text-[#E2D4FF] border border-[#2C2740]">
+                {adminIdentity?.role_name || 'Quản trị viên'}
+              </span>
+              <span
+                className={`px-2.5 py-0.5 text-xs font-medium rounded-md border flex items-center gap-1.5 tabular-nums ${
+                  botOnline
+                    ? 'bg-[#172A1D] text-[#3FC07A] border-[#23422D]'
+                    : 'bg-[#18222C] text-[#60A5FA] border-[#253748]'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    botOnline ? 'bg-[#3FC07A]' : 'bg-[#60A5FA]'
+                  }`}
+                />
+                {botOnline
+                  ? `Bot trực tuyến · ${botBridgeStatus?.ping_ms ?? 15} ms`
+                  : 'Cloud trực tuyến 24/7'}
+              </span>
+              <span className="px-2 py-0.5 text-[11px] font-mono rounded-md bg-[#16141F] text-[#949494] border border-[#221F30]">
+                Webhook #1568882621470089247
+              </span>
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  ORBIT ADMIN COMMAND CENTER
-                </h2>
-                <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                  {adminIdentity?.role_name || '👑 Toàn Quyền Quản Trị'}
-                </span>
-                <span className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  100% Quyền Lựa Chọn
-                </span>
-              </div>
-              <p className="text-xs sm:text-[13px] text-purple-200/75 mt-1">
-                Điều hành trực tiếp hệ thống Role, cấp quyền thành viên, chỉnh sửa toàn diện kho đề thi và đồng bộ máy chủ Discord thời gian thực.
-              </p>
-            </div>
+            <p className="text-xs sm:text-[13px] text-[#B4B4B4]">
+              Phân cấp Role, kiểm soát thành viên, quản lý kho đề thi và đồng bộ hai chiều giữa Discord Bot và Web.
+            </p>
           </div>
 
-          {/* Server Selector + Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-black/40 border border-white/15 rounded-xl px-3 py-1.5">
-              <Layers className="w-4 h-4 text-purple-300 shrink-0" />
-              <span className="text-[11px] text-white/60 font-medium">Máy chủ:</span>
+          {/* Server Selector + 1-Click Sync + Close */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleFullSystemSync}
+              disabled={syncingSystem}
+              className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+              title="Bắn tín hiệu Webhook 1568882621470089247 và đồng bộ tức thì kho đề + cấu hình giữa Bot và Web"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingSystem ? 'animate-spin' : ''}`} />
+              <span>{syncingSystem ? 'Đang đồng bộ...' : 'Đồng bộ Bot ↔ Web'}</span>
+            </button>
+
+            <div className="h-9 flex items-center gap-2 bg-[#0B0911] border border-[#262235] rounded-lg px-3">
+              <span className="text-xs text-[#949494]">Máy chủ:</span>
               <select
                 value={selectedGuildId}
                 onChange={(e) => setSelectedGuildId(e.target.value)}
                 aria-label="Chọn máy chủ Discord cần quản trị"
-                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer tabular-nums"
               >
                 {guilds.map((g) => (
-                  <option key={g.id} value={g.id} className="bg-[#14111F] text-white">
-                    {g.name} ({g.member_count} TV)
+                  <option key={g.id} value={g.id} className="bg-[#110F18] text-white">
+                    {g.name} ({g.member_count})
                   </option>
                 ))}
               </select>
@@ -1389,24 +1583,145 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             {onClose && (
               <button
                 onClick={onClose}
-                className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition"
+                className="h-9 px-3 rounded-lg bg-[#16141F] hover:bg-[#1E1B2B] border border-[#262235] text-xs font-medium text-[#B4B4B4] hover:text-white flex items-center gap-1.5 transition cursor-pointer"
               >
-                <X className="w-4 h-4" />
-                Đóng Hub
+                <X className="w-3.5 h-3.5" />
+                <span>Đóng</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Navigation Tabs with Sliding Indicator */}
+        {/* Unified Divided KPI Strip (App-Screen Standard: 1 Container Split by 1px Hairlines, Label Over Tabular Value) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 sm:divide-x divide-[#1E1B2B] bg-[#0B0911] border border-[#1E1B2B] rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setActiveTab('roles')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'roles' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'roles' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Hệ thống Role</div>
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{roles.length}</div>
+            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
+              {assignableRoles.length} role cấp phát
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'members' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'members' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Thành viên</div>
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{members.length}</div>
+            <div
+              className={`text-xs mt-0.5 tabular-nums ${
+                bans.length > 0 ? 'text-[#E5566F]' : 'text-[#949494]'
+              }`}
+            >
+              {bans.length > 0 ? `${bans.length} tài khoản bị cấm` : '0 tài khoản bị cấm'}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('documents')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'documents' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'documents' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Kho đề thi</div>
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{docs.length}</div>
+            <div
+              className={`text-xs mt-0.5 tabular-nums ${
+                duplicateDocsCount > 0 ? 'text-[#E5A93B]' : 'text-[#949494]'
+              }`}
+            >
+              {duplicateDocsCount > 0
+                ? `${duplicateDocsCount} bản trùng lặp`
+                : `${uniqueDocsCount} đề độc bản`}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('channels')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'channels' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'channels' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Kênh máy chủ</div>
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{channels.length}</div>
+            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
+              {privateChannelsCount} riêng tư · {Math.max(0, channels.length - privateChannelsCount)} công khai
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('config')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'config' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'config' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Dung lượng Turso</div>
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">
+              {tursoStats ? `${(tursoStats.totalBytes / (1024 * 1024)).toFixed(1)} MB` : '0.0 MB'}
+            </div>
+            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
+              {tursoStats ? `${tursoStats.usedPercent.toFixed(2)}% của 5 GB` : 'Hạn mức 5 GB'}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('logs')}
+            className={`p-3.5 text-left transition cursor-pointer relative ${
+              activeTab === 'logs' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            }`}
+          >
+            {activeTab === 'logs' && (
+              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+            )}
+            <div className="text-xs text-[#B4B4B4] font-normal">Phiên bản &amp; Nhật ký</div>
+            <div className="text-2xl font-semibold text-white mt-1 font-mono tabular-nums">
+              {updateStatus?.current_hash || 'main'}
+            </div>
+            <div className="text-xs text-[#3FC07A] mt-0.5 tabular-nums">
+              {botBridgeStatus?.web_handshake_count
+                ? `${botBridgeStatus.web_handshake_count} lần kết nối`
+                : 'Đã đồng bộ Webhook'}
+            </div>
+          </button>
+        </div>
+
+        {/* Underline Navigation Tabs on a Full-Width 1px Rule */}
         <div
           ref={tabBarRef}
-          className="relative flex items-center gap-1.5 mt-5 pt-3 border-t border-white/10 overflow-x-auto no-scrollbar"
+          className="relative flex items-center gap-5 mt-4 overflow-x-auto no-scrollbar"
         >
           {tabIndicator.ready && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 h-[3px] rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-400 to-cyan-400 transition-all duration-300 ease-out"
+              className="pointer-events-none absolute bottom-0 h-[2px] bg-white transition-all duration-200 ease-out"
               style={{
                 left: `${tabIndicator.left}px`,
                 width: `${tabIndicator.width}px`,
@@ -1422,18 +1737,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   tabBtnRefs.current[t.id] = el;
                 }}
                 onClick={() => setActiveTab(t.id)}
-                className={`relative px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-purple-600/35 to-fuchsia-600/25 text-white border border-purple-400/40 shadow-[0_4px_20px_rgba(168,85,247,0.25)]'
-                    : 'text-white/65 hover:text-white hover:bg-white/5 border border-transparent'
+                className={`relative py-3 text-[13px] font-medium flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+                  isActive ? 'text-white' : 'text-[#949494] hover:text-[#E2E2E2]'
                 }`}
               >
-                {t.icon}
+                <span className="text-[#949494]">{t.icon}</span>
                 <span>{t.label}</span>
                 {t.badge !== undefined && (
                   <span
-                    className={`px-1.5 py-0.5 text-[10px] rounded-md tabular-nums ${
-                      isActive ? 'bg-amber-400/25 text-amber-200' : 'bg-white/10 text-white/60'
+                    className={`px-1.5 py-0.5 text-[11px] rounded font-mono tabular-nums ${
+                      isActive
+                        ? 'bg-[#22222C] text-white'
+                        : 'bg-[#16141F] text-[#949494]'
                     }`}
                   >
                     {t.badge}
@@ -1449,17 +1764,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {statusMsg && (
         <div
           role="status"
-          className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 hh-card-pop ${
+          className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
             statusMsg.type === 'success'
-              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
-              : 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+              ? 'bg-[#172A1D] border-[#254630] text-[#3FC07A]'
+              : 'bg-[#2C1A20] border-[#4A2631] text-[#E5566F]'
           }`}
         >
-          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
             {statusMsg.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0" />
             )}
             <span>{statusMsg.text}</span>
           </div>
@@ -1481,32 +1796,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         {activeTab === 'roles' && (
           <div className="space-y-6 hh-swap-panel">
             {/* Top Action Banner: 1-Click Auto Alignment */}
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-fuchsia-500/10 to-cyan-500/15 border border-amber-400/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="p-5 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Căn Chỉnh Chuẩn Hệ Thống Role &amp; Quyền Hạn (Bot Highest Priority)</span>
+                <div className="flex items-center gap-2 text-white font-semibold text-sm">
+                  <Sparkles className="w-4 h-4 text-[#C6F24E]" />
+                  <span>Căn chỉnh chuẩn hệ thống Role &amp; quyền hạn (Bot ưu tiên cao nhất)</span>
                 </div>
-                <p className="text-xs text-white/75 leading-relaxed max-w-3xl">
-                  Tự động sắp xếp thứ tự phân cấp chuẩn từ trên xuống dưới (Quản trị viên → Vinh danh Orbit → Khối lớp 12..6 → Thành viên → Bot), chuẩn hóa bảng màu sắc tách biệt, khóa quyền nguy hiểm ở <code className="text-amber-200">@everyone</code> và tự động cấp Role <code className="text-emerald-300">🌱 Học sinh</code> / <code className="text-pink-300">✍️ Tác giả</code> cho các thành viên đủ điều kiện.
+                <p className="text-xs text-[#B4B4B4] leading-relaxed max-w-3xl">
+                  Tự động sắp xếp thứ tự phân cấp chuẩn từ trên xuống dưới (Quản trị viên → Vinh danh Orbit → Khối lớp 12..6 → Thành viên → Bot), chuẩn hóa bảng màu sắc tách biệt, khóa quyền nguy hiểm ở <code className="text-white">@everyone</code> và tự động cấp Role <code className="text-[#3FC07A]">Học sinh</code> / <code className="text-[#E2D4FF]">Tác giả</code> cho thành viên đủ điều kiện.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   onClick={handleAlignRoles}
                   disabled={aligningRoles}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-fuchsia-600 hover:from-amber-400 hover:to-fuchsia-500 text-white font-bold text-xs sm:text-sm shadow-[0_8px_25px_rgba(245,158,11,0.3)] flex items-center gap-2 disabled:opacity-50 transition"
+                  className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
                 >
-                  <RefreshCw className={`w-4 h-4 ${aligningRoles ? 'animate-spin' : ''}`} />
-                  {aligningRoles ? 'Đang căn chỉnh Role...' : '⚡ Căn Chỉnh Role Chuẩn (1-Click)'}
+                  <RefreshCw className={`w-3.5 h-3.5 ${aligningRoles ? 'animate-spin' : ''}`} />
+                  <span>{aligningRoles ? 'Đang căn chỉnh Role...' : 'Căn chỉnh Role chuẩn (1-Click)'}</span>
                 </button>
                 <button
-                  onClick={() => fetchRoles(selectedGuildId)}
+                  onClick={() => fetchRoles(selectedGuildId, true)}
                   disabled={loadingRoles}
-                  className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition"
+                  className="h-9 px-3.5 rounded-lg bg-[#181622] hover:bg-[#221F30] border border-[#282438] text-xs font-medium text-white flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
-                  Làm mới
+                  <span>Làm mới</span>
                 </button>
               </div>
             </div>
@@ -1515,10 +1830,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               {/* Left Column: Create New Role Form */}
               <form
                 onSubmit={handleCreateRole}
-                className="lg:col-span-4 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4 h-fit"
+                className="lg:col-span-4 bg-[#110F18] border border-[#1E1B2B] rounded-xl p-5 space-y-4 h-fit"
               >
-                <h3 className="text-sm font-bold text-fuchsia-300 flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-[#C6F24E]" />
                   Tạo Role Mới Trên Máy Chủ
                 </h3>
 
@@ -1831,7 +2146,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     </p>
                   </div>
                   <button
-                    onClick={() => fetchMembers(memberSearch, selectedGuildId)}
+                    onClick={() => fetchMembers(memberSearch, selectedGuildId, true)}
                     disabled={loadingMembers}
                     className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5 self-start"
                   >
@@ -1980,6 +2295,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     <ShieldAlert className="w-4 h-4" />
                     Bảng Điều Khiển Kỷ Luật (Mute / Kick / Ban)
                   </h3>
+
+                  {selectedTargetMember && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={
+                            selectedTargetMember.avatar_url ||
+                            'https://cdn.discordapp.com/embed/avatars/0.png'
+                          }
+                          alt={selectedTargetMember.display_name}
+                          className="w-9 h-9 rounded-full border border-rose-400/40 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white truncate">
+                            {selectedTargetMember.display_name}{' '}
+                            <span className="text-white/50 font-normal">@{selectedTargetMember.username}</span>
+                          </div>
+                          <div className="text-[10px] text-rose-200/80 truncate">
+                            {(selectedTargetMember.roles || []).length > 0
+                              ? `${(selectedTargetMember.roles || []).length} Role hiện tại`
+                              : 'Chưa có Role phân nhóm'}
+                            {selectedTargetMember.timed_out_until ? ' • 🔇 Đang bị Mute' : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTargetUserId('')}
+                        className="p-1 rounded-lg hover:bg-white/10 text-white/60"
+                        title="Bỏ chọn thành viên"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs text-white/70 mb-1">Discord User ID mục tiêu</label>
@@ -2133,31 +2483,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <div className="space-y-5 hh-swap-panel">
             {/* Turso Storage Telemetry Bar */}
             {tursoStats && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-purple-950/50 to-slate-900/60 border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
-                    <Database className="w-5 h-5" />
+              <div className="p-4 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-medium text-[#949494]">
+                    Dung lượng lưu trữ Turso Cloud (Hạn mức 5 GB)
                   </div>
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                      Turso Cloud Storage (Quota 5 GB)
-                    </div>
-                    <div className="text-sm font-bold text-white mt-0.5 tabular-nums">
-                      Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
-                      {tursoStats.usedPercent.toFixed(3)}%) • Còn trống{' '}
-                      {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
-                    </div>
+                  <div className="text-sm font-semibold text-white tabular-nums">
+                    Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
+                    {tursoStats.usedPercent.toFixed(3)}%) · Còn trống{' '}
+                    {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {duplicateDocsCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDocStatusFilter('DUPLICATE');
+                        setDocPage(1);
+                        setSelectedDocIds(
+                          new Set(docs.filter((d) => d.is_duplicate_copy).map((d) => d.id))
+                        );
+                        showFeedback(
+                          'success',
+                          `Đã chọn tự động ${duplicateDocsCount} bản sao đề thi trùng lặp để bạn xử lý hoặc xóa 1-Click!`
+                        );
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Chọn {duplicateDocsCount} bản trùng lặp
+                    </button>
+                  )}
                   <button
                     onClick={async () => {
                       try {
-                        await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
+                        const res = await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
                           method: 'POST',
                           headers: getAuthHeaders(),
                         });
-                      } catch {}
+                        const data = await res.json().catch(() => ({}));
+                        showFeedback(
+                          'success',
+                          data.message || 'Đã đồng bộ Kho Đề giữa Turso Cloud và Discord Bot!'
+                        );
+                      } catch {
+                        showFeedback('error', 'Không thể gọi đồng bộ Kho Đề');
+                      }
                       await fetchDocs();
                     }}
                     disabled={loadingDocs}
@@ -2170,6 +2542,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </div>
             )}
 
+            {/* Quick Status Filter Pills (All / Unique / Duplicates / Pending Bot) */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: 'ALL' as const, label: `Tất cả đề (${docs.length})` },
+                  { id: 'UNIQUE' as const, label: `✨ Đề gốc độc bản (${uniqueDocsCount})` },
+                  { id: 'DUPLICATE' as const, label: `⚠️ Bản sao trùng lặp (${duplicateDocsCount})` },
+                  { id: 'PENDING_BOT' as const, label: `⏳ Chờ đồng bộ Bot (${pendingBotDocsCount})` },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => {
+                      setDocStatusFilter(st.id);
+                      setDocPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                      docStatusFilter === st.id
+                        ? 'bg-purple-500/25 text-purple-200 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+                        : 'bg-black/35 text-white/60 border-white/10 hover:text-white'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] text-white/50 tabular-nums">
+                Hiển thị {paginatedDocs.length} / {filteredDocs.length} đề (Trang {docPage}/{totalDocPages})
+              </div>
+            </div>
+
             {/* Filter & Search Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white/[0.03] border border-white/10 p-4 rounded-2xl">
               <div className="relative">
@@ -2177,14 +2580,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <input
                   type="text"
                   value={docSearch}
-                  onChange={(e) => setDocSearch(e.target.value)}
+                  onChange={(e) => {
+                    setDocSearch(e.target.value);
+                    setDocPage(1);
+                  }}
                   placeholder="Tìm tiêu đề, ID, trường, mô tả..."
                   className="w-full pl-9 pr-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
                 />
               </div>
               <select
                 value={docSubjectFilter}
-                onChange={(e) => setDocSubjectFilter(e.target.value)}
+                onChange={(e) => {
+                  setDocSubjectFilter(e.target.value);
+                  setDocPage(1);
+                }}
                 aria-label="Lọc theo môn học"
                 className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
               >
@@ -2197,7 +2606,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </select>
               <select
                 value={docLevelFilter}
-                onChange={(e) => setDocLevelFilter(e.target.value)}
+                onChange={(e) => {
+                  setDocLevelFilter(e.target.value);
+                  setDocPage(1);
+                }}
                 aria-label="Lọc theo khối lớp"
                 className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
               >
@@ -2210,7 +2622,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </select>
               <select
                 value={docTrackFilter}
-                onChange={(e) => setDocTrackFilter(e.target.value)}
+                onChange={(e) => {
+                  setDocTrackFilter(e.target.value);
+                  setDocPage(1);
+                }}
                 aria-label="Lọc theo phân ban đề thi"
                 className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
               >
@@ -2308,18 +2723,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               )}
             </div>
 
-            {/* Documents List */}
+            {/* Documents List (Paginated for 60fps DOM performance) */}
             <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
               {loadingDocs ? (
                 <div className="py-12 text-center text-xs text-white/50">
                   Đang tải danh sách đề thi trong kho lưu trữ...
                 </div>
-              ) : filteredDocs.length === 0 ? (
+              ) : paginatedDocs.length === 0 ? (
                 <div className="py-12 text-center text-xs text-white/45">
                   Không có đề thi nào khớp với bộ lọc hiện tại.
                 </div>
               ) : (
-                filteredDocs.map((doc) => {
+                paginatedDocs.map((doc) => {
                   const checked = selectedDocIds.has(doc.id);
                   return (
                     <div
@@ -2359,6 +2774,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
                               {doc.exam_track || 'Thường'}
                             </span>
+                            {doc.is_duplicate_copy && (
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                ⚠️ Bản sao trùng lặp
+                              </span>
+                            )}
+                            {doc.queue_status === 'pending_bot' && (
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-200 border border-amber-400/40">
+                                ⏳ Chờ đồng bộ Bot
+                              </span>
+                            )}
                           </div>
                           {doc.notes && (
                             <p className="text-xs text-emerald-300/90 line-clamp-2">{doc.notes}</p>
@@ -2374,6 +2799,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
+                        <a
+                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/view`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white/85 text-xs font-semibold flex items-center gap-1 transition"
+                          title="Mở xem trực tiếp tệp PDF đề thi"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Xem PDF
+                        </a>
                         <button
                           type="button"
                           onClick={() => openEditDocModal(doc)}
@@ -2406,6 +2841,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 })
               )}
             </div>
+
+            {/* Pagination Footer */}
+            {totalDocPages > 1 && (
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <span className="text-xs text-white/55 tabular-nums">
+                  Trang <strong className="text-white">{docPage}</strong> / {totalDocPages} • Tổng {filteredDocs.length} đề
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={docPage <= 1}
+                    onClick={() => setDocPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-xs font-bold"
+                  >
+                    ← Trang trước
+                  </button>
+                  <button
+                    type="button"
+                    disabled={docPage >= totalDocPages}
+                    onClick={() => setDocPage((p) => Math.min(totalDocPages, p + 1))}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-xs font-bold"
+                  >
+                    Trang sau →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2415,21 +2877,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         {activeTab === 'channels' && (
           <div className="space-y-6 hh-swap-panel">
             {/* 1-Click Refresh Discord Interactive Panels */}
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-900/30 via-fuchsia-900/20 to-indigo-900/30 border border-purple-500/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="p-5 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-fuchsia-400" />
-                  Đồng Bộ &amp; Làm Mới Bảng Điều Khiển Tương Tác Trên Discord
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#C6F24E]" />
+                  Đồng bộ &amp; làm mới bảng điều khiển tương tác trên Discord
                 </h3>
-                <p className="text-xs text-white/70 mt-1">
-                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-purple-200">#🔗・info</code>, <code className="text-purple-200">#📄・nộp-tài-liệu</code> và <code className="text-purple-200">#📥・lấy-tài-liệu</code>.
+                <p className="text-xs text-[#B4B4B4] mt-1">
+                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-white">#🔗・info</code>, <code className="text-white">#📄・nộp-tài-liệu</code> và <code className="text-white">#📥・lấy-tài-liệu</code>.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   onClick={() => handleRefreshDiscordPanels('all')}
                   disabled={refreshingPanels}
-                  className="px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold flex items-center gap-1.5"
+                  className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${refreshingPanels ? 'animate-spin' : ''}`} />
                   Làm mới tất cả Panel
@@ -2606,23 +3068,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
               {/* Right 7 Cols: Channel List with Lock/Unlock & Delete */}
               <div className="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <Hash className="w-4 h-4 text-purple-400" />
-                    Danh Sách Kênh Trong Máy Chủ ({channels.length})
+                    Danh Sách Kênh Trong Máy Chủ ({filteredChannels.length}/{channels.length})
                   </h3>
                   <button
-                    onClick={() => fetchChannels(selectedGuildId)}
+                    onClick={() => fetchChannels(selectedGuildId, true)}
                     disabled={loadingChannels}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1 self-start"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingChannels ? 'animate-spin' : ''}`} />
                     Làm mới
                   </button>
                 </div>
 
+                {/* Channel Search & Kind Filter */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={channelSearch}
+                      onChange={(e) => setChannelSearch(e.target.value)}
+                      placeholder="Tìm tên kênh, danh mục hoặc chủ đề..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { id: 'ALL' as const, label: 'Tất cả' },
+                      { id: 'PUBLIC' as const, label: '🌐 Công khai' },
+                      { id: 'PRIVATE' as const, label: '🔒 Riêng tư' },
+                      { id: 'TEXT' as const, label: '# Text' },
+                      { id: 'VOICE' as const, label: '🔊 Voice' },
+                    ].map((cf) => (
+                      <button
+                        key={cf.id}
+                        type="button"
+                        onClick={() => setChannelKindFilter(cf.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                          channelKindFilter === cf.id
+                            ? 'bg-purple-500/25 text-purple-200 border-purple-400/50'
+                            : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        {cf.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
-                  {channels.map((ch) => (
+                  {filteredChannels.map((ch) => (
                     <div
                       key={ch.channel_id}
                       className="p-3 rounded-xl bg-black/35 hover:bg-black/50 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
@@ -2818,9 +3316,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     Thông Số Vận Hành Bot &amp; Cogs Đang Hoạt Động
                   </h3>
                   <button
-                    onClick={fetchConfig}
+                    onClick={() => fetchConfig(true)}
                     disabled={loadingConfig}
-                    className="text-xs text-purple-300 flex items-center gap-1"
+                    className="text-xs text-purple-300 flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
                     Làm mới
@@ -3113,7 +3611,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-fuchsia-600 text-white text-xs font-bold flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-white hover:bg-neutral-200 text-black text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 Lưu Thay Đổi Role
@@ -3154,15 +3652,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedMemberForRoles(null)}
+                onClick={() => {
+                  setSelectedMemberForRoles(null);
+                  setModalRoleSearch('');
+                }}
                 className="p-1.5 rounded-lg hover:bg-white/10 text-white/60"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            <div className="relative">
+              <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={modalRoleSearch}
+                onChange={(e) => setModalRoleSearch(e.target.value)}
+                placeholder="Tìm nhanh Role để cấp / gỡ..."
+                className="w-full pl-9 pr-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
             {(['staff', 'honor', 'grade', 'member', 'other'] as const).map((tierKey) => {
-              const tierRoles = assignableRoles.filter((r) => r.tier === tierKey);
+              const tierRoles = assignableRoles.filter(
+                (r) =>
+                  r.tier === tierKey &&
+                  (!modalRoleSearch.trim() ||
+                    r.name.toLowerCase().includes(modalRoleSearch.trim().toLowerCase()))
+              );
               if (tierRoles.length === 0) return null;
               const memberRoleIds = new Set((selectedMemberForRoles.roles || []).map((r) => r.id));
               return (
