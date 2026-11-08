@@ -45,6 +45,7 @@ import {
   setCustomApiUrl,
   DEFAULT_TUNNEL_URL,
   LOCAL_API_URL,
+  notifyBotViaWebhookHandshake,
 } from '../utils/apiConfig';
 import { getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import { getTursoStorageUsage, TursoStorageStats } from '../utils/tursoClient';
@@ -2776,6 +2777,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] font-semibold"
                   >
                     Localhost (127.0.0.1:8080)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const stored = getStoredDiscordUser();
+                      const res = await notifyBotViaWebhookHandshake({
+                        event: 'manual_sync',
+                        view: 'dashboard',
+                        tab: 'admin',
+                        username: stored?.global_name || stored?.username || 'Admin Orbit',
+                        userId: stored?.id,
+                        force: true,
+                      });
+                      if (res.ok) {
+                        showFeedback(
+                          'success',
+                          'Đã gửi tín hiệu tới kênh Discord qua Webhook 1568882621470089247 — Bot đang đồng bộ 2 chiều!'
+                        );
+                        fetchConfig();
+                      } else {
+                        showFeedback('error', 'Không thể gửi tín hiệu Webhook, vui lòng kiểm tra mạng.');
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/40 text-pink-200 text-[11px] font-bold flex items-center gap-1.5"
+                  >
+                    <Send className="w-3 h-3" />
+                    Ping Webhook &amp; Kết Nối Bot
                   </button>
                 </div>
               </div>

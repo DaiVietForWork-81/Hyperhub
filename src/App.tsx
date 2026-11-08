@@ -8,7 +8,7 @@ import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { HubAuthWall } from './components/HubAuthWall';
 import { Footer } from './components/Footer';
 import { DiscordUser, getStoredDiscordUser, getPendingDiscordUser, removeDiscordUser, handleDiscordOAuthCallback, isStoredTokenAlive, syncLinkedAccount } from './utils/discordAuth';
-import { getApiBaseUrl } from './utils/apiConfig';
+import { getApiBaseUrl, notifyBotViaWebhookHandshake } from './utils/apiConfig';
 import { DreamAspirations } from './components/DreamAspirations';
 import { CommunityIntro } from './components/CommunityIntro';
 import { CommunityChannels } from './components/CommunityChannels';
@@ -250,6 +250,31 @@ export const App: React.FC = () => {
   // Trang chủ đã hiển thị → tải trước Hub khi trình duyệt rảnh
   useEffect(() => (activeView === 'home' ? preloadHubWhenIdle() : undefined), [activeView]);
 
+  // Khi Web khởi động / người dùng mở trang, bắn tín hiệu qua Discord Webhook 1568882621470089247 để Bot ghi nhận và kết nối đồng bộ
+  useEffect(() => {
+    const stored = getStoredDiscordUser();
+    notifyBotViaWebhookHandshake({
+      event: 'web_boot',
+      view: activeView,
+      tab: dashboardTab,
+      username: stored?.global_name || stored?.username || 'Khách truy cập',
+      userId: stored?.id,
+    }).catch(() => {});
+  }, []);
+
+  // Khi người dùng chuyển sang sử dụng Orbit Hub / Kho Đề / Diễn Đàn / Admin, gửi nhịp đồng bộ tới Bot
+  useEffect(() => {
+    if (activeView === 'dashboard') {
+      notifyBotViaWebhookHandshake({
+        event: 'web_active',
+        view: activeView,
+        tab: dashboardTab,
+        username: discordUser?.global_name || discordUser?.username || 'Khách truy cập',
+        userId: discordUser?.id,
+      }).catch(() => {});
+    }
+  }, [activeView, dashboardTab, discordUser?.id]);
+
   // Phản hồi âm thanh tương tác toàn cục
   useEffect(() => {
     const onGlobalClick = (e: MouseEvent) => {
@@ -388,6 +413,14 @@ export const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={(user) => {
           setDiscordUser(user);
+          notifyBotViaWebhookHandshake({
+            event: 'user_login',
+            view: activeView,
+            tab: dashboardTab,
+            username: user.global_name || user.username,
+            userId: user.id,
+            force: true,
+          }).catch(() => {});
         }}
       />
     </div>

@@ -30,6 +30,68 @@ const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN ||
   localEnvToken;
 const DISCORD_FORUM_CHANNEL_ID = "1535557885721841744";
+const DISCORD_WEB_SYNC_WEBHOOK_ID = "1568882621470089247";
+const DISCORD_WEB_SYNC_WEBHOOK_URL =
+  process.env.DISCORD_WEB_SYNC_WEBHOOK_URL ||
+  "https://discord.com/api/webhooks/1568882621470089247/Q49ZOF2DnRtl82yiVgv7PYwuvufyrCqY4iSGq0ci43yXsvZA27AlO4mImX3KnH-NuuIO";
+
+const _lastWebhookSentByEvent = new Map();
+
+async function sendWebSyncWebhook(eventType = "web_active", details = {}) {
+  if (!DISCORD_WEB_SYNC_WEBHOOK_URL) return false;
+  const nowMs = Date.now();
+  const minIntervalMs =
+    eventType === "rpc_wakeup"
+      ? 3500
+      : eventType === "web_boot" || eventType === "handshake" || eventType === "manual_sync"
+      ? 1000
+      : 15000;
+  const prevMs = _lastWebhookSentByEvent.get(eventType) || 0;
+  if (nowMs - prevMs < minIntervalMs) {
+    return false;
+  }
+  _lastWebhookSentByEvent.set(eventType, nowMs);
+
+  const origin = details.origin || "https://orbit-psi-black.vercel.app";
+  const view = details.view || "home";
+  const tab = details.tab || "overview";
+  const user = details.user || "Khách truy cập";
+  const nowIso = new Date().toISOString();
+
+  const payload = {
+    username: "Orbit Web Gateway • Vercel",
+    avatar_url: "https://orbit-psi-black.vercel.app/server_icon.png",
+    content: `⚡ **[ORBIT_WEB_SYNC]** Tín hiệu hoạt động từ **Orbit Web** (\`${origin}\`) • Sự kiện: \`${eventType}\``,
+    embeds: [
+      {
+        title: "🌐 Orbit Web ↔ Discord Bot Handshake",
+        description:
+          "Web đã khởi động/đang được sử dụng và gửi tín hiệu kết nối đồng bộ 2 chiều tới Bot.",
+        color: 0xec4899,
+        fields: [
+          { name: "🔗 Web URL", value: `[orbit-psi-black.vercel.app](${origin})`, inline: true },
+          { name: "⚡ Sự kiện", value: `\`${eventType}\``, inline: true },
+          { name: "🧭 Giao diện", value: `\`${view} / ${tab}\``, inline: true },
+          { name: "👤 Phiên người dùng", value: `\`${user}\``, inline: true },
+          { name: "🆔 Webhook ID", value: `\`${DISCORD_WEB_SYNC_WEBHOOK_ID}\``, inline: true },
+        ],
+        footer: { text: "Orbit Sync Protocol • Real-time Webhook Bridge" },
+        timestamp: nowIso,
+      },
+    ],
+  };
+
+  try {
+    const resp = await fetch(`${DISCORD_WEB_SYNC_WEBHOOK_URL}?wait=true`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
 
 const FORUM_CATEGORY_TO_TAG = {
   "Góc thắc mắc": "1566808758728786134",
@@ -307,6 +369,14 @@ async function forwardRpcToBot(method, path, reqHeaders, bodyObj, waitMs = 8000)
       body: { error: "Không thể khởi tạo lệnh RPC trên Turso Cloud." },
     };
   }
+
+  // Đánh thức Bot ngay lập tức (0ms qua Discord Gateway) bằng Webhook 1568882621470089247
+  sendWebSyncWebhook("rpc_wakeup", {
+    origin: "https://orbit-psi-black.vercel.app",
+    view: path,
+    tab: method,
+    user: (reqHeaders && (reqHeaders["X-Discord-User-Id"] || reqHeaders["x-discord-user-id"])) || "Orbit Web RPC",
+  }).catch(() => {});
 
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
@@ -769,6 +839,67 @@ export default async function handler(req, res) {
     // 1b. GET /api/health
     if (pathname === "/api/health" && req.method === "GET") {
       return res.status(200).json({ status: "ok", bridge: "vercel_turso_direct" });
+    }
+
+    // 1c. GET/POST /api/webhook/handshake — Gửi tín hiệu khởi động/hoạt động từ Web tới kênh Discord Webhook 1568882621470089247
+    if (pathname === "/api/webhook/handshake" && (req.method === "POST" || req.method === "GET")) {
+      const body = typeof req.body === "object" && req.body ? req.body : {};
+      const eventType = String(body.event || searchParams.get("event") || "web_active").trim();
+      const origin = String(
+        body.origin || req.headers.origin || "https://orbit-psi-black.vercel.app"
+      ).trim();
+      const view = String(body.view || searchParams.get("view") || "home").trim();
+      const tab = String(body.tab || searchParams.get("tab") || "overview").trim();
+      const user = String(
+        body.username || body.user || searchParams.get("user") || "Khách truy cập"
+      ).trim();
+
+      const webhookSent = await sendWebSyncWebhook(eventType, {
+        origin,
+        view,
+        tab,
+        user,
+      });
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      try {
+        await executeTurso(
+          `INSERT INTO bot_kv_store (key, value, updated_at) VALUES ('web_connection', ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+          [
+            JSON.stringify({
+              web_connected: true,
+              event: eventType,
+              origin,
+              view,
+              tab,
+              user,
+              webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID,
+              webhook_sent: webhookSent,
+              timestamp: nowSec,
+            }),
+            nowSec,
+          ]
+        );
+      } catch {}
+
+      // Chờ ngắn (~650ms) để Bot nhận sự kiện qua Discord Gateway và cập nhật lại status trên Turso
+      if (webhookSent) {
+        await new Promise((r) => setTimeout(r, 650));
+      }
+
+      const kv = await getKvValue("status");
+      const botOnline = Boolean(kv && kv.data && nowSec - kv.updated_at <= 90);
+      return res.status(200).json({
+        success: true,
+        status: "connected",
+        webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID,
+        webhook_sent: webhookSent,
+        bot_online: botOnline,
+        bot_status: kv?.data || null,
+        message:
+          "Đã gửi tín hiệu Webhook tới kênh Discord và đồng bộ 2 chiều với Orbit Bot!",
+      });
     }
 
     // 2. GET /api/documents/stats
