@@ -31,22 +31,13 @@
 
     <!--
       Bật chế độ motion TRƯỚC khi vẽ trang để tránh nháy nội dung.
-      Không có JS / bật reduced-motion / thiếu IntersectionObserver → nội dung hiện nguyên vẹn.
+      Tách ra tệp tĩnh /motion-init.js để bật CSP script-src 'self' nghiêm ngặt (không cần unsafe-inline).
     -->
-    <script>
-      (function () {
-        try {
-          var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if (!reduce && 'IntersectionObserver' in window) {
-            document.documentElement.classList.add('hh-motion');
-          }
-        } catch (e) {}
-      })();
-    </script>
-    <script type="module" crossorigin src="/assets/index-CvM8ze0n.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/icons-JKwGUYo8.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-BUVNil5z.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-DaVC1a17.css">
+    <script src="/motion-init.js"></script>
+    <script type="module" crossorigin src="/assets/index-YA5f-a3g.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/icons-ByZBy2gk.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-B9iNuxT_.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DxrC6Aso.css">
   </head>
   <body class="antialiased min-h-dvh">
     <noscript>Orbit cần JavaScript để hiển thị kho đề và bảng điều khiển.</noscript>
