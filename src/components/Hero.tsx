@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ArrowRight,
   Microscope,
@@ -20,7 +20,6 @@ import {
   Award,
   GraduationCap,
   ChevronDown,
-  Search,
 } from 'lucide-react';
 import { PixelWordmark } from './hh/PixelWordmark';
 import { PixelButton } from './hh/Controls';
@@ -75,17 +74,6 @@ const TECH_TOPICS = [
   { name: 'Ôn Thi Chuyên & HSG', subjectId: 'ALL', examType: 'CHUYEN', icon: Award, tone: '#F08BFF' },
   { name: 'Luyện Thi THPT Quốc Gia', subjectId: 'ALL', grade: '12', icon: GraduationCap, tone: '#FF8F8F' },
   { name: 'Olympic Tin Học & Toán', subjectId: 'ALL', examType: 'HSG', icon: Trophy, tone: '#FFC46B' },
-];
-
-const QUICK_GRADES: Array<{
-  label: string;
-  badge: string;
-  filter: OrbitHubPrefilter;
-}> = [
-  { label: 'Lớp 12', badge: 'THPT', filter: { grade: '12', educationLevel: 'ALL' } },
-  { label: 'Lớp 11', badge: 'THPT', filter: { grade: '11', educationLevel: 'ALL' } },
-  { label: 'Lớp 10', badge: 'THPT', filter: { grade: '10', educationLevel: 'ALL' } },
-  { label: 'Khối 6–9', badge: 'THCS', filter: { grade: 'ALL', educationLevel: 'CAP_2' } },
 ];
 
 const PILLARS = [
@@ -166,7 +154,6 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) => {
   const sectionRef = useRef<HTMLElement>(null);
   const pulse = useHubPulse();
-  const [quickQuery, setQuickQuery] = useState('');
 
   // Tạm dừng marquee + stardust khi hero rời khỏi màn hình (tiết kiệm GPU)
   useEffect(() => {
@@ -192,15 +179,6 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) 
     } else {
       onOpenDashboard?.();
     }
-  };
-
-  const handleQuickSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = quickQuery.trim();
-    navigateWithPrefilter({
-      search: trimmed || undefined,
-      educationLevel: 'ALL',
-    });
   };
 
   return (
@@ -237,39 +215,6 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) 
           <p className="hh-hero-sub hh-intro-rise" style={{ ['--d' as string]: '360ms' }}>
             Mỗi người có một quỹ đạo riêng, nhưng chúng ta gặp nhau tại Orbit để ôn đề thực chiến, bứt phá năng lực và cùng nhau tiến xa hơn. Kho đề được thẩm định, bot Discord hỗ trợ 24/7 và lịch thi cập nhật theo ngày.
           </p>
-
-          {/* TRẠM TRA CỨU & LỌC KHỐI LỚP TỨC THÌ NGAY TRÊN MÀN HÌNH ĐẦU */}
-          <div className="hh-hero-quickbar hh-intro-rise" style={{ ['--d' as string]: '400ms' }}>
-            <form onSubmit={handleQuickSearchSubmit} className="hh-hero-search-form" role="search">
-              <Search className="w-4 h-4 text-[#FFA8DC] shrink-0" aria-hidden="true" />
-              <input
-                type="search"
-                value={quickQuery}
-                onChange={(e) => setQuickQuery(e.target.value)}
-                placeholder="Tìm nhanh đề Toán 12, Chuyên Anh, Vật lý, ĐGNL..."
-                aria-label="Tìm nhanh đề thi trong kho Orbit"
-                className="hh-hero-search-input"
-              />
-              <button type="submit" className="hh-hero-search-submit hh-press">
-                <span>Tra cứu</span>
-                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            </form>
-
-            <div className="hh-hero-grade-strip" role="group" aria-label="Lọc nhanh theo khối lớp">
-              {QUICK_GRADES.map((g) => (
-                <button
-                  key={g.label}
-                  type="button"
-                  onClick={() => navigateWithPrefilter(g.filter, g.label)}
-                  className="hh-hero-grade-chip hh-choice"
-                >
-                  <span className="hh-hero-grade-name">{g.label}</span>
-                  <span className="hh-hero-grade-badge">{g.badge}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <ul className="hh-pillars" aria-label="Giá trị cốt lõi của Orbit">
             {PILLARS.map((p) => (
