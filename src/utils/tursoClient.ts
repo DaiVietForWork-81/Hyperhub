@@ -611,32 +611,49 @@ export async function fetchDocContentFromTurso(docId: number): Promise<{
  * 7. Gọi Gia Sư AI gợi ý tư duy (Hint) hoặc giải thích chi tiết (Explain) cho từng câu hỏi
  */
 export async function requestAiTutorGuidance(params: {
-  stem: string;
+  stem?: string;
+  questionText?: string;
   subject?: string;
   mode: 'hint' | 'explain';
-  options?: { key: string; text: string }[];
+  options?: { key: string; text: string }[] | Record<string, string>;
   statements?: { key: string; text: string }[];
   answer_key?: string;
-}): Promise<{ guidance: string; source: string } | null> {
+  userAnswer?: string;
+  correctAnswer?: string;
+}): Promise<{ guidance: string; response: string; source: string }> {
+  const normalizedOptions = Array.isArray(params.options)
+    ? params.options
+    : params.options
+    ? Object.entries(params.options).map(([key, text]) => ({ key, text }))
+    : [];
+  const payload = {
+    ...params,
+    stem: params.stem || params.questionText || '',
+    options: normalizedOptions,
+    answer_key: params.answer_key || params.correctAnswer || '',
+  };
   const data = await fetchCloudApi<{
     success?: boolean;
     guidance?: string;
+    response?: string;
     source?: string;
   }>(
     '/api/ai/tutor',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     },
     16000
   );
 
-  if (data?.success && data.guidance) {
-    return {
-      guidance: data.guidance,
-      source: data.source || 'cloud_ai',
-    };
-  }
-  return null;
+  const text =
+    data?.guidance ||
+    data?.response ||
+    'Hãy phân tích kỹ dữ kiện trọng tâm của câu hỏi và đối chiếu từng phương án loại trừ.';
+  return {
+    guidance: text,
+    response: text,
+    source: data?.source || 'cloud_ai',
+  };
 }

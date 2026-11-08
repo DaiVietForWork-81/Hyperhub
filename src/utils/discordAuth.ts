@@ -87,6 +87,19 @@ export function getDiscordAccessToken(): string | null {
   }
 }
 
+export function getDiscordAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = getDiscordAccessToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const stored = getStoredDiscordUser();
+  if (stored?.id) {
+    headers['X-Discord-User-Id'] = String(stored.id);
+  }
+  return headers;
+}
+
 export function getStoredDiscordUser(): DiscordUser | null {
   try {
     let data = localStorage.getItem(STORAGE_KEY);
