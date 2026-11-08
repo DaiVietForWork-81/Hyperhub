@@ -239,7 +239,18 @@ export async function saveDocumentToTurso(
   ];
 
   const res = await executeTurso(sql, args);
-  return res.lastInsertRowId || 0;
+  const insertedId = res.lastInsertRowId || 0;
+
+  if (queueStatus === "pending_bot") {
+    const nowSec = Math.floor(Date.now() / 1000);
+    executeTurso(
+      `INSERT INTO bot_rpc_queue (method, path, headers, body, status, created_at, updated_at)
+       VALUES ('POST', '/api/documents/sync_pending', '{}', ?, 'pending', ?, ?)`,
+      [JSON.stringify({ doc_id: insertedId }), nowSec, nowSec]
+    ).catch(() => {});
+  }
+
+  return insertedId;
 }
 
 /**

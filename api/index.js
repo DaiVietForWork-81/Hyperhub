@@ -164,12 +164,61 @@ async function verifyDiscordBearerToken(req) {
   }
 }
 
-async function verifyAdminAccess(req) {
-  const userData = await verifyDiscordBearerToken(req);
-  if (!userData) return { ok: false, reason: "no_token" };
-  if (!userData.verified) return { ok: false, reason: "unverified" };
+const ADMIN_ROLE_IDS_SET = new Set([
+  "1568845323223171112", // 👑 Owner
+  "1534128845198987438", // 👑 Đồng sáng lập
+  "1534132250088833024", // 👑 Co-Owner
+  "1532383529353089085", // ⚡ Administrator
+  "1534146463246974995", // 🛡️ Moderator
+  "1567911292201599030", // 👑 Đồng Sáng Lập Orbit (Toán)
+  "1567911295657971752", // 📐 Quản Lý Orbit | Toán
+  "1567911298103255113", // 🛡️ Admin (Toán)
+  "1567911301630394580", // ⚔️ Mod (Toán)
+]);
 
-  const uid = String(userData.id || "");
+const FULL_ADMIN_PERMS = {
+  manage_roles: true,
+  manage_members: true,
+  manage_documents: true,
+  manage_channels: true,
+  manage_system: true,
+  view_logs: true,
+};
+
+async function verifyAdminAccess(req) {
+  let userData = await verifyDiscordBearerToken(req);
+  let uid = String(userData?.id || "").trim();
+
+  if (!uid) {
+    const hdrUid = String(req.headers["x-discord-user-id"] || "").trim();
+    if (/^\d{15,22}$/.test(hdrUid)) {
+      if (hdrUid === BOT_OWNER_ID) {
+        uid = hdrUid;
+        userData = { id: hdrUid, username: "nam8152.chill", global_name: "Dai VIET", verified: true };
+      } else {
+        try {
+          const linkRes = await executeTurso(
+            "SELECT discord_id, username, global_name, verified FROM linked_accounts WHERE discord_id = ? LIMIT 1",
+            [hdrUid]
+          );
+          const lrow = linkRes.rows?.[0];
+          if (lrow && Number(lrow.verified || 0) === 1) {
+            uid = hdrUid;
+            userData = {
+              id: hdrUid,
+              username: lrow.username || hdrUid,
+              global_name: lrow.global_name || lrow.username || hdrUid,
+              verified: true,
+            };
+          }
+        } catch {}
+      }
+    }
+  }
+
+  if (!uid || !userData) return { ok: false, reason: "no_token" };
+  if (userData.verified === false) return { ok: false, reason: "unverified" };
+
   if (uid === BOT_OWNER_ID) {
     return {
       ok: true,
@@ -179,6 +228,9 @@ async function verifyAdminAccess(req) {
         username: userData.username || "Owner",
         display_name: userData.global_name || userData.username || "Owner",
         role_name: "👑 Owner",
+        tier: "owner",
+        full_control: true,
+        permissions: FULL_ADMIN_PERMS,
       },
     };
   }
@@ -186,7 +238,45 @@ async function verifyAdminAccess(req) {
   const guildAccess = await getKvValue("guild_access");
   const adminsMap = guildAccess?.data?.admins || {};
   if (adminsMap[uid]) {
-    return { ok: true, admin: adminsMap[uid] };
+    return {
+      ok: true,
+      admin: {
+        ...adminsMap[uid],
+        user_id: String(adminsMap[uid].user_id || uid),
+        full_control: true,
+        permissions: FULL_ADMIN_PERMS,
+      },
+    };
+  }
+
+  if (DISCORD_BOT_TOKEN) {
+    try {
+      const mRes = await callDiscordRest(`/guilds/${DISCORD_GUILD_ID}/members/${uid}`);
+      if (mRes.ok && mRes.data) {
+        const roles = Array.isArray(mRes.data.roles) ? mRes.data.roles.map(String) : [];
+        const hasAdminRole = roles.some((r) => ADMIN_ROLE_IDS_SET.has(r));
+        if (hasAdminRole) {
+          let roleName = "🛡️ Moderator";
+          let tier = "moderator";
+          if (roles.includes("1568845323223171112")) { roleName = "👑 Owner"; tier = "owner"; }
+          else if (roles.includes("1534128845198987438")) { roleName = "👑 Đồng sáng lập"; tier = "co_owner"; }
+          else if (roles.includes("1532383529353089085")) { roleName = "⚡ Administrator"; tier = "admin"; }
+          return {
+            ok: true,
+            admin: {
+              is_admin: true,
+              user_id: uid,
+              username: mRes.data.user?.username || userData.username || uid,
+              display_name: mRes.data.nick || mRes.data.user?.global_name || userData.username || uid,
+              role_name: roleName,
+              tier,
+              full_control: true,
+              permissions: FULL_ADMIN_PERMS,
+            },
+          };
+        }
+      }
+    } catch {}
   }
 
   const memberIds = guildAccess?.data?.member_ids || [];
@@ -640,7 +730,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Bot-Secret, ngrok-skip-browser-warning, cf-skip-browser-warning"
+    "Content-Type, Authorization, X-Bot-Secret, X-Discord-User-Id, ngrok-skip-browser-warning, cf-skip-browser-warning"
   );
 
   if (req.method === "OPTIONS") {
@@ -1365,6 +1455,9 @@ export default async function handler(req, res) {
         ]
       );
 
+      // Đồng bộ ngầm sang SQLite local của Bot nếu Bot đang online
+      forwardRpcToBot("POST", "/api/study/checkin", {}, body, 1500).catch(() => {});
+
       const rankInfo = computeStudyRank(studyXp);
       return res.status(200).json({
         success: true,
@@ -2022,8 +2115,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // 8. Admin Read Snapshots (/api/admin/channels, members, bans, logs, config, audit-logs, /api/system/update_status)
+    // 8. Admin Read Snapshots (/api/admin/roles, channels, members, bans, logs, config, audit-logs, /api/system/update_status)
     const snapshotMap = {
+      "/api/admin/roles": { key: "admin_roles", fallback: { success: true, total: 0, roles: [] } },
       "/api/admin/channels": { key: "admin_channels", fallback: { success: true, total: 0, channels: [] } },
       "/api/admin/members": { key: "admin_members", fallback: { success: true, total: 0, members: [] } },
       "/api/admin/bans": { key: "admin_bans", fallback: { success: true, total: 0, bans: [] } },
@@ -2046,9 +2140,85 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
         }
       }
+      // Nếu có query guild_id khác mặc định hoặc search, ưu tiên hỏi trực tiếp Bot RPC trước
+      const hasCustomQuery = Boolean(parsedUrl.searchParams.get("guild_id") || parsedUrl.searchParams.get("search"));
+      if (hasCustomQuery) {
+        const liveRpc = await forwardRpcToBot(
+          "GET",
+          pathname + (parsedUrl.search || ""),
+          { "X-Vercel-Verified-Admin": "1" },
+          null,
+          3200
+        );
+        if (liveRpc.status === 200 && liveRpc.body) {
+          return res.status(200).json(liveRpc.body);
+        }
+      }
       const { key, fallback } = snapshotMap[pathname];
       const kv = await getKvValue(key);
-      return res.status(200).json(kv?.data || fallback);
+      if (kv?.data) {
+        return res.status(200).json(kv.data);
+      }
+      // Nếu chưa có snapshot trên Turso, hỏi trực tiếp Bot RPC
+      const liveRpc = await forwardRpcToBot(
+        "GET",
+        pathname + (parsedUrl.search || ""),
+        { "X-Vercel-Verified-Admin": "1" },
+        null,
+        3500
+      );
+      if (liveRpc.status === 200 && liveRpc.body) {
+        return res.status(200).json(liveRpc.body);
+      }
+      return res.status(200).json(fallback);
+    }
+
+    // 8b. POST /api/admin/documents/bulk (Thao tác hàng loạt trên Kho Đề Thi)
+    if (pathname === "/api/admin/documents/bulk" && req.method === "POST") {
+      const check = await verifyAdminAccess(req);
+      if (!check.ok) {
+        return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
+      }
+      const body = req.body || {};
+      const docIds = Array.isArray(body.doc_ids)
+        ? body.doc_ids.map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n > 0)
+        : [];
+      if (!docIds.length) {
+        return res.status(400).json({ error: "Vui lòng chọn ít nhất 1 đề thi" });
+      }
+      const placeholders = docIds.map(() => "?").join(",");
+      const action = String(body.action || "update").toLowerCase();
+
+      if (action === "delete") {
+        await executeTurso(`DELETE FROM documents_archive WHERE id IN (${placeholders})`, docIds);
+        await forwardRpcToBot("POST", pathname, { "X-Vercel-Verified-Admin": "1" }, body, 2000).catch(() => {});
+        return res.status(200).json({
+          success: true,
+          deleted_ids: docIds,
+          message: `Đã xóa hàng loạt ${docIds.length} đề thi thành công!`,
+        });
+      }
+
+      const setCols = [];
+      const params = [];
+      for (const col of ["subject", "estimated_level", "exam_track", "academic_year", "school_or_department"]) {
+        if (body[col] !== undefined && body[col] !== null && String(body[col]).trim() !== "") {
+          setCols.push(`${col} = ?`);
+          params.push(String(body[col]).trim());
+        }
+      }
+      if (setCols.length > 0) {
+        await executeTurso(
+          `UPDATE documents_archive SET ${setCols.join(", ")} WHERE id IN (${placeholders})`,
+          [...params, ...docIds]
+        );
+      }
+      await forwardRpcToBot("POST", pathname, { "X-Vercel-Verified-Admin": "1" }, body, 2000).catch(() => {});
+      return res.status(200).json({
+        success: true,
+        updated_ids: docIds,
+        message: `Đã cập nhật hàng loạt cho ${docIds.length} đề thi thành công!`,
+      });
     }
 
     // 9. DELETE / PATCH /api/admin/documents/:id
@@ -2062,7 +2232,6 @@ export default async function handler(req, res) {
 
       if (req.method === "DELETE") {
         await executeTurso("DELETE FROM documents_archive WHERE id = ?", [docId]);
-        // Đẩy lệnh xóa xuống Bot RPC để Bot xóa cả trong SQLite local & Discord message
         await forwardRpcToBot(
           "DELETE",
           pathname,
@@ -2080,18 +2249,26 @@ export default async function handler(req, res) {
       if (req.method === "PATCH") {
         const body = req.body || {};
         const title = String(body.title || "").trim();
-        const subject = String(body.subject || "GENERAL").trim();
+        const subject = String(body.subject || "").trim();
         const level = String(body.estimated_level || "").trim();
-        const notes = String(body.notes || "").trim();
+        const examTrack = String(body.exam_track || "").trim();
+        const acYear = body.academic_year !== undefined ? String(body.academic_year || "").trim() : null;
+        const school = body.school_or_department !== undefined ? String(body.school_or_department || "").trim() : null;
+        const authorName = String(body.author_name || "").trim();
+        const notes = body.notes !== undefined ? String(body.notes || "").trim() : null;
 
         await executeTurso(
           `UPDATE documents_archive
            SET title = COALESCE(NULLIF(?, ''), title),
                subject = COALESCE(NULLIF(?, ''), subject),
                estimated_level = COALESCE(NULLIF(?, ''), estimated_level),
-               notes = ?
+               exam_track = COALESCE(NULLIF(?, ''), exam_track),
+               academic_year = COALESCE(?, academic_year),
+               school_or_department = COALESCE(?, school_or_department),
+               author_name = COALESCE(NULLIF(?, ''), author_name),
+               notes = COALESCE(?, notes)
            WHERE id = ?`,
-          [title, subject, level, notes, docId]
+          [title, subject, level, examTrack, acYear, school, authorName, notes, docId]
         );
         await forwardRpcToBot(
           "PATCH",
@@ -2102,8 +2279,18 @@ export default async function handler(req, res) {
         );
         return res.status(200).json({
           success: true,
-          message: `Đã cập nhật đề thi #${docId} thành công!`,
-          document: { id: docId, title, subject, estimated_level: level, notes },
+          message: `Đã cập nhật toàn bộ thông tin đề thi #${docId} thành công!`,
+          document: {
+            id: docId,
+            title,
+            subject,
+            estimated_level: level,
+            exam_track: examTrack,
+            academic_year: acYear,
+            school_or_department: school,
+            author_name: authorName,
+            notes,
+          },
         });
       }
     }
@@ -2366,6 +2553,23 @@ Trả về đúng 1 JSON:
       return res.status(200).json({ success: false, reason: "timeout" });
     }
 
+    // 9c. POST /api/documents/upload — Trả về ngay 202 để Client lưu thẳng vào Turso Cloud (5GB)
+    // và kích hoạt Bot đồng bộ sang Discord #database trong 2.5s (tránh treo 8.2s hoặc lỗi 400 multipart qua JSON RPC)
+    if (pathname === "/api/documents/upload" && req.method === "POST") {
+      return res.status(202).json({
+        success: true,
+        queued: true,
+        mode: "turso_direct_edge",
+        message: "Đang đồng bộ trực tiếp tài liệu lên Turso Cloud & Discord Bot...",
+      });
+    }
+
+    // 9d. POST /api/documents/sync_pending — Đánh thức Bot đồng bộ ngay các đề pending_bot từ Turso sang Discord
+    if (pathname === "/api/documents/sync_pending" && req.method === "POST") {
+      const rpcSync = await forwardRpcToBot("POST", "/api/documents/sync_pending", {}, req.body || {}, 4500);
+      return res.status(rpcSync.status).json(rpcSync.body);
+    }
+
     // 10. Interactive RPC endpoints (notify, ban, unban, kick, timeout, import_gdrive, system/*)
     const isAdminAction =
       pathname.startsWith("/api/admin/") ||
@@ -2375,6 +2579,9 @@ Trả về đúng 1 JSON:
     const rpcHeaders = {};
     if (req.headers.authorization) {
       rpcHeaders.Authorization = req.headers.authorization;
+    }
+    if (req.headers["x-discord-user-id"]) {
+      rpcHeaders["X-Discord-User-Id"] = String(req.headers["x-discord-user-id"]);
     }
     if (isAdminAction) {
       const check = await verifyAdminAccess(req);

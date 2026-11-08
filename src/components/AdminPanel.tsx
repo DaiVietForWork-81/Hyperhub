@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ShieldAlert,
   UserX,
@@ -16,6 +16,7 @@ import {
   FileText,
   X,
   Lock,
+  Unlock,
   Megaphone,
   Send,
   ScrollText,
@@ -32,9 +33,20 @@ import {
   Database,
   HardDrive,
   Cloud,
+  Crown,
+  Sparkles,
+  Plus,
+  Layers,
+  Sliders,
 } from 'lucide-react';
-import { getApiBaseUrl, API_FETCH_HEADERS, setCustomApiUrl, DEFAULT_TUNNEL_URL, LOCAL_API_URL } from '../utils/apiConfig';
-import { getDiscordAccessToken } from '../utils/discordAuth';
+import {
+  getApiBaseUrl,
+  API_FETCH_HEADERS,
+  setCustomApiUrl,
+  DEFAULT_TUNNEL_URL,
+  LOCAL_API_URL,
+} from '../utils/apiConfig';
+import { getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import { getTursoStorageUsage, TursoStorageStats } from '../utils/tursoClient';
 
 interface BannedUser {
@@ -45,6 +57,63 @@ interface BannedUser {
   reason: string;
 }
 
+interface MemberRoleBadge {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+}
+
+interface DiscordMemberItem {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string;
+  is_bot: boolean;
+  is_owner?: boolean;
+  is_admin?: boolean;
+  top_role?: string;
+  top_color?: string;
+  roles?: MemberRoleBadge[];
+  joined_at?: string;
+  timed_out_until?: string | null;
+}
+
+interface DiscordRoleItem {
+  id: string;
+  name: string;
+  color: string;
+  color_int: number;
+  position: number;
+  hoist: boolean;
+  mentionable: boolean;
+  managed: boolean;
+  is_default: boolean;
+  permissions: string;
+  permissions_list: string[];
+  member_count: number;
+  tier: 'bot' | 'divider' | 'staff' | 'honor' | 'grade' | 'member' | 'other' | 'default';
+  editable: boolean;
+}
+
+interface GuildOption {
+  id: string;
+  name: string;
+  member_count: number;
+}
+
+interface DiscordChannelItem {
+  channel_id: string;
+  name: string;
+  raw_name?: string;
+  kind?: 'text' | 'voice';
+  category: string;
+  category_id?: string;
+  topic?: string;
+  is_private?: boolean;
+  position?: number;
+}
+
 interface AdminExamDocument {
   id: number;
   title: string;
@@ -52,12 +121,28 @@ interface AdminExamDocument {
   file_name: string;
   file_size_bytes: number;
   estimated_level: string;
+  exam_track?: string;
+  academic_year?: string;
+  school_or_department?: string;
   question_count: number;
   page_count: number;
   author_name: string;
+  author_avatar?: string;
   timestamp: string;
   notes?: string;
   jump_url?: string;
+  is_chunked?: number;
+}
+
+interface AdminIdentity {
+  is_admin?: boolean;
+  user_id?: string | number;
+  username?: string;
+  display_name?: string;
+  avatar_url?: string;
+  role_name?: string;
+  tier?: 'owner' | 'co_owner' | 'admin' | 'moderator';
+  full_control?: boolean;
 }
 
 interface AdminPanelProps {
@@ -65,12 +150,238 @@ interface AdminPanelProps {
   onRefreshParentDocs?: () => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
-  const [adminTab, setAdminTab] = useState<'moderation' | 'documents' | 'announce' | 'logs' | 'config' | 'audit'>('moderation');
+type AdminTab = 'roles' | 'members' | 'documents' | 'channels' | 'config' | 'logs';
 
-  // Headers kèm token xác thực
+const SUBJECT_OPTIONS = [
+  { value: 'MATHEMATICS', label: 'Toán học' },
+  { value: 'PHYSICS', label: 'Vật lý' },
+  { value: 'CHEMISTRY', label: 'Hóa học' },
+  { value: 'BIOLOGY', label: 'Sinh học' },
+  { value: 'INFORMATICS', label: 'Tin học' },
+  { value: 'ENGLISH', label: 'Tiếng Anh' },
+  { value: 'LITERATURE', label: 'Ngữ văn' },
+  { value: 'HISTORY', label: 'Lịch sử' },
+  { value: 'GEOGRAPHY', label: 'Địa lý' },
+  { value: 'NATURAL_SCIENCE', label: 'Khoa học tự nhiên (Cấp 2)' },
+  { value: 'HISTORY_GEOGRAPHY', label: 'Lịch sử & Địa lý (Cấp 2)' },
+  { value: 'CIVIC_EDUCATION', label: 'Giáo dục công dân (Cấp 2)' },
+  { value: 'ECONOMIC_LEGAL_EDU', label: 'Kinh tế & Pháp luật (Cấp 3)' },
+  { value: 'TECHNOLOGY', label: 'Công nghệ' },
+  { value: 'DEFENSE_SECURITY_EDU', label: 'GD Quốc phòng & An ninh' },
+  { value: 'GENERAL', label: 'Tổng hợp / ĐGNL' },
+];
+
+const GRADE_LEVEL_OPTIONS = [
+  'Khối 12 (Ôn thi THPT)',
+  'Khối 11',
+  'Khối 10',
+  'Khối 9 (Ôn Vào 10)',
+  'Khối 8',
+  'Khối 7',
+  'Khối 6',
+  'Khối THCS',
+];
+
+const EXAM_TRACK_OPTIONS = [
+  { value: 'Thường', label: 'Đề Thường (Đại trà / Học kỳ / Thi thử)' },
+  { value: 'HSG', label: 'Đề Học Sinh Giỏi (HSG)' },
+  { value: 'Chuyên', label: 'Đề Chuyên (Tuyển sinh 10 Chuyên / THPT Chuyên)' },
+  { value: 'Quốc tế', label: 'Đề Quốc tế (IMO / AMC / Kangaroo / SASMO)' },
+];
+
+const ROLE_COLOR_SWATCHES = [
+  '#F59E0B',
+  '#FF2E63',
+  '#FF0090',
+  '#10B981',
+  '#06B6D4',
+  '#3B82F6',
+  '#8B5CF6',
+  '#F472B6',
+  '#EF4444',
+  '#00FF0C',
+];
+
+const PERMISSION_PRESETS = [
+  { value: 'none', label: 'Danh hiệu / Màu sắc (Không cấp quyền hệ thống)' },
+  { value: 'member', label: 'Thành viên chuẩn (Xem kênh, nhắn tin, vào voice an toàn)' },
+  { value: 'moderator', label: 'Điều hành viên (Kick, Ban, Mute, Xóa tin, Quản lý Thread)' },
+  { value: 'admin', label: 'Quản trị tối cao (Full Administrator)' },
+  { value: 'readonly', label: 'Chỉ xem & Đọc lịch sử (Read-Only)' },
+];
+
+const TIER_META: Record<string, { label: string; badgeClass: string }> = {
+  staff: { label: 'Quản trị & Điều hành', badgeClass: 'bg-rose-500/15 text-rose-300 border-rose-500/35' },
+  honor: { label: 'Vinh danh & Học thuật', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/35' },
+  grade: { label: 'Khối lớp (6 → 12)', badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/35' },
+  member: { label: 'Thành viên', badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35' },
+  divider: { label: 'Thanh phân cách', badgeClass: 'bg-white/10 text-white/60 border-white/20' },
+  bot: { label: 'Hệ thống Bot', badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/35' },
+  other: { label: 'Khác', badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/35' },
+  default: { label: 'Mặc định (@everyone)', badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30' },
+};
+
+const PERM_LABELS_VI: Record<string, string> = {
+  administrator: '👑 Toàn quyền Admin',
+  manage_guild: '⚙️ Quản lý Server',
+  manage_roles: '🎭 Quản lý Role',
+  manage_channels: '📢 Quản lý Kênh',
+  kick_members: '👢 Kick',
+  ban_members: '🔨 Ban',
+  moderate_members: '🔇 Timeout/Mute',
+  manage_messages: '🧹 Xóa tin nhắn',
+  manage_threads: '🧵 Quản lý Thread',
+  view_audit_log: '📋 Xem Nhật ký',
+  mention_everyone: '📣 Ping @everyone',
+  send_messages: '💬 Nhắn tin',
+  view_channel: '👁️ Xem kênh',
+};
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
+  const [activeTab, setActiveTab] = useState<AdminTab>('roles');
+  const [selectedGuildId, setSelectedGuildId] = useState<string>('1532265330079174697');
+  const [guilds, setGuilds] = useState<GuildOption[]>([
+    { id: '1532265330079174697', name: 'Orbit | Vietnam', member_count: 44 },
+    { id: '1567904557076316250', name: 'Orbit | Toán', member_count: 2 },
+  ]);
+  const [adminIdentity, setAdminIdentity] = useState<AdminIdentity | null>(null);
+
+  // Sliding Indicator cho thanh Tab Navigation
+  const tabBarRef = useRef<HTMLDivElement | null>(null);
+  const tabBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [tabIndicator, setTabIndicator] = useState<{ left: number; width: number; ready: boolean }>({
+    left: 0,
+    width: 0,
+    ready: false,
+  });
+
+  // Feedback Banner
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // ================= 1. ROLES STATE =================
+  const [roles, setRoles] = useState<DiscordRoleItem[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState<boolean>(false);
+  const [aligningRoles, setAligningRoles] = useState<boolean>(false);
+  const [roleTierFilter, setRoleTierFilter] = useState<string>('ALL');
+  const [roleSearch, setRoleSearch] = useState<string>('');
+
+  // Create Role Form
+  const [newRoleName, setNewRoleName] = useState<string>('');
+  const [newRoleColor, setNewRoleColor] = useState<string>('#F59E0B');
+  const [newRoleHoist, setNewRoleHoist] = useState<boolean>(true);
+  const [newRoleMentionable, setNewRoleMentionable] = useState<boolean>(true);
+  const [newRolePermPreset, setNewRolePermPreset] = useState<string>('none');
+
+  // Edit Role Modal
+  const [editingRole, setEditingRole] = useState<DiscordRoleItem | null>(null);
+  const [editRoleName, setEditRoleName] = useState<string>('');
+  const [editRoleColor, setEditRoleColor] = useState<string>('#F59E0B');
+  const [editRoleHoist, setEditRoleHoist] = useState<boolean>(true);
+  const [editRoleMentionable, setEditRoleMentionable] = useState<boolean>(true);
+  const [editRolePermPreset, setEditRolePermPreset] = useState<string>('');
+
+  // ================= 2. MEMBERS & MODERATION STATE =================
+  const [members, setMembers] = useState<DiscordMemberItem[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
+  const [memberSearch, setMemberSearch] = useState<string>('');
+  const [memberRoleFilter, setMemberRoleFilter] = useState<string>('ALL');
+  const [selectedMemberForRoles, setSelectedMemberForRoles] = useState<DiscordMemberItem | null>(null);
+  const [togglingRoleId, setTogglingRoleId] = useState<string | null>(null);
+
+  const [bans, setBans] = useState<BannedUser[]>([]);
+  const [loadingBans, setLoadingBans] = useState<boolean>(false);
+  const [targetUserId, setTargetUserId] = useState<string>('');
+  const [modReason, setModReason] = useState<string>('');
+  const [muteDuration, setMuteDuration] = useState<number>(600);
+  const [deleteMsgDays, setDeleteMsgDays] = useState<number>(0);
+
+  // ================= 3. DOCUMENTS STATE =================
+  const [docs, setDocs] = useState<AdminExamDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState<boolean>(false);
+  const [docSearch, setDocSearch] = useState<string>('');
+  const [docSubjectFilter, setDocSubjectFilter] = useState<string>('ALL');
+  const [docLevelFilter, setDocLevelFilter] = useState<string>('ALL');
+  const [docTrackFilter, setDocTrackFilter] = useState<string>('ALL');
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<number>>(new Set());
+  const [bulkSubject, setBulkSubject] = useState<string>('');
+  const [bulkLevel, setBulkLevel] = useState<string>('');
+  const [bulkTrack, setBulkTrack] = useState<string>('');
+  const [tursoStats, setTursoStats] = useState<TursoStorageStats | null>(null);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
+
+  // Edit Document Modal (100% fields)
+  const [editingDoc, setEditingDoc] = useState<AdminExamDocument | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editSubject, setEditSubject] = useState<string>('MATHEMATICS');
+  const [editLevel, setEditLevel] = useState<string>('Khối 12 (Ôn thi THPT)');
+  const [editTrack, setEditTrack] = useState<string>('Thường');
+  const [editYear, setEditYear] = useState<string>('');
+  const [editSchool, setEditSchool] = useState<string>('');
+  const [editAuthorName, setEditAuthorName] = useState<string>('');
+  const [editNotes, setEditNotes] = useState<string>('');
+
+  // ================= 4. CHANNELS & PANELS STATE =================
+  const [channels, setChannels] = useState<DiscordChannelItem[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState<boolean>(false);
+  const [newChannelName, setNewChannelName] = useState<string>('');
+  const [newChannelKind, setNewChannelKind] = useState<'voice' | 'text'>('text');
+  const [newChannelCategoryId, setNewChannelCategoryId] = useState<string>('');
+  const [newChannelLimit, setNewChannelLimit] = useState<number>(0);
+  const [newChannelTopic, setNewChannelTopic] = useState<string>('');
+  const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  const [announceTitle, setAnnounceTitle] = useState<string>('');
+  const [announceMsg, setAnnounceMsg] = useState<string>('');
+  const [announceColor, setAnnounceColor] = useState<string>('#A855F7');
+  const [refreshingPanels, setRefreshingPanels] = useState<boolean>(false);
+
+  // ================= 5. CONFIG & SYSTEM STATE =================
+  const [configData, setConfigData] = useState<{
+    bot?: Record<string, unknown>;
+    runtime?: Record<string, unknown>;
+    config?: Record<string, unknown>;
+  } | null>(null);
+  const [loadingConfig, setLoadingConfig] = useState<boolean>(false);
+  const [customUrlInput, setCustomUrlInput] = useState<string>(() => getApiBaseUrl());
+  const [testingUrl, setTestingUrl] = useState<boolean>(false);
+  const [updateStatus, setUpdateStatus] = useState<{
+    current_hash: string;
+    full_hash?: string;
+    commit_msg?: string;
+    branch?: string;
+    has_update: boolean;
+    remote_hash: string;
+    commits: Array<{ hash: string; message: string; author: string; time: string }>;
+  } | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [applyingUpdate, setApplyingUpdate] = useState<boolean>(false);
+  const [reloadingBot, setReloadingBot] = useState<boolean>(false);
+
+  // ================= 6. LOGS & AUDIT STATE =================
+  const [logSubView, setLogSubView] = useState<'console' | 'audit'>('console');
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [logLevel, setLogLevel] = useState<'ALL' | 'INFO' | 'WARNING' | 'ERROR'>('ALL');
+  const [logCount, setLogCount] = useState<number>(200);
+  const [logSize, setLogSize] = useState<number>(0);
+  const [logFilter, setLogFilter] = useState<string>('');
+  const [loadingLogs, setLoadingLogs] = useState<boolean>(false);
+  const [autoRefreshLogs, setAutoRefreshLogs] = useState<boolean>(false);
+  const [auditEntries, setAuditEntries] = useState<
+    Array<{ id: string; action: string; actor: string; target: string; reason: string; created_at: string }>
+  >([]);
+  const [loadingAudit, setLoadingAudit] = useState<boolean>(false);
+
+  const showFeedback = useCallback((type: 'success' | 'error', text: string) => {
+    setStatusMsg({ type, text });
+    setTimeout(() => {
+      setStatusMsg((prev) => (prev?.text === text ? null : prev));
+    }, 6500);
+  }, []);
+
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = getDiscordAccessToken();
+    const storedUser = getStoredDiscordUser();
     const headers: Record<string, string> = {
       ...API_FETCH_HEADERS,
       'Content-Type': 'application/json',
@@ -78,784 +389,510 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    if (storedUser?.id) {
+      headers['X-Discord-User-Id'] = String(storedUser.id);
+    }
     return headers;
   }, []);
 
-  // =========================================================================
-  // TAB 1: MODERATION (BANS, KICK, MUTE, UNMUTE)
-  // =========================================================================
-  const [bansList, setBansList] = useState<BannedUser[]>([]);
-  const [isLoadingBans, setIsLoadingBans] = useState<boolean>(false);
-  const [bansError, setBansError] = useState<string>('');
+  // Sliding Tab Indicator calculation
+  const updateTabIndicator = useCallback(() => {
+    const container = tabBarRef.current;
+    const btn = tabBtnRefs.current[activeTab];
+    if (!container || !btn) return;
+    const cRect = container.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    setTabIndicator({
+      left: bRect.left - cRect.left + container.scrollLeft,
+      width: bRect.width,
+      ready: true,
+    });
+  }, [activeTab]);
 
-  // Form Kỷ luật
-  const [targetUserId, setTargetUserId] = useState<string>('');
-  interface FoundMember {
-    user_id: string;
-    username: string;
-    display_name: string;
-    avatar_url?: string;
-    is_bot?: boolean;
-  }
-  const [memberQuery, setMemberQuery] = useState<string>('');
-  const [memberResults, setMemberResults] = useState<FoundMember[]>([]);
-  const [isSearchingMembers, setIsSearchingMembers] = useState<boolean>(false);
-  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
-  const [selectedMember, setSelectedMember] = useState<FoundMember | null>(null);
-  const [modAction, setModAction] = useState<'ban' | 'kick' | 'mute' | 'unmute'>('mute');
-  const [modDuration, setModDuration] = useState<number>(600); // Mặc định 10 phút
-  const [customMinutes, setCustomMinutes] = useState<string>('');
-  const [modDeleteDays, setModDeleteDays] = useState<number>(0);
-  const [modReason, setModReason] = useState<string>('');
-  const [isSubmittingMod, setIsSubmittingMod] = useState<boolean>(false);
-  const [modMessage, setModMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
-    null
-  );
+  useLayoutEffect(() => {
+    updateTabIndicator();
+  }, [updateTabIndicator]);
 
-  // Fetch danh sách bans
-  const fetchBans = useCallback(async () => {
-    setIsLoadingBans(true);
-    setBansError('');
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/bans`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || errData.error || `Lỗi tải danh sách ban (${res.status})`);
+  useEffect(() => {
+    window.addEventListener('resize', updateTabIndicator);
+    return () => window.removeEventListener('resize', updateTabIndicator);
+  }, [updateTabIndicator]);
+
+  // Escape key closes modals
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (editingRole) setEditingRole(null);
+        else if (editingDoc) setEditingDoc(null);
+        else if (selectedMemberForRoles) setSelectedMemberForRoles(null);
       }
-      const data = await res.json();
-      setBansList(data.bans || []);
-    } catch (e: any) {
-      setBansError(e.message || 'Không thể lấy danh sách bị cấm từ Discord.');
-    } finally {
-      setIsLoadingBans(false);
-    }
-  }, [getAuthHeaders]);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editingRole, editingDoc, selectedMemberForRoles]);
 
-  useEffect(() => {
-    if (adminTab === 'moderation') {
-      fetchBans();
-    }
-  }, [adminTab, fetchBans]);
-
-  // Tìm thành viên theo tên (debounce 400ms) trực tiếp qua Bot.
-  // Mở field khi trống sẽ liệt kê sẵn thành viên (search rỗng = list đầu).
-  const [highlightIndex, setHighlightIndex] = useState<number>(-1);
-
-  const fetchMembers = useCallback(async (keyword: string) => {
-    setIsSearchingMembers(true);
+  // ================= FETCHERS =================
+  const fetchAdminIdentity = useCallback(async () => {
     try {
       const apiBase = getApiBaseUrl();
-      const q = new URLSearchParams();
-      q.set('search', keyword.trim());
-      q.set('limit', '25');
-      const res = await fetch(`${apiBase}/api/admin/members?${q.toString()}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('');
-      const data = await res.json();
-      setMemberResults(data.members || []);
-      setHighlightIndex(-1);
-      setShowMemberDropdown(true);
+      const res = await fetch(`${apiBase}/api/admin/check`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.admin) setAdminIdentity(data.admin);
+      }
     } catch {
-      setMemberResults([]);
-      setShowMemberDropdown(false);
-    } finally {
-      setIsSearchingMembers(false);
+      /* ignore */
     }
   }, [getAuthHeaders]);
 
-  useEffect(() => {
-    if (selectedMember) {
-      setMemberResults([]);
-      setShowMemberDropdown(false);
-      return;
-    }
-    // Chỉ auto-tìm khi đang gõ (focus + trống do onFocus lo)
-    if (memberQuery.trim().length < 1) return;
-    const timer = setTimeout(() => {
-      fetchMembers(memberQuery);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [memberQuery, selectedMember, fetchMembers]);
-
-  const chooseMember = useCallback((m: FoundMember) => {
-    setSelectedMember(m);
-    setTargetUserId(m.user_id);
-    setShowMemberDropdown(false);
-    setHighlightIndex(-1);
-  }, []);
-
-  // Ref khung danh sách + tự cuộn tới dòng đang highlight (phím ↑↓)
-  const memberListRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!showMemberDropdown || highlightIndex < 0) return;
-    const el = memberListRef.current?.querySelector<HTMLElement>(`[data-idx="${highlightIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [highlightIndex, showMemberDropdown]);
-
-  const scrollMemberList = useCallback((dir: 1 | -1) => {
-    memberListRef.current?.scrollBy({ top: dir * 140, behavior: 'smooth' });
-  }, []);
-
-  // Thực hiện hành động kỷ luật
-  const handleExecuteModAction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Ưu tiên member đã chọn trong dropdown, fallback nhập ID tay
-    const finalUserId = (selectedMember?.user_id || memberQuery || targetUserId).trim();
-    if (!finalUserId) {
-      setModMessage({ type: 'error', text: 'Vui lòng tìm và chọn thành viên, hoặc nhập Discord User ID.' });
-      return;
-    }
-
-    setIsSubmittingMod(true);
-    setModMessage(null);
-
-    const apiBase = getApiBaseUrl();
-    const headers = getAuthHeaders();
-
-    try {
-      let endpoint = '';
-      let bodyData: any = { user_id: finalUserId };
-
-      if (modAction === 'ban') {
-        endpoint = `${apiBase}/api/admin/ban`;
-        bodyData.reason = modReason.trim() || 'Cấm từ Web Admin Portal';
-        bodyData.delete_message_days = modDeleteDays;
-      } else if (modAction === 'kick') {
-        endpoint = `${apiBase}/api/admin/kick`;
-        bodyData.reason = modReason.trim() || 'Kick từ Web Admin Portal';
-      } else if (modAction === 'mute') {
-        endpoint = `${apiBase}/api/admin/timeout`;
-        bodyData.action = 'mute';
-        // -1 = tùy chỉnh số phút (giới hạn 1 phút → 28 ngày theo Discord)
-        if (modDuration === -1) {
-          const mins = Math.round(Number(customMinutes));
-          if (!mins || mins < 1) {
-            throw new Error('Vui lòng nhập số phút tùy chỉnh (tối thiểu 1 phút).');
+  const fetchRoles = useCallback(
+    async (guildId: string = selectedGuildId) => {
+      setLoadingRoles(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/api/admin/roles?guild_id=${encodeURIComponent(guildId)}`, {
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (res.ok && data.roles) {
+          setRoles(data.roles);
+          if (Array.isArray(data.guilds) && data.guilds.length > 0) {
+            setGuilds(data.guilds);
           }
-          bodyData.duration_seconds = Math.min(mins * 60, 28 * 86400);
         } else {
-          bodyData.duration_seconds = modDuration;
+          showFeedback('error', data.error || data.message || 'Không thể tải danh sách Role');
         }
-        bodyData.reason = modReason.trim() || 'Mute từ Web Admin Portal';
-      } else if (modAction === 'unmute') {
-        endpoint = `${apiBase}/api/admin/timeout`;
-        bodyData.action = 'unmute';
-        bodyData.duration_seconds = 0;
-        bodyData.reason = modReason.trim() || 'Gỡ mute từ Web Admin Portal';
+      } catch {
+        showFeedback('error', 'Lỗi kết nối tới máy chủ khi tải hệ thống Role');
+      } finally {
+        setLoadingRoles(false);
       }
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(bodyData),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Thao tác không thành công.');
-      }
-
-      setModMessage({
-        type: 'success',
-        text: data.message || `Đã thực hiện thao tác ${modAction.toUpperCase()} thành công!`,
-      });
-      setTargetUserId('');
-      setMemberQuery('');
-      setSelectedMember(null);
-      setMemberResults([]);
-      setShowMemberDropdown(false);
-      setHighlightIndex(-1);
-      setModReason('');
-
-      // Refresh ban list nếu hành động là ban
-      if (modAction === 'ban') {
-        fetchBans();
-      }
-    } catch (err: any) {
-      setModMessage({
-        type: 'error',
-        text: err.message || 'Lỗi kết nối máy chủ khi thực hiện kỷ luật.',
-      });
-    } finally {
-      setIsSubmittingMod(false);
-    }
-  };
-
-  // Gỡ ban một user từ danh sách
-  const handleUnbanUser = async (userId: string, username: string) => {
-    if (!window.confirm(`Bạn có chắc muốn gỡ cấm (Unban) cho ${username} (ID: ${userId})?`)) {
-      return;
-    }
-
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/unban`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          user_id: userId,
-          reason: 'Gỡ cấm từ bảng Quản trị Web',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Gỡ cấm thất bại.');
-      }
-      setBansList((prev) => prev.filter((b) => b.user_id !== userId));
-      setModMessage({ type: 'success', text: `Đã gỡ cấm thành công cho ${username}!` });
-    } catch (e: any) {
-      alert(`Lỗi gỡ cấm: ${e.message}`);
-    }
-  };
-
-  // =========================================================================
-  // TAB 3: THÔNG BÁO DISCORD (WEB -> DISCORD ANNOUNCEMENT)
-  // =========================================================================
-  interface DiscordChannel {
-    channel_id: string;
-    name: string;
-    category: string;
-  }
-  const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
-  const [isLoadingChannels, setIsLoadingChannels] = useState<boolean>(false);
-  const [announceChannelId, setAnnounceChannelId] = useState<string>('');
-  const [announceMessage, setAnnounceMessage] = useState<string>('');
-  const [isSendingAnnounce, setIsSendingAnnounce] = useState<boolean>(false);
-  const [announceMsg, setAnnounceMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
-    null
+    },
+    [selectedGuildId, getAuthHeaders, showFeedback]
   );
 
-  // Nạp danh sách kênh Discord để chọn thay vì nhập ID tay (tránh nhầm ID server)
-  const fetchDiscordChannels = useCallback(async () => {
-    setIsLoadingChannels(true);
+  const fetchMembers = useCallback(
+    async (searchQuery: string = '', guildId: string = selectedGuildId) => {
+      setLoadingMembers(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const qs = new URLSearchParams({
+          limit: '120',
+          guild_id: guildId,
+        });
+        if (searchQuery.trim()) qs.set('search', searchQuery.trim());
+        const res = await fetch(`${apiBase}/api/admin/members?${qs.toString()}`, {
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (res.ok && data.members) {
+          setMembers(data.members);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setLoadingMembers(false);
+      }
+    },
+    [selectedGuildId, getAuthHeaders]
+  );
+
+  const fetchBans = useCallback(async () => {
+    setLoadingBans(true);
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/channels`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Không thể tải danh sách kênh Discord');
+      const res = await fetch(`${apiBase}/api/admin/bans`, { headers: getAuthHeaders() });
       const data = await res.json();
-      const list: DiscordChannel[] = data.channels || [];
-      setDiscordChannels(list);
-      // Tự chọn kênh đầu tiên nếu chưa chọn
-      if (!announceChannelId && list.length > 0) {
-        setAnnounceChannelId((prev) => prev || list[0].channel_id);
+      if (res.ok && data.bans) {
+        setBans(data.bans);
       }
     } catch {
-      setDiscordChannels([]);
+      /* ignore */
     } finally {
-      setIsLoadingChannels(false);
+      setLoadingBans(false);
     }
-  }, [getAuthHeaders, announceChannelId]);
+  }, [getAuthHeaders]);
 
-  useEffect(() => {
-    if (adminTab === 'announce' && discordChannels.length === 0) {
-      fetchDiscordChannels();
-    }
-  }, [adminTab, fetchDiscordChannels, discordChannels.length]);
-
-  // Gửi thông báo từ Web tới kênh Discord (xác thực bằng tài khoản Admin Discord)
-  const handleSendAnnounce = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!announceChannelId.trim()) {
-      setAnnounceMsg({ type: 'error', text: 'Vui lòng nhập Channel ID của kênh Discord.' });
-      return;
-    }
-    if (!announceMessage.trim()) {
-      setAnnounceMsg({ type: 'error', text: 'Vui lòng nhập nội dung thông báo.' });
-      return;
-    }
-    if (announceMessage.length > 2000) {
-      setAnnounceMsg({ type: 'error', text: 'Nội dung tối đa 2000 ký tự (giới hạn Discord).' });
-      return;
-    }
-
-    setIsSendingAnnounce(true);
-    setAnnounceMsg(null);
+  const fetchDocs = useCallback(async () => {
+    setLoadingDocs(true);
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/notify`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          // Giữ nguyên chuỗi ID (snowflake 19 chữ số vượt quá Number an toàn của JS)
-          channel_id: announceChannelId.trim(),
-          message: announceMessage.trim(),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || `Gửi thông báo thất bại (${res.status}).`);
-      }
-      setAnnounceMsg({
-        type: 'success',
-        text: `Đã gửi thông báo tới kênh ${announceChannelId.trim()} thành công!`,
-      });
-      setAnnounceMessage('');
-    } catch (err: any) {
-      setAnnounceMsg({ type: 'error', text: err.message || 'Lỗi kết nối máy chủ.' });
-    } finally {
-      setIsSendingAnnounce(false);
-    }
-  };
-
-  // =========================================================================
-  // TAB 4: NHẬT KÝ BOT (BOT LOGS VIEWER)
-  // =========================================================================
-  const [logLines, setLogLines] = useState<string[]>([]);
-  const [logLevel, setLogLevel] = useState<string>('ALL');
-  const [logCount, setLogCount] = useState<number>(200);
-  const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
-  const [logError, setLogError] = useState<string>('');
-  const [logAutoRefresh, setLogAutoRefresh] = useState<boolean>(false);
-
-  const fetchBotLogs = useCallback(async () => {
-    setIsLoadingLogs(true);
-    setLogError('');
-    try {
-      const apiBase = getApiBaseUrl();
-      const q = new URLSearchParams();
-      q.set('lines', String(logCount));
-      q.set('level', logLevel);
-      const res = await fetch(`${apiBase}/api/admin/logs?${q.toString()}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || errData.error || `Lỗi tải log (${res.status})`);
-      }
+      const [res, tursoUsage] = await Promise.all([
+        fetch(`${apiBase}/api/documents?limit=250`, { headers: API_FETCH_HEADERS }),
+        getTursoStorageUsage(),
+      ]);
       const data = await res.json();
-      setLogLines(data.lines || []);
-    } catch (e: any) {
-      setLogError(e.message || 'Không thể tải nhật ký bot.');
+      if (res.ok && data.documents) {
+        setDocs(data.documents);
+      }
+      setTursoStats(tursoUsage);
+    } catch {
+      showFeedback('error', 'Không thể tải danh sách đề thi');
     } finally {
-      setIsLoadingLogs(false);
+      setLoadingDocs(false);
+    }
+  }, [showFeedback]);
+
+  const fetchChannels = useCallback(
+    async (guildId: string = selectedGuildId) => {
+      setLoadingChannels(true);
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/api/admin/channels?guild_id=${encodeURIComponent(guildId)}`, {
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (res.ok && data.channels) {
+          setChannels(data.channels);
+          if (Array.isArray(data.categories)) {
+            setCategories(data.categories);
+          }
+          const firstText = data.channels.find((c: DiscordChannelItem) => c.kind !== 'voice');
+          if (!selectedChannelId && firstText) {
+            setSelectedChannelId(firstText.channel_id);
+          }
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setLoadingChannels(false);
+      }
+    },
+    [selectedGuildId, selectedChannelId, getAuthHeaders]
+  );
+
+  const fetchConfig = useCallback(async () => {
+    setLoadingConfig(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const [cfgRes, updRes] = await Promise.allSettled([
+        fetch(`${apiBase}/api/admin/config`, { headers: getAuthHeaders() }),
+        fetch(`${apiBase}/api/system/update_status`, { headers: getAuthHeaders() }),
+      ]);
+      if (cfgRes.status === 'fulfilled' && cfgRes.value.ok) {
+        setConfigData(await cfgRes.value.json());
+      }
+      if (updRes.status === 'fulfilled' && updRes.value.ok) {
+        setUpdateStatus(await updRes.value.json());
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingConfig(false);
+    }
+  }, [getAuthHeaders]);
+
+  const fetchLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/logs?lines=${logCount}&level=${logLevel}`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.lines) {
+        setLogLines(data.lines);
+        setLogSize(data.log_size_bytes || 0);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingLogs(false);
     }
   }, [getAuthHeaders, logCount, logLevel]);
 
-  useEffect(() => {
-    if (adminTab === 'logs') {
-      fetchBotLogs();
-    }
-  }, [adminTab, fetchBotLogs]);
-
-  // Tự động làm mới log mỗi 10 giây khi bật
-  useEffect(() => {
-    if (adminTab !== 'logs' || !logAutoRefresh) return;
-    const timer = setInterval(() => {
-      fetchBotLogs();
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [adminTab, logAutoRefresh, fetchBotLogs]);
-
-  // =========================================================================
-  // TAB 5: CẤU HÌNH BOT (BOT CONFIG VIEWER) + ENDPOINT API
-  // =========================================================================
-  interface BotConfigData {
-    bot?: Record<string, any>;
-    runtime?: Record<string, any>;
-    config?: Record<string, any>;
-  }
-  const [botConfig, setBotConfig] = useState<BotConfigData | null>(null);
-  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(false);
-  const [configError, setConfigError] = useState<string>('');
-
-  // Endpoint API (chuyển từ sidebar Dashboard vào Hub · chỉ Admin thấy)
-  const [endpointInput, setEndpointInput] = useState<string>('');
-  const [endpointMsg, setEndpointMsg] = useState<string>('');
-  const [endpointInit, setEndpointInit] = useState<boolean>(false);
-
-  const handleSaveEndpoint = () => {
-    const input = endpointInput.trim();
-    if (input) {
-      try {
-        const parsed = new URL(input);
-        const allowed = ['localhost', '127.0.0.1', 'phantasmagorically-occupative-gladys.ngrok-free.dev', 'orbit-psi-black.vercel.app', 'hyperhub-one.vercel.app'];
-        const isAllowed = allowed.some((h) => parsed.hostname === h || parsed.hostname.endsWith('.ngrok-free.dev'));
-        if (!isAllowed) {
-          setEndpointMsg('⚠️ Chỉ chấp nhận máy chủ chính thức của Orbit hoặc Localhost.');
-          return;
-        }
-      } catch {
-        setEndpointMsg('⚠️ Địa chỉ URL không hợp lệ.');
-        return;
-      }
-    }
-    setCustomApiUrl(input || null);
-    setEndpointMsg('Đã lưu! Đang tải lại dữ liệu với endpoint mới...');
-    setTimeout(() => {
-      setEndpointMsg('');
-      window.dispatchEvent(new Event('hyperhub_api_changed'));
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    }, 900);
-  };
-
-  const handleResetEndpoint = () => {
-    setCustomApiUrl(null);
-    setEndpointInput(getApiBaseUrl());
-    setEndpointMsg('Đã khôi phục endpoint mặc định!');
-    setTimeout(() => {
-      setEndpointMsg('');
-      window.dispatchEvent(new Event('hyperhub_api_changed'));
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    }, 900);
-  };
-
-  const fetchBotConfig = useCallback(async () => {
-    setIsLoadingConfig(true);
-    setConfigError('');
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/config`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || errData.error || `Lỗi tải cấu hình (${res.status})`);
-      }
-      const data = await res.json();
-      setBotConfig(data);
-    } catch (e: any) {
-      setConfigError(e.message || 'Không thể tải cấu hình bot.');
-    } finally {
-      setIsLoadingConfig(false);
-    }
-  }, [getAuthHeaders]);
-
-  // =========================================================================
-  // ĐỒNG BỘ DISCORD & GITHUB UPDATER
-  // =========================================================================
-  interface SystemUpdateStatus {
-    current_hash: string;
-    remote_hash: string;
-    has_update: boolean;
-    commits: string[];
-    commit_msg?: string;
-    branch?: string;
-    last_check_timestamp?: number;
-  }
-  const [updateStatus, setUpdateStatus] = useState<SystemUpdateStatus | null>(null);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
-  const [isApplyingUpdate, setIsApplyingUpdate] = useState<boolean>(false);
-  const [isReloadingSystem, setIsReloadingSystem] = useState<boolean>(false);
-  const [isSendingAnnounceStartup, setIsSendingAnnounceStartup] = useState<boolean>(false);
-  const [systemActionMsg, setSystemActionMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-
-  const fetchUpdateStatus = useCallback(async () => {
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/update_status`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUpdateStatus(data);
-      }
-    } catch {
-      // Bỏ qua nếu offline
-    }
-  }, [getAuthHeaders]);
-
-  const handleCheckUpdate = async () => {
-    setIsCheckingUpdate(true);
-    setSystemActionMsg(null);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/check_update`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || data.error || 'Kiểm tra thất bại');
-      setUpdateStatus((prev) => ({
-        ...prev,
-        current_hash: data.local_hash || prev?.current_hash || 'dev',
-        remote_hash: data.remote_hash || prev?.remote_hash || 'dev',
-        has_update: !!data.has_update,
-        commits: data.commits || [],
-      }));
-      if (data.has_update) {
-        setSystemActionMsg({
-          type: 'info',
-          text: `🔔 Phát hiện bản cập nhật mới trên GitHub (${data.remote_hash})!`,
-        });
-      } else {
-        setSystemActionMsg({
-          type: 'success',
-          text: '✅ Hệ thống đang ở phiên bản mới nhất từ GitHub.',
-        });
-      }
-    } catch (err: any) {
-      setSystemActionMsg({
-        type: 'error',
-        text: `Lỗi khi kiểm tra GitHub: ${err.message}`,
-      });
-    } finally {
-      setIsCheckingUpdate(false);
-    }
-  };
-
-  const handleApplyUpdate = async () => {
-    if (!window.confirm('Bạn có chắc muốn cài đặt bản cập nhật mới từ GitHub và hot-reload toàn bộ bot?')) return;
-    setIsApplyingUpdate(true);
-    setSystemActionMsg(null);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/apply_update`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || 'Cập nhật thất bại');
-      }
-      setSystemActionMsg({
-        type: 'success',
-        text: `🎉 Cập nhật thành công lên bản ${data.new_hash}! Hệ thống đã được hot-reload toàn diện.`,
-      });
-      await fetchUpdateStatus();
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    } catch (err: any) {
-      setSystemActionMsg({
-        type: 'error',
-        text: `Lỗi cập nhật: ${err.message}`,
-      });
-    } finally {
-      setIsApplyingUpdate(false);
-    }
-  };
-
-  const handleReloadSystem = async () => {
-    setIsReloadingSystem(true);
-    setSystemActionMsg(null);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/reload`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Reload thất bại');
-      }
-      setSystemActionMsg({
-        type: 'success',
-        text: `⚡ ${data.message || 'Đã nạp lại toàn bộ hệ thống thành công!'}`,
-      });
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    } catch (err: any) {
-      setSystemActionMsg({
-        type: 'error',
-        text: `Lỗi reload: ${err.message}`,
-      });
-    } finally {
-      setIsReloadingSystem(false);
-    }
-  };
-
-  const handleAnnounceStartup = async () => {
-    setIsSendingAnnounceStartup(true);
-    setSystemActionMsg(null);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/announce_startup`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Gửi thông báo thất bại');
-      }
-      setSystemActionMsg({
-        type: 'success',
-        text: '📢 Đã gửi thông báo khởi động và link Vercel vào kênh điều hành nội bộ thành công!',
-      });
-    } catch (err: any) {
-      setSystemActionMsg({
-        type: 'error',
-        text: `Lỗi: ${err.message}`,
-      });
-    } finally {
-      setIsSendingAnnounceStartup(false);
-    }
-  };
-
-  // Tự động kiểm tra update status khi mở AdminPanel
-  useEffect(() => {
-    fetchUpdateStatus();
-  }, [fetchUpdateStatus]);
-
-  useEffect(() => {
-    if (adminTab === 'config') {
-      if (!botConfig) fetchBotConfig();
-      fetchUpdateStatus();
-      // Nạp endpoint hiện tại vào ô nhập lần đầu mở tab
-      if (!endpointInit) {
-        setEndpointInput(getApiBaseUrl());
-        setEndpointInit(true);
-      }
-    }
-  }, [adminTab, fetchBotConfig, botConfig, endpointInit, fetchUpdateStatus]);
-
-  // =========================================================================
-  // TAB 6: LOG SERVER (DISCORD AUDIT LOG)
-  // =========================================================================
-  interface AuditEntry {
-    id: string;
-    action: string;
-    actor: string;
-    target: string;
-    reason: string;
-    created_at: string;
-  }
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [auditLimit, setAuditLimit] = useState<number>(50);
-  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(false);
-  const [auditError, setAuditError] = useState<string>('');
-
   const fetchAuditLogs = useCallback(async () => {
-    setIsLoadingAudit(true);
-    setAuditError('');
+    setLoadingAudit(true);
     try {
       const apiBase = getApiBaseUrl();
-      const q = new URLSearchParams();
-      q.set('limit', String(auditLimit));
-      const res = await fetch(`${apiBase}/api/admin/audit-logs?${q.toString()}`, {
+      const res = await fetch(`${apiBase}/api/admin/audit-logs?limit=60`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || errData.error || `Lỗi tải log server (${res.status})`);
-      }
       const data = await res.json();
-      setAuditEntries(data.entries || []);
-    } catch (e: any) {
-      setAuditError(e.message || 'Không thể tải nhật ký server.');
-    } finally {
-      setIsLoadingAudit(false);
-    }
-  }, [getAuthHeaders, auditLimit]);
-
-  useEffect(() => {
-    if (adminTab === 'audit') {
-      fetchAuditLogs();
-    }
-  }, [adminTab, fetchAuditLogs]);
-
-  // =========================================================================
-  // TAB 2: QUẢN LÝ KHO ĐỀ (DOCUMENTS MANAGEMENT & EDIT/DELETE)
-  // =========================================================================
-  const [docSearchKeyword, setDocSearchKeyword] = useState<string>('');
-  const [docFilterSubject, setDocFilterSubject] = useState<string>('ALL');
-  const [adminDocs, setAdminDocs] = useState<AdminExamDocument[]>([]);
-  const [isLoadingAdminDocs, setIsLoadingAdminDocs] = useState<boolean>(false);
-  const [docActionMsg, setDocActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
-    null
-  );
-
-  // ĐỒNG HỒ ĐO DUNG LƯỢNG TURSO CLOUD (5GB METER)
-  const [tursoStats, setTursoStats] = useState<TursoStorageStats | null>(null);
-  const [isLoadingTursoStats, setIsLoadingTursoStats] = useState<boolean>(false);
-
-  const fetchTursoStats = useCallback(async () => {
-    setIsLoadingTursoStats(true);
-    try {
-      const stats = await getTursoStorageUsage();
-      setTursoStats(stats);
+      if (res.ok && data.entries) {
+        setAuditEntries(data.entries);
+      }
     } catch {
-      // Bỏ qua lỗi
+      /* ignore */
     } finally {
-      setIsLoadingTursoStats(false);
+      setLoadingAudit(false);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
-  // Modal Chỉnh Sửa Đề
-  const [editingDoc, setEditingDoc] = useState<AdminExamDocument | null>(null);
-  const [editTitle, setEditTitle] = useState<string>('');
-  const [editNotes, setEditNotes] = useState<string>('');
-  const [editSubject, setEditSubject] = useState<string>('');
-  const [editLevel, setEditLevel] = useState<string>('');
-  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
-
-  // Fetch danh sách đề cho Admin
-  const fetchAdminDocs = useCallback(async () => {
-    setIsLoadingAdminDocs(true);
-    setDocActionMsg(null);
-    try {
-      const apiBase = getApiBaseUrl();
-      const q = new URLSearchParams();
-      q.set('limit', '100');
-      if (docFilterSubject !== 'ALL') q.set('subject', docFilterSubject);
-      if (docSearchKeyword.trim()) q.set('search', docSearchKeyword.trim());
-
-      const res = await fetch(`${apiBase}/api/documents?${q.toString()}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Không thể tải danh sách tài liệu');
-      const data = await res.json();
-      setAdminDocs(data.documents || []);
-    } catch (e: any) {
-      setDocActionMsg({ type: 'error', text: e.message || 'Lỗi khi tải kho đề' });
-    } finally {
-      setIsLoadingAdminDocs(false);
-    }
-  }, [docFilterSubject, docSearchKeyword, getAuthHeaders]);
+  // Initial load & tab switching
+  useEffect(() => {
+    fetchAdminIdentity();
+  }, [fetchAdminIdentity]);
 
   useEffect(() => {
-    if (adminTab === 'documents') {
-      fetchAdminDocs();
-      fetchTursoStats();
+    if (activeTab === 'roles') {
+      fetchRoles(selectedGuildId);
+    } else if (activeTab === 'members') {
+      fetchMembers(memberSearch, selectedGuildId);
+      fetchRoles(selectedGuildId);
+      fetchBans();
+    } else if (activeTab === 'documents') {
+      fetchDocs();
+    } else if (activeTab === 'channels') {
+      fetchChannels(selectedGuildId);
+    } else if (activeTab === 'config') {
+      fetchConfig();
+    } else if (activeTab === 'logs') {
+      if (logSubView === 'console') fetchLogs();
+      else fetchAuditLogs();
     }
-  }, [adminTab, fetchAdminDocs, fetchTursoStats]);
+  }, [
+    activeTab,
+    selectedGuildId,
+    logSubView,
+    fetchRoles,
+    fetchMembers,
+    fetchBans,
+    fetchDocs,
+    fetchChannels,
+    fetchConfig,
+    fetchLogs,
+    fetchAuditLogs,
+    memberSearch,
+  ]);
 
-  // Xóa đề thi (CSDL + Tệp ổ cứng + Discord)
-  const handleDeleteDoc = async (doc: AdminExamDocument) => {
-    const confirmDelete = window.confirm(
-      `CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN đề thi:\n"${doc.title}" (ID: #${doc.id})?\n\nHành động này sẽ xóa dữ liệu trên CSDL, xóa tệp trên máy chủ và xóa bài đăng trên Discord!`
-    );
-    if (!confirmDelete) return;
+  useEffect(() => {
+    if (activeTab !== 'logs' || !autoRefreshLogs || logSubView !== 'console') return;
+    const timer = setInterval(fetchLogs, 4000);
+    return () => clearInterval(timer);
+  }, [activeTab, autoRefreshLogs, logSubView, fetchLogs]);
 
+  // ================= ROLE ACTIONS =================
+  const handleAlignRoles = async () => {
+    setAligningRoles(true);
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/admin/documents/${doc.id}`, {
-        method: 'DELETE',
+      const res = await fetch(`${apiBase}/api/admin/roles/align`, {
+        method: 'POST',
         headers: getAuthHeaders(),
+        body: JSON.stringify({ guild_id: selectedGuildId }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Xóa đề thi thất bại.');
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã căn chỉnh chuẩn toàn bộ hệ thống Role!');
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể căn chỉnh hệ thống Role');
       }
-
-      setDocActionMsg({
-        type: 'success',
-        text: data.message || `Đã xóa đề thi #${doc.id} thành công!`,
-      });
-      setAdminDocs((prev) => prev.filter((d) => d.id !== doc.id));
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    } catch (err: any) {
-      setDocActionMsg({ type: 'error', text: err.message || 'Lỗi khi xóa đề thi.' });
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi căn chỉnh hệ thống Role');
+    } finally {
+      setAligningRoles(false);
     }
   };
 
-  // Mở modal sửa đề
-  const handleOpenEdit = (doc: AdminExamDocument) => {
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName.trim()) {
+      showFeedback('error', 'Vui lòng nhập tên Role mới');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/roles`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          guild_id: selectedGuildId,
+          name: newRoleName.trim(),
+          color: newRoleColor,
+          hoist: newRoleHoist,
+          mentionable: newRoleMentionable,
+          permissions_preset: newRolePermPreset,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã tạo Role mới thành công!');
+        setNewRoleName('');
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể tạo Role');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi mạng khi tạo Role');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleQuickPatchRole = async (roleId: string, patch: Record<string, unknown>) => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/roles/${roleId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ guild_id: selectedGuildId, ...patch }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã cập nhật Role!');
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể cập nhật Role');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi cập nhật Role');
+    }
+  };
+
+  const handleSaveRoleModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRole) return;
+    setSubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        guild_id: selectedGuildId,
+        name: editRoleName.trim(),
+        color: editRoleColor,
+        hoist: editRoleHoist,
+        mentionable: editRoleMentionable,
+      };
+      if (editRolePermPreset) {
+        payload.permissions_preset = editRolePermPreset;
+      }
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/roles/${editingRole.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã lưu cấu hình Role!');
+        setEditingRole(null);
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể lưu cấu hình Role');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi mạng khi lưu cấu hình Role');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteRole = async (role: DiscordRoleItem) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn XÓA Role "${role.name}" khỏi máy chủ?`)) return;
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(
+        `${apiBase}/api/admin/roles/${role.id}?guild_id=${encodeURIComponent(selectedGuildId)}`,
+        {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || `Đã xóa Role ${role.name}`);
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể xóa Role');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi xóa Role');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ================= MEMBER ROLE & MODERATION ACTIONS =================
+  const handleToggleMemberRole = async (member: DiscordMemberItem, roleId: string) => {
+    setTogglingRoleId(roleId);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/members/${member.user_id}/roles`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          guild_id: selectedGuildId,
+          action: 'toggle',
+          role_id: roleId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã cập nhật Role thành viên!');
+        const updatedRoles: MemberRoleBadge[] = data.roles || [];
+        setMembers((prev) =>
+          prev.map((m) => (m.user_id === member.user_id ? { ...m, roles: updatedRoles } : m))
+        );
+        setSelectedMemberForRoles((prev) =>
+          prev && prev.user_id === member.user_id ? { ...prev, roles: updatedRoles } : prev
+        );
+        fetchRoles(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể thay đổi Role cho thành viên');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi cấp/gỡ Role');
+    } finally {
+      setTogglingRoleId(null);
+    }
+  };
+
+  const handleModAction = async (
+    endpoint: 'ban' | 'unban' | 'kick' | 'timeout',
+    extraPayload: Record<string, unknown> = {},
+    overrideUserId?: string
+  ) => {
+    const uid = (overrideUserId || targetUserId).trim();
+    if (!uid) {
+      showFeedback('error', 'Vui lòng chọn thành viên hoặc nhập Discord User ID!');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          user_id: uid,
+          reason: modReason.trim() || undefined,
+          ...extraPayload,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã thực thi lệnh thành công!');
+        fetchBans();
+        fetchMembers(memberSearch, selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể thực thi lệnh kỷ luật');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối tới Bot API');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ================= DOCUMENT ACTIONS =================
+  const openEditDocModal = (doc: AdminExamDocument) => {
     setEditingDoc(doc);
     setEditTitle(doc.title || '');
-    setEditNotes(doc.notes || '');
     setEditSubject(doc.subject || 'MATHEMATICS');
-    setEditLevel(doc.estimated_level || 'THPT');
+    setEditLevel(doc.estimated_level || 'Khối 12 (Ôn thi THPT)');
+    setEditTrack(doc.exam_track || 'Thường');
+    setEditYear(doc.academic_year || '');
+    setEditSchool(doc.school_or_department || '');
+    setEditAuthorName(doc.author_name || '');
+    setEditNotes(doc.notes || '');
   };
 
-  // Lưu chỉnh sửa đề
-  const handleSaveEdit = async (e: React.FormEvent) => {
+  const handleSaveDocEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDoc) return;
-
-    setIsSavingEdit(true);
+    setSubmitting(true);
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/admin/documents/${editingDoc.id}`, {
@@ -863,1422 +900,2434 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         headers: getAuthHeaders(),
         body: JSON.stringify({
           title: editTitle.trim(),
+          subject: editSubject,
+          estimated_level: editLevel,
+          exam_track: editTrack,
+          academic_year: editYear.trim(),
+          school_or_department: editSchool.trim(),
+          author_name: editAuthorName.trim(),
           notes: editNotes.trim(),
-          subject: editSubject.trim(),
-          estimated_level: editLevel.trim(),
         }),
       });
-
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Cập nhật đề thi thất bại.');
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || `Đã cập nhật đề thi #${editingDoc.id}!`);
+        setDocs((prev) =>
+          prev.map((d) =>
+            d.id === editingDoc.id
+              ? {
+                  ...d,
+                  title: editTitle.trim(),
+                  subject: editSubject,
+                  estimated_level: editLevel,
+                  exam_track: editTrack,
+                  academic_year: editYear.trim(),
+                  school_or_department: editSchool.trim(),
+                  author_name: editAuthorName.trim(),
+                  notes: editNotes.trim(),
+                }
+              : d
+          )
+        );
+        setEditingDoc(null);
+        onRefreshParentDocs?.();
+      } else {
+        showFeedback('error', data.error || 'Không thể lưu chỉnh sửa đề thi');
       }
-
-      setDocActionMsg({
-        type: 'success',
-        text: `Đã lưu cập nhật cho đề thi #${editingDoc.id} thành công!`,
-      });
-
-      // Cập nhật state nội bộ
-      setAdminDocs((prev) =>
-        prev.map((d) =>
-          d.id === editingDoc.id
-            ? {
-                ...d,
-                title: editTitle.trim(),
-                notes: editNotes.trim(),
-                subject: editSubject.trim(),
-                estimated_level: editLevel.trim(),
-              }
-            : d
-        )
-      );
-
-      setEditingDoc(null);
-      if (onRefreshParentDocs) onRefreshParentDocs();
-    } catch (err: any) {
-      alert(`Lỗi khi lưu: ${err.message}`);
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi lưu đề thi');
     } finally {
-      setIsSavingEdit(false);
+      setSubmitting(false);
     }
   };
 
+  const handleDeleteDoc = async (doc: AdminExamDocument) => {
+    if (!window.confirm(`Xác nhận XÓA VĨNH VIỄN đề thi #${doc.id}: "${doc.title}"?`)) return;
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/documents/${doc.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message);
+        setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+        setSelectedDocIds((prev) => {
+          const next = new Set(prev);
+          next.delete(doc.id);
+          return next;
+        });
+        onRefreshParentDocs?.();
+      } else {
+        showFeedback('error', data.error || 'Không thể xóa đề thi');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi xóa đề thi');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBulkDocsAction = async (action: 'delete' | 'update') => {
+    const ids = Array.from(selectedDocIds);
+    if (ids.length === 0) {
+      showFeedback('error', 'Vui lòng tích chọn ít nhất 1 đề thi!');
+      return;
+    }
+    if (
+      action === 'delete' &&
+      !window.confirm(`Bạn có chắc chắn muốn XÓA HÀNG LOẠT ${ids.length} đề thi đã chọn?`)
+    ) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const payload: Record<string, unknown> = {
+        action,
+        doc_ids: ids,
+      };
+      if (action === 'update') {
+        if (bulkSubject) payload.subject = bulkSubject;
+        if (bulkLevel) payload.estimated_level = bulkLevel;
+        if (bulkTrack) payload.exam_track = bulkTrack;
+      }
+      const res = await fetch(`${apiBase}/api/admin/documents/bulk`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã thực thi thao tác hàng loạt!');
+        setSelectedDocIds(new Set());
+        fetchDocs();
+        onRefreshParentDocs?.();
+      } else {
+        showFeedback('error', data.error || 'Không thể thực hiện thao tác hàng loạt');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi xử lý hàng loạt');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleArchiveDoc = async (doc: AdminExamDocument) => {
+    setArchivingId(doc.id);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/documents/${doc.id}/archive`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message);
+        fetchDocs();
+      } else {
+        showFeedback('error', data.error || 'Offload thất bại');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi offload đề thi');
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  // ================= CHANNEL & PANEL ACTIONS =================
+  const handleCreateChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) {
+      showFeedback('error', 'Vui lòng nhập tên kênh cần tạo');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/channels`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          guild_id: selectedGuildId,
+          name: newChannelName.trim(),
+          kind: newChannelKind,
+          category_id: newChannelCategoryId || undefined,
+          user_limit: newChannelKind === 'voice' ? newChannelLimit : 0,
+          topic: newChannelKind === 'text' ? newChannelTopic.trim() : '',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || `Đã tạo kênh #${data.name}!`);
+        setNewChannelName('');
+        setNewChannelTopic('');
+        fetchChannels(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể tạo kênh');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi tạo kênh');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleChannelLock = async (ch: DiscordChannelItem) => {
+    const mode = ch.is_private ? 'unlock' : 'lock';
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/channels/${ch.channel_id}/lockdown`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message);
+        fetchChannels(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể đổi trạng thái khóa kênh');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi khóa/mở khóa kênh');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteChannel = async (ch: DiscordChannelItem) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn XÓA kênh "${ch.name}" khỏi máy chủ?`)) return;
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/channels/${ch.channel_id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message);
+        fetchChannels(selectedGuildId);
+      } else {
+        showFeedback('error', data.error || 'Không thể xóa kênh');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi xóa kênh');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRefreshDiscordPanels = async (target: 'all' | 'info' | 'intake' | 'search') => {
+    setRefreshingPanels(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/panels/refresh`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ target }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã làm mới các bảng điều khiển trên Discord!');
+      } else {
+        showFeedback('error', data.error || 'Không thể làm mới bảng điều khiển');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi làm mới bảng điều khiển Discord');
+    } finally {
+      setRefreshingPanels(false);
+    }
+  };
+
+  const handleSendAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChannelId || !announceMsg.trim()) {
+      showFeedback('error', 'Vui lòng chọn kênh đích và nhập nội dung thông báo!');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/notify`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          channel_id: selectedChannelId,
+          title: announceTitle.trim() || '📢 THÔNG BÁO TỪ BAN QUẢN TRỊ ORBIT',
+          message: announceMsg.trim(),
+          color: announceColor,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', 'Đã phát sóng thông báo lên kênh Discord thành công!');
+        setAnnounceTitle('');
+        setAnnounceMsg('');
+      } else {
+        showFeedback('error', data.error || 'Không thể gửi thông báo');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi gửi thông báo');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ================= SYSTEM ACTIONS =================
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/check_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUpdateStatus(data);
+        showFeedback(
+          'success',
+          data.has_update
+            ? `Phát hiện ${data.commits?.length || 1} bản cập nhật mới trên GitHub!`
+            : 'Hệ thống đang ở phiên bản mới nhất!'
+        );
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kiểm tra cập nhật GitHub');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    setApplyingUpdate(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/apply_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã cập nhật GitHub & Hot-Reload hoàn tất!');
+        fetchConfig();
+      } else {
+        showFeedback('error', data.error || 'Cập nhật thất bại');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi khi áp dụng cập nhật');
+    } finally {
+      setApplyingUpdate(false);
+    }
+  };
+
+  const handleHotReload = async () => {
+    setReloadingBot(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/reload`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback('success', data.message || 'Đã Hot-Reload toàn bộ Cogs thành công!');
+        fetchConfig();
+      } else {
+        showFeedback('error', data.error || 'Hot-Reload thất bại');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi Hot-Reload');
+    } finally {
+      setReloadingBot(false);
+    }
+  };
+
+  const handleSaveApiEndpoint = async (urlToSave: string) => {
+    const clean = urlToSave.trim().replace(/\/+$/, '');
+    setTestingUrl(true);
+    try {
+      const res = await fetch(`${clean}/api/status`, {
+        headers: API_FETCH_HEADERS,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.ok) {
+        setCustomApiUrl(clean);
+        setCustomUrlInput(clean);
+        showFeedback('success', `Đã kết nối và lưu cổng API: ${clean || 'Vercel Cloud Bridge'}`);
+        fetchConfig();
+      } else {
+        showFeedback('error', `Máy chủ trả về mã lỗi HTTP ${res.status}`);
+      }
+    } catch {
+      setCustomApiUrl(clean);
+      setCustomUrlInput(clean);
+      showFeedback('success', `Đã lưu cấu hình địa chỉ API: ${clean || 'Mặc định'}`);
+    } finally {
+      setTestingUrl(false);
+    }
+  };
+
+  // ================= FILTERED DATA =================
+  const filteredRoles = useMemo(() => {
+    return roles.filter((r) => {
+      if (roleTierFilter !== 'ALL' && r.tier !== roleTierFilter) return false;
+      if (roleSearch.trim()) {
+        const q = roleSearch.toLowerCase();
+        if (!r.name.toLowerCase().includes(q) && !r.id.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [roles, roleTierFilter, roleSearch]);
+
+  const assignableRoles = useMemo(() => {
+    return roles.filter((r) => !r.is_default && !r.managed && r.tier !== 'divider');
+  }, [roles]);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      if (memberRoleFilter !== 'ALL') {
+        const hasR = (m.roles || []).some((r) => r.id === memberRoleFilter);
+        if (!hasR) return false;
+      }
+      if (memberSearch.trim()) {
+        const q = memberSearch.toLowerCase();
+        const hay = `${m.display_name} ${m.username} ${m.user_id}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [members, memberRoleFilter, memberSearch]);
+
+  const filteredDocs = useMemo(() => {
+    return docs.filter((d) => {
+      if (docSubjectFilter !== 'ALL' && d.subject !== docSubjectFilter) return false;
+      if (docLevelFilter !== 'ALL' && !(d.estimated_level || '').includes(docLevelFilter)) return false;
+      if (docTrackFilter !== 'ALL' && (d.exam_track || 'Thường') !== docTrackFilter) return false;
+      if (docSearch.trim()) {
+        const q = docSearch.toLowerCase();
+        const hay = `${d.id} ${d.title} ${d.subject} ${d.estimated_level} ${d.school_or_department || ''} ${d.notes || ''} ${d.author_name || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [docs, docSubjectFilter, docLevelFilter, docTrackFilter, docSearch]);
+
+  const filteredLogLines = useMemo(() => {
+    if (!logFilter.trim()) return logLines;
+    const q = logFilter.toLowerCase();
+    return logLines.filter((ln) => ln.toLowerCase().includes(q));
+  }, [logLines, logFilter]);
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes || bytes <= 0) return '0 KB';
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const navTabs: Array<{ id: AdminTab; label: string; badge?: number | string; icon: React.ReactNode }> = [
+    { id: 'roles', label: 'Phân Quyền & Role', badge: roles.length || undefined, icon: <Crown className="w-4 h-4" /> },
+    { id: 'members', label: 'Thành Viên & Cấp Role', badge: members.length || undefined, icon: <Users className="w-4 h-4" /> },
+    { id: 'documents', label: 'Kho Đề Toàn Quyền', badge: docs.length || undefined, icon: <FileText className="w-4 h-4" /> },
+    { id: 'channels', label: 'Kênh & Bảng Discord', badge: channels.length || undefined, icon: <Hash className="w-4 h-4" /> },
+    { id: 'config', label: 'Hệ Thống & GitHub', icon: <Settings2 className="w-4 h-4" /> },
+    { id: 'logs', label: 'Nhật Ký & Console', icon: <ScrollText className="w-4 h-4" /> },
+  ];
+
   return (
-    <div className="bg-slate-900/95 border border-purple-500/30 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-xl space-y-6 text-white">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-900/40">
-            <ShieldAlert className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-black bg-gradient-to-r from-rose-400 via-amber-300 to-yellow-200 bg-clip-text text-transparent">
-              BẢNG ĐIỀU KHIỂN QUẢN TRỊ (ADMIN PORTAL)
-            </h2>
-            <p className="text-xs text-slate-400">
-              Đồng bộ trực tiếp hai chiều với Orbit Discord Bot & Máy chủ
-            </p>
-          </div>
-        </div>
-
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Update Alert Banner */}
-      {updateStatus?.has_update && (
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-950/30">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
-              <ArrowUpCircle className="w-5 h-5" />
+    <div className="w-full max-w-7xl mx-auto my-4 bg-[#0D0B14]/95 border border-purple-500/30 rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.75)] overflow-hidden text-white backdrop-blur-xl hh-card-pop">
+      {/* ================= TOP COMMAND HEADER ================= */}
+      <div className="relative px-6 py-5 bg-gradient-to-r from-[#171226] via-[#1E1533] to-[#141022] border-b border-purple-500/25">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400/25 via-fuchsia-500/25 to-purple-600/25 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-[0_0_25px_rgba(245,158,11,0.25)] shrink-0">
+              <Crown className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-xs sm:text-sm font-bold text-amber-300 flex flex-wrap items-center gap-2">
-                <span>PHÁT HIỆN BẢN CẬP NHẬT MỚI TỪ GITHUB!</span>
-                <span className="font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[11px]">
-                  {updateStatus.current_hash} ➔ {updateStatus.remote_hash}
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  ORBIT ADMIN COMMAND CENTER
+                </h2>
+                <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                  {adminIdentity?.role_name || '👑 Toàn Quyền Quản Trị'}
+                </span>
+                <span className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  100% Quyền Lựa Chọn
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
-                {updateStatus.commits && updateStatus.commits.length > 0
-                  ? updateStatus.commits[0]
-                  : 'Có commit mới trên nhánh main của Orbit Bot.'}
+              <p className="text-xs sm:text-[13px] text-purple-200/75 mt-1">
+                Điều hành trực tiếp hệ thống Role, cấp quyền thành viên, chỉnh sửa toàn diện kho đề thi và đồng bộ máy chủ Discord thời gian thực.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-            <button
-              onClick={handleApplyUpdate}
-              disabled={isApplyingUpdate}
-              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-900/40 cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isApplyingUpdate ? 'animate-spin' : ''}`} />
-              <span>{isApplyingUpdate ? 'Đang Cập Nhật...' : 'Cập Nhật Ngay (1-Click)'}</span>
-            </button>
-            <button
-              onClick={() => setAdminTab('config')}
-              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold cursor-pointer"
-            >
-              Xem Chi Tiết
-            </button>
+
+          {/* Server Selector + Quick Actions */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2 bg-black/40 border border-white/15 rounded-xl px-3 py-1.5">
+              <Layers className="w-4 h-4 text-purple-300 shrink-0" />
+              <span className="text-[11px] text-white/60 font-medium">Máy chủ:</span>
+              <select
+                value={selectedGuildId}
+                onChange={(e) => setSelectedGuildId(e.target.value)}
+                aria-label="Chọn máy chủ Discord cần quản trị"
+                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+              >
+                {guilds.map((g) => (
+                  <option key={g.id} value={g.id} className="bg-[#14111F] text-white">
+                    {g.name} ({g.member_count} TV)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition"
+              >
+                <X className="w-4 h-4" />
+                Đóng Hub
+              </button>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-2">
-        <button
-          onClick={() => setAdminTab('moderation')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'moderation'
-              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-lg shadow-rose-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
+        {/* Navigation Tabs with Sliding Indicator */}
+        <div
+          ref={tabBarRef}
+          className="relative flex items-center gap-1.5 mt-5 pt-3 border-t border-white/10 overflow-x-auto no-scrollbar"
         >
-          <UserX className="w-4 h-4" />
-          <span>Xử Lý Kỷ Luật & Cấm (Moderation)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            {bansList.length} Bans
-          </span>
-        </button>
-
-        <button
-          onClick={() => setAdminTab('documents')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'documents'
-              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Quản Lý Kho Đề (Sửa & Xóa)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-            {adminDocs.length} Đề
-          </span>
-        </button>
-
-        <button
-          onClick={() => setAdminTab('announce')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'announce'
-              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-lg shadow-sky-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Megaphone className="w-4 h-4" />
-          <span>Thông Báo Discord</span>
-        </button>
-
-        <button
-          onClick={() => setAdminTab('logs')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'logs'
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-lg shadow-emerald-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <ScrollText className="w-4 h-4" />
-          <span>Nhật Ký Bot</span>
-        </button>
-
-        <button
-          onClick={() => setAdminTab('config')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'config'
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Settings2 className="w-4 h-4" />
-          <span>Cấu Hình Bot</span>
-        </button>
-
-        <button
-          onClick={() => setAdminTab('audit')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            adminTab === 'audit'
-              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-lg shadow-orange-900/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <ClipboardList className="w-4 h-4" />
-          <span>Log Server</span>
-        </button>
+          {tabIndicator.ready && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 h-[3px] rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-400 to-cyan-400 transition-all duration-300 ease-out"
+              style={{
+                left: `${tabIndicator.left}px`,
+                width: `${tabIndicator.width}px`,
+              }}
+            />
+          )}
+          {navTabs.map((t) => {
+            const isActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                ref={(el) => {
+                  tabBtnRefs.current[t.id] = el;
+                }}
+                onClick={() => setActiveTab(t.id)}
+                className={`relative px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-purple-600/35 to-fuchsia-600/25 text-white border border-purple-400/40 shadow-[0_4px_20px_rgba(168,85,247,0.25)]'
+                    : 'text-white/65 hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                {t.icon}
+                <span>{t.label}</span>
+                {t.badge !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.5 text-[10px] rounded-md tabular-nums ${
+                      isActive ? 'bg-amber-400/25 text-amber-200' : 'bg-white/10 text-white/60'
+                    }`}
+                  >
+                    {t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* =================================================================== */}
-      {/* TAB 1: MODERATION CONTENT */}
-      {/* =================================================================== */}
-      {adminTab === 'moderation' && (
-        <div className="space-y-6">
-          {/* Action Form */}
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-400" />
-              <span>Thực Thi Kỷ Luật Thành Viên (Ban, Kick, Timeout/Mute, Unmute)</span>
-            </h3>
-
-            {modMessage && (
-              <div
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  modMessage.type === 'success'
-                    ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
-                    : 'bg-rose-500/20 border border-rose-500/30 text-rose-300'
-                }`}
-              >
-                {modMessage.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{modMessage.text}</span>
-              </div>
+      {/* ================= STATUS FEEDBACK BANNER ================= */}
+      {statusMsg && (
+        <div
+          role="status"
+          className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 hh-card-pop ${
+            statusMsg.type === 'success'
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+              : 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold">
+            {statusMsg.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
             )}
+            <span>{statusMsg.text}</span>
+          </div>
+          <button
+            onClick={() => setStatusMsg(null)}
+            className="p-1 rounded-lg hover:bg-white/10 text-white/70"
+            aria-label="Đóng thông báo"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-            <form onSubmit={handleExecuteModAction} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Tìm thành viên (chọn từ danh sách hoặc dán ID tay) */}
-              <div className="space-y-1 relative">
-                <label className="text-[11px] font-semibold text-slate-400">Thành Viên (gõ tên để tìm)</label>
-                {selectedMember ? (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                    {selectedMember.avatar_url ? (
-                      <img src={selectedMember.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-[10px] font-bold shrink-0">
-                        {selectedMember.display_name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-white truncate">{selectedMember.display_name}</div>
-                      <div className="text-[10px] font-mono text-slate-400 truncate">ID: {selectedMember.user_id}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedMember(null);
-                        setMemberQuery('');
-                      }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                      title="Chọn người khác"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="Bấm để xem danh sách, gõ tên để tìm, hoặc dán User ID..."
-                      value={memberQuery}
-                      onChange={(e) => {
-                        setMemberQuery(e.target.value);
-                        setTargetUserId(e.target.value);
-                        setHighlightIndex(-1);
-                      }}
-                      onFocus={() => {
-                        // Mở field là list sẵn thành viên (không cần gõ trước)
-                        if (memberResults.length > 0) {
-                          setShowMemberDropdown(true);
-                        } else {
-                          fetchMembers(memberQuery);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Delay để click chọn trong dropdown kịp chạy trước
-                        setTimeout(() => setShowMemberDropdown(false), 200);
-                      }}
-                      onKeyDown={(e) => {
-                        if (!showMemberDropdown || memberResults.length === 0) {
-                          if (e.key === 'ArrowDown' || e.key === 'Enter') {
-                            e.preventDefault();
-                            fetchMembers(memberQuery);
-                          }
-                          return;
-                        }
-                        if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          setHighlightIndex((i) => (i + 1) % memberResults.length);
-                        } else if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          setHighlightIndex((i) => (i - 1 + memberResults.length) % memberResults.length);
-                        } else if (e.key === 'Enter' && highlightIndex >= 0) {
-                          e.preventDefault();
-                          const m = memberResults[highlightIndex];
-                          if (m) chooseMember(m);
-                        } else if (e.key === 'Escape') {
-                          setShowMemberDropdown(false);
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                      required
-                    />
-                    {isSearchingMembers && (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin absolute right-3 top-8 text-slate-400" />
-                    )}
-                    {showMemberDropdown && (
-                      <div className="absolute z-20 left-0 right-0 mt-1.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden">
-                        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10 bg-white/[0.03] text-[11px] font-semibold text-slate-300">
-                          <Users className="w-3.5 h-3.5 text-rose-400" />
-                          <span>
-                            {memberQuery.trim()
-                              ? `${memberResults.length} kết quả cho "${memberQuery.trim()}"`
-                              : `Danh sách thành viên (${memberResults.length})`}
-                          </span>
-                        </div>
-                        <div
-                          ref={memberListRef}
-                          data-lenis-prevent
-                          onWheel={(e) => e.stopPropagation()}
-                          className="max-h-[240px] overflow-y-auto overscroll-contain touch-pan-y divide-y divide-white/5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]"
-                        >
-                          {memberResults.length === 0 && !isSearchingMembers ? (
-                            <div className="px-3 py-3 text-[11px] text-slate-400">
-                              Không tìm thấy · có thể dán trực tiếp User ID rồi Xác Nhận.
-                            </div>
-                          ) : (
-                            memberResults.map((m, idx) => {
-                              const active = idx === highlightIndex;
-                              return (
-                                <button
-                                  key={m.user_id}
-                                  type="button"
-                                  data-idx={idx}
-                                  onMouseDown={(ev) => ev.preventDefault()}
-                                  onClick={() => chooseMember(m)}
-                                  onMouseEnter={() => setHighlightIndex(idx)}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer ${
-                                    active ? 'bg-gradient-to-r from-rose-600/30 to-amber-600/20' : 'hover:bg-white/5'
-                                  }`}
-                                >
-                                  {m.avatar_url ? (
-                                    <img
-                                      src={m.avatar_url}
-                                      alt=""
-                                      className={`w-8 h-8 rounded-full shrink-0 ring-2 ${active ? 'ring-rose-400' : 'ring-white/10'}`}
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500/40 to-amber-500/30 flex items-center justify-center text-rose-200 text-[10px] font-bold shrink-0 ring-2 ring-white/10">
-                                      {m.display_name.slice(0, 2).toUpperCase()}
-                                    </div>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-xs font-bold text-white truncate">
-                                      {m.display_name}
-                                      {m.is_bot && (
-                                        <span className="ml-1.5 text-[9px] px-1.5 py-px rounded bg-slate-500/30 text-slate-300 font-mono">BOT</span>
-                                      )}
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 truncate font-mono">
-                                      @{m.username} • {m.user_id}
-                                    </div>
-                                  </div>
-                                  {active && <Check className="w-4 h-4 text-rose-300 shrink-0" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                        <div className="px-3 py-1.5 border-t border-white/10 bg-white/[0.02] text-[10px] text-slate-500 flex items-center justify-between">
-                          <span>↑↓ di chuyển • Enter chọn • Esc đóng</span>
-                          <span className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onMouseDown={(ev) => ev.preventDefault()}
-                              onClick={() => scrollMemberList(-1)}
-                              className="p-1 rounded-md hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
-                              title="Cuộn lên"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(ev) => ev.preventDefault()}
-                              onClick={() => scrollMemberList(1)}
-                              className="p-1 rounded-md hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
-                              title="Cuộn xuống"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Action Type */}
+      {/* ================= MAIN CONTENT AREA ================= */}
+      <div className="p-6">
+        {/* =====================================================================
+            TAB 1: QUẢN TRỊ ROLE & PHÂN QUYỀN (100% FULL CONTROL)
+           ===================================================================== */}
+        {activeTab === 'roles' && (
+          <div className="space-y-6 hh-swap-panel">
+            {/* Top Action Banner: 1-Click Auto Alignment */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-fuchsia-500/10 to-cyan-500/15 border border-amber-400/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400">Hành Động</label>
-                <select
-                  value={modAction}
-                  onChange={(e) => setModAction(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                >
-                  <option value="mute">🔇 Mute / Timeout</option>
-                  <option value="unmute">🔊 Gỡ Mute (Unmute)</option>
-                  <option value="kick">👢 Kick Khỏi Server</option>
-                  <option value="ban">🔨 Cấm Vĩnh Viễn (Ban)</option>
-                </select>
-              </div>
-
-              {/* Mute Duration OR Ban delete days */}
-              {modAction === 'mute' && (
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400">Thời Gian Mute</label>
-                  <select
-                    value={modDuration}
-                    onChange={(e) => setModDuration(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                  >
-                    <option value={60}>1 phút</option>
-                    <option value={300}>5 phút</option>
-                    <option value={600}>10 phút</option>
-                    <option value={900}>15 phút</option>
-                    <option value={1800}>30 phút</option>
-                    <option value={3600}>1 giờ</option>
-                    <option value={21600}>6 giờ</option>
-                    <option value={43200}>12 giờ</option>
-                    <option value={86400}>24 giờ (1 ngày)</option>
-                    <option value={259200}>3 ngày</option>
-                    <option value={604800}>7 ngày</option>
-                    <option value={1209600}>14 ngày</option>
-                    <option value={2419200}>28 ngày (Tối đa)</option>
-                    <option value={-1}>✏️ Tùy chỉnh số phút...</option>
-                  </select>
-                  {modDuration === -1 && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={40320}
-                      placeholder="Nhập số phút (1 - 40320)"
-                      value={customMinutes}
-                      onChange={(e) => setCustomMinutes(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                    />
-                  )}
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Căn Chỉnh Chuẩn Hệ Thống Role &amp; Quyền Hạn (Bot Highest Priority)</span>
                 </div>
-              )}
-
-              {modAction === 'ban' && (
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400">Xóa Tin Nhắn Cũ</label>
-                  <select
-                    value={modDeleteDays}
-                    onChange={(e) => setModDeleteDays(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                  >
-                    <option value={0}>Không xóa</option>
-                    <option value={1}>Tin nhắn 24 giờ qua</option>
-                    <option value={7}>Tin nhắn 7 ngày qua</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Reason */}
-              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                <label className="text-[11px] font-semibold text-slate-400">Lý Do Kỷ Luật</label>
-                <input
-                  type="text"
-                  placeholder="Vi phạm quy tắc máy chủ..."
-                  value={modReason}
-                  onChange={(e) => setModReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-rose-500"
-                />
+                <p className="text-xs text-white/75 leading-relaxed max-w-3xl">
+                  Tự động sắp xếp thứ tự phân cấp chuẩn từ trên xuống dưới (Quản trị viên → Vinh danh Orbit → Khối lớp 12..6 → Thành viên → Bot), chuẩn hóa bảng màu sắc tách biệt, khóa quyền nguy hiểm ở <code className="text-amber-200">@everyone</code> và tự động cấp Role <code className="text-emerald-300">🌱 Học sinh</code> / <code className="text-pink-300">✍️ Tác giả</code> cho các thành viên đủ điều kiện.
+                </p>
               </div>
-
-              {/* Submit Button */}
-              <div className="sm:col-span-2 lg:col-span-4 flex justify-end pt-2">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 <button
-                  type="submit"
-                  disabled={isSubmittingMod}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-rose-900/30 transition-all disabled:opacity-50 cursor-pointer"
+                  onClick={handleAlignRoles}
+                  disabled={aligningRoles}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-fuchsia-600 hover:from-amber-400 hover:to-fuchsia-500 text-white font-bold text-xs sm:text-sm shadow-[0_8px_25px_rgba(245,158,11,0.3)] flex items-center gap-2 disabled:opacity-50 transition"
                 >
-                  {isSubmittingMod ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : modAction === 'ban' ? (
-                    <Ban className="w-4 h-4" />
-                  ) : modAction === 'kick' ? (
-                    <UserMinus className="w-4 h-4" />
-                  ) : modAction === 'mute' ? (
-                    <VolumeX className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                  <span>
-                    {isSubmittingMod ? 'Đang xử lý...' : `Xác Nhận ${modAction.toUpperCase()}`}
-                  </span>
+                  <RefreshCw className={`w-4 h-4 ${aligningRoles ? 'animate-spin' : ''}`} />
+                  {aligningRoles ? 'Đang căn chỉnh Role...' : '⚡ Căn Chỉnh Role Chuẩn (1-Click)'}
+                </button>
+                <button
+                  onClick={() => fetchRoles(selectedGuildId)}
+                  disabled={loadingRoles}
+                  className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
+                  Làm mới
                 </button>
               </div>
-            </form>
-          </div>
-
-          {/* Bans List */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <Ban className="w-4 h-4 text-rose-400" />
-                <span>Danh Sách Người Dùng Bị Cấm ({bansList.length})</span>
-              </h3>
-              <button
-                onClick={fetchBans}
-                disabled={isLoadingBans}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBans ? 'animate-spin' : ''}`} />
-                <span>Làm mới</span>
-              </button>
             </div>
 
-            {bansError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                {bansError}
-              </div>
-            )}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Create New Role Form */}
+              <form
+                onSubmit={handleCreateRole}
+                className="lg:col-span-4 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4 h-fit"
+              >
+                <h3 className="text-sm font-bold text-fuchsia-300 flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Tạo Role Mới Trên Máy Chủ
+                </h3>
 
-            {bansList.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/5 text-slate-400 text-xs">
-                Hiện tại không có thành viên nào bị cấm trên máy chủ.
-              </div>
-            ) : (
-              <div data-lenis-prevent className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto overscroll-contain pr-1">
-                {bansList.map((ban) => (
-                  <div
-                    key={ban.user_id}
-                    className="p-3 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 hover:border-white/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {ban.avatar_url ? (
-                        <img
-                          src={ban.avatar_url}
-                          alt={ban.username}
-                          className="w-10 h-10 rounded-full border border-white/10 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 font-bold shrink-0">
-                          {ban.username.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-white truncate">
-                          {ban.display_name || ban.username}
-                        </div>
-                        <div className="text-[11px] font-mono text-slate-400 truncate">
-                          ID: {ban.user_id}
-                        </div>
-                        <div className="text-[10px] text-rose-300/80 truncate italic">
-                          Lý do: {ban.reason}
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleUnbanUser(ban.user_id, ban.display_name || ban.username)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold shrink-0 transition-colors cursor-pointer"
-                    >
-                      Gỡ Cấm
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 2: DOCUMENTS MANAGEMENT CONTENT */}
-      {/* =================================================================== */}
-      {adminTab === 'documents' && (
-        <div className="space-y-4">
-          {/* WIDGET: ĐỒNG HỒ ĐO DUNG LƯỢNG TURSO CLOUD (5GB METER) & TRẠNG THÁI ĐỒNG BỘ */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-950/90 via-purple-950/20 to-slate-900/90 border border-purple-500/20 shadow-xl backdrop-blur-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0">
-                  <Database className="w-5 h-5 text-purple-400" />
-                </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <span>Turso Cloud Storage (5GB Free Quota)</span>
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      libSQL Live
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Hạn mức lưu trữ Turso Cloud: 5 GB • Reads: 500M • Writes: 10M
-                  </p>
+                  <label className="block text-xs text-white/70 mb-1 font-medium">Tên Role mới</label>
+                  <input
+                    type="text"
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    placeholder="VD: 🏆 Chiến Thần Giải Đề"
+                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white focus:outline-none focus:border-fuchsia-400"
+                  />
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={fetchTursoStats}
-                disabled={isLoadingTursoStats}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto border border-white/5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingTursoStats ? 'animate-spin' : ''}`} />
-                <span>Đo Lại Dung Lượng</span>
-              </button>
-            </div>
-
-            {/* Progress Bar 5GB Meter */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <HardDrive className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Dung lượng đã sử dụng:</span>
-                  <span className="text-white font-bold">
-                    {tursoStats ? tursoStats.formattedUsed : '0 B'} / 5.00 GB
-                  </span>
-                </span>
-                <span className={`font-mono font-bold ${
-                  (tursoStats?.usedPercent || 0) > 80
-                    ? 'text-rose-400'
-                    : (tursoStats?.usedPercent || 0) > 50
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`}>
-                  {tursoStats ? `${tursoStats.usedPercent}%` : '0%'}
-                </span>
-              </div>
-
-              <div className="w-full h-3 rounded-full bg-black/50 border border-white/10 overflow-hidden p-0.5">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    (tursoStats?.usedPercent || 0) > 80
-                      ? 'bg-gradient-to-r from-amber-500 to-rose-500'
-                      : (tursoStats?.usedPercent || 0) > 50
-                      ? 'bg-gradient-to-r from-cyan-500 to-amber-500'
-                      : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400'
-                  }`}
-                  style={{
-                    width: `${Math.max(2, Math.min(100, tursoStats?.usedPercent || 0.5))}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* 4 Thẻ Thống Kê Chỉ Số Đồng Bộ */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1 text-xs">
-              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Tổng Hồ Sơ Đề</span>
-                </div>
-                <div className="text-base font-black text-white">
-                  {tursoStats?.totalDocs ?? adminDocs.length} <span className="text-[11px] font-normal text-slate-400">đề</span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                <div className="text-[11px] font-semibold text-amber-300 flex items-center gap-1.5">
-                  <Cloud className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Chờ Bot Đồng Bộ</span>
-                </div>
-                <div className="text-base font-black text-amber-300">
-                  {tursoStats?.pendingCount ?? 0} <span className="text-[11px] font-normal text-amber-400/70">hàng đợi</span>
-                </div>
-                <p className="text-[10px] text-slate-400">Tự gửi sang Discord khi Bot online</p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                <div className="text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Đã Vào Discord</span>
-                </div>
-                <div className="text-base font-black text-emerald-300">
-                  {tursoStats?.syncedCount ?? 0} <span className="text-[11px] font-normal text-emerald-400/70">đã đăng</span>
-                </div>
-                <p className="text-[10px] text-slate-400">Lưu vĩnh viễn trên Discord CDN</p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                <div className="text-[11px] font-semibold text-cyan-300 flex items-center gap-1.5">
-                  <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Chiến Lược Quota</span>
-                </div>
-                <div className="text-xs font-bold text-cyan-200">
-                  Giải phóng Base64
-                </div>
-                <p className="text-[10px] text-slate-400">Tự xóa nhị phân để bảo toàn 5GB</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Controls Search & Filter */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Tìm đề theo tiêu đề, tên file..."
-                value={docSearchKeyword}
-                onChange={(e) => setDocSearchKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchAdminDocs()}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
-              />
-            </div>
-
-            <select
-              value={docFilterSubject}
-              onChange={(e) => setDocFilterSubject(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="ALL">Mọi Môn Học</option>
-              <option value="MATHEMATICS">Toán Học</option>
-              <option value="INFORMATICS">Tin Học / Lập Trình</option>
-              <option value="LITERATURE">Ngữ Văn</option>
-              <option value="ENGLISH">Tiếng Anh</option>
-              <option value="PHYSICS">Vật Lý</option>
-              <option value="CHEMISTRY">Hóa Học</option>
-              <option value="BIOLOGY">Sinh Học</option>
-              <option value="HISTORY">Lịch Sử</option>
-              <option value="GEOGRAPHY">Địa Lý</option>
-            </select>
-
-            <button
-              onClick={fetchAdminDocs}
-              disabled={isLoadingAdminDocs}
-              className="px-4 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAdminDocs ? 'animate-spin' : ''}`} />
-              <span>Tìm Kiếm</span>
-            </button>
-          </div>
-
-          {docActionMsg && (
-            <div
-              className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                docActionMsg.type === 'success'
-                  ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
-                  : 'bg-rose-500/20 border border-rose-500/30 text-rose-300'
-              }`}
-            >
-              {docActionMsg.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 shrink-0" />
-              )}
-              <span>{docActionMsg.text}</span>
-            </div>
-          )}
-
-          {/* Table / List of documents */}
-          <div data-lenis-prevent className="max-h-[450px] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/30">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-white/5 border-b border-white/10 text-[11px] uppercase text-slate-400 sticky top-0 backdrop-blur-md">
-                <tr>
-                  <th className="py-2.5 px-3">ID</th>
-                  <th className="py-2.5 px-3">Tiêu Đề & Ghi Chú</th>
-                  <th className="py-2.5 px-3">Môn & Khối</th>
-                  <th className="py-2.5 px-3">Tác Giả</th>
-                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 font-sans">
-                {adminDocs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500 text-xs">
-                      {isLoadingAdminDocs ? 'Đang tải danh sách đề thi...' : 'Không tìm thấy đề thi phù hợp.'}
-                    </td>
-                  </tr>
-                ) : (
-                  adminDocs.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-purple-400">
-                        #{doc.id}
-                      </td>
-                      <td className="py-2.5 px-3 max-w-[280px]">
-                        <div className="font-bold text-white truncate" title={doc.title}>
-                          {doc.title}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono truncate">
-                          {doc.file_name} ({Math.round(doc.file_size_bytes / 1024)} KB)
-                        </div>
-                        {doc.notes && (
-                          <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded mt-0.5 inline-block truncate max-w-full">
-                            📝 {doc.notes}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span className="text-[11px] font-semibold text-slate-300">
-                          {doc.subject}
-                        </span>
-                        <div className="text-[10px] text-slate-500">
-                          {doc.estimated_level}
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-400 text-[11px]">
-                        {doc.author_name}
-                      </td>
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(doc)}
-                            className="p-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition-colors"
-                            title="Sửa tiêu đề & ghi chú"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteDoc(doc)}
-                            className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-colors"
-                            title="Xóa vĩnh viễn đề thi"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 3: THÔNG BÁO DISCORD (WEB -> DISCORD) */}
-      {/* =================================================================== */}
-      {adminTab === 'announce' && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-sky-400" />
-              <span>Gửi Thông Báo Từ Web Tới Kênh Discord</span>
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Tin nhắn được gửi bởi Bot với tư cách quản trị viên đã đăng nhập. Hệ thống tự chặn
-              mention hàng loạt (@everyone, @here) để chống spam ping.
-            </p>
-
-            {announceMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  announceMsg.type === 'success'
-                    ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
-                    : 'bg-rose-500/20 border border-rose-500/30 text-rose-300'
-                }`}
-              >
-                {announceMsg.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{announceMsg.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSendAnnounce} className="space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-slate-400">
-                    Kênh Discord nhận thông báo
+                <div>
+                  <label className="block text-xs text-white/70 mb-1.5 font-medium">
+                    Màu sắc hiển thị ({newRoleColor})
                   </label>
-                  <button
-                    type="button"
-                    onClick={fetchDiscordChannels}
-                    disabled={isLoadingChannels}
-                    className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isLoadingChannels ? 'animate-spin' : ''}`} />
-                    <span>Tải lại kênh</span>
-                  </button>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="color"
+                      value={newRoleColor}
+                      onChange={(e) => setNewRoleColor(e.target.value)}
+                      className="w-10 h-9 rounded-lg bg-transparent border border-white/20 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={newRoleColor}
+                      onChange={(e) => setNewRoleColor(e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ROLE_COLOR_SWATCHES.map((hex) => (
+                      <button
+                        key={hex}
+                        type="button"
+                        onClick={() => setNewRoleColor(hex)}
+                        title={hex}
+                        className={`w-6 h-6 rounded-lg border transition-transform ${
+                          newRoleColor.toUpperCase() === hex
+                            ? 'scale-110 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]'
+                            : 'border-white/20 hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: hex }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                {discordChannels.length > 0 ? (
+
+                <div>
+                  <label className="block text-xs text-white/70 mb-1 font-medium">Mẫu quyền hạn (Permissions Preset)</label>
                   <select
-                    value={announceChannelId}
-                    onChange={(e) => setAnnounceChannelId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-sky-500"
-                    required
+                    value={newRolePermPreset}
+                    onChange={(e) => setNewRolePermPreset(e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-fuchsia-400"
                   >
-                    {discordChannels.map((ch) => (
-                      <option key={ch.channel_id} value={ch.channel_id}>
-                        {ch.name} · {ch.category}
+                    {PERMISSION_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value} className="bg-[#14111F]">
+                        {p.label}
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Nhập Channel ID (chuột phải vào KÊNH → Sao chép ID kênh)"
-                    value={announceChannelId}
-                    onChange={(e) => setAnnounceChannelId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-sky-500"
-                    required
-                  />
-                )}
-                <p className="text-[10px] text-slate-500">
-                  ⚠️ Phải là ID của <b>KÊNH</b> (chuột phải vào tên kênh → Sao chép ID kênh), không phải ID Server.
-                </p>
-              </div>
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400">
-                  Nội dung thông báo ({announceMessage.length}/2000)
-                </label>
-                <textarea
-                  rows={4}
-                  value={announceMessage}
-                  onChange={(e) => setAnnounceMessage(e.target.value)}
-                  placeholder="Nhập thông báo gửi tới máy chủ Discord..."
-                  maxLength={2000}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-sky-500 resize-none"
-                  required
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 border border-white/10 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={newRoleHoist}
+                      onChange={(e) => setNewRoleHoist(e.target.checked)}
+                      className="accent-fuchsia-500"
+                    />
+                    <span>Tách nhóm (Hoist)</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 border border-white/10 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={newRoleMentionable}
+                      onChange={(e) => setNewRoleMentionable(e.target.checked)}
+                      className="accent-fuchsia-500"
+                    />
+                    <span>Cho phép @ping</span>
+                  </label>
+                </div>
 
-              <div className="flex justify-end pt-1">
                 <button
                   type="submit"
-                  disabled={isSendingAnnounce}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-sky-900/30 transition-all disabled:opacity-50 cursor-pointer"
+                  disabled={submitting}
+                  className="w-full py-2.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition"
                 >
-                  {isSendingAnnounce ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  <Plus className="w-4 h-4" />
+                  Tạo Role Ngay
+                </button>
+              </form>
+
+              {/* Right Column: Interactive Role Hierarchy */}
+              <div className="lg:col-span-8 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-amber-400" />
+                      Thang Phân Cấp Role Trực Tiếp ({filteredRoles.length}/{roles.length})
+                    </h3>
+                    <p className="text-[11px] text-white/55 mt-0.5">
+                      Bấm nút Lên/Xuống để đổi vị trí ưu tiên, bật/tắt Hoist hoặc bấm Sửa để tùy chỉnh 100% thông số Role.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={roleSearch}
+                        onChange={(e) => setRoleSearch(e.target.value)}
+                        placeholder="Tìm tên hoặc ID role..."
+                        className="pl-8 pr-3 py-1.5 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tier Filter Pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'ALL', label: 'Tất cả tầng' },
+                    { id: 'staff', label: '👑 Quản trị' },
+                    { id: 'honor', label: '⚜️ Vinh danh & Học thuật' },
+                    { id: 'grade', label: '🎓 Khối lớp' },
+                    { id: 'member', label: '🌱 Thành viên' },
+                    { id: 'divider', label: '╭─ Thanh phân cách' },
+                    { id: 'bot', label: '🤖 Bot' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setRoleTierFilter(f.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                        roleTierFilter === f.id
+                          ? 'bg-purple-500/25 text-purple-200 border-purple-400/50'
+                          : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Role List */}
+                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                  {loadingRoles ? (
+                    <div className="py-12 text-center text-xs text-white/50">
+                      Đang đồng bộ danh sách Role từ máy chủ Discord...
+                    </div>
+                  ) : filteredRoles.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-white/45">
+                      Không có Role nào khớp với bộ lọc hiện tại.
+                    </div>
                   ) : (
-                    <Send className="w-4 h-4" />
+                    filteredRoles.map((role) => {
+                      const tierInfo = TIER_META[role.tier] || TIER_META.other;
+                      return (
+                        <div
+                          key={role.id}
+                          className={`p-3 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            role.tier === 'divider'
+                              ? 'bg-black/60 border-white/10'
+                              : 'bg-black/35 hover:bg-black/50 border-white/10 hover:border-purple-500/30'
+                          }`}
+                        >
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <span className="w-8 text-center font-mono text-[11px] text-white/45 tabular-nums shrink-0">
+                              #{role.position}
+                            </span>
+                            <span
+                              className="w-4 h-4 rounded-full border border-white/30 shrink-0 mt-0.5 sm:mt-0"
+                              style={{ backgroundColor: role.color }}
+                              title={`Màu: ${role.color}`}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className="font-bold text-sm truncate"
+                                  style={{ color: role.color !== '#000000' ? role.color : '#FFFFFF' }}
+                                >
+                                  {role.name}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border ${tierInfo.badgeClass}`}
+                                >
+                                  {tierInfo.label}
+                                </span>
+                                <span className="px-2 py-0.5 text-[10px] rounded-md bg-white/5 text-white/65 tabular-nums">
+                                  {role.member_count} thành viên
+                                </span>
+                                {role.managed && (
+                                  <span className="px-2 py-0.5 text-[10px] rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    Bot Managed
+                                  </span>
+                                )}
+                              </div>
+                              {/* Permission Badges */}
+                              {role.permissions_list.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {role.permissions_list.slice(0, 6).map((perm) => (
+                                    <span
+                                      key={perm}
+                                      className="px-1.5 py-0.5 text-[10px] rounded bg-white/[0.06] text-white/70 border border-white/10"
+                                    >
+                                      {PERM_LABELS_VI[perm] || perm}
+                                    </span>
+                                  ))}
+                                  {role.permissions_list.length > 6 && (
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-white/5 text-white/50">
+                                      +{role.permissions_list.length - 6} quyền khác
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Role Controls */}
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            {!role.is_default && !role.managed && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickPatchRole(role.id, { hoist: !role.hoist })}
+                                  title="Bật/tắt hiển thị tách nhóm trên thanh bên phải Discord (Hoist)"
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition ${
+                                    role.hoist
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35'
+                                      : 'bg-white/5 text-white/45 border-white/10 hover:text-white/80'
+                                  }`}
+                                >
+                                  Hoist: {role.hoist ? 'BẬT' : 'TẮT'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickPatchRole(role.id, { direction: 'up' })}
+                                  title="Đẩy Role lên cao hơn 1 bậc"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/75"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickPatchRole(role.id, { direction: 'down' })}
+                                  title="Hạ Role xuống thấp hơn 1 bậc"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/75"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                            {role.editable && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingRole(role);
+                                  setEditRoleName(role.name);
+                                  setEditRoleColor(role.color.startsWith('#') ? role.color : '#A855F7');
+                                  setEditRoleHoist(role.hoist);
+                                  setEditRoleMentionable(role.mentionable);
+                                  setEditRolePermPreset('');
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-500/35 text-xs font-semibold flex items-center gap-1 transition"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                Sửa
+                              </button>
+                            )}
+                            {!role.is_default && !role.managed && role.editable && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRole(role)}
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                                title="Xóa Role"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
-                  <span>{isSendingAnnounce ? 'Đang gửi...' : 'Gửi Thông Báo'}</span>
-                </button>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* =================================================================== */}
-      {/* TAB 4: NHẬT KÝ BOT (LOGS VIEWER) */}
-      {/* =================================================================== */}
-      {adminTab === 'logs' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <select
-              value={logLevel}
-              onChange={(e) => setLogLevel(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-emerald-500"
-            >
-              <option value="ALL">Mọi mức (ALL)</option>
-              <option value="INFO">INFO</option>
-              <option value="WARNING">WARNING</option>
-              <option value="ERROR">ERROR</option>
-            </select>
-
-            <select
-              value={logCount}
-              onChange={(e) => setLogCount(Number(e.target.value))}
-              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-emerald-500"
-            >
-              <option value={100}>100 dòng cuối</option>
-              <option value={200}>200 dòng cuối</option>
-              <option value={500}>500 dòng cuối</option>
-            </select>
-
-            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={logAutoRefresh}
-                onChange={(e) => setLogAutoRefresh(e.target.checked)}
-                className="w-3.5 h-3.5 accent-emerald-500"
-              />
-              <span>Tự làm mới 10s</span>
-            </label>
-
-            <button
-              onClick={fetchBotLogs}
-              disabled={isLoadingLogs}
-              className="px-4 py-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer sm:ml-auto"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} />
-              <span>Tải log</span>
-            </button>
-          </div>
-
-          {logError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-              {logError}
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-white/10 bg-black/60 overflow-hidden">
-            <div className="px-3 py-2 border-b border-white/10 text-[11px] text-slate-400 flex items-center gap-2">
-              <Hash className="w-3.5 h-3.5" />
-              <span>bot.log · {logLines.length} dòng mới nhất {logLevel !== 'ALL' && `(lọc ${logLevel})`}</span>
-            </div>
-            <pre data-lenis-prevent className="max-h-[450px] overflow-auto overscroll-contain p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words">
-              {isLoadingLogs && logLines.length === 0
-                ? 'Đang tải nhật ký...'
-                : logLines.length === 0
-                  ? 'Không có dòng log nào.'
-                  : logLines.join('\n')}
-            </pre>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 5: CẤU HÌNH BOT */}
-      {/* =================================================================== */}
-      {adminTab === 'config' && (
-        <div className="space-y-4">
-          {/* Card Đồng Bộ Discord & Cập Nhật GitHub */}
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
-              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-emerald-400" />
-                <span>Đồng Bộ Discord & Cập Nhật Hệ Thống (GitHub 1-Click Update)</span>
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCheckUpdate}
-                  disabled={isCheckingUpdate || isApplyingUpdate}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Search className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
-                  <span>{isCheckingUpdate ? 'Đang kiểm tra...' : 'Kiểm Tra GitHub'}</span>
-                </button>
-                <button
-                  onClick={handleReloadSystem}
-                  disabled={isReloadingSystem}
-                  className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isReloadingSystem ? 'animate-spin' : ''}`} />
-                  <span>{isReloadingSystem ? 'Đang reload...' : 'Tối Ưu & Reload'}</span>
-                </button>
-              </div>
-            </div>
-
-            {systemActionMsg && (
-              <div
-                className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                  systemActionMsg.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    : systemActionMsg.type === 'error'
-                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                    : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                }`}
-              >
-                {systemActionMsg.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
-                )}
-                <div className="flex-1">{systemActionMsg.text}</div>
-                <button
-                  onClick={() => setSystemActionMsg(null)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Phiên Bản Hệ Thống</div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Bản hiện tại:</span>
-                  <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded">
-                    {updateStatus?.current_hash || 'dev'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Bản mới trên GitHub:</span>
-                  <span className={`font-mono font-bold px-2 py-0.5 rounded ${updateStatus?.has_update ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-emerald-300 bg-emerald-500/10'}`}>
-                    {updateStatus?.remote_hash || updateStatus?.current_hash || 'dev'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Trạng thái:</span>
-                  <span className={`font-semibold ${updateStatus?.has_update ? 'text-amber-400' : 'text-emerald-400'}`}>
-                    {updateStatus?.has_update ? '🔔 Có bản cập nhật mới' : '✅ Đang ở bản mới nhất'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kênh Đồng Bộ Discord</div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Kênh điều hành:</span>
-                  <span className="font-mono text-purple-300">Nội bộ (Staff)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Cổng Web Vercel:</span>
-                  <a
-                    href="https://orbit-psi-black.vercel.app"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-[11px]"
-                  >
-                    <span>orbit-psi-black.vercel.app</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <button
-                  onClick={handleAnnounceStartup}
-                  disabled={isSendingAnnounceStartup}
-                  className="w-full mt-1 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-500/30 text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Send className={`w-3 h-3 ${isSendingAnnounceStartup ? 'animate-spin' : ''}`} />
-                  <span>{isSendingAnnounceStartup ? 'Đang gửi...' : 'Gửi lại thông báo khởi động đến Discord'}</span>
-                </button>
-              </div>
-            </div>
-
-            {updateStatus?.has_update && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                    <ArrowUpCircle className="w-4 h-4" />
-                    <span>Chi Tiết Commit Mới Từ GitHub (nhánh main)</span>
-                  </span>
+        {/* =====================================================================
+            TAB 2: THÀNH VIÊN, CẤP ROLE 100% & KỶ LUẬT SERVER
+           ===================================================================== */}
+        {activeTab === 'members' && (
+          <div className="space-y-6 hh-swap-panel">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left 7 Cols: Live Member Directory + 1-Click Role Assignment */}
+              <div className="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Users className="w-4 h-4 text-cyan-400" />
+                      Danh Bạ Thành Viên &amp; Phân Quyền Trực Tiếp ({filteredMembers.length})
+                    </h3>
+                    <p className="text-[11px] text-white/55 mt-0.5">
+                      Bấm nút <strong className="text-amber-300">🎭 Cấp / Gỡ Role</strong> trên bất kỳ thành viên nào để bật/tắt 100% các Role trong Server.
+                    </p>
+                  </div>
                   <button
-                    onClick={handleApplyUpdate}
-                    disabled={isApplyingUpdate}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 cursor-pointer disabled:opacity-50"
+                    onClick={() => fetchMembers(memberSearch, selectedGuildId)}
+                    disabled={loadingMembers}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5 self-start"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isApplyingUpdate ? 'animate-spin' : ''}`} />
-                    <span>{isApplyingUpdate ? 'Đang Cập Nhật & Reload...' : 'Cài Bản Update Ngay (1-Click)'}</span>
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingMembers ? 'animate-spin' : ''}`} />
+                    Làm mới
                   </button>
                 </div>
-                {updateStatus.commits && updateStatus.commits.length > 0 && (
-                  <div className="p-2.5 rounded-lg bg-black/60 font-mono text-[11px] text-slate-300 space-y-1">
-                    {updateStatus.commits.map((c, idx) => (
-                      <div key={idx} className="truncate">{c}</div>
+
+                {/* Search & Role Filter */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Tìm theo tên, @username hoặc Discord ID..."
+                      className="w-full pl-9 pr-3 py-2 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <select
+                    value={memberRoleFilter}
+                    onChange={(e) => setMemberRoleFilter(e.target.value)}
+                    aria-label="Lọc thành viên theo Role"
+                    className="px-3 py-2 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="ALL" className="bg-[#14111F]">
+                      Lọc theo Role: Tất cả thành viên ({members.length})
+                    </option>
+                    {assignableRoles.map((r) => (
+                      <option key={r.id} value={r.id} className="bg-[#14111F]">
+                        {r.name} ({r.member_count})
+                      </option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Member Cards */}
+                <div className="space-y-2.5 max-h-[540px] overflow-y-auto pr-1">
+                  {loadingMembers ? (
+                    <div className="py-12 text-center text-xs text-white/50">
+                      Đang tải danh sách thành viên máy chủ...
+                    </div>
+                  ) : filteredMembers.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-white/45">
+                      Không tìm thấy thành viên nào phù hợp.
+                    </div>
+                  ) : (
+                    filteredMembers.map((m) => {
+                      const isSelected = targetUserId === m.user_id;
+                      return (
+                        <div
+                          key={m.user_id}
+                          className={`p-3.5 rounded-xl border transition ${
+                            isSelected
+                              ? 'bg-purple-500/15 border-purple-400/50'
+                              : 'bg-black/35 hover:bg-black/50 border-white/10'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <img
+                                src={
+                                  m.avatar_url ||
+                                  'https://cdn.discordapp.com/embed/avatars/0.png'
+                                }
+                                alt={m.display_name}
+                                className="w-10 h-10 rounded-full object-cover border border-white/20 shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span
+                                    className="font-bold text-sm truncate"
+                                    style={{ color: m.top_color || '#FFFFFF' }}
+                                  >
+                                    {m.display_name}
+                                  </span>
+                                  <span className="text-xs text-white/50">@{m.username}</span>
+                                  {m.is_owner && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                                      👑 Owner
+                                    </span>
+                                  )}
+                                  {m.is_bot && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                                      🤖 BOT
+                                    </span>
+                                  )}
+                                  {m.timed_out_until && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                      🔇 Đang Mute
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] font-mono text-white/40 mt-0.5">
+                                  ID: {m.user_id}
+                                </div>
+                                {/* Current Roles Pills */}
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {(m.roles || []).map((r) => (
+                                    <span
+                                      key={r.id}
+                                      className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-black/50 border border-white/15 flex items-center gap-1"
+                                      style={{ color: r.color !== '#000000' ? r.color : '#E2E8F0' }}
+                                    >
+                                      <span
+                                        className="w-2 h-2 rounded-full"
+                                        style={{ backgroundColor: r.color }}
+                                      />
+                                      {r.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedMemberForRoles(m)}
+                                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/40 text-xs font-bold flex items-center gap-1.5 transition"
+                              >
+                                <Crown className="w-3.5 h-3.5" />
+                                Cấp / Gỡ Role
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTargetUserId(m.user_id)}
+                                className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-white/85 transition"
+                              >
+                                Chọn xử lý
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Right 5 Cols: Moderation Command Box + Bans List */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                  <h3 className="text-sm font-bold text-rose-300 flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4" />
+                    Bảng Điều Khiển Kỷ Luật (Mute / Kick / Ban)
+                  </h3>
+
+                  <div>
+                    <label className="block text-xs text-white/70 mb-1">Discord User ID mục tiêu</label>
+                    <input
+                      type="text"
+                      value={targetUserId}
+                      onChange={(e) => setTargetUserId(e.target.value)}
+                      placeholder="Chọn thành viên bên trái hoặc dán Discord ID..."
+                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-rose-400"
+                    />
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-xs text-white/70 mb-1">Lý do xử lý (Ghi vào Audit Log)</label>
+                    <input
+                      type="text"
+                      value={modReason}
+                      onChange={(e) => setModReason(e.target.value)}
+                      placeholder="VD: Vi phạm nội quy server / Spam..."
+                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-rose-400"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] text-white/65 mb-1">Thời lượng Mute (Timeout)</label>
+                      <select
+                        value={muteDuration}
+                        onChange={(e) => setMuteDuration(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                      >
+                        <option value={300} className="bg-[#14111F]">5 phút</option>
+                        <option value={900} className="bg-[#14111F]">15 phút</option>
+                        <option value={3600} className="bg-[#14111F]">1 giờ</option>
+                        <option value={21600} className="bg-[#14111F]">6 giờ</option>
+                        <option value={86400} className="bg-[#14111F]">24 giờ (1 ngày)</option>
+                        <option value={604800} className="bg-[#14111F]">7 ngày (1 tuần)</option>
+                        <option value={2419200} className="bg-[#14111F]">28 ngày (Tối đa)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-white/65 mb-1">Xóa tin nhắn khi Ban</label>
+                      <select
+                        value={deleteMsgDays}
+                        onChange={(e) => setDeleteMsgDays(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                      >
+                        <option value={0} className="bg-[#14111F]">Không xóa tin nhắn</option>
+                        <option value={1} className="bg-[#14111F]">Xóa 24 giờ gần nhất</option>
+                        <option value={3} className="bg-[#14111F]">Xóa 3 ngày gần nhất</option>
+                        <option value={7} className="bg-[#14111F]">Xóa 7 ngày gần nhất</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() =>
+                        handleModAction('timeout', { action: 'mute', duration_seconds: muteDuration })
+                      }
+                      className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    >
+                      <VolumeX className="w-4 h-4" />
+                      Mute (Timeout)
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleModAction('timeout', { action: 'unmute', duration_seconds: 0 })}
+                      className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      Gỡ Mute (Unmute)
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleModAction('kick')}
+                      className="py-2.5 px-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 text-orange-200 border border-orange-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                      Kick Khỏi Server
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleModAction('ban', { delete_message_days: deleteMsgDays })}
+                      className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    >
+                      <Ban className="w-4 h-4" />
+                      Ban Vĩnh Viễn
+                    </button>
+                  </div>
+                </div>
+
+                {/* Banned Users List */}
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <UserX className="w-4 h-4 text-rose-400" />
+                      Danh Sách Tài Khoản Bị Cấm ({bans.length})
+                    </h3>
+                    <button
+                      onClick={fetchBans}
+                      disabled={loadingBans}
+                      className="text-xs text-purple-300 hover:text-purple-200 flex items-center gap-1"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingBans ? 'animate-spin' : ''}`} />
+                      Tải lại
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {bans.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-white/45">
+                        Hiện không có tài khoản nào trong danh sách cấm.
+                      </div>
+                    ) : (
+                      bans.map((b) => (
+                        <div
+                          key={b.user_id}
+                          className="p-2.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white truncate">
+                              {b.display_name} (@{b.username})
+                            </div>
+                            <div className="text-[11px] text-white/50 truncate">{b.reason}</div>
+                          </div>
+                          <button
+                            onClick={() => handleModAction('unban', {}, b.user_id)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-500/35 text-[11px] font-bold shrink-0"
+                          >
+                            Gỡ Ban
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB 3: KHO ĐỀ THI TOÀN QUYỀN (100% FIELD EDIT + BULK ACTIONS)
+           ===================================================================== */}
+        {activeTab === 'documents' && (
+          <div className="space-y-5 hh-swap-panel">
+            {/* Turso Storage Telemetry Bar */}
+            {tursoStats && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-purple-950/50 to-slate-900/60 border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">
+                      Turso Cloud Storage (Quota 5 GB)
+                    </div>
+                    <div className="text-sm font-bold text-white mt-0.5 tabular-nums">
+                      Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
+                      {tursoStats.usedPercent.toFixed(3)}%) • Còn trống{' '}
+                      {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
+                          method: 'POST',
+                          headers: getAuthHeaders(),
+                        });
+                      } catch {}
+                      await fetchDocs();
+                    }}
+                    disabled={loadingDocs}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingDocs ? 'animate-spin' : ''}`} />
+                    Đồng bộ Kho Đề
+                  </button>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Endpoint API · dời từ sidebar vào Hub */}
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-purple-400" />
-              <span>Cài Đặt Endpoint API (Máy Chủ Bot)</span>
-            </h3>
-            <div className="text-[11px] text-slate-400">
-              Đang dùng: <span className="font-mono text-purple-300 break-all">{getApiBaseUrl() || '(cùng origin /api)'}</span>
+            {/* Filter & Search Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white/[0.03] border border-white/10 p-4 rounded-2xl">
+              <div className="relative">
+                <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={docSearch}
+                  onChange={(e) => setDocSearch(e.target.value)}
+                  placeholder="Tìm tiêu đề, ID, trường, mô tả..."
+                  className="w-full pl-9 pr-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                />
+              </div>
+              <select
+                value={docSubjectFilter}
+                onChange={(e) => setDocSubjectFilter(e.target.value)}
+                aria-label="Lọc theo môn học"
+                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+              >
+                <option value="ALL" className="bg-[#14111F]">Tất cả môn học ({docs.length})</option>
+                {SUBJECT_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value} className="bg-[#14111F]">
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={docLevelFilter}
+                onChange={(e) => setDocLevelFilter(e.target.value)}
+                aria-label="Lọc theo khối lớp"
+                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+              >
+                <option value="ALL" className="bg-[#14111F]">Tất cả khối lớp</option>
+                {['12', '11', '10', '9', '8', '7', '6'].map((g) => (
+                  <option key={g} value={g} className="bg-[#14111F]">
+                    Khối lớp {g}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={docTrackFilter}
+                onChange={(e) => setDocTrackFilter(e.target.value)}
+                aria-label="Lọc theo phân ban đề thi"
+                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+              >
+                <option value="ALL" className="bg-[#14111F]">Mọi phân ban (Thường / HSG / Chuyên / Quốc tế)</option>
+                {EXAM_TRACK_OPTIONS.map((t) => (
+                  <option key={t.value} value={t.value} className="bg-[#14111F]">
+                    {t.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={endpointInput}
-                onChange={(e) => setEndpointInput(e.target.value)}
-                placeholder={DEFAULT_TUNNEL_URL}
-                className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-              />
-              <div className="flex gap-2">
+
+            {/* Bulk Selection Action Bar */}
+            <div className="p-3.5 rounded-2xl bg-purple-950/35 border border-purple-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs font-bold text-purple-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredDocs.length > 0 &&
+                      filteredDocs.every((d) => selectedDocIds.has(d.id))
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedDocIds(new Set(filteredDocs.map((d) => d.id)));
+                      } else {
+                        setSelectedDocIds(new Set());
+                      }
+                    }}
+                    className="accent-fuchsia-500 w-4 h-4"
+                  />
+                  <span>
+                    Chọn tất cả ({selectedDocIds.size}/{filteredDocs.length} đề đang chọn)
+                  </span>
+                </label>
+              </div>
+
+              {selectedDocIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={bulkSubject}
+                    onChange={(e) => setBulkSubject(e.target.value)}
+                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                  >
+                    <option value="">-- Đổi môn học --</option>
+                    {SUBJECT_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value} className="bg-[#14111F]">
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={bulkLevel}
+                    onChange={(e) => setBulkLevel(e.target.value)}
+                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                  >
+                    <option value="">-- Đổi khối lớp --</option>
+                    {GRADE_LEVEL_OPTIONS.map((lvl) => (
+                      <option key={lvl} value={lvl} className="bg-[#14111F]">
+                        {lvl}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={bulkTrack}
+                    onChange={(e) => setBulkTrack(e.target.value)}
+                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                  >
+                    <option value="">-- Đổi phân ban --</option>
+                    {EXAM_TRACK_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value} className="bg-[#14111F]">
+                        {t.value}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => handleBulkDocsAction('update')}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Áp dụng ({selectedDocIds.size})
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => handleBulkDocsAction('delete')}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Xóa ({selectedDocIds.size})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Documents List */}
+            <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+              {loadingDocs ? (
+                <div className="py-12 text-center text-xs text-white/50">
+                  Đang tải danh sách đề thi trong kho lưu trữ...
+                </div>
+              ) : filteredDocs.length === 0 ? (
+                <div className="py-12 text-center text-xs text-white/45">
+                  Không có đề thi nào khớp với bộ lọc hiện tại.
+                </div>
+              ) : (
+                filteredDocs.map((doc) => {
+                  const checked = selectedDocIds.has(doc.id);
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`p-4 rounded-xl border transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
+                        checked
+                          ? 'bg-purple-500/15 border-purple-400/50'
+                          : 'bg-black/35 hover:bg-black/50 border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setSelectedDocIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(doc.id);
+                              else next.delete(doc.id);
+                              return next;
+                            });
+                          }}
+                          className="mt-1 accent-fuchsia-500 w-4 h-4 shrink-0 cursor-pointer"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded bg-purple-500/20 text-purple-300 border border-purple-500/35">
+                              #{doc.id}
+                            </span>
+                            <span className="font-bold text-sm text-white">{doc.title}</span>
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                              {doc.subject}
+                            </span>
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              {doc.estimated_level}
+                            </span>
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
+                              {doc.exam_track || 'Thường'}
+                            </span>
+                          </div>
+                          {doc.notes && (
+                            <p className="text-xs text-emerald-300/90 line-clamp-2">{doc.notes}</p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/50">
+                            <span>Tệp: {doc.file_name}</span>
+                            <span>• {formatBytes(doc.file_size_bytes)}</span>
+                            {doc.school_or_department && <span>• Trường/Sở: {doc.school_or_department}</span>}
+                            {doc.academic_year && <span>• Năm học: {doc.academic_year}</span>}
+                            <span>• Tác giả: {doc.author_name || 'Thành viên Orbit'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
+                        <button
+                          type="button"
+                          onClick={() => openEditDocModal(doc)}
+                          className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-500/35 text-xs font-bold flex items-center gap-1.5 transition"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          Chỉnh sửa 100%
+                        </button>
+                        <button
+                          type="button"
+                          disabled={archivingId === doc.id}
+                          onClick={() => handleArchiveDoc(doc)}
+                          className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1 transition"
+                          title="Offload tệp lên Discord Cloud"
+                        >
+                          <Cloud className="w-3.5 h-3.5" />
+                          {archivingId === doc.id ? 'Đang offload...' : 'Offload'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoc(doc)}
+                          className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                          title="Xóa vĩnh viễn đề thi"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB 4: KÊNH DISCORD & BẢNG ĐIỀU KHIỂN TƯƠNG TÁC
+           ===================================================================== */}
+        {activeTab === 'channels' && (
+          <div className="space-y-6 hh-swap-panel">
+            {/* 1-Click Refresh Discord Interactive Panels */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-900/30 via-fuchsia-900/20 to-indigo-900/30 border border-purple-500/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-fuchsia-400" />
+                  Đồng Bộ &amp; Làm Mới Bảng Điều Khiển Tương Tác Trên Discord
+                </h3>
+                <p className="text-xs text-white/70 mt-1">
+                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-purple-200">#🔗・info</code>, <code className="text-purple-200">#📄・nộp-tài-liệu</code> và <code className="text-purple-200">#📥・lấy-tài-liệu</code>.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
-                  onClick={handleSaveEndpoint}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs cursor-pointer"
+                  onClick={() => handleRefreshDiscordPanels('all')}
+                  disabled={refreshingPanels}
+                  className="px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold flex items-center gap-1.5"
                 >
-                  Lưu
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingPanels ? 'animate-spin' : ''}`} />
+                  Làm mới tất cả Panel
                 </button>
                 <button
-                  onClick={handleResetEndpoint}
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold cursor-pointer"
+                  onClick={() => handleRefreshDiscordPanels('info')}
+                  disabled={refreshingPanels}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
                 >
-                  Mặc Định
+                  #🔗・info
+                </button>
+                <button
+                  onClick={() => handleRefreshDiscordPanels('intake')}
+                  disabled={refreshingPanels}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
+                >
+                  #📄・nộp-tài-liệu
+                </button>
+                <button
+                  onClick={() => handleRefreshDiscordPanels('search')}
+                  disabled={refreshingPanels}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
+                >
+                  #📥・lấy-tài-liệu
                 </button>
               </div>
             </div>
-            <div className="text-[11px] text-slate-500">
-              💡 Vercel HTTPS: dùng tunnel <span className="font-mono text-purple-300 break-all">{DEFAULT_TUNNEL_URL}</span> • Dev: <span className="font-mono">{LOCAL_API_URL}</span>
-            </div>
-            {endpointMsg && (
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">
-                {endpointMsg}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left 5 Cols: Create Channel + Send Announcement */}
+              <div className="lg:col-span-5 space-y-6">
+                <form
+                  onSubmit={handleCreateChannel}
+                  className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3.5"
+                >
+                  <h3 className="text-sm font-bold text-cyan-300 flex items-center gap-2">
+                    <Hash className="w-4 h-4" />
+                    Tạo Kênh Text / Voice Mới
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setNewChannelKind('text')}
+                      className={`py-2 rounded-xl text-xs font-bold border ${
+                        newChannelKind === 'text'
+                          ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50'
+                          : 'bg-black/40 text-white/60 border-white/10'
+                      }`}
+                    >
+                      # Kênh Văn Bản (Text)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewChannelKind('voice')}
+                      className={`py-2 rounded-xl text-xs font-bold border ${
+                        newChannelKind === 'voice'
+                          ? 'bg-purple-500/20 text-purple-200 border-purple-400/50'
+                          : 'bg-black/40 text-white/60 border-white/10'
+                      }`}
+                    >
+                      🔊 Kênh Thoại (Voice)
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={newChannelName}
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    placeholder="Tên kênh (VD: 💬・thảo-luận-toán)"
+                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  />
+                  <select
+                    value={newChannelCategoryId}
+                    onChange={(e) => setNewChannelCategoryId(e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  >
+                    <option value="" className="bg-[#14111F]">-- Danh mục (Category) tự động --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id} className="bg-[#14111F]">
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  {newChannelKind === 'text' ? (
+                    <input
+                      type="text"
+                      value={newChannelTopic}
+                      onChange={(e) => setNewChannelTopic(e.target.value)}
+                      placeholder="Chủ đề kênh (Topic)..."
+                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      max={99}
+                      value={newChannelLimit}
+                      onChange={(e) => setNewChannelLimit(Number(e.target.value))}
+                      placeholder="Giới hạn thành viên (0 = Không giới hạn)"
+                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    />
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Tạo Kênh Ngay
+                  </button>
+                </form>
+
+                {/* Broadcast Embed Form */}
+                <form
+                  onSubmit={handleSendAnnouncement}
+                  className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3.5"
+                >
+                  <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4" />
+                    Phát Sóng Thông Báo / Embed Lên Discord
+                  </h3>
+                  <select
+                    value={selectedChannelId}
+                    onChange={(e) => setSelectedChannelId(e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  >
+                    <option value="" className="bg-[#14111F]">-- Chọn kênh nhận thông báo --</option>
+                    {channels
+                      .filter((c) => c.kind !== 'voice')
+                      .map((c) => (
+                        <option key={c.channel_id} value={c.channel_id} className="bg-[#14111F]">
+                          {c.name} ({c.category})
+                        </option>
+                      ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={announceTitle}
+                    onChange={(e) => setAnnounceTitle(e.target.value)}
+                    placeholder="Tiêu đề thông báo..."
+                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  />
+                  <textarea
+                    rows={4}
+                    value={announceMsg}
+                    onChange={(e) => setAnnounceMsg(e.target.value)}
+                    placeholder="Nội dung thông báo (hỗ trợ Markdown Discord)..."
+                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {['#A855F7', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'].map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setAnnounceColor(c)}
+                          className={`w-6 h-6 rounded-full border ${
+                            announceColor === c ? 'border-white scale-110' : 'border-white/20'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center gap-1.5"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Gửi Thông Báo
+                    </button>
+                  </div>
+                </form>
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-cyan-400" />
-              <span>Cấu Hình & Trạng Thái Bot (đã ẩn secrets)</span>
-            </h3>
-            <button
-              onClick={fetchBotConfig}
-              disabled={isLoadingConfig}
-              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingConfig ? 'animate-spin' : ''}`} />
-              <span>Làm mới</span>
-            </button>
-          </div>
+              {/* Right 7 Cols: Channel List with Lock/Unlock & Delete */}
+              <div className="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-purple-400" />
+                    Danh Sách Kênh Trong Máy Chủ ({channels.length})
+                  </h3>
+                  <button
+                    onClick={() => fetchChannels(selectedGuildId)}
+                    disabled={loadingChannels}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingChannels ? 'animate-spin' : ''}`} />
+                    Làm mới
+                  </button>
+                </div>
 
-          {configError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-              {configError}
-            </div>
-          )}
+                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                  {channels.map((ch) => (
+                    <div
+                      key={ch.channel_id}
+                      className="p-3 rounded-xl bg-black/35 hover:bg-black/50 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-xs sm:text-sm text-white">{ch.name}</span>
+                          <span className="px-2 py-0.5 text-[10px] rounded bg-white/5 text-white/60">
+                            {ch.category}
+                          </span>
+                          {ch.is_private ? (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/35">
+                              🔒 Riêng tư (Staff)
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              🌐 Công khai
+                            </span>
+                          )}
+                        </div>
+                        {ch.topic && (
+                          <div className="text-[11px] text-white/45 truncate mt-0.5">{ch.topic}</div>
+                        )}
+                      </div>
 
-          {!botConfig && !configError && (
-            <div className="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/5 text-slate-400 text-xs">
-              {isLoadingConfig ? 'Đang tải cấu hình...' : 'Nhấn Làm mới để tải cấu hình.'}
-            </div>
-          )}
-
-          {botConfig && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { title: '🤖 Bot', data: botConfig.bot, color: 'cyan' },
-                { title: '⚙️ Runtime', data: botConfig.runtime, color: 'purple' },
-              ].map((section) => (
-                <div key={section.title} className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
-                  <h4 className="text-xs font-bold text-white">{section.title}</h4>
-                  {section.data && Object.entries(section.data).map(([k, v]) => (
-                    <div key={k} className="flex items-start justify-between gap-3 text-[11px]">
-                      <span className="text-slate-400 font-mono shrink-0">{k}</span>
-                      <span className="text-slate-200 font-mono text-right break-all">
-                        {Array.isArray(v) ? `${v.length} mục` : String(v)}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleChannelLock(ch)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 border transition ${
+                            ch.is_private
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/35 hover:bg-amber-500/30'
+                          }`}
+                        >
+                          {ch.is_private ? (
+                            <>
+                              <Unlock className="w-3.5 h-3.5" />
+                              Mở khóa
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3.5 h-3.5" />
+                              Khóa riêng tư
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChannel(ch)}
+                          className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                          title="Xóa kênh"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
-              ))}
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2 md:col-span-2">
-                <h4 className="text-xs font-bold text-white">🔧 Config (không chứa token/secret)</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                  {botConfig.config && Object.entries(botConfig.config).map(([k, v]) => (
-                    <div key={k} className="flex items-start justify-between gap-3 text-[11px] py-0.5">
-                      <span className="text-slate-400 font-mono shrink-0">{k}</span>
-                      <span className="text-slate-200 font-mono text-right break-all">{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
-                {botConfig.runtime && Array.isArray((botConfig.runtime as any).slash_commands) && (
-                  <div className="pt-2 border-t border-white/5 text-[11px]">
-                    <span className="text-slate-400">Slash giữ lại ({((botConfig.runtime as any).slash_commands as string[]).length}): </span>
-                    <span className="text-slate-200 font-mono">
-                      {((botConfig.runtime as any).slash_commands as string[]).map((n) => `/${n}`).join(' ')}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 6: LOG SERVER (DISCORD AUDIT LOG) */}
-      {/* =================================================================== */}
-      {adminTab === 'audit' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <select
-              value={auditLimit}
-              onChange={(e) => setAuditLimit(Number(e.target.value))}
-              className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-orange-500"
-            >
-              <option value={20}>20 sự kiện</option>
-              <option value={50}>50 sự kiện</option>
-              <option value={100}>100 sự kiện</option>
-            </select>
-            <button
-              onClick={fetchAuditLogs}
-              disabled={isLoadingAudit}
-              className="px-4 py-2 rounded-xl bg-orange-600/30 hover:bg-orange-600/50 text-orange-200 border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer sm:ml-auto"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAudit ? 'animate-spin' : ''}`} />
-              <span>Tải log server</span>
-            </button>
           </div>
+        )}
 
-          {auditError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-              {auditError}
+        {/* =====================================================================
+            TAB 5: HỆ THỐNG, GITHUB 1-CLICK UPDATE & CẤU HÌNH
+           ===================================================================== */}
+        {activeTab === 'config' && (
+          <div className="space-y-6 hh-swap-panel">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* GitHub Sync & Hot-Reload */}
+              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-emerald-400" />
+                    Đồng Bộ GitHub &amp; Hot-Reload Hệ Thống
+                  </h3>
+                  <span className="px-2.5 py-0.5 text-[11px] font-mono rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    Commit: {updateStatus?.current_hash || 'main'}
+                  </span>
+                </div>
+
+                {updateStatus?.commit_msg && (
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs text-white/80">
+                    <div className="text-[11px] text-white/45 mb-0.5">Bản cập nhật hiện hành:</div>
+                    <div className="font-semibold">{updateStatus.commit_msg}</div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    onClick={handleCheckUpdate}
+                    disabled={checkingUpdate}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
+                    Kiểm tra GitHub
+                  </button>
+                  <button
+                    onClick={handleApplyUpdate}
+                    disabled={applyingUpdate}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <ArrowUpCircle className="w-4 h-4" />
+                    {applyingUpdate ? 'Đang cập nhật...' : '1-Click Pull & Update'}
+                  </button>
+                  <button
+                    onClick={handleHotReload}
+                    disabled={reloadingBot}
+                    className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {reloadingBot ? 'Đang Reload Cogs...' : 'Hot-Reload Toàn Bộ Cogs'}
+                  </button>
+                </div>
+              </div>
+
+              {/* API Gateway Switcher */}
+              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-cyan-400" />
+                  Cấu Hình Cổng Kết Nối API Gateway
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customUrlInput}
+                    onChange={(e) => setCustomUrlInput(e.target.value)}
+                    placeholder="Để trống để dùng Vercel Cloud Bridge mặc định"
+                    className="flex-1 px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                  />
+                  <button
+                    onClick={() => handleSaveApiEndpoint(customUrlInput)}
+                    disabled={testingUrl}
+                    className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Lưu
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveApiEndpoint(DEFAULT_TUNNEL_URL)}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] font-semibold"
+                  >
+                    Dùng Vercel Cloud Bridge (Mặc định)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveApiEndpoint(LOCAL_API_URL)}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] font-semibold"
+                  >
+                    Localhost (127.0.0.1:8080)
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
 
-          <div data-lenis-prevent className="max-h-[450px] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/30">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-white/5 border-b border-white/10 text-[11px] uppercase text-slate-400 sticky top-0 backdrop-blur-md">
-                <tr>
-                  <th className="py-2.5 px-3">Hành Động</th>
-                  <th className="py-2.5 px-3">Người Thực Hiện</th>
-                  <th className="py-2.5 px-3">Đối Tượng</th>
-                  <th className="py-2.5 px-3">Lý Do / Thời Gian</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
+            {/* Runtime Info */}
+            {configData && (
+              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-purple-400" />
+                    Thông Số Vận Hành Bot &amp; Cogs Đang Hoạt Động
+                  </h3>
+                  <button
+                    onClick={fetchConfig}
+                    disabled={loadingConfig}
+                    className="text-xs text-purple-300 flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
+                    Làm mới
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[11px] text-white/50">Bot User</div>
+                    <div className="text-sm font-bold text-white mt-0.5">
+                      {String(configData.bot?.user || 'Orbit#6143')}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[11px] text-white/50">Độ trễ Gateway</div>
+                    <div className="text-sm font-bold text-emerald-400 mt-0.5 tabular-nums">
+                      {String(configData.bot?.ping_ms ?? 0)} ms
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[11px] text-white/50">Số Cogs Đã Nạp</div>
+                    <div className="text-sm font-bold text-purple-300 mt-0.5 tabular-nums">
+                      {String(configData.runtime?.cogs_loaded ?? 0)} Cogs
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[11px] text-white/50">Dung lượng SQLite Local</div>
+                    <div className="text-sm font-bold text-cyan-300 mt-0.5 tabular-nums">
+                      {formatBytes(Number(configData.runtime?.db_size_bytes || 0))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB 6: NHẬT KÝ KIỂM TOÁN DISCORD & CONSOLE LOGS
+           ===================================================================== */}
+        {activeTab === 'logs' && (
+          <div className="space-y-4 hh-swap-panel">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLogSubView('console')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                    logSubView === 'console'
+                      ? 'bg-purple-600/30 text-white border-purple-400/50'
+                      : 'bg-black/40 text-white/60 border-white/10'
+                  }`}
+                >
+                  <ScrollText className="w-4 h-4" />
+                  Bot Console Logs ({formatBytes(logSize)})
+                </button>
+                <button
+                  onClick={() => setLogSubView('audit')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                    logSubView === 'audit'
+                      ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
+                      : 'bg-black/40 text-white/60 border-white/10'
+                  }`}
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Nhật Ký Kiểm Toán Discord ({auditEntries.length})
+                </button>
+              </div>
+
+              {logSubView === 'console' ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={logFilter}
+                    onChange={(e) => setLogFilter(e.target.value)}
+                    placeholder="Lọc từ khóa trong log..."
+                    className="px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  />
+                  <select
+                    value={logLevel}
+                    onChange={(e) => setLogLevel(e.target.value as 'ALL' | 'INFO' | 'WARNING' | 'ERROR')}
+                    className="px-2.5 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  >
+                    <option value="ALL" className="bg-[#14111F]">Mức: ALL</option>
+                    <option value="INFO" className="bg-[#14111F]">INFO</option>
+                    <option value="WARNING" className="bg-[#14111F]">WARNING</option>
+                    <option value="ERROR" className="bg-[#14111F]">ERROR</option>
+                  </select>
+                  <select
+                    value={logCount}
+                    onChange={(e) => setLogCount(Number(e.target.value))}
+                    className="px-2.5 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  >
+                    <option value={100} className="bg-[#14111F]">100 dòng</option>
+                    <option value={200} className="bg-[#14111F]">200 dòng</option>
+                    <option value={500} className="bg-[#14111F]">500 dòng</option>
+                  </select>
+                  <label className="flex items-center gap-1.5 text-xs text-white/75 cursor-pointer px-2">
+                    <input
+                      type="checkbox"
+                      checked={autoRefreshLogs}
+                      onChange={(e) => setAutoRefreshLogs(e.target.checked)}
+                      className="accent-purple-500"
+                    />
+                    Tự làm mới
+                  </label>
+                  <button
+                    onClick={fetchLogs}
+                    disabled={loadingLogs}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                    Tải lại
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={fetchAuditLogs}
+                  disabled={loadingAudit}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
+                  Làm mới Audit Log
+                </button>
+              )}
+            </div>
+
+            {logSubView === 'console' ? (
+              <div className="bg-black/75 border border-white/10 rounded-2xl p-4 font-mono text-[11px] leading-relaxed max-h-[540px] overflow-y-auto space-y-1">
+                {filteredLogLines.length === 0 ? (
+                  <div className="py-12 text-center text-white/40">Không có dòng log nào.</div>
+                ) : (
+                  filteredLogLines.map((ln, idx) => {
+                    const isErr = ln.includes('[ERROR');
+                    const isWarn = ln.includes('[WARNING');
+                    return (
+                      <div
+                        key={idx}
+                        className={`break-all ${
+                          isErr ? 'text-rose-400' : isWarn ? 'text-amber-300' : 'text-slate-300'
+                        }`}
+                      >
+                        {ln}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[540px] overflow-y-auto">
                 {auditEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-500 text-xs">
-                      {isLoadingAudit ? 'Đang tải nhật ký server...' : 'Không có sự kiện nào.'}
-                    </td>
-                  </tr>
+                  <div className="py-12 text-center text-xs text-white/45">
+                    Chưa có bản ghi kiểm toán nào.
+                  </div>
                 ) : (
                   auditEntries.map((en) => (
-                    <tr key={en.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-orange-300">{en.action}</td>
-                      <td className="py-2.5 px-3 text-[11px] whitespace-nowrap">{en.actor}</td>
-                      <td className="py-2.5 px-3 text-[11px] max-w-[220px] truncate" title={en.target}>{en.target}</td>
-                      <td className="py-2.5 px-3 text-[11px] text-slate-400">
-                        {en.reason && <div className="italic truncate max-w-[220px]" title={en.reason}>{en.reason}</div>}
-                        <div className="font-mono text-[10px]">{en.created_at.replace('T', ' ').slice(0, 19)}</div>
-                      </td>
-                    </tr>
+                    <div
+                      key={en.id}
+                      className="p-3 rounded-xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                    >
+                      <div>
+                        <span className="font-bold text-amber-300">{en.action}</span> • Thực hiện bởi{' '}
+                        <span className="font-semibold text-white">{en.actor}</span> → Mục tiêu:{' '}
+                        <span className="text-cyan-300">{en.target}</span>
+                        {en.reason && <div className="text-white/55 mt-0.5">Lý do: {en.reason}</div>}
+                      </div>
+                      <span className="text-[11px] font-mono text-white/40 shrink-0">
+                        {en.created_at ? new Date(en.created_at).toLocaleString('vi-VN') : ''}
+                      </span>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* =================================================================== */}
-      {/* MODAL CHỈNH SỬA ĐỀ THI & GHI CHÚ */}
-      {/* =================================================================== */}
-      {editingDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
+      {/* ================= MODAL 1: EDIT ROLE (100% OPTIONS) ================= */}
+      {editingRole && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setEditingRole(null)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleSaveRoleModal}
+            className="w-full max-w-lg bg-[#141122] border border-purple-500/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop"
+          >
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-purple-400" />
-                <span>Chỉnh Sửa Đề Thi #{editingDoc.id}</span>
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                Chỉnh Sửa Toàn Diện Role: {editingRole.name}
               </h3>
               <button
-                onClick={() => setEditingDoc(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                type="button"
+                onClick={() => setEditingRole(null)}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/60"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-300">Tiêu Đề Đề Thi</label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-300">Môn Học</label>
-                  <select
-                    value={editSubject}
-                    onChange={(e) => setEditSubject(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="MATHEMATICS">Toán Học</option>
-                    <option value="INFORMATICS">Tin Học</option>
-                    <option value="LITERATURE">Ngữ Văn</option>
-                    <option value="ENGLISH">Tiếng Anh</option>
-                    <option value="PHYSICS">Vật Lý</option>
-                    <option value="CHEMISTRY">Hóa Học</option>
-                    <option value="BIOLOGY">Sinh Học</option>
-                    <option value="HISTORY">Lịch Sử</option>
-                    <option value="GEOGRAPHY">Địa Lý</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-300">Khối Lớp / Độ Khó</label>
+            {!editingRole.is_default && (
+              <>
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">Tên Role</label>
                   <input
                     type="text"
-                    value={editLevel}
-                    onChange={(e) => setEditLevel(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
+                    value={editRoleName}
+                    onChange={(e) => setEditRoleName(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white"
                   />
                 </div>
-              </div>
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">Màu sắc ({editRoleColor})</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="color"
+                      value={editRoleColor}
+                      onChange={(e) => setEditRoleColor(e.target.value)}
+                      className="w-10 h-9 rounded-lg bg-transparent border border-white/20 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={editRoleColor}
+                      onChange={(e) => setEditRoleColor(e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ROLE_COLOR_SWATCHES.map((hex) => (
+                      <button
+                        key={hex}
+                        type="button"
+                        onClick={() => setEditRoleColor(hex)}
+                        className="w-6 h-6 rounded-lg border border-white/20"
+                        style={{ backgroundColor: hex }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 border border-white/10 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editRoleHoist}
+                      onChange={(e) => setEditRoleHoist(e.target.checked)}
+                      className="accent-fuchsia-500"
+                    />
+                    <span>Hiển thị tách nhóm (Hoist)</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 border border-white/10 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editRoleMentionable}
+                      onChange={(e) => setEditRoleMentionable(e.target.checked)}
+                      className="accent-fuchsia-500"
+                    />
+                    <span>Cho phép @mention</span>
+                  </label>
+                </div>
+              </>
+            )}
 
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-300">
-                  Ghi Chú Đề Thi (Notes / Đặc điểm nhận dạng)
-                </label>
-                <textarea
-                  rows={3}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Ví dụ: Đề thi thử đợt 1 Chuyên Sư Phạm 2025, có đáp án chi tiết..."
-                  className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500 resize-none"
+            <div>
+              <label className="block text-xs text-white/70 mb-1">
+                Cập nhật bộ quyền hạn (Để trống nếu giữ nguyên quyền hiện tại)
+              </label>
+              <select
+                value={editRolePermPreset}
+                onChange={(e) => setEditRolePermPreset(e.target.value)}
+                className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+              >
+                <option value="" className="bg-[#14111F]">-- Giữ nguyên quyền hạn hiện tại --</option>
+                {PERMISSION_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value} className="bg-[#14111F]">
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingRole(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-fuchsia-600 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Save className="w-4 h-4" />
+                Lưu Thay Đổi Role
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ================= MODAL 2: 100% MEMBER ROLE SELECTOR MATRIX ================= */}
+      {selectedMemberForRoles && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedMemberForRoles(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-[#141122] border border-amber-400/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop max-h-[88vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={
+                    selectedMemberForRoles.avatar_url ||
+                    'https://cdn.discordapp.com/embed/avatars/0.png'
+                  }
+                  alt={selectedMemberForRoles.display_name}
+                  className="w-10 h-10 rounded-full border border-amber-400/40"
+                />
+                <div>
+                  <h3 className="text-base font-extrabold text-white">
+                    Phân Quyền &amp; Cấp Role: {selectedMemberForRoles.display_name}
+                  </h3>
+                  <p className="text-xs text-white/55">
+                    Bấm vào bất kỳ Role nào bên dưới để cấp hoặc gỡ ngay lập tức (100% Quyền Lựa Chọn).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMemberForRoles(null)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-white/60"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {(['staff', 'honor', 'grade', 'member', 'other'] as const).map((tierKey) => {
+              const tierRoles = assignableRoles.filter((r) => r.tier === tierKey);
+              if (tierRoles.length === 0) return null;
+              const memberRoleIds = new Set((selectedMemberForRoles.roles || []).map((r) => r.id));
+              return (
+                <div key={tierKey} className="space-y-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-white/60">
+                    {TIER_META[tierKey]?.label || tierKey}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {tierRoles.map((r) => {
+                      const active = memberRoleIds.has(r.id);
+                      const busy = togglingRoleId === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleToggleMemberRole(selectedMemberForRoles, r.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-2 transition ${
+                            active
+                              ? 'bg-emerald-500/20 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                              : 'bg-black/45 text-white/65 border-white/15 hover:border-white/35 hover:text-white'
+                          }`}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: r.color }}
+                          />
+                          <span>{r.name}</span>
+                          {active && <Check className="w-3.5 h-3.5 text-emerald-300" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="flex justify-end pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setSelectedMemberForRoles(null)}
+                className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold"
+              >
+                Hoàn tất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 3: EDIT DOCUMENT (100% FIELDS) ================= */}
+      {editingDoc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setEditingDoc(null)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleSaveDocEdit}
+            className="w-full max-w-2xl bg-[#141122] border border-purple-500/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-400" />
+                Chỉnh Sửa 100% Thông Tin Đề Thi #{editingDoc.id}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingDoc(null)}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/60"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs text-white/70 mb-1">Tiêu đề đề thi</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Môn học</label>
+                <select
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                >
+                  {SUBJECT_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value} className="bg-[#14111F]">
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Khối lớp</label>
+                <select
+                  value={editLevel}
+                  onChange={(e) => setEditLevel(e.target.value)}
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                >
+                  {GRADE_LEVEL_OPTIONS.map((lvl) => (
+                    <option key={lvl} value={lvl} className="bg-[#14111F]">
+                      {lvl}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Phân ban / Cấp độ đề</label>
+                <select
+                  value={editTrack}
+                  onChange={(e) => setEditTrack(e.target.value)}
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                >
+                  {EXAM_TRACK_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value} className="bg-[#14111F]">
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Năm học</label>
+                <input
+                  type="text"
+                  value={editYear}
+                  onChange={(e) => setEditYear(e.target.value)}
+                  placeholder="VD: 2025-2026"
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
                 />
               </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setEditingDoc(null)}
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingEdit}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold flex items-center gap-1.5 shadow-lg shadow-purple-900/30 disabled:opacity-50"
-                >
-                  {isSavingEdit ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Save className="w-3.5 h-3.5" />
-                  )}
-                  <span>Lưu Thay Đổi</span>
-                </button>
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Trường / Sở GD&amp;ĐT</label>
+                <input
+                  type="text"
+                  value={editSchool}
+                  onChange={(e) => setEditSchool(e.target.value)}
+                  placeholder="VD: Sở GD&ĐT Hà Nội"
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                />
               </div>
-            </form>
-          </div>
+              <div>
+                <label className="block text-xs text-white/70 mb-1">Tác giả đóng góp</label>
+                <input
+                  type="text"
+                  value={editAuthorName}
+                  onChange={(e) => setEditAuthorName(e.target.value)}
+                  placeholder="Tên hiển thị tác giả"
+                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-white/70 mb-1">
+                Mô tả đề thi (VD: Lớp 9 Chuyên Tin • Đề thi chọn HSG...)
+              </label>
+              <textarea
+                rows={3}
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingDoc(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Save className="w-4 h-4" />
+                Lưu Toàn Bộ Thông Tin
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
