@@ -31,18 +31,9 @@
 
     <!--
       Bật chế độ motion TRƯỚC khi vẽ trang để tránh nháy nội dung.
-      Không có JS / bật reduced-motion / thiếu IntersectionObserver → nội dung hiện nguyên vẹn.
+      Tách ra tệp tĩnh /motion-init.js để bật CSP script-src 'self' nghiêm ngặt (không cần unsafe-inline).
     -->
-    <script>
-      (function () {
-        try {
-          var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if (!reduce && 'IntersectionObserver' in window) {
-            document.documentElement.classList.add('hh-motion');
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/motion-init.js"></script>
   </head>
   <body class="antialiased min-h-dvh">
     <noscript>Orbit cần JavaScript để hiển thị kho đề và bảng điều khiển.</noscript>

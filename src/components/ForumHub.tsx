@@ -21,7 +21,7 @@ import {
   Clock,
   CheckCircle2,
 } from 'lucide-react';
-import { DiscordUser } from '../utils/discordAuth';
+import { DiscordUser, getDiscordAuthHeaders } from '../utils/discordAuth';
 import { getApiBaseUrl } from '../utils/apiConfig';
 
 export type ForumCategory = 'Góc thắc mắc' | 'Facts' | 'Hỏi đáp' | 'Ôn thi';
@@ -105,7 +105,7 @@ const FALLBACK_THREADS: ForumThreadSummary[] = [
       'Chuyên mục Ôn thi dành riêng cho việc chia sẻ kinh nghiệm làm đề cấu trúc mới (Trắc nghiệm 4 lựa chọn, Đúng/Sai, Trả lời ngắn), ôn thi vào 10, thi Chuyên/HSG và Tốt nghiệp THPT.',
     message_count: 1,
     reply_count: 0,
-    created_at: new Date().toISOString(),
+    created_at: '2025-02-15T08:30:00.000Z',
     jump_url: 'https://discord.com/channels/1532265330079174697/1566808765762899998',
   },
   {
@@ -119,7 +119,7 @@ const FALLBACK_THREADS: ForumThreadSummary[] = [
       'Gặp câu hỏi hóc búa khi đang luyện đề? Hãy đăng bài vào mục Hỏi đáp hoặc bình luận ngay tại đây để cộng đồng học sinh và đội ngũ chuyên môn cùng hỗ trợ giải chi tiết!',
     message_count: 1,
     reply_count: 0,
-    created_at: new Date().toISOString(),
+    created_at: '2025-02-14T14:15:00.000Z',
     jump_url: 'https://discord.com/channels/1532265330079174697/1566808763946639460',
   },
   {
@@ -133,7 +133,7 @@ const FALLBACK_THREADS: ForumThreadSummary[] = [
       'Não bộ con người quên tới ~70% thông tin mới chỉ sau 24 giờ nếu không ôn lại, nhưng nếu bạn làm lại câu sai vào các mốc 1 ngày – 3 ngày – 7 ngày, tỷ lệ ghi nhớ dài hạn tăng lên trên 90%!',
     message_count: 1,
     reply_count: 0,
-    created_at: new Date().toISOString(),
+    created_at: '2025-02-12T09:00:00.000Z',
     jump_url: 'https://discord.com/channels/1532265330079174697/1566808762117914714',
   },
   {
@@ -147,7 +147,7 @@ const FALLBACK_THREADS: ForumThreadSummary[] = [
       'Chào mừng bạn đến với Góc thắc mắc! Nơi giải đáp mọi băn khoăn trong quá trình học tập, cách khai thác kho đề và các tính năng trên Orbit Web & Discord.',
     message_count: 1,
     reply_count: 0,
-    created_at: new Date().toISOString(),
+    created_at: '2025-02-10T10:00:00.000Z',
     jump_url: 'https://discord.com/channels/1532265330079174697/1566808760289198251',
   },
 ];
@@ -314,14 +314,15 @@ export const ForumHub: React.FC<ForumHubProps> = ({ user, onRequireAuth }) => {
       const base = (apiBase || '').replace(/\/+$/, '');
       const res = await fetch(`${base}/api/forum/threads`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getDiscordAuthHeaders(),
+        },
         body: JSON.stringify({
           title: newTitle.trim(),
           content: newContent.trim(),
           category: newCategory,
-          author_id: user.id,
-          author_name: user.global_name || user.username,
-          author_avatar: user.avatar,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -339,7 +340,7 @@ export const ForumHub: React.FC<ForumHubProps> = ({ user, onRequireAuth }) => {
           `Đã đăng bài mới và đồng bộ trực tiếp lên kênh Discord #diễn-đàn (${created.category})!`
         );
       } else {
-        setStatusBanner(data?.message || 'Không thể đăng bài lúc này, vui lòng kiểm tra kết nối Bot.');
+        setStatusBanner(data?.message || data?.error || 'Không thể đăng bài lúc này, vui lòng kiểm tra đăng nhập Discord.');
       }
     } catch {
       setStatusBanner('Lỗi kết nối tới máy chủ Bot khi đăng bài mới.');
@@ -362,12 +363,13 @@ export const ForumHub: React.FC<ForumHubProps> = ({ user, onRequireAuth }) => {
       const base = (apiBase || '').replace(/\/+$/, '');
       const res = await fetch(`${base}/api/forum/threads/${activeThread.id}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getDiscordAuthHeaders(),
+        },
         body: JSON.stringify({
           content: replyContent.trim(),
-          author_id: user.id,
-          author_name: user.global_name || user.username,
-          author_avatar: user.avatar,
         }),
       });
       const data = await res.json().catch(() => null);

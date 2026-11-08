@@ -34,7 +34,14 @@ import {
   fetchDocContentFromTurso,
   ParsedExamQuestion,
   parseQuestionsFromRawTextClient,
+  requestAiTutorGuidance,
 } from '../utils/tursoClient';
+import {
+  gradeMoet2025Exam,
+  MoetExamGradeResult,
+  saveSrsMistakeCard,
+  getSrsMistakeCards,
+} from '../utils/moetScoring';
 import { API_FETCH_HEADERS } from '../utils/apiConfig';
 
 export type DossierModalTab = 'overview' | 'pdf_reader' | 'practice_room' | 'quorum_dossier';
@@ -89,6 +96,13 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
   const [shortAnswers, setShortAnswers] = useState<Record<number, string>>({});
   const [examSubmitted, setExamSubmitted] = useState<boolean>(false);
   const [examScoreSummary, setExamScoreSummary] = useState<string>('');
+  const [moetGradeResult, setMoetGradeResult] = useState<MoetExamGradeResult | null>(null);
+
+  // State cho Trợ lý Sư phạm AI (Hint / Explain) & Sổ tay SRS trên từng câu hỏi
+  const [aiTutorResponses, setAiTutorResponses] = useState<
+    Record<number, { mode: 'hint' | 'explain'; text: string; loading: boolean }>
+  >({});
+  const [savedSrsIds, setSavedSrsIds] = useState<Record<string, boolean>>({});
 
   // Đồng bộ initialTab khi mở modal
   useEffect(() => {
@@ -103,6 +117,18 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
       setPart1Count(defaultP1);
       setExamSubmitted(false);
       setExamScoreSummary('');
+      setMoetGradeResult(null);
+      setAiTutorResponses({});
+
+      // Nạp trạng thái các câu đã lưu trong Sổ tay SRS
+      const existingSrs = getSrsMistakeCards();
+      const srsMap: Record<string, boolean> = {};
+      for (const c of existingSrs) {
+        if (c.docId === doc.id) {
+          srsMap[`${doc.id}_q${c.questionNum}`] = true;
+        }
+      }
+      setSavedSrsIds(srsMap);
 
       // Khôi phục bài làm nháp từ localStorage nếu có
       try {
@@ -304,28 +330,90 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  const handleRequestAiTutor = async (q: ParsedExamQuestion, mode: 'hint' | 'explain') => {
+    setAiTutorResponses((prev) => ({
+      ...prev,
+      [q.number]: { mode, text: prev[q.number]?.text || '', loading: true },
+    }));
+    const optionsObj: Record<string, string> = {};
+    for (const opt of q.options) {
+      optionsObj[opt.key] = opt.text;
+    }
+    const res = await requestAiTutorGuidance({
+      mode,
+      subject: doc.subject || 'Tổng hợp',
+      questionText: `${q.label}: ${q.stem}`,
+      options: optionsObj,
+      userAnswer: mcqAnswers[q.number] || '',
+      correctAnswer: q.answer_key || detectedAnswerKeys[String(q.number)] || '',
+    });
+    setAiTutorResponses((prev) => ({
+      ...prev,
+      [q.number]: { mode, text: res.response, loading: false },
+    }));
+  };
+
+  const handleSaveQuestionToSrs = (q: ParsedExamQuestion) => {
+    const optionsObj: Record<string, string> = {};
+    for (const opt of q.options) {
+      optionsObj[opt.key] = opt.text;
+    }
+    saveSrsMistakeCard({
+      docId: doc.id,
+      docTitle: doc.title || doc.file_name,
+      subject: doc.subject || 'Tổng hợp',
+      questionNum: q.number,
+      questionText: q.stem,
+      options: optionsObj,
+      userAnswer: mcqAnswers[q.number] || '',
+      correctAnswer: q.answer_key || detectedAnswerKeys[String(q.number)] || '',
+    });
+    setSavedSrsIds((prev) => ({ ...prev, [`${doc.id}_q${q.number}`]: true }));
+    showSuccess(
+      `Đã lưu ${q.label} vào Sổ tay Ôn tập Ngắt quãng (SRS 1-3-7-14-30 ngày)!`,
+      'Sổ Tay SRS'
+    );
+  };
+
   const handleSubmitPracticeExam = () => {
     setExamTimerRunning(false);
-    const answeredPart1 = Object.keys(mcqAnswers).length;
+    const answeredPart1 = Object.values(mcqAnswers).filter(Boolean).length;
     const answeredPart2 = Object.values(tfAnswers).filter((v) => v !== null && v !== undefined).length;
     const answeredPart3 = Object.values(shortAnswers).filter((v) => v && v.trim().length > 0).length;
     const totalAnswered = answeredPart1 + answeredPart2 + answeredPart3;
 
-    // Kiểm tra tự động nếu đề có bảng đáp án
-    const keyCount = Object.keys(detectedAnswerKeys).length;
-    let correctMcq = 0;
-    let gradedMcq = 0;
-    if (keyCount > 0) {
-      for (let i = 1; i <= part1Count; i++) {
-        const expected = detectedAnswerKeys[String(i)];
-        const userAns = mcqAnswers[i];
-        if (expected) {
-          gradedMcq++;
-          if (userAns && userAns.toUpperCase() === expected.toUpperCase()) {
-            correctMcq++;
-          }
+    // Chấm điểm theo thang phân hóa chuẩn Bộ GD&ĐT 2025 (Phần I: 0.25đ, Phần II: 0.1/0.25/0.5/1.0đ, Phần III: dung sai số học)
+    const grade = gradeMoet2025Exam({
+      part1Count,
+      mcqAnswers,
+      tfAnswers,
+      shortAnswers,
+      answerKeys: detectedAnswerKeys,
+    });
+    setMoetGradeResult(grade);
+
+    // Tự động lưu các câu làm sai vào Sổ tay Ôn tập Ngắt quãng (SRS)
+    if (grade.wrongPart1Numbers.length > 0) {
+      const nextSrsMap = { ...savedSrsIds };
+      for (const wrongQNum of grade.wrongPart1Numbers) {
+        const parsedQ = parsedQuestions.find((pq) => pq.number === wrongQNum);
+        const optionsObj: Record<string, string> = {};
+        if (parsedQ) {
+          for (const o of parsedQ.options) optionsObj[o.key] = o.text;
         }
+        saveSrsMistakeCard({
+          docId: doc.id,
+          docTitle: doc.title || doc.file_name,
+          subject: doc.subject || 'Tổng hợp',
+          questionNum: wrongQNum,
+          questionText: parsedQ?.stem || `Câu ${wrongQNum} trong đề ${doc.title || doc.file_name}`,
+          options: optionsObj,
+          userAnswer: mcqAnswers[wrongQNum] || '(Chưa chọn)',
+          correctAnswer: detectedAnswerKeys[String(wrongQNum)] || '',
+        });
+        nextSrsMap[`${doc.id}_q${wrongQNum}`] = true;
       }
+      setSavedSrsIds(nextSrsMap);
     }
 
     const elapsedMinutes = Math.max(
@@ -334,8 +422,8 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
     );
 
     const summary =
-      gradedMcq > 0
-        ? `Đúng ${correctMcq}/${gradedMcq} câu có đáp án • Đã điền ${totalAnswered} mục (${elapsedMinutes} phút)`
+      grade.evaluatedQuestionCount > 0
+        ? `Điểm chuẩn 2025: ${grade.totalScore10}/10 (${grade.rawEarnedPoints}/${grade.rawMaxPoints}đ gốc) • Đúng trọn vẹn ${grade.correctCount}/${grade.evaluatedQuestionCount} câu có đáp án (${elapsedMinutes} phút)`
         : `Đã hoàn thành ${totalAnswered} mục trả lời trong ${elapsedMinutes} phút`;
 
     setExamSubmitted(true);
@@ -527,23 +615,61 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
               {filteredQuestions.map((q) => {
                 const selectedOpt = mcqAnswers[q.number];
+                const aiState = aiTutorResponses[q.number];
+                const isSavedInSrs = Boolean(savedSrsIds[`${doc.id}_q${q.number}`]);
                 return (
                   <div
                     key={q.number}
                     id={`reader-q-${q.number}`}
                     className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-purple-500/35 space-y-2.5 transition-all"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2.5 py-0.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-black">
-                        {q.label}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {q.type === 'mcq'
-                          ? 'Trắc nghiệm 4 phương án'
-                          : q.type === 'true_false'
-                          ? 'Đúng / Sai (a, b, c, d)'
-                          : 'Tự luận / Trả lời ngắn'}
-                      </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-black">
+                          {q.label}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {q.type === 'mcq'
+                            ? 'Trắc nghiệm 4 phương án'
+                            : q.type === 'true_false'
+                            ? 'Đúng / Sai (a, b, c, d)'
+                            : 'Tự luận / Trả lời ngắn'}
+                        </span>
+                      </div>
+
+                      {/* Thanh công cụ Sư phạm AI & Lưu Sổ tay SRS */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleRequestAiTutor(q, 'hint')}
+                          disabled={aiState?.loading}
+                          className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-colors"
+                          title="Nhận gợi ý phương pháp tư duy (không lộ đáp án)"
+                        >
+                          💡 Gợi ý AI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRequestAiTutor(q, 'explain')}
+                          disabled={aiState?.loading}
+                          className="px-2 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/30 text-[11px] font-bold cursor-pointer transition-colors"
+                          title="Xem phân tích & giải thích chi tiết"
+                        >
+                          ✨ Giải thích
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveQuestionToSrs(q)}
+                          className={`px-2 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                            isSavedInSrs
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+                          }`}
+                          title="Lưu câu hỏi vào Sổ tay Ôn tập Ngắt quãng (Spaced Repetition 1-3-7-14-30 ngày)"
+                        >
+                          {isSavedInSrs ? '✓ Đã lưu SRS' : '📌 Lưu SRS'}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="text-slate-100 leading-relaxed whitespace-pre-wrap">{q.stem}</div>
@@ -601,6 +727,41 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
                             <span>{st.text}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Khung hiển thị phản hồi của Trợ lý Sư phạm AI */}
+                    {aiState && (
+                      <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-purple-950/60 via-[#130D21] to-indigo-950/50 border border-purple-500/35 text-xs text-slate-200 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-purple-300 uppercase tracking-wider">
+                            {aiState.mode === 'hint'
+                              ? '💡 Gợi ý phương pháp tư duy'
+                              : '✨ Phân tích & Giải thích chi tiết'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAiTutorResponses((prev) => {
+                                const next = { ...prev };
+                                delete next[q.number];
+                                return next;
+                              })
+                            }
+                            className="text-slate-400 hover:text-white text-[11px] cursor-pointer"
+                          >
+                            Đóng
+                          </button>
+                        </div>
+                        {aiState.loading ? (
+                          <div className="text-slate-400 animate-pulse py-1">
+                            Đang phân tích dữ kiện câu hỏi...
+                          </div>
+                        ) : (
+                          <div className=" whitespace-pre-wrap leading-relaxed text-slate-100">
+                            {aiState.text}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -884,12 +1045,38 @@ export const ExamDossierModal: React.FC<ExamDossierModalProps> = ({
 
               {/* Thông báo kết quả khi đã nộp bài */}
               {examSubmitted && (
-                <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 space-y-1.5 animate-in fade-in duration-200">
-                  <div className="flex items-center gap-2 text-emerald-300 font-black text-sm">
-                    <Award className="w-4 h-4 text-emerald-400" />
-                    <span>Đã hoàn thành phiên luyện đề thực chiến!</span>
+                <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 space-y-2 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-emerald-300 font-black text-sm">
+                      <Award className="w-4 h-4 text-emerald-400" />
+                      <span>Đã hoàn thành phiên luyện đề thực chiến!</span>
+                    </div>
+                    {moetGradeResult && moetGradeResult.evaluatedQuestionCount > 0 && (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500 text-black font-mono font-black text-xs">
+                        {moetGradeResult.totalScore10}/10 điểm
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-emerald-100/90">{examScoreSummary}</p>
+                  {moetGradeResult && moetGradeResult.evaluatedQuestionCount > 0 && (
+                    <div className="grid grid-cols-3 gap-1.5 pt-1 text-[11px] font-mono">
+                      <div className="p-1.5 rounded-lg bg-black/40 border border-white/10 text-cyan-200">
+                        Phần I: <strong>{moetGradeResult.part1Earned}đ</strong>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-black/40 border border-white/10 text-emerald-200">
+                        Phần II (Lũy tiến): <strong>{moetGradeResult.part2Earned}đ</strong>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-black/40 border border-white/10 text-indigo-200">
+                        Phần III: <strong>{moetGradeResult.part3Earned}đ</strong>
+                      </div>
+                    </div>
+                  )}
+                  {moetGradeResult && moetGradeResult.wrongPart1Numbers.length > 0 && (
+                    <div className="text-[11px] text-amber-200/90 pt-0.5">
+                      📌 Đã tự động lưu {moetGradeResult.wrongPart1Numbers.length} câu chưa chính xác (Câu{' '}
+                      {moetGradeResult.wrongPart1Numbers.join(', ')}) vào Sổ tay Ôn tập Ngắt quãng (SRS 1-3-7-14-30 ngày).
+                    </div>
+                  )}
                 </div>
               )}
 

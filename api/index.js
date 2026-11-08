@@ -4,36 +4,67 @@
  * Không cần ngrok hay Cloudflare Tunnel.
  */
 
-const TURSO_DATABASE_URL =
-  process.env.TURSO_DATABASE_URL || "https://daiviet-daiviet.aws-ap-northeast-1.turso.io";
-const TURSO_AUTH_TOKEN =
-  process.env.TURSO_AUTH_TOKEN ||
-  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE3MzI5NDQsImlkIjoiMDFhMTJiOTktYTEwMS03OGFlLWI1ZTItNWRjODQ2ZjZjZjQ3Iiwia2lkIjoiRHBfR2JDeW01a1VKNk9NUkR4aFE5akxxdFlXR1ZTUF81ZzhZQ0xkSmVfWSIsInJpZCI6IjU0MjdjMWE1LWU3MWEtNGMzZi1iNWUxLTgwZjYwZTM3NDZjZCJ9.OuOzXvRrslun1bxyS5BZ9lDOSR97yhViOWRktdLBLrLG1a9Jmf_QlpSK1WwsLgQydNFO7IQhCJKZoyAP6o7fDA";
-
-const BOT_OWNER_ID = "1529864608813416449";
-const DISCORD_GUILD_ID = "1532265330079174697";
-const DISCORD_DATABASE_CHANNEL_ID = process.env.DATABASE_ARCHIVE_CHANNEL_ID || "1548627763467128912";
-let localEnvToken = "";
+const localEnvVars = {};
 try {
   const _fs = require("fs");
   const _path = require("path");
-  const _envFile = _path.resolve(__dirname, "../../Bot/.env");
-  if (_fs.existsSync(_envFile)) {
-    const _raw = _fs.readFileSync(_envFile, "utf8");
-    const _m = _raw.match(/DISCORD_TOKEN=([^\r\n]+)/);
-    if (_m) localEnvToken = _m[1].trim();
+  const candidateFiles = [
+    _path.resolve(__dirname, "../.env"),
+    _path.resolve(__dirname, "../../Bot/.env"),
+  ];
+  for (const envPath of candidateFiles) {
+    if (_fs.existsSync(envPath)) {
+      const raw = _fs.readFileSync(envPath, "utf8");
+      for (const line of raw.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx > 0) {
+          const k = trimmed.slice(0, eqIdx).trim();
+          const v = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+          if (k && !(k in localEnvVars)) {
+            localEnvVars[k] = v;
+          }
+        }
+      }
+    }
   }
 } catch {}
+
+const TURSO_DATABASE_URL =
+  process.env.TURSO_DATABASE_URL ||
+  localEnvVars.TURSO_DATABASE_URL ||
+  "https://daiviet-daiviet.aws-ap-northeast-1.turso.io";
+const TURSO_AUTH_TOKEN =
+  process.env.TURSO_AUTH_TOKEN ||
+  localEnvVars.TURSO_AUTH_TOKEN ||
+  "";
+
+const BOT_OWNER_ID = "1529864608813416449";
+const DISCORD_GUILD_ID = "1532265330079174697";
+const DISCORD_DATABASE_CHANNEL_ID =
+  process.env.DATABASE_ARCHIVE_CHANNEL_ID ||
+  localEnvVars.DATABASE_ARCHIVE_CHANNEL_ID ||
+  "1548627763467128912";
 
 const DISCORD_BOT_TOKEN =
   process.env.DISCORD_TOKEN ||
   process.env.DISCORD_BOT_TOKEN ||
-  localEnvToken;
+  localEnvVars.DISCORD_TOKEN ||
+  localEnvVars.DISCORD_BOT_TOKEN ||
+  "";
+const BOT_RPC_SECRET =
+  process.env.BOT_RPC_SECRET ||
+  process.env.X_BOT_SECRET ||
+  localEnvVars.BOT_RPC_SECRET ||
+  localEnvVars.X_BOT_SECRET ||
+  "";
 const DISCORD_FORUM_CHANNEL_ID = "1535557885721841744";
 const DISCORD_WEB_SYNC_WEBHOOK_ID = "1568882621470089247";
 const DISCORD_WEB_SYNC_WEBHOOK_URL =
   process.env.DISCORD_WEB_SYNC_WEBHOOK_URL ||
-  "https://discord.com/api/webhooks/1568882621470089247/Q49ZOF2DnRtl82yiVgv7PYwuvufyrCqY4iSGq0ci43yXsvZA27AlO4mImX3KnH-NuuIO";
+  localEnvVars.DISCORD_WEB_SYNC_WEBHOOK_URL ||
+  "";
 
 const _lastWebhookSentByEvent = new Map();
 
@@ -93,6 +124,34 @@ async function sendWebSyncWebhook(eventType = "web_active", details = {}) {
   }
 }
 
+const ALLOWED_CORS_ORIGINS = new Set([
+  "https://orbit-psi-black.vercel.app",
+  "https://hyperhub-one.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5000",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5000",
+]);
+
+function getAllowedCorsOrigin(originHeader) {
+  if (!originHeader) return "https://orbit-psi-black.vercel.app";
+  const normalized = String(originHeader).trim().replace(/\/+$/, "");
+  if (ALLOWED_CORS_ORIGINS.has(normalized)) return normalized;
+  try {
+    const parsed = new URL(normalized);
+    if (
+      parsed.protocol === "https:" &&
+      (parsed.hostname === "orbit-psi-black.vercel.app" ||
+        parsed.hostname.endsWith("-daivietforwork-81s-projects.vercel.app"))
+    ) {
+      return normalized;
+    }
+  } catch {}
+  return "https://orbit-psi-black.vercel.app";
+}
+
 const FORUM_CATEGORY_TO_TAG = {
   "Góc thắc mắc": "1566808758728786134",
   "Facts": "1566808758728786135",
@@ -129,6 +188,9 @@ async function callDiscordRest(endpoint, method = "GET", body = null) {
 }
 
 async function executeTurso(sql, args = []) {
+  if (!TURSO_AUTH_TOKEN) {
+    throw new Error("TURSO_AUTH_TOKEN chưa được cấu hình trên máy chủ.");
+  }
   const url = `${TURSO_DATABASE_URL.replace(/\/+$/, "")}/v2/pipeline`;
   const positionalArgs = args.map((arg) => {
     if (arg === null || arg === undefined) return { type: "null" };
@@ -184,8 +246,8 @@ async function executeTurso(sql, args = []) {
     return obj;
   });
 
-  const lastInsertRowId = execResult.last_insert_rowid
-    ? parseInt(execResult.last_insert_rowid, 10)
+  const lastInsertRowId = execResult.lastInsertRowId || execResult.last_insert_rowid
+    ? parseInt(execResult.lastInsertRowId || execResult.last_insert_rowid, 10)
     : undefined;
   return {
     rows,
@@ -211,16 +273,107 @@ async function getKvValue(key) {
   }
 }
 
+const DISCORD_TOKEN_CACHE_TTL_MS = 180 * 1000; // 3 phút
+
+function hashTokenKey(token) {
+  try {
+    const crypto = require("crypto");
+    return crypto.createHash("sha256").update(token).digest("hex");
+  } catch {
+    return token.slice(0, 24);
+  }
+}
+
+function parseCookies(req) {
+  const raw = req?.headers?.cookie || "";
+  const out = {};
+  if (!raw) return out;
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq > 0) {
+      const k = part.slice(0, eq).trim();
+      const v = part.slice(eq + 1).trim();
+      if (k) {
+        try {
+          out[k] = decodeURIComponent(v);
+        } catch {
+          out[k] = v;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function setHttpOnlySessionCookie(res, token, maxAgeSec = 604800) {
+  if (!res || typeof res.setHeader !== "function") return;
+  const cookieVal = token ? encodeURIComponent(token) : "";
+  const age = token ? maxAgeSec : 0;
+  res.setHeader(
+    "Set-Cookie",
+    `orbit_session=${cookieVal}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${age}`
+  );
+}
+
+function computeRpcHmacSignature(timestampSec, method, path, bodyStr) {
+  const secret = BOT_RPC_SECRET || TURSO_AUTH_TOKEN || "orbit-rpc-default-key";
+  try {
+    const crypto = require("crypto");
+    return crypto
+      .createHmac("sha256", secret)
+      .update(`${timestampSec}:${method}:${path}:${bodyStr}`)
+      .digest("hex");
+  } catch {
+    return "";
+  }
+}
+
+function sanitizeDiscordMentions(text) {
+  return String(text || "")
+    .replace(/@everyone/gi, "@\u200beveryone")
+    .replace(/@here/gi, "@\u200bhere")
+    .replace(/<@&\d+>/g, "[role-mention]");
+}
+
 async function verifyDiscordBearerToken(req) {
   const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  let token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    const cookies = parseCookies(req);
+    if (cookies.orbit_session) {
+      token = String(cookies.orbit_session).trim();
+    }
+  }
   if (!token || token.length < 10) return null;
+
+  if (!globalThis._discordAuthCache) {
+    globalThis._discordAuthCache = new Map();
+  }
+  const cacheKey = hashTokenKey(token);
+  const now = Date.now();
+  const cached = globalThis._discordAuthCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.userData;
+  }
+
   try {
     const r = await fetch("https://discord.com/api/v10/users/@me", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!r.ok) return null;
-    return await r.json();
+    if (!r.ok) {
+      globalThis._discordAuthCache.delete(cacheKey);
+      return null;
+    }
+    const userData = await r.json();
+    if (globalThis._discordAuthCache.size >= 500) {
+      const oldestKey = globalThis._discordAuthCache.keys().next().value;
+      globalThis._discordAuthCache.delete(oldestKey);
+    }
+    globalThis._discordAuthCache.set(cacheKey, {
+      userData,
+      expiresAt: now + DISCORD_TOKEN_CACHE_TTL_MS,
+    });
+    return userData;
   } catch {
     return null;
   }
@@ -357,10 +510,17 @@ async function forwardRpcToBot(method, path, reqHeaders, bodyObj, waitMs = 8000)
       ? JSON.stringify(bodyObj)
       : "";
 
+  const signature = computeRpcHmacSignature(nowSec, method, path, bodyStr);
+  const signedHeaders = {
+    ...(reqHeaders || {}),
+    "X-Rpc-Timestamp": String(nowSec),
+    "X-Rpc-Signature": signature,
+  };
+
   const ins = await executeTurso(
     `INSERT INTO bot_rpc_queue (method, path, headers, body, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
-    [method, path, JSON.stringify(reqHeaders || {}), bodyStr, nowSec, nowSec]
+    [method, path, JSON.stringify(signedHeaders), bodyStr, nowSec, nowSec]
   );
   const rpcId = ins.lastInsertRowId;
   if (!rpcId) {
@@ -794,9 +954,11 @@ async function resolveDocumentFileOnVercel(docId) {
 }
 
 export default async function handler(req, res) {
-  // CORS Headers
-  const origin = req.headers.origin || "*";
-  res.setHeader("Access-Control-Allow-Origin", origin);
+  // CORS Headers (Strict Allowlist)
+  const safeOrigin = getAllowedCorsOrigin(req.headers.origin);
+  res.setHeader("Access-Control-Allow-Origin", safeOrigin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
@@ -905,10 +1067,16 @@ export default async function handler(req, res) {
     // 2. GET /api/documents/stats
     if (pathname === "/api/documents/stats" && req.method === "GET") {
       const totalRes = await executeTurso(
-        "SELECT COUNT(*) as cnt, COALESCE(SUM(file_size_bytes), 0) as total_bytes FROM documents_archive"
+        `SELECT COUNT(*) as cnt,
+                COALESCE(SUM(file_size_bytes), 0) as total_bytes,
+                COALESCE(SUM(CASE WHEN queue_status = 'pending_bot' THEN 1 ELSE 0 END), 0) as pending_count,
+                COALESCE(SUM(CASE WHEN queue_status = 'synced_discord' THEN 1 ELSE 0 END), 0) as synced_count
+         FROM documents_archive`
       );
       const totalItems = Number(totalRes.rows[0]?.cnt || 0);
       const totalBytes = Number(totalRes.rows[0]?.total_bytes || 0);
+      const pendingCount = Number(totalRes.rows[0]?.pending_count || 0);
+      const syncedCount = Number(totalRes.rows[0]?.synced_count || 0);
 
       const uniqueRes = await executeTurso(
         "SELECT COUNT(DISTINCT COALESCE(NULLIF(file_hash, ''), LOWER(file_name))) as ucnt FROM documents_archive"
@@ -938,6 +1106,8 @@ export default async function handler(req, res) {
         unique_items: uniqueItems,
         duplicate_items: duplicateItems,
         total_bytes: totalBytes,
+        pending_count: pendingCount,
+        synced_count: syncedCount,
         subjects,
       });
     }
@@ -951,7 +1121,7 @@ export default async function handler(req, res) {
           .json({ error: "Mã hash không hợp lệ (yêu cầu 64 ký tự SHA-256)" });
       }
       const existingRes = await executeTurso(
-        "SELECT id, title, author_name, timestamp, jump_url FROM documents_archive WHERE file_hash = ? LIMIT 1",
+        "SELECT id, title, file_name, author_name, timestamp, jump_url FROM documents_archive WHERE file_hash = ? LIMIT 1",
         [fileHash]
       );
       const existing = existingRes.rows[0];
@@ -962,9 +1132,153 @@ export default async function handler(req, res) {
           message: `Tài liệu trùng lặp! Tệp '${existing.title}' đã được nộp trước đó bởi '${existing.author_name}' vào ${existing.timestamp}.`,
           doc_id: existing.id,
           title: existing.title,
+          existingDoc: existing,
         });
       }
       return res.status(200).json({ exists: false, is_duplicate: false });
+    }
+
+    // 2c. POST /api/documents/submit — Lưu tài liệu đã kiểm định từ Client qua Server API (bảo vệ Turso credential)
+    if (pathname === "/api/documents/submit" && req.method === "POST") {
+      let body = {};
+      try {
+        body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      } catch {
+        body = {};
+      }
+
+      const fileHash = String(body.fileHash || body.file_hash || "").trim();
+      const fileName = String(body.fileName || body.file_name || "").trim().slice(0, 260);
+      const title = String(body.title || fileName || "Đề thi Orbit").trim().slice(0, 260);
+      const subject = String(body.subject || "GENERAL").trim().slice(0, 50);
+
+      if (!fileName || !fileHash || fileHash.length !== 64) {
+        return res.status(400).json({
+          success: false,
+          error: "Thiếu tên tệp hoặc mã băm SHA-256 hợp lệ.",
+        });
+      }
+
+      const dupRes = await executeTurso(
+        "SELECT id, title, file_name, author_name, timestamp, jump_url FROM documents_archive WHERE file_hash = ? LIMIT 1",
+        [fileHash]
+      );
+      if (dupRes.rows.length > 0) {
+        const ex = dupRes.rows[0];
+        return res.status(409).json({
+          success: false,
+          is_duplicate: true,
+          message: `Tài liệu trùng lặp! Tệp '${ex.title}' đã được nộp trước đó bởi '${ex.author_name}'.`,
+          existingDoc: ex,
+        });
+      }
+
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      const authorIdStr = verifiedUser?.id
+        ? String(verifiedUser.id)
+        : body.authorId
+        ? String(body.authorId).slice(0, 40)
+        : "0";
+      const authorName = verifiedUser
+        ? String(verifiedUser.global_name || verifiedUser.username || body.authorName || "Thành viên Orbit").slice(0, 120)
+        : String(body.authorName || "Khách (Web)").slice(0, 120);
+      const authorAvatar = verifiedUser?.avatar
+        ? `https://cdn.discordapp.com/avatars/${verifiedUser.id}/${verifiedUser.avatar}.png`
+        : String(body.authorAvatar || "").slice(0, 500);
+
+      if (authorIdStr !== "0" && authorAvatar) {
+        try {
+          await executeTurso(
+            `INSERT INTO linked_accounts (discord_id, username, global_name, avatar_url, updated_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(discord_id) DO UPDATE SET
+               avatar_url = excluded.avatar_url,
+               global_name = COALESCE(excluded.global_name, linked_accounts.global_name),
+               updated_at = excluded.updated_at`,
+            [authorIdStr, authorName, authorName, authorAvatar, Math.floor(Date.now() / 1000)]
+          );
+        } catch {}
+      }
+
+      const nowIso = new Date().toISOString();
+      const queueStatus = body.queueStatus === "synced_discord" ? "synced_discord" : "pending_bot";
+      const rawTextSnippet = String(body.rawTextSnippet || "").slice(0, 50000);
+      const base64Raw = body.fileContentBase64 ? String(body.fileContentBase64) : null;
+      const cleanBase64 = base64Raw
+        ? base64Raw.replace(/^data:[^;]+;base64,/, "")
+        : null;
+
+      const insRes = await executeTurso(
+        `INSERT INTO documents_archive (
+          subject, title, file_name, file_size_bytes, file_type,
+          estimated_level, question_count, page_count, author_id,
+          author_name, channel_id, message_id, jump_url, timestamp,
+          file_hash, raw_text, notes, academic_year, school_or_department,
+          verdict, exam_track, confidence, moet_2025_compliant,
+          moet_part1_count, moet_part2_count, moet_part3_count,
+          has_answer_keys, has_detailed_solutions, queue_status,
+          client_pre_parsed, file_content_base64, created_via
+        ) VALUES (
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?,
+          ?, ?, ?,
+          ?, ?, ?,
+          ?, ?, ?
+        )`,
+        [
+          subject,
+          title,
+          fileName,
+          Math.max(0, Number(body.fileSizeBytes || 0)),
+          String(body.fileType || "PDF").slice(0, 20),
+          String(body.estimatedLevel || "Phổ thông").slice(0, 80),
+          Math.max(0, Number(body.questionCount || 0)),
+          Math.max(1, Number(body.pageCount || 1)),
+          authorIdStr,
+          authorName,
+          DISCORD_DATABASE_CHANNEL_ID,
+          0,
+          "https://orbit-psi-black.vercel.app/#vault",
+          nowIso,
+          fileHash,
+          rawTextSnippet,
+          String(body.notes || `${body.estimatedLevel || "Phổ thông"} — ${title}`).slice(0, 1000),
+          body.academicYear ? String(body.academicYear).slice(0, 30) : null,
+          body.schoolOrDepartment ? String(body.schoolOrDepartment).slice(0, 160) : null,
+          "XAC_MINH",
+          "THI_THU_THPT",
+          0.95,
+          body.moet2025Compliant ? 1 : 0,
+          Math.max(0, Number(body.moetPart1Count || 0)),
+          Math.max(0, Number(body.moetPart2Count || 0)),
+          Math.max(0, Number(body.moetPart3Count || 0)),
+          body.hasAnswerKeys ? 1 : 0,
+          body.hasDetailedSolutions ? 1 : 0,
+          queueStatus,
+          1,
+          cleanBase64 && cleanBase64.length <= 7_500_000 ? cleanBase64 : null,
+          "web",
+        ]
+      );
+
+      const newDocId = insRes.lastInsertRowId || 0;
+      if (queueStatus === "pending_bot" && newDocId) {
+        forwardRpcToBot(
+          "POST",
+          "/api/documents/sync_pending",
+          {},
+          { doc_id: newDocId },
+          1200
+        ).catch(() => {});
+      }
+
+      return res.status(201).json({
+        success: true,
+        id: newDocId,
+      });
     }
 
     // Helper: điều kiện lọc exam_type giống hệt Bot/services/api_bridge.py
@@ -1008,10 +1322,10 @@ export default async function handler(req, res) {
       let limit = 20;
       let page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
       if (["0", "-1", "all", "unlimited"].includes(rawLimit)) {
-        limit = 100000;
+        limit = 100;
         page = 1;
       } else {
-        limit = Math.min(10000, Math.max(1, parseInt(rawLimit, 10) || 20));
+        limit = Math.min(100, Math.max(1, parseInt(rawLimit, 10) || 20));
       }
       const offset = searchParams.has("offset")
         ? Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0)
@@ -1486,16 +1800,52 @@ export default async function handler(req, res) {
     }
 
     if (pathname === "/api/study/checkin" && req.method === "POST") {
-      const body = req.body || {};
-      const discordId = String(body.discord_id || "").trim();
-      if (!discordId) {
-        return res.status(400).json({ error: "Thiếu discord_id" });
+      let body = {};
+      try {
+        body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      } catch {
+        body = {};
       }
+
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      if (!verifiedUser || !verifiedUser.id) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Vui lòng liên kết tài khoản Discord hợp lệ để đồng bộ XP và chuỗi ngày học.",
+        });
+      }
+
+      const discordId = String(verifiedUser.id).trim();
       const action = String(body.action || "daily_checkin").trim().toLowerCase();
       const minutes = Math.max(0, Math.min(parseInt(body.minutes || "0", 10) || 0, 240));
-      const username = String(body.username || "").trim();
-      const displayName = String(body.display_name || username || "Học viên Orbit").trim();
-      const avatarUrl = String(body.avatar_url || "").trim();
+      const username = String(verifiedUser.username || body.username || "").trim();
+      const displayName = String(
+        verifiedUser.global_name || body.display_name || username || "Học viên Orbit"
+      ).trim();
+      const avatarUrl = verifiedUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${discordId}/${verifiedUser.avatar}.png`
+        : String(body.avatar_url || "").trim();
+
+      // Chống spam farm XP bằng script (Cooldown theo người dùng + hành động)
+      if (!globalThis._studyCheckinCooldown) {
+        globalThis._studyCheckinCooldown = new Map();
+      }
+      const cooldownKey = `${discordId}::${action}`;
+      const nowMs = Date.now();
+      const lastActionMs = globalThis._studyCheckinCooldown.get(cooldownKey) || 0;
+      const minIntervalMs =
+        action === "pomodoro" ? 60 * 1000 : action === "exam_complete" ? 30 * 1000 : 3000;
+      if (nowMs - lastActionMs < minIntervalMs) {
+        return res.status(429).json({
+          error: "Too Many Requests",
+          message: "Thao tác quá nhanh, vui lòng đợi giây lát trước khi đồng bộ tiếp.",
+        });
+      }
+      if (globalThis._studyCheckinCooldown.size >= 1000) {
+        const oldestKey = globalThis._studyCheckinCooldown.keys().next().value;
+        globalThis._studyCheckinCooldown.delete(oldestKey);
+      }
+      globalThis._studyCheckinCooldown.set(cooldownKey, nowMs);
 
       const { todayStr, yesterdayStr } = getVnDates();
       const nowIso = new Date().toISOString();
@@ -1726,12 +2076,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // 6. POST /api/account/link & GET /api/account/me
+    // 6. POST /api/account/link, POST /api/account/logout & GET /api/account/me
+    if (pathname === "/api/account/logout" && req.method === "POST") {
+      setHttpOnlySessionCookie(res, "", 0);
+      return res.status(200).json({ success: true, message: "Đã đăng xuất và xóa phiên HttpOnly." });
+    }
+
     if (pathname === "/api/account/link" && req.method === "POST") {
       const userData = await verifyDiscordBearerToken(req);
       if (!userData) {
         return res.status(401).json({ error: "Token Discord không hợp lệ hoặc đã hết hạn" });
       }
+      const rawAuth = req.headers.authorization || "";
+      const rawToken = rawAuth.startsWith("Bearer ") ? rawAuth.slice(7).trim() : "";
+      if (rawToken) {
+        setHttpOnlySessionCookie(res, rawToken);
+      }
+
       const discordId = String(userData.id || "");
       const username = String(userData.username || "");
       const globalName = String(userData.global_name || username);
@@ -1762,115 +2123,37 @@ export default async function handler(req, res) {
       });
     }
 
-    // 6b. POST /api/account/verify-member (Xác thực thành viên Discord Server Orbit để mở khóa Hub & Diễn Đàn 24/7)
+    // 6b. POST /api/account/verify-member (Đã khóa xác thực Bearer Token chống mạo danh — VULN-04)
     if (pathname === "/api/account/verify-member" && req.method === "POST") {
-      const body = req.body || {};
-      const identifier = String(body.identifier || "").trim();
-      if (!identifier) {
-        return res.status(400).json({
-          error: "Missing identifier",
-          message: "Vui lòng nhập Discord Username hoặc Discord ID của bạn.",
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      if (!verifiedUser) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message:
+            "Phương thức đăng nhập bằng Username thô đã bị vô hiệu hóa để bảo mật. Vui lòng ủy quyền Discord OAuth2 và nhập mã xác minh 6 số từ kênh #🔐・verify!",
         });
       }
 
-      const cleanId = identifier.replace(/^<@!?/, "").replace(/>$/, "").trim();
-      const qLower = identifier.replace(/^@/, "").trim().toLowerCase();
+      const discordId = String(verifiedUser.id || "");
+      const username = String(verifiedUser.username || discordId);
+      const globalName = String(verifiedUser.global_name || username);
+      const avatarUrl = verifiedUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${discordId}/${verifiedUser.avatar}.png`
+        : "https://orbit-psi-black.vercel.app/server_icon.png";
 
-      // Kiểm tra nhanh trong snapshot admin_members trên Turso Cloud (<50ms, hoạt động cả khi tắt PC)
-      const kvMembers = await getKvValue("admin_members");
-      const memberList = kvMembers?.data?.members || [];
-      const matchedSnapshot = memberList.find(
-        (m) =>
-          !m.is_bot &&
-          (String(m.user_id) === cleanId ||
-            String(m.username || "").toLowerCase() === qLower ||
-            String(m.display_name || "").toLowerCase() === qLower)
-      );
-
-      if (matchedSnapshot) {
-        try {
-          const nowIsoLa = new Date().toISOString();
-          await executeTurso(
-            `INSERT INTO linked_accounts (discord_id, username, global_name, avatar_url, email, verified, first_seen, last_seen, login_count)
-             VALUES (?, ?, ?, ?, ?, 1, ?, ?, 1)
-             ON CONFLICT(discord_id) DO UPDATE SET
-               username = excluded.username,
-               global_name = excluded.global_name,
-               avatar_url = CASE WHEN excluded.avatar_url != '' THEN excluded.avatar_url ELSE linked_accounts.avatar_url END,
-               last_seen = excluded.last_seen,
-               login_count = linked_accounts.login_count + 1`,
-            [
-              String(matchedSnapshot.user_id),
-              String(matchedSnapshot.username || matchedSnapshot.user_id),
-              String(matchedSnapshot.display_name || matchedSnapshot.username || matchedSnapshot.user_id),
-              matchedSnapshot.avatar_url || "https://orbit-psi-black.vercel.app/server_icon.png",
-              `${matchedSnapshot.username || matchedSnapshot.user_id}@discord.orbit.vn`,
-              nowIsoLa,
-              nowIsoLa,
-            ]
-          );
-        } catch {}
-        return res.status(200).json({
-          success: true,
-          user: {
-            id: String(matchedSnapshot.user_id),
-            username: String(matchedSnapshot.username || matchedSnapshot.user_id),
-            global_name: String(matchedSnapshot.display_name || matchedSnapshot.username || matchedSnapshot.user_id),
-            avatar:
-              matchedSnapshot.avatar_url ||
-              "https://orbit-psi-black.vercel.app/server_icon.png",
-            email: `${matchedSnapshot.username || matchedSnapshot.user_id}@discord.orbit.vn`,
-            verified: true,
-            roles: ["Member"],
-            connectedAt: new Date().toISOString(),
-          },
-        });
-      }
-
-      // Kiểm tra trong bảng linked_accounts trên Turso Cloud
-      try {
-        const linkedRes = await executeTurso(
-          `SELECT discord_id, username, global_name, avatar_url, email
-           FROM linked_accounts
-           WHERE CAST(discord_id AS TEXT) = ? OR LOWER(username) = ? OR LOWER(global_name) = ?
-           LIMIT 1`,
-          [cleanId, qLower, qLower]
-        );
-        const linkedRow = linkedRes.rows?.[0];
-        if (linkedRow) {
-          return res.status(200).json({
-            success: true,
-            user: {
-              id: String(linkedRow.discord_id),
-              username: String(linkedRow.username || linkedRow.discord_id),
-              global_name: String(linkedRow.global_name || linkedRow.username || linkedRow.discord_id),
-              avatar:
-                linkedRow.avatar_url ||
-                "https://orbit-psi-black.vercel.app/server_icon.png",
-              email: String(linkedRow.email || `${linkedRow.username}@discord.orbit.vn`),
-              verified: true,
-              roles: ["Member"],
-              connectedAt: new Date().toISOString(),
-            },
-          });
-        }
-      } catch {}
-
-      // Nếu thành viên mới vào server chưa kịp có trong snapshot, hỏi trực tiếp Bot qua RPC
-      const rpcVerify = await forwardRpcToBot(
-        "POST",
-        "/api/account/verify-member",
-        {},
-        body,
-        5500
-      );
-      if (rpcVerify.status === 202) {
-        return res.status(404).json({
-          error: "Member not found",
-          message: `Không tìm thấy thành viên '${identifier}' trong danh sách đồng bộ máy chủ Discord Orbit | Vietnam. Hãy chắc chắn bạn đã tham gia server Discord Orbit và nhập đúng Username hoặc ID!`,
-        });
-      }
-      return res.status(rpcVerify.status).json(rpcVerify.body);
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: discordId,
+          username,
+          global_name: globalName,
+          avatar: avatarUrl,
+          email: String(verifiedUser.email || `${username}@discord.orbit.vn`),
+          verified: Boolean(verifiedUser.verified),
+          roles: ["Member"],
+          connectedAt: new Date().toISOString(),
+        },
+      });
     }
 
     // 6b-2. POST /api/account/verify-code (Xác thực mã OTP 6 số hiệu lực 5 phút từ kênh #🔐・verify)
@@ -1879,10 +2162,36 @@ export default async function handler(req, res) {
       const discordId = String(body.discord_id || "").trim();
       const cleanCode = String(body.code || "").trim().replace(/\s+/g, "");
 
-      if (!discordId || !cleanCode) {
+      if (!discordId || !cleanCode || !/^\d{6}$/.test(cleanCode)) {
         return res.status(400).json({
           error: "Missing parameters",
-          message: "Vui lòng nhập đầy đủ mã xác minh 6 số từ kênh #🔐・verify.",
+          message: "Vui lòng nhập đúng định dạng mã xác minh 6 chữ số từ kênh #🔐・verify.",
+        });
+      }
+
+      // Nếu client đính kèm Bearer token từ bước 1 OAuth, bắt buộc ID trong token phải khớp với discord_id
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      if (verifiedUser && String(verifiedUser.id) !== discordId) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "Tài khoản Discord đang ủy quyền không khớp với mã xác minh.",
+        });
+      }
+
+      // Chống vét cạn (Brute-force OTP 6 số): Tối đa 5 lần thử sai cho mỗi discordId
+      if (!globalThis._verifyCodeAttempts) {
+        globalThis._verifyCodeAttempts = new Map();
+      }
+      const attemptInfo = globalThis._verifyCodeAttempts.get(discordId) || { count: 0, resetAt: Date.now() + 300000 };
+      if (Date.now() > attemptInfo.resetAt) {
+        attemptInfo.count = 0;
+        attemptInfo.resetAt = Date.now() + 300000;
+      }
+      if (attemptInfo.count >= 5) {
+        await executeTurso("DELETE FROM web_verify_codes WHERE discord_id = ?", [discordId]).catch(() => {});
+        return res.status(429).json({
+          error: "Too Many Attempts",
+          message: "Bạn đã nhập sai quá 5 lần. Mã xác minh đã bị hủy tự động, vui lòng lấy mã mới trong kênh #🔐・verify!",
         });
       }
 
@@ -1921,15 +2230,24 @@ export default async function handler(req, res) {
           }
 
           if (savedCode !== cleanCode) {
+            attemptInfo.count += 1;
+            globalThis._verifyCodeAttempts.set(discordId, attemptInfo);
             return res.status(400).json({
               error: "Invalid code",
               message: "Mã xác minh không chính xác (hoặc đã bị hủy do bạn vừa ấn tạo mã mới). Vui lòng nhập mã 6 số mới nhất!",
             });
           }
 
-          // Mã hợp lệ -> Hủy mã ngay sau khi dùng 1 lần
+          // Mã hợp lệ -> Hủy mã ngay sau khi dùng 1 lần & xóa bộ đếm lỗi
+          globalThis._verifyCodeAttempts.delete(discordId);
           await executeTurso("DELETE FROM web_verify_codes WHERE discord_id = ?", [discordId]).catch(() => {});
           forwardRpcToBot("POST", "/api/account/verify-code", {}, body, 1500).catch(() => {});
+
+          const rawAuth = req.headers.authorization || "";
+          const rawToken = rawAuth.startsWith("Bearer ") ? rawAuth.slice(7).trim() : "";
+          if (rawToken) {
+            setHttpOnlySessionCookie(res, rawToken);
+          }
 
           return res.status(200).json({
             success: true,
@@ -2094,8 +2412,16 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6e. POST /api/forum/threads (Tạo bài viết mới từ Web -> Đẩy thẳng lên Discord #💡・diễn-đàn)
+    // 6e. POST /api/forum/threads (Tạo bài viết mới từ Web -> Bắt buộc xác thực Discord Bearer Token — VULN-03)
     if (pathname === "/api/forum/threads" && req.method === "POST") {
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      if (!verifiedUser) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Vui lòng đăng nhập tài khoản Discord đã xác minh để tạo chủ đề thảo luận mới.",
+        });
+      }
+
       let bodyData = {};
       try {
         bodyData = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
@@ -2103,27 +2429,60 @@ export default async function handler(req, res) {
         bodyData = {};
       }
 
-      const title = (bodyData.title || "").trim();
-      const content = (bodyData.content || "").trim();
+      const rawTitle = (bodyData.title || "").trim();
+      const rawContent = (bodyData.content || "").trim();
       const category = (bodyData.category || "Góc thắc mắc").trim();
-      const authorName = (bodyData.author_name || "Thành viên Web").trim();
-      const authorId = bodyData.author_id ? String(bodyData.author_id) : "";
 
-      if (!title || !content) {
+      if (!rawTitle || !rawContent) {
         return res.status(400).json({ error: "Tiêu đề và nội dung bài viết không được để trống." });
       }
 
+      // Lấy định danh tác giả trực tiếp từ token Discord đã xác thực (chống giả mạo author_id / author_name)
+      const authorId = String(verifiedUser.id);
+      const authorName = sanitizeDiscordMentions(
+        String(verifiedUser.global_name || verifiedUser.username || "Thành viên Orbit").trim()
+      ).slice(0, 80);
+      const authorAvatar = verifiedUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${authorId}/${verifiedUser.avatar}.png`
+        : "";
+
+      // Kiểm soát tốc độ đăng bài (Rate Limiting: tối đa 1 chủ đề mới / 15 giây mỗi tài khoản)
+      if (!globalThis._forumRateLimit) {
+        globalThis._forumRateLimit = new Map();
+      }
+      const rlKey = `thread:${authorId}`;
+      const lastPostMs = globalThis._forumRateLimit.get(rlKey) || 0;
+      if (Date.now() - lastPostMs < 15000) {
+        return res.status(429).json({
+          error: "Too Many Requests",
+          message: "Bạn vừa tạo chủ đề mới, vui lòng đợi 15 giây trước khi đăng chủ đề tiếp theo.",
+        });
+      }
+      globalThis._forumRateLimit.set(rlKey, Date.now());
+
+      const title = sanitizeDiscordMentions(rawTitle).slice(0, 100);
+      const content = sanitizeDiscordMentions(rawContent).slice(0, 3500);
+      const sanitizedPayload = {
+        ...bodyData,
+        title,
+        content,
+        category,
+        author_id: authorId,
+        author_name: authorName,
+        author_avatar: authorAvatar,
+      };
+
       // 1. Thử gọi RPC sang Bot
-      const rpcCreate = await forwardRpcToBot("POST", "/api/forum/threads", {}, bodyData, 4500);
+      const rpcCreate = await forwardRpcToBot("POST", "/api/forum/threads", {}, sanitizedPayload, 4500);
       if (rpcCreate.status >= 200 && rpcCreate.status < 300 && rpcCreate.body?.thread_id) {
         return res.status(201).json(rpcCreate.body);
       }
 
-      // 2. Trực tiếp gọi Discord REST API
+      // 2. Trực tiếp gọi Discord REST API (với allowed_mentions: { parse: [] } chặn hoàn toàn mention spam)
       const tagId = FORUM_CATEGORY_TO_TAG[category] || FORUM_CATEGORY_TO_TAG["Góc thắc mắc"];
       const starterContent = [
         `🪐 **[Orbit Web Forum]**`,
-        `👤 **Người đăng:** **${authorName}** ${authorId ? `(<@${authorId}>)` : ""}`,
+        `👤 **Người đăng:** **${authorName}** (<@${authorId}>)`,
         `🏷️ **Chuyên mục:** \`${category}\``,
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
         content,
@@ -2135,6 +2494,7 @@ export default async function handler(req, res) {
         applied_tags: tagId ? [tagId] : [],
         message: {
           content: starterContent,
+          allowed_mentions: { parse: [] },
         },
       });
 
@@ -2145,7 +2505,7 @@ export default async function handler(req, res) {
           category,
           author_id: authorId,
           author_name: authorName,
-          author_avatar: "",
+          author_avatar: authorAvatar,
           excerpt: content.slice(0, 160),
           message_count: 1,
           reply_count: 0,
@@ -2168,9 +2528,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // 6f. POST /api/forum/threads/:id/messages (Gửi bình luận phản hồi từ Web -> Đẩy thẳng vào Thread Discord)
+    // 6f. POST /api/forum/threads/:id/messages (Gửi bình luận phản hồi -> Bắt buộc xác thực Discord Bearer Token — VULN-03)
     const forumPostMsgMatch = pathname.match(/^\/api\/forum\/threads\/(\d+)\/messages$/);
     if (forumPostMsgMatch && req.method === "POST") {
+      const verifiedUser = await verifyDiscordBearerToken(req);
+      if (!verifiedUser) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Vui lòng đăng nhập tài khoản Discord đã xác minh để gửi bình luận phản hồi.",
+        });
+      }
+
       const threadId = forumPostMsgMatch[1];
       let bodyData = {};
       try {
@@ -2179,30 +2547,66 @@ export default async function handler(req, res) {
         bodyData = {};
       }
 
-      const content = (bodyData.content || "").trim();
-      const authorName = (bodyData.author_name || "Thành viên Web").trim();
-      if (!content) {
+      const rawContent = (bodyData.content || "").trim();
+      if (!rawContent) {
         return res.status(400).json({ error: "Nội dung bình luận không được để trống." });
       }
 
+      const authorId = String(verifiedUser.id);
+      const authorName = sanitizeDiscordMentions(
+        String(verifiedUser.global_name || verifiedUser.username || "Thành viên Orbit").trim()
+      ).slice(0, 80);
+      const authorAvatar = verifiedUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${authorId}/${verifiedUser.avatar}.png`
+        : "";
+
+      if (!globalThis._forumRateLimit) {
+        globalThis._forumRateLimit = new Map();
+      }
+      const rlKey = `reply:${authorId}`;
+      const lastReplyMs = globalThis._forumRateLimit.get(rlKey) || 0;
+      if (Date.now() - lastReplyMs < 4000) {
+        return res.status(429).json({
+          error: "Too Many Requests",
+          message: "Bạn gửi bình luận quá nhanh, vui lòng đợi vài giây.",
+        });
+      }
+      globalThis._forumRateLimit.set(rlKey, Date.now());
+
+      const content = sanitizeDiscordMentions(rawContent).slice(0, 2000);
+      const sanitizedPayload = {
+        ...bodyData,
+        content,
+        author_id: authorId,
+        author_name: authorName,
+        author_avatar: authorAvatar,
+      };
+
       // 1. Thử gọi RPC sang Bot
-      const rpcMsg = await forwardRpcToBot("POST", `/api/forum/threads/${threadId}/messages`, {}, bodyData, 4500);
+      const rpcMsg = await forwardRpcToBot(
+        "POST",
+        `/api/forum/threads/${threadId}/messages`,
+        {},
+        sanitizedPayload,
+        4500
+      );
       if (rpcMsg.status >= 200 && rpcMsg.status < 300 && rpcMsg.body?.message_id) {
         return res.status(201).json(rpcMsg.body);
       }
 
-      // 2. Trực tiếp gọi Discord REST API
+      // 2. Trực tiếp gọi Discord REST API (với allowed_mentions: { parse: [] })
       const replyContent = `💬 **[Web — ${authorName}]:**\n${content}`;
       const msgRes = await callDiscordRest(`/channels/${threadId}/messages`, "POST", {
         content: replyContent,
+        allowed_mentions: { parse: [] },
       });
 
       if (msgRes.ok && msgRes.data?.id) {
         const createdMsg = {
           id: msgRes.data.id,
-          author_id: bodyData.author_id || "",
+          author_id: authorId,
           author_name: authorName,
-          author_avatar: bodyData.author_avatar || "",
+          author_avatar: authorAvatar,
           content,
           created_at: msgRes.data.timestamp,
           source: "web",
@@ -2330,7 +2734,7 @@ export default async function handler(req, res) {
     };
 
     if (snapshotMap[pathname] && req.method === "GET") {
-      if (pathname.startsWith("/api/admin/")) {
+      if (pathname.startsWith("/api/admin/") || pathname.startsWith("/api/system/")) {
         const check = await verifyAdminAccess(req);
         if (!check.ok) {
           return res.status(403).json({ error: "Forbidden", message: "Yêu cầu quyền Quản trị viên" });
@@ -2754,7 +3158,7 @@ Trả về đúng 1 JSON:
       return res.status(200).json({ success: false, reason: "timeout" });
     }
 
-    // 9c. POST /api/documents/upload — Trả về ngay 202 để Client lưu thẳng vào Turso Cloud (5GB)
+    // 9c. POST /api/documents/upload — Trả về ngay 202 để Client lưu qua /api/documents/submit lên Turso Cloud (5GB)
     // và kích hoạt Bot đồng bộ sang Discord #database trong 2.5s (tránh treo 8.2s hoặc lỗi 400 multipart qua JSON RPC)
     if (pathname === "/api/documents/upload" && req.method === "POST") {
       return res.status(202).json({
@@ -2847,6 +3251,170 @@ Trả về đúng 1 JSON:
           pathname === "/api/system/reload"
             ? "Đã làm mới cấu hình Cloud & gửi tín hiệu Hot-Reload qua Discord Webhook #1568882621470089247!"
             : "Đã kích hoạt đồng bộ Cloud & gửi lệnh cập nhật tới Bot qua Discord Webhook #1568882621470089247!",
+      });
+    }
+
+    // 9f. POST /api/ai/tutor — Gia Sư AI gợi ý từng bước (Hint) & giải thích chi tiết (Explain)
+    if (pathname === "/api/ai/tutor" && req.method === "POST") {
+      let body = {};
+      try {
+        body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      } catch {
+        body = {};
+      }
+
+      const stem = String(body.stem || "").trim().slice(0, 2000);
+      const subject = String(body.subject || "GENERAL").trim();
+      const mode = body.mode === "explain" ? "explain" : "hint";
+      const options = Array.isArray(body.options) ? body.options.slice(0, 6) : [];
+      const statements = Array.isArray(body.statements) ? body.statements.slice(0, 6) : [];
+      const answerKey = body.answer_key ? String(body.answer_key).trim() : "";
+
+      if (!stem || stem.length < 4) {
+        return res.status(400).json({
+          success: false,
+          error: "Nội dung câu hỏi quá ngắn để phân tích.",
+        });
+      }
+
+      if (!globalThis._aiTutorCache) globalThis._aiTutorCache = new Map();
+      if (!globalThis._aiTutorMinuteTs) globalThis._aiTutorMinuteTs = [];
+
+      const cacheKey = `${mode}::${subject}::${stem.slice(0, 240)}::${answerKey}`;
+      if (globalThis._aiTutorCache.has(cacheKey)) {
+        return res.status(200).json({
+          success: true,
+          cached: true,
+          mode,
+          guidance: globalThis._aiTutorCache.get(cacheKey),
+        });
+      }
+
+      const nowMs = Date.now();
+      globalThis._aiTutorMinuteTs = globalThis._aiTutorMinuteTs.filter((t) => nowMs - t < 60000);
+      if (globalThis._aiTutorMinuteTs.length >= 25) {
+        return res.status(429).json({
+          success: false,
+          error: "Hệ thống Gia Sư AI đang xử lý nhiều yêu cầu, vui lòng thử lại sau vài giây.",
+        });
+      }
+      globalThis._aiTutorMinuteTs.push(nowMs);
+
+      const subjName =
+        WEB_SUBJECT_FULL_MAP[WEB_SUBJECT_SHORT_MAP[subject.toUpperCase()] || "Tổng hợp"] ||
+        "Phổ thông";
+
+      let apiKey = process.env.NVIDIA_API_KEY || localEnvVars.NVIDIA_API_KEY || "";
+      let baseUrl =
+        process.env.NVIDIA_BASE_URL ||
+        localEnvVars.NVIDIA_BASE_URL ||
+        "https://integrate.api.nvidia.com/v1";
+      if (!apiKey) {
+        const kvCfg = await getKvValue("nvidia_cloud_config");
+        if (kvCfg?.data?.api_key) {
+          apiKey = kvCfg.data.api_key;
+          baseUrl = kvCfg.data.base_url || baseUrl;
+        }
+      }
+
+      const optionsText = options.length
+        ? "\nCác phương án:\n" + options.map((o) => `${o.key}. ${o.text}`).join("\n")
+        : statements.length
+        ? "\nCác mệnh đề Đúng/Sai:\n" + statements.map((s) => `${s.key}) ${s.text}`).join("\n")
+        : "";
+
+      if (apiKey) {
+        const tutorSysPrompt =
+          mode === "hint"
+            ? `Bạn là Gia Sư Học Thuật Orbit chuyên môn ${subjName} (Chương trình GDPT 2018).
+Nhiệm vụ: Đưa ra 2-3 gợi ý định hướng tư duy ngắn gọn cho học sinh để tự giải câu hỏi.
+QUY TẮC BẮT BUỘC:
+- TUYỆT ĐỐI KHÔNG tiết lộ đáp án cuối cùng (không nói chọn A, B, C hay D).
+- Trình bày súc tích bằng tiếng Việt (tối đa 120 từ), nêu rõ: (1) Kiến thức/công thức cốt lõi cần áp dụng, (2) Bước biến đổi đầu tiên, (3) Bẫy thường gặp cần tránh.`
+            : `Bạn là Gia Sư Học Thuật Orbit chuyên môn ${subjName} (Chương trình GDPT 2018).
+Nhiệm vụ: Giải thích chi tiết, rõ ràng từng bước câu hỏi dưới đây${answerKey ? ` (Đáp án chuẩn: ${answerKey})` : ""}.
+Trình bày mạch lạc bằng tiếng Việt (tối đa 180 từ): (1) Phương pháp/công thức áp dụng, (2) Các bước suy luận hoặc tính toán cụ thể, (3) Kết luận và lưu ý tránh sai sót.`;
+
+        const tutorModels = [
+          "google/gemma-4-31b-it",
+          "z-ai/glm-5.3-flash",
+          "nvidia/nemotron-3.5-super-vl-120b-a12b",
+        ];
+
+        for (const model of tutorModels) {
+          try {
+            const controller = new AbortController();
+            const tId = setTimeout(() => controller.abort(), 14000);
+            const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: tutorSysPrompt },
+                  {
+                    role: "user",
+                    content: `Môn: ${subjName}\nCâu hỏi:\n${stem}${optionsText}`,
+                  },
+                ],
+                max_tokens: 700,
+                temperature: 0.2,
+              }),
+              signal: controller.signal,
+            });
+            clearTimeout(tId);
+            if (!r.ok) continue;
+            const j = await r.json();
+            const text = String(j?.choices?.[0]?.message?.content || "").trim();
+            if (text.length >= 20) {
+              if (globalThis._aiTutorCache.size > 500) {
+                const firstK = globalThis._aiTutorCache.keys().next().value;
+                globalThis._aiTutorCache.delete(firstK);
+              }
+              globalThis._aiTutorCache.set(cacheKey, text);
+              return res.status(200).json({
+                success: true,
+                mode,
+                source: "cloud_ai",
+                guidance: text,
+              });
+            }
+          } catch {}
+        }
+      }
+
+      // Heuristic Pedagogical Fallback (hoạt động 100% ngay cả khi chưa cấu hình API key)
+      const fallbackGuidance =
+        mode === "hint"
+          ? [
+              `💡 **Định hướng tư duy (${subjName}):**`,
+              `1. **Xác định giả thiết cốt lõi:** Đọc kỹ các đại lượng/từ khóa được cho trong đề: *"${stem.slice(0, 110)}${stem.length > 110 ? "..." : ""}"*.`,
+              options.length
+                ? `2. **Phương pháp loại trừ:** Đối chiếu đơn vị, điều kiện xác định hoặc dấu của kết quả giữa ${options.length} phương án (${options.map((o) => o.key).join(", ")}) để loại nhanh các phương án nhiễu.`
+                : statements.length
+                ? `2. **Kiểm tra từng mệnh đề (a, b, c, d):** Mệnh đề (a), (b) thường kiểm tra khái niệm/công thức trực tiếp; mệnh đề (c), (d) đòi hỏi biến đổi hoặc vận dụng.`
+                : `2. **Thiết lập biểu thức liên hệ:** Viết công thức chuẩn theo chương trình GDPT 2018 và kiểm tra điều kiện làm tròn số.`,
+              `3. **Lưu ý tránh bẫy:** Kiểm tra kỹ đơn vị đo, dấu âm/dương và từ phủ định ("không", "sai", "ngoại trừ") trong câu dẫn.`,
+            ].join("\n")
+          : [
+              `✨ **Phân tích & Hướng dẫn giải (${subjName}):**`,
+              answerKey
+                ? `- **Đáp án chuẩn ghi nhận:** **${answerKey}**`
+                : `- **Trạng thái:** Đề chưa đính kèm khóa đáp án tự động cho câu này.`,
+              `- **Quy trình kiểm chứng:**`,
+              `  1. Tóm tắt dữ kiện từ đề bài: *"${stem.slice(0, 120)}${stem.length > 120 ? "..." : ""}"*.`,
+              `  2. Thay giá trị đặc biệt hoặc kiểm tra chiều biến thiên/điều kiện biên để đối chiếu trực tiếp với đáp án${answerKey ? ` **${answerKey}**` : ""}.`,
+              `  3. Nếu bạn làm sai câu này, hãy bấm **"Lưu vào Sổ tay SRS"** bên cạnh để hệ thống nhắc ôn lại theo chu kỳ 1 – 3 – 7 – 14 ngày!`,
+            ].join("\n");
+
+      return res.status(200).json({
+        success: true,
+        mode,
+        source: "heuristic_mentor",
+        guidance: fallbackGuidance,
       });
     }
 

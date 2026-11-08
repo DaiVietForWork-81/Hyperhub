@@ -18,9 +18,7 @@ import { ChapterRail, ChapterOpener } from './components/hh/Chapters';
 import { Reveal } from './components/hh/Reveal';
 import { loadDashboard, preloadHubWhenIdle } from './hubLoader';
 import { sound } from './utils/audio';
-
-type View = 'home' | 'dashboard';
-type Tab = 'overview' | 'courses' | 'forum' | 'vault' | 'get_exam' | 'submit_doc' | 'admin';
+import { AppView as View, DashboardTab as Tab, parseAppRoute, buildAppRoutePath } from './utils/routeParser';
 
 /**
  * Hub (Dashboard ~200KB nguồn) tách chunk riêng: trang chủ tải nhanh hơn,
@@ -50,34 +48,10 @@ const withViewTransition = (update: () => void, dir: 'to-hub' | 'to-home' = 'to-
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
-  // Khởi tạo activeView dựa theo pathname (/hub, /vault, /courses, /forum, /admin) hoặc hash
+  // Khởi tạo activeView & dashboardTab thống nhất qua parseAppRoute
   const [activeView, setActiveView] = useState<View>(() => {
     if (typeof window === 'undefined') return 'home';
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-
-    if (
-      path.startsWith('/hub') ||
-      path.startsWith('/vault') ||
-      path.startsWith('/khode') ||
-      path.startsWith('/get_exam') ||
-      path.startsWith('/submit_doc') ||
-      path.startsWith('/courses') ||
-      path.startsWith('/khoahoc') ||
-      path.startsWith('/forum') ||
-      path.startsWith('/diendan') ||
-      path.startsWith('/admin') ||
-      hash === '#hub' ||
-      hash === '#vault' ||
-      hash === '#get_exam' ||
-      hash === '#submit_doc' ||
-      hash === '#courses' ||
-      hash === '#forum' ||
-      hash === '#dashboard'
-    ) {
-      return 'dashboard';
-    }
-    return 'home';
+    return parseAppRoute(window.location.pathname, window.location.hash).view;
   });
 
   // Chỉ bật Lenis ở Trang Chủ, để Hub sử dụng cuộn gốc 120Hz không độ trễ
@@ -85,15 +59,7 @@ export const App: React.FC = () => {
 
   const [dashboardTab, setDashboardTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'overview';
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-    if (path.startsWith('/admin') || hash === '#admin') return 'admin';
-    if (path.startsWith('/vault') || path.startsWith('/khode') || hash === '#vault') return 'vault';
-    if (path.startsWith('/get_exam') || hash === '#get_exam') return 'get_exam';
-    if (path.startsWith('/submit_doc') || hash === '#submit_doc') return 'submit_doc';
-    if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') return 'courses';
-    if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') return 'forum';
-    return 'overview';
+    return parseAppRoute(window.location.pathname, window.location.hash).tab;
   });
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -101,16 +67,7 @@ export const App: React.FC = () => {
   // Điều hướng SPA chuẩn với URL /hub, /courses, /forum, /admin và / — nạp sẵn chunk Hub trước khi chạy ViewTransition
   const navigateTo = useCallback((view: View, tab?: Tab) => {
     const search = typeof window !== 'undefined' ? window.location.search || '' : '';
-    const targetPath =
-      view === 'dashboard'
-        ? tab === 'admin'
-          ? `/admin${search}`
-          : tab === 'courses'
-          ? `/courses${search}`
-          : tab === 'forum'
-          ? `/forum${search}`
-          : `/hub${search}`
-        : '/';
+    const targetPath = buildAppRoutePath(view, tab || 'overview', search);
     const dir: 'to-hub' | 'to-home' = view === 'dashboard' ? 'to-hub' : 'to-home';
     const apply = () => {
       setActiveView(view);
@@ -135,48 +92,15 @@ export const App: React.FC = () => {
   // Lắng nghe nút Back / Forward & thay đổi hash (#vault, #forum, #submit_doc, #courses) trên trình duyệt
   useEffect(() => {
     const syncRouteFromLocation = () => {
-      const path = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase();
-      const isHub =
-        path.startsWith('/hub') ||
-        path.startsWith('/vault') ||
-        path.startsWith('/khode') ||
-        path.startsWith('/get_exam') ||
-        path.startsWith('/submit_doc') ||
-        path.startsWith('/courses') ||
-        path.startsWith('/khoahoc') ||
-        path.startsWith('/forum') ||
-        path.startsWith('/diendan') ||
-        path.startsWith('/admin') ||
-        hash === '#hub' ||
-        hash === '#vault' ||
-        hash === '#get_exam' ||
-        hash === '#submit_doc' ||
-        hash === '#courses' ||
-        hash === '#forum' ||
-        hash === '#dashboard';
+      const parsed = parseAppRoute(window.location.pathname, window.location.hash);
       withViewTransition(
         () => {
-          if (isHub) {
-            setActiveView('dashboard');
-            if (path.startsWith('/admin') || hash === '#admin') {
-              setDashboardTab('admin');
-            } else if (path.startsWith('/vault') || path.startsWith('/khode') || hash === '#vault') {
-              setDashboardTab('vault');
-            } else if (path.startsWith('/get_exam') || hash === '#get_exam') {
-              setDashboardTab('get_exam');
-            } else if (path.startsWith('/submit_doc') || hash === '#submit_doc') {
-              setDashboardTab('submit_doc');
-            } else if (path.startsWith('/courses') || path.startsWith('/khoahoc') || hash === '#courses') {
-              setDashboardTab('courses');
-            } else if (path.startsWith('/forum') || path.startsWith('/diendan') || hash === '#forum') {
-              setDashboardTab('forum');
-            }
-          } else {
-            setActiveView('home');
+          setActiveView(parsed.view);
+          if (parsed.view === 'dashboard') {
+            setDashboardTab(parsed.tab);
           }
         },
-        isHub ? 'to-hub' : 'to-home'
+        parsed.view === 'dashboard' ? 'to-hub' : 'to-home'
       );
     };
     window.addEventListener('popstate', syncRouteFromLocation);

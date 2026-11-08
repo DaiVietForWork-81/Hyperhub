@@ -10,7 +10,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://*.turso.io https://discord.com https://cdn.discordapp.com https://raw.githubusercontent.com https://api.github.com http://localhost:8080 http://127.0.0.1:8080; frame-src 'self' https://view.officeapps.live.com https://docs.google.com https://cdn.discordapp.com blob: data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://discord.com https://cdn.discordapp.com https://raw.githubusercontent.com https://api.github.com https://orbit-psi-black.vercel.app http://localhost:8080 http://127.0.0.1:8080; frame-src 'self' https://view.officeapps.live.com https://docs.google.com https://cdn.discordapp.com blob: data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
         },
         {
           "key": "Cache-Control",

@@ -1642,79 +1642,32 @@ const DashboardContent: React.FC<DashboardProps> = ({
   const [, setIsCheckingIn] = useState<boolean>(false);
 
   const fetchStudyProfileAndLeaderboard = useCallback(async () => {
-    const apiBase = getApiBaseUrl();
     const uid = user?.id || '';
     const uname = user?.username || 'Học Sinh Orbit';
     const dname = user?.global_name || user?.username || 'Học Sinh Orbit';
     const avatar = user?.avatar || '';
 
-    // 1. Tải Bảng Xếp Hạng Học Thuật (Song song Bot API & Turso Cloud)
-    let lbResolved = false;
+    // 1. Tải Bảng Xếp Hạng Học Thuật qua Cổng Cloud API
     fetchAcademicLeaderboardTurso()
-      .then((tursoLb) => {
-        if (!lbResolved && tursoLb && tursoLb.length > 0) {
-          setLeaderboardList(tursoLb);
+      .then((lb) => {
+        if (lb && lb.length > 0) {
+          setLeaderboardList(lb);
         }
       })
       .catch(() => {});
-
-    try {
-      const lbRes = await fetch(`${apiBase}/api/study/leaderboard?limit=12`, {
-        headers: API_FETCH_HEADERS,
-        signal: AbortSignal.timeout(6000),
-      });
-      if (lbRes.ok) {
-        const lbData = await lbRes.json();
-        if (lbData.success && Array.isArray(lbData.leaderboard) && lbData.leaderboard.length > 0) {
-          lbResolved = true;
-          setLeaderboardList(lbData.leaderboard);
-        }
-      }
-    } catch {
-      /* Turso fallback already running */
-    }
 
     // 2. Tải Hồ Sơ & Chuỗi Ngày Học cá nhân
     if (!uid) return;
-    let profResolved = false;
     fetchStudyProfileTurso(uid, uname, dname, avatar)
-      .then((tursoProf) => {
-        if (!profResolved && tursoProf) {
-          setStudyProfile(tursoProf);
+      .then((prof) => {
+        if (prof) {
+          setStudyProfile(prof);
           try {
-            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(tursoProf));
+            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(prof));
           } catch {}
         }
       })
       .catch(() => {});
-
-    try {
-      const headers: Record<string, string> = { ...API_FETCH_HEADERS };
-      const token = getDiscordAccessToken();
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const q = new URLSearchParams({
-        discord_id: uid,
-        username: uname,
-        display_name: dname,
-        avatar_url: avatar,
-      });
-      const profRes = await fetch(`${apiBase}/api/study/profile?${q.toString()}`, {
-        headers,
-        signal: AbortSignal.timeout(6000),
-      });
-      if (profRes.ok) {
-        const profData = await profRes.json();
-        if (profData.success && profData.profile) {
-          profResolved = true;
-          setStudyProfile(profData.profile);
-          try {
-            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(profData.profile));
-          } catch {}
-        }
-      }
-    } catch {
-      /* Turso fallback handles it */
-    }
   }, [user]);
 
   useEffect(() => {
@@ -1735,8 +1688,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
 
       setIsCheckingIn(true);
       try {
-        // Đồng bộ trực tiếp lên Turso Cloud trước để đảm bảo cả khi Bot tắt vẫn lưu
-        const tursoUpdated = await recordStudyCheckinTurso({
+        const updated = await recordStudyCheckinTurso({
           discordId: uid,
           username: uname,
           displayName: dname,
@@ -1746,49 +1698,11 @@ const DashboardContent: React.FC<DashboardProps> = ({
           dreamSchool: dreamSchoolOverride ?? dreamGoal?.school,
           dreamScore: dreamScoreOverride ?? dreamGoal?.score,
         });
-        if (tursoUpdated && tursoUpdated.profile) {
-          setStudyProfile(tursoUpdated.profile);
+        if (updated && updated.profile) {
+          setStudyProfile(updated.profile);
           try {
-            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(tursoUpdated.profile));
+            localStorage.setItem('orbit_study_profile_v1', JSON.stringify(updated.profile));
           } catch {}
-        }
-
-        // Đồng bộ song song về Bot SQLite (nếu Bot đang bật)
-        try {
-          const apiBase = getApiBaseUrl();
-          const headers: Record<string, string> = {
-            ...API_FETCH_HEADERS,
-            'Content-Type': 'application/json',
-          };
-          const token = getDiscordAccessToken();
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-
-          const res = await fetch(`${apiBase}/api/study/checkin`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              discord_id: uid,
-              username: uname,
-              display_name: dname,
-              avatar_url: avatar,
-              action,
-              minutes,
-              dream_school: dreamSchoolOverride ?? dreamGoal?.school ?? '',
-              dream_score: dreamScoreOverride ?? dreamGoal?.score ?? '',
-            }),
-            signal: AbortSignal.timeout(6000),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.profile) {
-              setStudyProfile(data.profile);
-              try {
-                localStorage.setItem('orbit_study_profile_v1', JSON.stringify(data.profile));
-              } catch {}
-            }
-          }
-        } catch {
-          /* Turso already saved */
         }
 
         if (action === 'daily_checkin') {

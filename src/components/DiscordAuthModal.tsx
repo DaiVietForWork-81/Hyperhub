@@ -87,9 +87,14 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
     setErrorMsg(null);
     try {
       const base = (getApiBaseUrl() || '').replace(/\/+$/, '');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (pendingUser.accessToken) {
+        headers.Authorization = `Bearer ${pendingUser.accessToken}`;
+      }
       const res = await fetch(`${base}/api/account/verify-code`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers,
         body: JSON.stringify({
           discord_id: pendingUser.id,
           code: cleanCode,
