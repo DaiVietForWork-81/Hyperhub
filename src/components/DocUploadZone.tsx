@@ -40,6 +40,7 @@ import {
 import { useToast } from '../context/ToastContext';
 import {
   inspectDocumentClient,
+  buildClientExamDescription,
   ClientInspectionReport,
   SUBJECT_SELECT_OPTIONS,
   GRADE_SELECT_OPTIONS,
@@ -384,17 +385,24 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             nextReport.examTypeVi = foundType.label;
           }
         }
-        nextReport.summary = [
-          `Bậc: ${nextReport.educationalLevelVi}`,
-          `Môn: ${nextReport.detectedSubjectVi}`,
-          `Khối: ${nextReport.estimatedLevel}`,
-          nextReport.examTypeVi ? `Loại: ${nextReport.examTypeVi}` : null,
-          nextReport.academicYear ? `Năm học: ${nextReport.academicYear}` : null,
-          nextReport.schoolOrDepartment ? `Nguồn: ${nextReport.schoolOrDepartment}` : null,
-          nextReport.hasAnswerKeys ? 'Có đáp án' : null,
-        ]
-          .filter(Boolean)
-          .join(' | ');
+        const rebuilt = buildClientExamDescription({
+          subject: nextReport.detectedSubject,
+          subjectVi: nextReport.detectedSubjectVi,
+          estimatedLevel: nextReport.estimatedLevel,
+          examType: nextReport.examType,
+          examTypeVi: nextReport.examTypeVi,
+          fileName: nextReport.fileName,
+          rawText: nextReport.rawTextSnippet,
+          schoolOrDepartment: nextReport.schoolOrDepartment,
+          academicYear: nextReport.academicYear,
+          questionCount: nextReport.questionCount,
+          moet2025Compliant: nextReport.moet2025Compliant,
+          hasAnswerKeys: nextReport.hasAnswerKeys,
+          hasDetailedSolutions: nextReport.hasDetailedSolutions,
+        });
+        nextReport.shortLabel = patch.shortLabel ?? rebuilt.shortLabel;
+        nextReport.examDescription = patch.examDescription ?? rebuilt.examDescription;
+        nextReport.summary = nextReport.examDescription;
         return {
           ...item,
           clientReport: nextReport,
@@ -1430,6 +1438,14 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                                     )}
                                   </span>
                                 )}
+                              </div>
+                            )}
+
+                            {/* MÔ TẢ ĐỀ THI NGẮN GỌN */}
+                            {item.clientReport?.examDescription && (
+                              <div className="mt-1.5 text-[11px] text-slate-300 leading-relaxed bg-white/[0.03] border border-white/10 rounded-lg px-2.5 py-1.5">
+                                <span className="font-bold text-purple-300">Mô tả đề: </span>
+                                <span>{item.clientReport.examDescription}</span>
                               </div>
                             )}
                           </div>

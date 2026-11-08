@@ -265,6 +265,174 @@ function extractAcademicMeta(doc) {
   return { acYear, schDept };
 }
 
+const WEB_SUBJECT_SHORT_MAP = {
+  MATHEMATICS: "Toán",
+  TOAN: "Toán",
+  "TOÁN": "Toán",
+  PHYSICS: "Lý",
+  VAT_LY: "Lý",
+  "VẬT LÍ": "Lý",
+  "VẬT LÝ": "Lý",
+  CHEMISTRY: "Hóa",
+  HOA_HOC: "Hóa",
+  "HÓA HỌC": "Hóa",
+  BIOLOGY: "Sinh",
+  SINH_HOC: "Sinh",
+  "SINH HỌC": "Sinh",
+  INFORMATICS: "Tin",
+  TIN_HOC: "Tin",
+  "TIN HỌC": "Tin",
+  LITERATURE: "Văn",
+  NGU_VAN: "Văn",
+  "NGỮ VĂN": "Văn",
+  ENGLISH: "Anh",
+  TIENG_ANH: "Anh",
+  "TIẾNG ANH": "Anh",
+  "NGOẠI NGỮ 1 (TIẾNG ANH)": "Anh",
+  HISTORY: "Sử",
+  LICH_SU: "Sử",
+  "LỊCH SỬ": "Sử",
+  GEOGRAPHY: "Địa",
+  DIA_LY: "Địa",
+  "ĐỊA LÍ": "Địa",
+  "ĐỊA LÝ": "Địa",
+  NATURAL_SCIENCE: "KHTN",
+  KHTN: "KHTN",
+  "KHOA HỌC TỰ NHIÊN": "KHTN",
+  HISTORY_GEOGRAPHY: "Sử - Địa",
+  LS_DL: "Sử - Địa",
+  "LỊCH SỬ VÀ ĐỊA LÍ": "Sử - Địa",
+  "LỊCH SỬ VÀ ĐỊA LÝ": "Sử - Địa",
+  CIVIC_EDUCATION: "GDCD",
+  GDCD: "GDCD",
+  "GIÁO DỤC CÔNG DÂN": "GDCD",
+  ECONOMIC_LEGAL_EDU: "GDKT&PL",
+  GDKT_PL: "GDKT&PL",
+  "GIÁO DỤC KINH TẾ VÀ PHÁP LUẬT": "GDKT&PL",
+  TECHNOLOGY: "Công nghệ",
+  CONG_NGHE: "Công nghệ",
+  "CÔNG NGHỆ": "Công nghệ",
+  DEFENSE_SECURITY_EDU: "GDQP&AN",
+  GDQP_AN: "GDQP&AN",
+  "GIÁO DỤC QUỐC PHÒNG VÀ AN NINH": "GDQP&AN",
+  GENERAL: "Tổng hợp",
+};
+
+const WEB_SUBJECT_FULL_MAP = {
+  Toán: "Toán học",
+  Lý: "Vật lí",
+  Hóa: "Hóa học",
+  Sinh: "Sinh học",
+  Tin: "Tin học",
+  Văn: "Ngữ văn",
+  Anh: "Tiếng Anh",
+  Sử: "Lịch sử",
+  Địa: "Địa lí",
+  KHTN: "Khoa học tự nhiên (Cấp 2)",
+  "Sử - Địa": "Lịch sử và Địa lí (Cấp 2)",
+  GDCD: "Giáo dục công dân (Cấp 2)",
+  "GDKT&PL": "Giáo dục kinh tế và pháp luật (Cấp 3)",
+  "Công nghệ": "Công nghệ",
+  "GDQP&AN": "Giáo dục quốc phòng và an ninh",
+  "Tổng hợp": "Tài liệu tổng hợp",
+};
+
+function buildWebExamDescription(doc, acYear, schDept) {
+  const subjRaw = String(doc.subject || "GENERAL").trim();
+  const subjShort =
+    WEB_SUBJECT_SHORT_MAP[subjRaw] ||
+    WEB_SUBJECT_SHORT_MAP[subjRaw.toUpperCase()] ||
+    "Tổng hợp";
+  const subjFull = WEB_SUBJECT_FULL_MAP[subjShort] || subjShort;
+
+  const estStr = String(doc.estimated_level || doc.grade_level || "").trim();
+  const mGrade = estStr.match(/\b(6|7|8|9|10|11|12)\b/);
+  const gradeNum = mGrade ? parseInt(mGrade[1], 10) : null;
+  const gradeShort = gradeNum
+    ? `Lớp ${gradeNum}`
+    : /THCS|CẤP 2/i.test(estStr)
+    ? "Cấp 2"
+    : /ĐẠI HỌC/i.test(estStr)
+    ? "Đại học"
+    : "Phổ thông";
+
+  const trackRaw = String(doc.exam_track || doc.exam_type || "").toUpperCase();
+  const combinedMeta = `${estStr} ${trackRaw} ${doc.title || ""} ${doc.file_name || ""}`.toLowerCase();
+  const isRegularSchoolExam =
+    /(thi\s*thử|tốt\s*nghiệp|giữa\s*(?:học\s*)?k[ỳì]|cuối\s*(?:học\s*)?k[ỳì]|học\s*k[ỳì]\s*[12]|khảo\s*sát\s*chất\s*lượng|đề\s*cương|tài\s*liệu\s*ôn\s*tập)/i.test(
+      estStr
+    );
+
+  let trackShort = "Thường";
+  if (trackRaw === "CHUYEN" || (!isRegularSchoolExam && /vào\s*lớp\s*10\s*chuyên|đề\s*thi\s*chuyên/i.test(combinedMeta))) {
+    trackShort = "Chuyên";
+  } else if (
+    trackRaw === "HSG" ||
+    trackRaw === "DE_CHUYEN_HSG" ||
+    (!isRegularSchoolExam && /(học\s*sinh\s*giỏi|\bhsg\b|olympic)/i.test(combinedMeta))
+  ) {
+    trackShort = /vào\s*(?:lớp\s*)?10\s*chuyên|chuyên\s*(?:tin|toán|lí|lý|hóa|sinh|văn|anh|sử|địa)/i.test(combinedMeta)
+      ? "Chuyên"
+      : "HSG";
+  } else if (trackRaw === "QUOC_TE" || /\b(ielts|toeic|sat|imo)\b/i.test(combinedMeta)) {
+    trackShort = "Quốc tế";
+  }
+
+  const shortLabel = `${gradeShort} ${trackShort} ${subjShort}`.trim();
+
+  const existingNotes = String(doc.notes || "").trim();
+  if (existingNotes && existingNotes.includes(" — ") && /^Lớp\s+\d+|^Cấp\s+2|^Phổ\s+thông/i.test(existingNotes)) {
+    return { shortLabel, examDescription: existingNotes };
+  }
+
+  const mParen = estStr.match(/\(([^)]+)\)/);
+  let natureStr = mParen ? mParen[1].trim() : "";
+  if (!natureStr || /^(thường|chung|hsg|chuyên|ôn thi thpt|ôn vào 10)$/i.test(natureStr)) {
+    if (trackShort === "Chuyên" && gradeNum === 9) {
+      natureStr = `Đề thi tuyển sinh vào lớp 10 Chuyên môn ${subjFull}`;
+    } else if (trackShort === "HSG") {
+      natureStr = `Đề thi chọn Học sinh giỏi môn ${subjFull}`;
+    } else if (gradeNum === 9) {
+      natureStr = `Đề ôn thi tuyển sinh vào lớp 10 môn ${subjFull}`;
+    } else if (gradeNum === 12) {
+      natureStr = `Đề thi thử / ôn luyện Tốt nghiệp THPT môn ${subjFull}`;
+    } else {
+      natureStr = `Đề kiểm tra định kỳ môn ${subjFull}`;
+    }
+  } else if (!natureStr.toLowerCase().includes(subjShort.toLowerCase()) && !natureStr.toLowerCase().includes(subjFull.toLowerCase())) {
+    natureStr = `${natureStr} môn ${subjFull}`;
+  }
+
+  const parts = [natureStr];
+  const sDept = schDept || doc.school_or_department;
+  const aYr = acYear || doc.academic_year;
+  if (sDept && String(sDept).toLowerCase() !== "null") {
+    parts.push(`(${sDept}${aYr && String(aYr).toLowerCase() !== "null" ? ` • ${aYr}` : ""})`);
+  } else if (aYr && String(aYr).toLowerCase() !== "null") {
+    parts.push(`(năm học ${aYr})`);
+  }
+
+  if (Number(doc.question_count || 0) > 0) {
+    parts.push(`gồm ${doc.question_count} câu hỏi`);
+  }
+
+  const extras = [];
+  if (doc.moet_2025_compliant) extras.push("cấu trúc chuẩn 2025");
+  if (doc.has_detailed_solutions) extras.push("có lời giải chi tiết");
+  else if (doc.has_answer_keys) extras.push("có bảng đáp án");
+  if (extras.length > 0) {
+    parts.push(`• ${extras.join(", ")}`);
+  }
+
+  let bodyDesc = parts.join(" ").trim();
+  if (!bodyDesc.endsWith(".")) bodyDesc += ".";
+
+  return {
+    shortLabel,
+    examDescription: `${shortLabel} — ${bodyDesc}`,
+  };
+}
+
 function getVnDates() {
   const nowVn = new Date(Date.now() + 7 * 3600 * 1000);
   const yestVn = new Date(nowVn.getTime() - 24 * 3600 * 1000);
@@ -721,8 +889,13 @@ export default async function handler(req, res) {
           } catch {}
         }
 
+        const { shortLabel, examDescription } = buildWebExamDescription(r, acYear, schDept);
+
         return {
           ...r,
+          short_label: shortLabel,
+          notes: examDescription,
+          description: examDescription,
           author_avatar: authorAvatar,
           academic_year: acYear,
           school_or_department: schDept,
@@ -809,6 +982,7 @@ export default async function handler(req, res) {
         });
       }
       const { acYear, schDept } = extractAcademicMeta(doc);
+      const { shortLabel, examDescription } = buildWebExamDescription(doc, acYear, schDept);
       let authorAvatar = doc.author_avatar || null;
       if (!authorAvatar && doc.author_id) {
         try {
@@ -826,6 +1000,9 @@ export default async function handler(req, res) {
         is_exact_match: isExact,
         document: {
           ...doc,
+          short_label: shortLabel,
+          notes: examDescription,
+          description: examDescription,
           author_avatar: authorAvatar,
           academic_year: acYear,
           school_or_department: schDept,
@@ -2061,6 +2238,8 @@ Trả về đúng 1 JSON:
   "exam_type": "THI_THU_THPT | KIEM_TRA_DINH_KY | TUYEN_SINH_10 | DE_CHUYEN_HSG | TAI_LIEU_ON_TAP",
   "school_or_department": "Tên Trường hoặc Sở GD&ĐT nếu có, hoặc null",
   "academic_year": "YYYY-YYYY nếu có, hoặc null",
+  "short_label": "Nhãn phân loại ngắn theo cú pháp: Lớp <6-12> <Thường|HSG|Chuyên|Quốc tế> <Toán|Lý|Hóa|Sinh|Tin|Văn|Anh|Sử|Địa|KHTN|Sử - Địa|GDCD|GDKT&PL> (Ví dụ: Lớp 9 Chuyên Tin, Lớp 11 Thường Hóa, Lớp 7 HSG Toán)",
+  "exam_description": "Mô tả ngắn 1-2 câu tiếng Việt về đề thi bắt đầu bằng short_label (Ví dụ: Lớp 9 Chuyên Tin — Đề thi tuyển sinh vào lớp 10 Chuyên Tin học gồm các bài toán quy hoạch động, số học và đồ thị.)",
   "confidence": 0.98,
   "verification_note": "1 câu xác nhận ngắn gọn bằng tiếng Việt"
 }`;
@@ -2098,6 +2277,22 @@ Trả về đúng 1 JSON:
         if (isCap3 && parsed.subject === "CIVIC_EDUCATION") {
           parsed.subject = "ECONOMIC_LEGAL_EDU";
         }
+        const built = buildWebExamDescription(
+          {
+            subject: parsed.subject,
+            estimated_level: parsed.estimated_level,
+            exam_type: parsed.exam_type,
+            title: fileName,
+            file_name: fileName,
+            notes: parsed.exam_description,
+            academic_year: parsed.academic_year,
+            school_or_department: parsed.school_or_department,
+          },
+          parsed.academic_year,
+          parsed.school_or_department
+        );
+        parsed.short_label = built.shortLabel;
+        parsed.exam_description = built.examDescription;
         return parsed;
       };
 

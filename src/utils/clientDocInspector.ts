@@ -38,10 +38,99 @@ export interface ClientInspectionReport {
   hasAnswerKeys: boolean;
   hasDetailedSolutions: boolean;
   rawTextSnippet: string;
+  shortLabel: string;
+  examDescription: string;
   summary: string;
   verificationSteps?: VerificationCheckStep[];
   ambiguityWarnings?: string[];
   needsUserReview?: boolean;
+}
+
+const CLIENT_SUBJECT_SHORT_VI: Record<string, string> = {
+  MATHEMATICS: 'Toán',
+  PHYSICS: 'Lý',
+  CHEMISTRY: 'Hóa',
+  BIOLOGY: 'Sinh',
+  INFORMATICS: 'Tin',
+  LITERATURE: 'Văn',
+  ENGLISH: 'Anh',
+  HISTORY: 'Sử',
+  GEOGRAPHY: 'Địa',
+  NATURAL_SCIENCE: 'KHTN',
+  HISTORY_GEOGRAPHY: 'Sử - Địa',
+  CIVIC_EDUCATION: 'GDCD',
+  ECONOMIC_LEGAL_EDU: 'GDKT&PL',
+  TECHNOLOGY: 'Công nghệ',
+  DEFENSE_SECURITY_EDU: 'GDQP&AN',
+  GENERAL: 'Tổng hợp',
+};
+
+export function buildClientExamDescription(params: {
+  subject: string;
+  subjectVi: string;
+  estimatedLevel: string;
+  examType: string;
+  examTypeVi?: string;
+  fileName?: string;
+  rawText?: string;
+  schoolOrDepartment?: string;
+  academicYear?: string;
+  questionCount?: number;
+  moet2025Compliant?: boolean;
+  hasAnswerKeys?: boolean;
+  hasDetailedSolutions?: boolean;
+}): { shortLabel: string; examDescription: string } {
+  const subjShort = CLIENT_SUBJECT_SHORT_VI[params.subject] || params.subjectVi || 'Tổng hợp';
+  const mGrade = (params.estimatedLevel || '').match(/\b(6|7|8|9|10|11|12)\b/);
+  const gradeNum = mGrade ? parseInt(mGrade[1], 10) : null;
+  const gradeShort = gradeNum
+    ? `Lớp ${gradeNum}`
+    : /THCS/i.test(params.estimatedLevel || '')
+    ? 'Cấp 2'
+    : 'Phổ thông';
+
+  const combined = `${params.fileName || ''} ${(params.rawText || '').slice(0, 2000)}`.toLowerCase();
+  let trackShort = 'Thường';
+  if (params.examType === 'DE_CHUYEN_HSG') {
+    trackShort =
+      /vào\s*(?:lớp\s*)?10\s*chuyên|đề\s*thi\s*chuyên|chuyên\s*(?:tin|toán|lí|lý|hóa|sinh|văn|anh|sử|địa)/i.test(
+        combined
+      )
+        ? 'Chuyên'
+        : 'HSG';
+  } else if (/\b(ielts|toeic|sat|imo)\b/i.test(combined)) {
+    trackShort = 'Quốc tế';
+  }
+
+  const shortLabel = `${gradeShort} ${trackShort} ${subjShort}`.trim();
+  const natureStr = params.examTypeVi || 'Đề kiểm tra / Ôn luyện';
+  const parts: string[] = [`${natureStr} môn ${params.subjectVi}`];
+
+  if (params.schoolOrDepartment) {
+    parts.push(`(${params.schoolOrDepartment}${params.academicYear ? ` • ${params.academicYear}` : ''})`);
+  } else if (params.academicYear) {
+    parts.push(`(năm học ${params.academicYear})`);
+  }
+
+  if (params.questionCount && params.questionCount > 0) {
+    parts.push(`gồm ${params.questionCount} câu hỏi`);
+  }
+
+  const extras: string[] = [];
+  if (params.moet2025Compliant) extras.push('cấu trúc chuẩn 2025');
+  if (params.hasDetailedSolutions) extras.push('có lời giải chi tiết');
+  else if (params.hasAnswerKeys) extras.push('có bảng đáp án');
+  if (extras.length > 0) {
+    parts.push(`• ${extras.join(', ')}`);
+  }
+
+  let bodyDesc = parts.join(' ').trim();
+  if (!bodyDesc.endsWith('.')) bodyDesc += '.';
+
+  return {
+    shortLabel,
+    examDescription: `${shortLabel} — ${bodyDesc}`,
+  };
 }
 
 export const SUBJECT_SELECT_OPTIONS: Array<{ value: string; label: string; cap: 'CHUNG' | 'CAP_2' | 'CAP_3' }> = [
@@ -776,6 +865,9 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     isEntranceGrade10 ||
     educationalLevel === 'CAP_2';
 
+  let cloudShortLabel = '';
+  let cloudExamDescription = '';
+
   if (extractedText.trim().length >= 30 && shouldInvokeDeepVerifyClient(file.name, extractedText, hasAmbiguity)) {
     try {
       const v = await callDeepVerifyWithQuotaGuard(file.name, extractedText);
@@ -809,6 +901,12 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
         if (v.academic_year && v.academic_year !== 'null' && !academicYear) {
           academicYear = String(v.academic_year).trim();
         }
+        if (v.short_label) {
+          cloudShortLabel = String(v.short_label).trim();
+        }
+        if (v.exam_description) {
+          cloudExamDescription = String(v.exam_description).trim();
+        }
         if (v.verification_note && verificationSteps.length >= 4) {
           verificationSteps[3] = {
             stepNumber: 4,
@@ -823,18 +921,25 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     }
   }
 
-  const summary = [
-    `Bậc: ${educationalLevelVi}`,
-    `Môn: ${detectedSubjectVi}`,
-    `Khối: ${estimatedLevel}`,
-    `Loại: ${examTypeVi}`,
-    moet2025Compliant ? `Chuẩn 2025 (P1: ${p1Count}, P2: ${p2Count}, P3: ${p3Count})` : null,
-    academicYear ? `Năm học: ${academicYear}` : null,
-    schoolOrDepartment ? `Nguồn: ${schoolOrDepartment}` : null,
-    hasAnswerKeys ? 'Có đáp án' : null,
-  ]
-    .filter(Boolean)
-    .join(' | ');
+  const builtDesc = buildClientExamDescription({
+    subject: detectedSubject,
+    subjectVi: detectedSubjectVi,
+    estimatedLevel,
+    examType,
+    examTypeVi,
+    fileName: file.name,
+    rawText: extractedText,
+    schoolOrDepartment,
+    academicYear,
+    questionCount,
+    moet2025Compliant,
+    hasAnswerKeys,
+    hasDetailedSolutions,
+  });
+
+  const shortLabel = cloudShortLabel || builtDesc.shortLabel;
+  const examDescription = cloudExamDescription || builtDesc.examDescription;
+  const summary = examDescription;
 
   const elapsedMs = performance.now() - t0;
   console.log(`[ClientDocInspector] Phân tích hoàn tất trong ${elapsedMs.toFixed(1)}ms:`, summary);
@@ -862,6 +967,8 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     hasAnswerKeys,
     hasDetailedSolutions,
     rawTextSnippet: extractedText.slice(0, 5000),
+    shortLabel,
+    examDescription,
     summary,
     verificationSteps,
     ambiguityWarnings,

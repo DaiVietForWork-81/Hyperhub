@@ -123,7 +123,9 @@ export interface ExamDocument {
   download_url?: string;
   timestamp: string;
   file_hash?: string;
+  short_label?: string;
   notes?: string;
+  description?: string;
   academic_year?: string;
   school_or_department?: string;
   verdict?: string | null;
@@ -441,17 +443,166 @@ export function getEducationLevelBadgeInfo(doc: { estimated_level?: string; subj
 
 
 
+const DASHBOARD_SUBJECT_SHORT_MAP: Record<string, string> = {
+  MATHEMATICS: 'Toán',
+  TOAN: 'Toán',
+  TOÁN: 'Toán',
+  PHYSICS: 'Lý',
+  VAT_LY: 'Lý',
+  'VẬT LÍ': 'Lý',
+  'VẬT LÝ': 'Lý',
+  CHEMISTRY: 'Hóa',
+  HOA_HOC: 'Hóa',
+  'HÓA HỌC': 'Hóa',
+  BIOLOGY: 'Sinh',
+  SINH_HOC: 'Sinh',
+  'SINH HỌC': 'Sinh',
+  INFORMATICS: 'Tin',
+  TIN_HOC: 'Tin',
+  'TIN HỌC': 'Tin',
+  LITERATURE: 'Văn',
+  NGU_VAN: 'Văn',
+  'NGỮ VĂN': 'Văn',
+  ENGLISH: 'Anh',
+  TIENG_ANH: 'Anh',
+  'TIẾNG ANH': 'Anh',
+  'NGOẠI NGỮ 1 (TIẾNG ANH)': 'Anh',
+  HISTORY: 'Sử',
+  LICH_SU: 'Sử',
+  'LỊCH SỬ': 'Sử',
+  GEOGRAPHY: 'Địa',
+  DIA_LY: 'Địa',
+  'ĐỊA LÍ': 'Địa',
+  'ĐỊA LÝ': 'Địa',
+  NATURAL_SCIENCE: 'KHTN',
+  KHTN: 'KHTN',
+  'KHOA HỌC TỰ NHIÊN': 'KHTN',
+  HISTORY_GEOGRAPHY: 'Sử - Địa',
+  LS_DL: 'Sử - Địa',
+  'LỊCH SỬ VÀ ĐỊA LÍ': 'Sử - Địa',
+  'LỊCH SỬ VÀ ĐỊA LÝ': 'Sử - Địa',
+  CIVIC_EDUCATION: 'GDCD',
+  GDCD: 'GDCD',
+  'GIÁO DỤC CÔNG DÂN': 'GDCD',
+  ECONOMIC_LEGAL_EDU: 'GDKT&PL',
+  GDKT_PL: 'GDKT&PL',
+  'GIÁO DỤC KINH TẾ VÀ PHÁP LUẬT': 'GDKT&PL',
+  TECHNOLOGY: 'Công nghệ',
+  CONG_NGHE: 'Công nghệ',
+  'CÔNG NGHỆ': 'Công nghệ',
+  DEFENSE_SECURITY_EDU: 'GDQP&AN',
+  GDQP_AN: 'GDQP&AN',
+  'GIÁO DỤC QUỐC PHÒNG VÀ AN NINH': 'GDQP&AN',
+  GENERAL: 'Tổng hợp',
+};
+
+export function getExamDescriptionInfo(doc: ExamDocument): {
+  shortLabel: string;
+  bodyDescription: string;
+  fullDescription: string;
+} {
+  const subjKey = (doc.subject || 'GENERAL').trim();
+  const subjShort =
+    DASHBOARD_SUBJECT_SHORT_MAP[subjKey] ||
+    DASHBOARD_SUBJECT_SHORT_MAP[subjKey.toUpperCase()] ||
+    subjKey;
+
+  const estStr = (doc.estimated_level || '').trim();
+  const mGrade = estStr.match(/\b(6|7|8|9|10|11|12)\b/);
+  const gradeNum = mGrade ? parseInt(mGrade[1], 10) : null;
+  const gradeShort = gradeNum
+    ? `Lớp ${gradeNum}`
+    : /THCS|CẤP 2/i.test(estStr)
+    ? 'Cấp 2'
+    : /ĐẠI HỌC/i.test(estStr)
+    ? 'Đại học'
+    : 'Phổ thông';
+
+  const trackInfo = getExamTrackInfo(doc);
+  const trackShort =
+    trackInfo.tier === 'CHUYEN'
+      ? 'Chuyên'
+      : trackInfo.tier === 'HSG'
+      ? 'HSG'
+      : trackInfo.tier === 'QUOC_TE'
+      ? 'Quốc tế'
+      : 'Thường';
+
+  const computedShortLabel = doc.short_label || `${gradeShort} ${trackShort} ${subjShort}`.trim();
+
+  const rawNotes = (doc.description || doc.notes || '').trim();
+  if (rawNotes && rawNotes.includes(' — ')) {
+    const [prefix, ...rest] = rawNotes.split(' — ');
+    const body = rest.join(' — ').trim();
+    if (body && !body.includes('Bậc:')) {
+      return {
+        shortLabel: prefix.trim() || computedShortLabel,
+        bodyDescription: body,
+        fullDescription: `${prefix.trim() || computedShortLabel} — ${body}`,
+      };
+    }
+  }
+
+  const mParen = estStr.match(/\(([^)]+)\)/);
+  let natureStr = mParen ? mParen[1].trim() : '';
+  if (!natureStr || /^(thường|chung|hsg|chuyên|ôn thi thpt|ôn vào 10)$/i.test(natureStr)) {
+    if (trackShort === 'Chuyên' && gradeNum === 9) {
+      natureStr = `Đề thi tuyển sinh vào lớp 10 Chuyên môn ${subjShort}`;
+    } else if (trackShort === 'HSG') {
+      natureStr = `Đề thi chọn Học sinh giỏi môn ${subjShort}`;
+    } else if (gradeNum === 9) {
+      natureStr = `Đề ôn thi tuyển sinh vào lớp 10 môn ${subjShort}`;
+    } else if (gradeNum === 12) {
+      natureStr = `Đề thi thử / ôn luyện Tốt nghiệp THPT môn ${subjShort}`;
+    } else {
+      natureStr = `Đề kiểm tra định kỳ môn ${subjShort}`;
+    }
+  }
+
+  const parts: string[] = [natureStr];
+  if (doc.school_or_department && doc.school_or_department !== 'null') {
+    parts.push(
+      `(${doc.school_or_department}${
+        doc.academic_year && doc.academic_year !== 'null' ? ` • ${doc.academic_year}` : ''
+      })`
+    );
+  } else if (doc.academic_year && doc.academic_year !== 'null') {
+    parts.push(`(năm học ${doc.academic_year})`);
+  }
+  if (doc.question_count && doc.question_count > 0) {
+    parts.push(`gồm ${doc.question_count} câu hỏi`);
+  }
+  const extras: string[] = [];
+  if (doc.moet_2025_compliant || (doc.moet_part1_count && doc.moet_part1_count > 0)) {
+    extras.push('cấu trúc chuẩn 2025');
+  }
+  if (doc.has_detailed_solutions) extras.push('có lời giải chi tiết');
+  else if (doc.has_answer_keys) extras.push('có bảng đáp án');
+  if (extras.length > 0) {
+    parts.push(`• ${extras.join(', ')}`);
+  }
+
+  let bodyDesc = parts.join(' ').trim();
+  if (!bodyDesc.endsWith('.')) bodyDesc += '.';
+
+  return {
+    shortLabel: computedShortLabel,
+    bodyDescription: bodyDesc,
+    fullDescription: `${computedShortLabel} — ${bodyDesc}`,
+  };
+}
+
 // Gợi ý từ khóa nhanh
 const QUICK_KEYWORD_TAGS = [
+  'Lớp 12 Thường Toán',
+  'Lớp 9 Chuyên Tin',
+  'Lớp 11 Thường Hóa',
+  'Lớp 7 HSG Toán',
   'Đề thi thử 2025',
   'Có đáp án chi tiết',
   'Hàm số mũ & Logarit',
   'Quy hoạch động',
-  'Word formation',
-  'Hình học không gian',
-  'Bất đẳng thức',
   'Đọc hiểu & Nghị luận',
-  'Chuyên Tin C++',
 ];
 
 // Hàm làm sạch URL bên ngoài, chống JavaScript URI scheme (javascript: / data:)
@@ -940,12 +1091,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
       list = list.filter((doc) => Boolean(doc.jump_url || doc.download_url));
     }
 
-    // 11. Lọc theo Từ Khóa Tìm Kiếm (Tối ưu Multi-Token: gõ "Toán 12 Chuyên" quét linh hoạt từng từ)
+    // 11. Lọc theo Từ Khóa Tìm Kiếm (Tối ưu Multi-Token: gõ "Lớp 9 Chuyên Tin" hoặc "Lớp 7 HSG Toán" quét linh hoạt từng từ)
     if (descriptionKeyword && descriptionKeyword.trim()) {
       const tokens = descriptionKeyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
       if (tokens.length > 0) {
         list = list.filter((doc) => {
-          const text = `${doc.title || ''} ${doc.file_name || ''} ${doc.subject || ''} ${doc.school_or_department || ''} ${doc.academic_year || ''} ${doc.notes || ''}`.toLowerCase();
+          const descInfo = getExamDescriptionInfo(doc);
+          const text = `${doc.title || ''} ${doc.file_name || ''} ${doc.subject || ''} ${doc.school_or_department || ''} ${doc.academic_year || ''} ${doc.notes || ''} ${descInfo.shortLabel} ${descInfo.fullDescription}`.toLowerCase();
           return tokens.every((t) => text.includes(t));
         });
       }
@@ -2264,6 +2416,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
     const trackInfo = getExamTrackInfo(doc);
     const eduBadge = getEducationLevelBadgeInfo(doc);
+    const descInfo = getExamDescriptionInfo(doc);
     const isBookmarked = bookmarkedIds.has(doc.id);
 
     return (
@@ -2313,6 +2466,13 @@ const DashboardContent: React.FC<DashboardProps> = ({
               <h4 className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#FFB8E6] transition-colors line-clamp-2 leading-snug">
                 {doc.title || doc.file_name}
               </h4>
+
+              {/* Mô tả đề thi ngắn gọn (VD: Lớp 9 Chuyên Tin — ...) */}
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#14111f] border border-[#241d38] text-[12px] text-white/75 leading-relaxed line-clamp-2">
+                <span className="font-extrabold text-[#FFB8E6]">{descInfo.shortLabel}</span>
+                <span className="text-white/45 mx-1.5">—</span>
+                <span>{descInfo.bodyDescription}</span>
+              </div>
 
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-white/55">
                 <span>{doc.page_count || 1} trang</span>
@@ -2474,6 +2634,7 @@ const DashboardContent: React.FC<DashboardProps> = ({
     const isBookmarked = bookmarkedIds.has(doc.id);
     const gradeStyle = getGradeBadgeStyle(doc.estimated_level);
     const trackInfo = getExamTrackInfo(doc);
+    const descInfo = getExamDescriptionInfo(doc);
     const resolvedDownloadUrl = resolveExamFileUrl(doc);
 
     return (
@@ -2498,10 +2659,17 @@ const DashboardContent: React.FC<DashboardProps> = ({
           <button
             type="button"
             onClick={() => openExamModal(doc, 'pdf_reader')}
-            className="text-left min-w-0 flex-1 font-bold text-[13px] sm:text-sm text-white group-hover:text-[#FFB8E6] transition-colors truncate cursor-pointer"
-            title={doc.title || doc.file_name}
+            className="text-left min-w-0 flex-1 cursor-pointer"
+            title={descInfo.fullDescription}
           >
-            {doc.title || doc.file_name}
+            <div className="font-bold text-[13px] sm:text-sm text-white group-hover:text-[#FFB8E6] transition-colors truncate">
+              {doc.title || doc.file_name}
+            </div>
+            <div className="text-[11px] text-white/60 truncate mt-0.5">
+              <span className="font-bold text-[#C4A6FF]">{descInfo.shortLabel}</span>
+              <span className="mx-1 text-white/35">—</span>
+              <span>{descInfo.bodyDescription}</span>
+            </div>
           </button>
         </div>
 
@@ -4507,10 +4675,20 @@ const DashboardContent: React.FC<DashboardProps> = ({
                   </button>
                 </div>
 
-                <div>
+                <div className="space-y-2.5">
                   <h2 className="text-xl sm:text-2xl font-black text-white">
                     {currentExam.title || currentExam.file_name}
                   </h2>
+                  {(() => {
+                    const cDesc = getExamDescriptionInfo(currentExam);
+                    return (
+                      <div className="px-3 py-2 rounded-xl bg-[#14111f] border border-[#241d38] text-[13px] text-white/80 leading-relaxed">
+                        <span className="font-extrabold text-[#FFB8E6]">{cDesc.shortLabel}</span>
+                        <span className="text-white/45 mx-1.5">—</span>
+                        <span>{cDesc.bodyDescription}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex flex-wrap items-center gap-2 text-[13px] text-white/50 font-mono mt-1">
                     <span>Tệp gốc: {currentExam.file_name}</span>
                     <span>•</span>
