@@ -1,4 +1,13 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useDeferredValue,
+  useTransition,
+} from 'react';
 import {
   ShieldAlert,
   UserX,
@@ -16,7 +25,7 @@ import {
   FileText,
   X,
   Lock,
-  Unlock,
+  LockOpen,
   Megaphone,
   Send,
   ScrollText,
@@ -208,16 +217,16 @@ const EXAM_TRACK_OPTIONS = [
 ];
 
 const ROLE_COLOR_SWATCHES = [
+  '#C6F24E',
   '#F59E0B',
   '#FF2E63',
-  '#FF0090',
   '#10B981',
   '#06B6D4',
+  '#38BDF8',
   '#3B82F6',
-  '#8B5CF6',
   '#F472B6',
   '#EF4444',
-  '#00FF0C',
+  '#22C55E',
 ];
 
 const PERMISSION_PRESETS = [
@@ -229,34 +238,40 @@ const PERMISSION_PRESETS = [
 ];
 
 const TIER_META: Record<string, { label: string; badgeClass: string }> = {
-  staff: { label: 'Quản trị & Điều hành', badgeClass: 'bg-rose-500/15 text-rose-300 border-rose-500/35' },
-  honor: { label: 'Vinh danh & Học thuật', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/35' },
-  grade: { label: 'Khối lớp (6 → 12)', badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/35' },
-  member: { label: 'Thành viên', badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35' },
-  divider: { label: 'Thanh phân cách', badgeClass: 'bg-white/10 text-white/60 border-white/20' },
-  bot: { label: 'Hệ thống Bot', badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/35' },
-  other: { label: 'Khác', badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/35' },
-  default: { label: 'Mặc định (@everyone)', badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30' },
+  staff: { label: 'Quản trị & Điều hành', badgeClass: 'bg-[#2C1620] text-[#FDA4AF] ring-1 ring-[#4C2233]' },
+  honor: { label: 'Vinh danh & Học thuật', badgeClass: 'bg-[#281F12] text-[#FCD34D] ring-1 ring-[#45341B]' },
+  grade: { label: 'Khối lớp (6 → 12)', badgeClass: 'bg-[#12242E] text-[#67E8F9] ring-1 ring-[#1D3B4B]' },
+  member: { label: 'Thành viên', badgeClass: 'bg-[#13261C] text-[#6EE7B7] ring-1 ring-[#1F3F2E]' },
+  divider: { label: 'Thanh phân cách', badgeClass: 'bg-[#1A1825] text-[#A39FB8] ring-1 ring-[#282438]' },
+  bot: { label: 'Hệ thống Bot', badgeClass: 'bg-[#142234] text-[#7DD3FC] ring-1 ring-[#213854]' },
+  other: { label: 'Khác', badgeClass: 'bg-[#1A1825] text-[#CBD5E1] ring-1 ring-[#282438]' },
+  default: { label: 'Mặc định (@everyone)', badgeClass: 'bg-[#161421] text-[#94A3B8] ring-1 ring-[#262235]' },
 };
 
 const PERM_LABELS_VI: Record<string, string> = {
-  administrator: '👑 Toàn quyền Admin',
-  manage_guild: '⚙️ Quản lý Server',
-  manage_roles: '🎭 Quản lý Role',
-  manage_channels: '📢 Quản lý Kênh',
-  kick_members: '👢 Kick',
-  ban_members: '🔨 Ban',
-  moderate_members: '🔇 Timeout/Mute',
-  manage_messages: '🧹 Xóa tin nhắn',
-  manage_threads: '🧵 Quản lý Thread',
-  view_audit_log: '📋 Xem Nhật ký',
-  mention_everyone: '📣 Ping @everyone',
-  send_messages: '💬 Nhắn tin',
-  view_channel: '👁️ Xem kênh',
+  administrator: 'Toàn quyền Admin',
+  manage_guild: 'Quản lý Server',
+  manage_roles: 'Quản lý Role',
+  manage_channels: 'Quản lý Kênh',
+  kick_members: 'Kick thành viên',
+  ban_members: 'Cấm thành viên (Ban)',
+  moderate_members: 'Tạm khóa (Timeout)',
+  manage_messages: 'Xóa tin nhắn',
+  manage_threads: 'Quản lý Thread',
+  view_audit_log: 'Xem Nhật ký',
+  mention_everyone: 'Ping @everyone',
+  send_messages: 'Nhắn tin',
+  view_channel: 'Xem kênh',
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParentDocs }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('roles');
+  const [isPendingTab, startTabTransition] = useTransition();
+  const switchTab = useCallback((nextTab: AdminTab) => {
+    startTabTransition(() => {
+      setActiveTab(nextTab);
+    });
+  }, []);
   const [selectedGuildId, setSelectedGuildId] = useState<string>('1532265330079174697');
   const [guilds, setGuilds] = useState<GuildOption[]>([
     { id: '1532265330079174697', name: 'Orbit | Vietnam', member_count: 44 },
@@ -361,7 +376,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [announceTitle, setAnnounceTitle] = useState<string>('');
   const [announceMsg, setAnnounceMsg] = useState<string>('');
-  const [announceColor, setAnnounceColor] = useState<string>('#A855F7');
+  const [announceColor, setAnnounceColor] = useState<string>('#C6F24E');
   const [refreshingPanels, setRefreshingPanels] = useState<boolean>(false);
 
   // ================= 5. CONFIG & SYSTEM STATE =================
@@ -747,9 +762,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       const whOk = whRes.status === 'fulfilled' && whRes.value.ok;
       showFeedback(
         'success',
-        `⚡ Đã đồng bộ 2 chiều Bot ↔ Web qua Webhook 1568882621470089247${
-          syncedPending > 0 ? ` • Đã đồng bộ ${syncedPending} đề chờ lên Discord` : ''
-        }${whOk ? ' • Tín hiệu Bot Active!' : '!'}`
+        `Đã đồng bộ 2 chiều Bot ↔ Web qua Webhook 1568882621470089247${
+          syncedPending > 0 ? ` · Đã đồng bộ ${syncedPending} đề chờ lên Discord` : ''
+        }${whOk ? ' · Tín hiệu Bot Active!' : '!'}`
       );
     } catch {
       showFeedback('error', 'Không thể thực hiện đồng bộ toàn hệ thống.');
@@ -1199,7 +1214,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   };
 
   const handleToggleChannelLock = async (ch: DiscordChannelItem) => {
-    const mode = ch.is_private ? 'unlock' : 'lock';
+    const mode = ch.is_private ? 'open' : 'lock';
     setSubmitting(true);
     try {
       const apiBase = getApiBaseUrl();
@@ -1281,7 +1296,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         headers: getAuthHeaders(),
         body: JSON.stringify({
           channel_id: selectedChannelId,
-          title: announceTitle.trim() || '📢 THÔNG BÁO TỪ BAN QUẢN TRỊ ORBIT',
+          title: announceTitle.trim() || 'THÔNG BÁO TỪ BAN QUẢN TRỊ ORBIT',
           message: announceMsg.trim(),
           color: announceColor,
         }),
@@ -1396,21 +1411,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
   };
 
-  // ================= FILTERED DATA & TELEMETRY COUNTERS =================
+  // ================= FILTERED DATA & TELEMETRY COUNTERS (DEFERRED FOR 60FPS) =================
+  const deferredRoleSearch = useDeferredValue(roleSearch);
+  const deferredMemberSearch = useDeferredValue(memberSearch);
+  const deferredDocSearch = useDeferredValue(docSearch);
+  const deferredChannelSearch = useDeferredValue(channelSearch);
+  const deferredLogFilter = useDeferredValue(logFilter);
+  const deferredModalRoleSearch = useDeferredValue(modalRoleSearch);
+
   const filteredRoles = useMemo(() => {
     return roles.filter((r) => {
       if (roleTierFilter !== 'ALL' && r.tier !== roleTierFilter) return false;
-      if (roleSearch.trim()) {
-        const q = roleSearch.toLowerCase();
+      if (deferredRoleSearch.trim()) {
+        const q = deferredRoleSearch.toLowerCase();
         if (!r.name.toLowerCase().includes(q) && !r.id.includes(q)) return false;
       }
       return true;
     });
-  }, [roles, roleTierFilter, roleSearch]);
+  }, [roles, roleTierFilter, deferredRoleSearch]);
 
   const assignableRoles = useMemo(() => {
     return roles.filter((r) => !r.is_default && !r.managed && r.tier !== 'divider');
   }, [roles]);
+
+  const memberByIdMap = useMemo(() => {
+    const map = new Map<string, DiscordMemberItem>();
+    for (const m of members) {
+      map.set(m.user_id, m);
+    }
+    return map;
+  }, [members]);
 
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
@@ -1418,20 +1448,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         const hasR = (m.roles || []).some((r) => r.id === memberRoleFilter);
         if (!hasR) return false;
       }
-      if (memberSearch.trim()) {
-        const q = memberSearch.toLowerCase();
+      if (deferredMemberSearch.trim()) {
+        const q = deferredMemberSearch.toLowerCase();
         const hay = `${m.display_name} ${m.username} ${m.user_id}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [members, memberRoleFilter, memberSearch]);
+  }, [members, memberRoleFilter, deferredMemberSearch]);
 
   const selectedTargetMember = useMemo(() => {
     const clean = targetUserId.trim();
     if (!clean) return null;
-    return members.find((m) => m.user_id === clean) || null;
-  }, [members, targetUserId]);
+    return memberByIdMap.get(clean) || null;
+  }, [memberByIdMap, targetUserId]);
 
   const duplicateDocsCount = useMemo(
     () => docs.filter((d) => d.is_duplicate_copy).length,
@@ -1458,14 +1488,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       if (docSubjectFilter !== 'ALL' && d.subject !== docSubjectFilter) return false;
       if (docLevelFilter !== 'ALL' && !(d.estimated_level || '').includes(docLevelFilter)) return false;
       if (docTrackFilter !== 'ALL' && (d.exam_track || 'Thường') !== docTrackFilter) return false;
-      if (docSearch.trim()) {
-        const q = docSearch.toLowerCase();
+      if (deferredDocSearch.trim()) {
+        const q = deferredDocSearch.toLowerCase();
         const hay = `${d.id} ${d.title} ${d.subject} ${d.estimated_level} ${d.school_or_department || ''} ${d.notes || ''} ${d.author_name || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [docs, docStatusFilter, docSubjectFilter, docLevelFilter, docTrackFilter, docSearch]);
+  }, [docs, docStatusFilter, docSubjectFilter, docLevelFilter, docTrackFilter, deferredDocSearch]);
 
   const totalDocPages = useMemo(
     () => Math.max(1, Math.ceil(filteredDocs.length / DOC_PAGE_SIZE)),
@@ -1483,20 +1513,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       if (channelKindFilter === 'PRIVATE' && !ch.is_private) return false;
       if (channelKindFilter === 'TEXT' && ch.kind === 'voice') return false;
       if (channelKindFilter === 'VOICE' && ch.kind !== 'voice') return false;
-      if (channelSearch.trim()) {
-        const q = channelSearch.toLowerCase();
+      if (deferredChannelSearch.trim()) {
+        const q = deferredChannelSearch.toLowerCase();
         const hay = `${ch.name} ${ch.category} ${ch.topic || ''} ${ch.channel_id}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [channels, channelKindFilter, channelSearch]);
+  }, [channels, channelKindFilter, deferredChannelSearch]);
 
   const filteredLogLines = useMemo(() => {
-    if (!logFilter.trim()) return logLines;
-    const q = logFilter.toLowerCase();
+    if (!deferredLogFilter.trim()) return logLines;
+    const q = deferredLogFilter.toLowerCase();
     return logLines.filter((ln) => ln.toLowerCase().includes(q));
-  }, [logLines, logFilter]);
+  }, [logLines, deferredLogFilter]);
 
   const formatBytes = (bytes: number) => {
     if (!bytes || bytes <= 0) return '0 KB';
@@ -1514,37 +1544,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   ];
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto my-2 bg-[#0B0911] border border-[#1E1B2B] rounded-2xl overflow-hidden text-white">
+    <div className="w-full max-w-[1440px] mx-auto my-2 bg-[#0B0911] ring-1 ring-[#1E1B2B] rounded-2xl overflow-hidden text-white">
       {/* ================= TOP COMMAND HEADER (RULED T-FRAME) ================= */}
-      <div className="relative px-6 pt-5 pb-0 bg-[#110F18] border-b border-[#1E1B2B]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5">
+      <div className="relative px-6 pt-5 pb-0 bg-[#110F18]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                 Trung tâm quản trị Orbit
               </h1>
-              <span className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-[#1D1A2B] text-[#E2D4FF] border border-[#2C2740]">
+              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
                 {adminIdentity?.role_name || 'Quản trị viên'}
               </span>
               <span
-                className={`px-2.5 py-0.5 text-xs font-medium rounded-md border flex items-center gap-1.5 tabular-nums ${
+                className={`px-2.5 py-0.5 text-xs font-medium rounded-md ring-1 flex items-center gap-1.5 tabular-nums ${
                   botOnline
-                    ? 'bg-[#172A1D] text-[#3FC07A] border-[#23422D]'
-                    : 'bg-[#18222C] text-[#60A5FA] border-[#253748]'
+                    ? 'bg-[#13261C] text-[#3FC07A] ring-[#23422D]'
+                    : 'bg-[#142234] text-[#38BDF8] ring-[#253748]'
                 }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    botOnline ? 'bg-[#3FC07A]' : 'bg-[#60A5FA]'
+                    botOnline ? 'bg-[#3FC07A]' : 'bg-[#38BDF8]'
                   }`}
                 />
                 {botOnline
                   ? `Bot trực tuyến · ${botBridgeStatus?.ping_ms ?? 15} ms`
                   : 'Cloud trực tuyến 24/7'}
               </span>
-              <span className="px-2 py-0.5 text-[11px] font-mono rounded-md bg-[#16141F] text-[#949494] border border-[#221F30]">
+              <code className="px-2 py-0.5 text-[11px] font-mono rounded-md bg-[#16141F] text-[#949494] ring-1 ring-[#221F30] tabular-nums">
                 Webhook #1568882621470089247
-              </span>
+              </code>
+              {isPendingTab && (
+                <span className="px-2 py-0.5 text-[11px] rounded-md bg-[#1A1826] text-[#C6F24E] tabular-nums">
+                  Đang chuyển phân hệ...
+                </span>
+              )}
             </div>
             <p className="text-xs sm:text-[13px] text-[#B4B4B4]">
               Phân cấp Role, kiểm soát thành viên, quản lý kho đề thi và đồng bộ hai chiều giữa Discord Bot và Web.
@@ -1557,14 +1592,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               type="button"
               onClick={handleFullSystemSync}
               disabled={syncingSystem}
-              className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+              className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
               title="Bắn tín hiệu Webhook 1568882621470089247 và đồng bộ tức thì kho đề + cấu hình giữa Bot và Web"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncingSystem ? 'animate-spin' : ''}`} />
               <span>{syncingSystem ? 'Đang đồng bộ...' : 'Đồng bộ Bot ↔ Web'}</span>
             </button>
 
-            <div className="h-9 flex items-center gap-2 bg-[#0B0911] border border-[#262235] rounded-lg px-3">
+            <div className="h-9 flex items-center gap-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg px-3">
               <span className="text-xs text-[#949494]">Máy chủ:</span>
               <select
                 value={selectedGuildId}
@@ -1583,7 +1618,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             {onClose && (
               <button
                 onClick={onClose}
-                className="h-9 px-3 rounded-lg bg-[#16141F] hover:bg-[#1E1B2B] border border-[#262235] text-xs font-medium text-[#B4B4B4] hover:text-white flex items-center gap-1.5 transition cursor-pointer"
+                className="h-9 px-3 rounded-lg bg-[#16141F] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#B4B4B4] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
                 <span>Đóng</span>
@@ -1592,13 +1627,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           </div>
         </div>
 
-        {/* Unified Divided KPI Strip (App-Screen Standard: 1 Container Split by 1px Hairlines, Label Over Tabular Value) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 sm:divide-x divide-[#1E1B2B] bg-[#0B0911] border border-[#1E1B2B] rounded-xl overflow-hidden">
+        {/* Quick Command Dock: 1-Click Operational Triggers */}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 mb-4 rounded-xl bg-[#0B0911] ring-1 ring-[#1E1B2B]">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-[#949494] mr-1">Lệnh điều hành nhanh:</span>
+            <button
+              type="button"
+              onClick={handleAlignRoles}
+              disabled={aligningRoles}
+              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3 text-[#C6F24E]" />
+              <span>{aligningRoles ? 'Đang căn chỉnh...' : 'Căn chỉnh Role'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRefreshDiscordPanels('all')}
+              disabled={refreshingPanels}
+              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Layers className="w-3 h-3 text-[#38BDF8]" />
+              <span>{refreshingPanels ? 'Đang làm mới...' : 'Làm mới Panel Discord'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyUpdate}
+              disabled={applyingUpdate}
+              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <GitBranch className="w-3 h-3 text-[#3FC07A]" />
+              <span>{applyingUpdate ? 'Đang cập nhật...' : 'GitHub 1-Click Update'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleHotReload}
+              disabled={reloadingBot}
+              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3 h-3 text-[#F59E0B] ${reloadingBot ? 'animate-spin' : ''}`} />
+              <span>{reloadingBot ? 'Đang nạp Cogs...' : 'Hot-Reload Cogs'}</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-[#949494] tabular-nums">
+            <span>Bộ lọc: {filteredRoles.length} role · {filteredMembers.length} thành viên · {filteredDocs.length} đề</span>
+          </div>
+        </div>
+
+        {/* Unified Divided KPI Strip (1px Grid Gap Hairlines + Proportional Telemetry Bars) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px bg-[#1E1B2B] ring-1 ring-[#1E1B2B] rounded-xl overflow-hidden">
           <button
             type="button"
-            onClick={() => setActiveTab('roles')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'roles' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('roles')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'roles' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'roles' && (
@@ -1609,13 +1690,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
               {assignableRoles.length} role cấp phát
             </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div
+                className="h-full bg-[#C6F24E]"
+                style={{
+                  width: `${roles.length > 0 ? Math.min(100, Math.round((assignableRoles.length / roles.length) * 100)) : 0}%`,
+                }}
+              />
+            </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('members')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'members' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('members')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'members' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'members' && (
@@ -1630,13 +1719,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             >
               {bans.length > 0 ? `${bans.length} tài khoản bị cấm` : '0 tài khoản bị cấm'}
             </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div
+                className="h-full bg-[#38BDF8]"
+                style={{ width: `${members.length > 0 ? 100 : 12}%` }}
+              />
+            </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('documents')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'documents' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('documents')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'documents' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'documents' && (
@@ -1653,13 +1748,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 ? `${duplicateDocsCount} bản trùng lặp`
                 : `${uniqueDocsCount} đề độc bản`}
             </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div
+                className="h-full bg-[#3FC07A]"
+                style={{
+                  width: `${docs.length > 0 ? Math.min(100, Math.round((uniqueDocsCount / docs.length) * 100)) : 0}%`,
+                }}
+              />
+            </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('channels')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'channels' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('channels')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'channels' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'channels' && (
@@ -1670,13 +1773,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
               {privateChannelsCount} riêng tư · {Math.max(0, channels.length - privateChannelsCount)} công khai
             </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div
+                className="h-full bg-[#F59E0B]"
+                style={{
+                  width: `${channels.length > 0 ? Math.min(100, Math.round(((channels.length - privateChannelsCount) / channels.length) * 100)) : 0}%`,
+                }}
+              />
+            </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('config')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'config' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('config')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'config' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'config' && (
@@ -1689,26 +1800,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
               {tursoStats ? `${tursoStats.usedPercent.toFixed(2)}% của 5 GB` : 'Hạn mức 5 GB'}
             </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div
+                className="h-full bg-[#38BDF8]"
+                style={{ width: `${tursoStats ? Math.max(4, Math.min(100, tursoStats.usedPercent)) : 4}%` }}
+              />
+            </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('logs')}
-            className={`p-3.5 text-left transition cursor-pointer relative ${
-              activeTab === 'logs' ? 'bg-[#161421]' : 'hover:bg-[#12101B]'
+            onClick={() => switchTab('logs')}
+            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
+              activeTab === 'logs' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
             }`}
           >
             {activeTab === 'logs' && (
               <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
             )}
             <div className="text-xs text-[#B4B4B4] font-normal">Phiên bản &amp; Nhật ký</div>
-            <div className="text-2xl font-semibold text-white mt-1 font-mono tabular-nums">
-              {updateStatus?.current_hash || 'main'}
+            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">
+              <code className="font-mono text-xl">{updateStatus?.current_hash || 'main'}</code>
             </div>
             <div className="text-xs text-[#3FC07A] mt-0.5 tabular-nums">
               {botBridgeStatus?.web_handshake_count
                 ? `${botBridgeStatus.web_handshake_count} lần kết nối`
                 : 'Đã đồng bộ Webhook'}
+            </div>
+            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div className="h-full bg-[#3FC07A] w-full" />
             </div>
           </button>
         </div>
@@ -1721,7 +1841,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           {tabIndicator.ready && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 h-[2px] bg-white transition-all duration-200 ease-out"
+              className="pointer-events-none absolute bottom-0 h-[2px] bg-[#C6F24E] transition-[left,width] duration-200 ease-out"
               style={{
                 left: `${tabIndicator.left}px`,
                 width: `${tabIndicator.width}px`,
@@ -1736,16 +1856,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 ref={(el) => {
                   tabBtnRefs.current[t.id] = el;
                 }}
-                onClick={() => setActiveTab(t.id)}
+                onClick={() => switchTab(t.id)}
                 className={`relative py-3 text-[13px] font-medium flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
                   isActive ? 'text-white' : 'text-[#949494] hover:text-[#E2E2E2]'
                 }`}
               >
-                <span className="text-[#949494]">{t.icon}</span>
+                <span className={isActive ? 'text-[#C6F24E]' : 'text-[#949494]'}>{t.icon}</span>
                 <span>{t.label}</span>
                 {t.badge !== undefined && (
                   <span
-                    className={`px-1.5 py-0.5 text-[11px] rounded font-mono tabular-nums ${
+                    className={`px-1.5 py-0.5 text-[11px] rounded tabular-nums ${
                       isActive
                         ? 'bg-[#22222C] text-white'
                         : 'bg-[#16141F] text-[#949494]'
@@ -1764,7 +1884,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {statusMsg && (
         <div
           role="status"
-          className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+          className={`mx-6 mt-4 p-3.5 rounded-xl ring-1 flex items-center justify-between gap-3 ${
             statusMsg.type === 'success'
               ? 'bg-[#172A1D] border-[#254630] text-[#3FC07A]'
               : 'bg-[#2C1A20] border-[#4A2631] text-[#E5566F]'
@@ -1796,7 +1916,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         {activeTab === 'roles' && (
           <div className="space-y-6 hh-swap-panel">
             {/* Top Action Banner: 1-Click Auto Alignment */}
-            <div className="p-5 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="p-5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-white font-semibold text-sm">
                   <Sparkles className="w-4 h-4 text-[#C6F24E]" />
@@ -1818,7 +1938,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <button
                   onClick={() => fetchRoles(selectedGuildId, true)}
                   disabled={loadingRoles}
-                  className="h-9 px-3.5 rounded-lg bg-[#181622] hover:bg-[#221F30] border border-[#282438] text-xs font-medium text-white flex items-center gap-1.5 transition cursor-pointer"
+                  className="h-9 px-3.5 rounded-lg bg-[#181622] hover:bg-[#221F30] ring-1 ring-[#282438] text-xs font-medium text-white flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
                   <span>Làm mới</span>
@@ -1830,7 +1950,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               {/* Left Column: Create New Role Form */}
               <form
                 onSubmit={handleCreateRole}
-                className="lg:col-span-4 bg-[#110F18] border border-[#1E1B2B] rounded-xl p-5 space-y-4 h-fit"
+                className="lg:col-span-4 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4 h-fit"
               >
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                   <Plus className="w-4 h-4 text-[#C6F24E]" />
@@ -1843,8 +1963,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     type="text"
                     value={newRoleName}
                     onChange={(e) => setNewRoleName(e.target.value)}
-                    placeholder="VD: 🏆 Chiến Thần Giải Đề"
-                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white focus:outline-none focus:border-fuchsia-400"
+                    placeholder="VD: Chiến Thần Giải Đề"
+                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
                   />
                 </div>
 
@@ -1857,13 +1977,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       type="color"
                       value={newRoleColor}
                       onChange={(e) => setNewRoleColor(e.target.value)}
-                      className="w-10 h-9 rounded-lg bg-transparent border border-white/20 cursor-pointer"
+                      className="w-10 h-9 rounded-lg bg-transparent ring-1 ring-white/20 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={newRoleColor}
                       onChange={(e) => setNewRoleColor(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                      className="flex-1 px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
                     />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -1873,9 +1993,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         type="button"
                         onClick={() => setNewRoleColor(hex)}
                         title={hex}
-                        className={`w-6 h-6 rounded-lg border transition-transform ${
+                        className={`w-6 h-6 rounded-lg ring-1 transition-transform ${
                           newRoleColor.toUpperCase() === hex
-                            ? 'scale-110 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]'
+                            ? 'scale-110 border-white'
                             : 'border-white/20 hover:scale-105'
                         }`}
                         style={{ backgroundColor: hex }}
@@ -1889,7 +2009,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={newRolePermPreset}
                     onChange={(e) => setNewRolePermPreset(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-fuchsia-400"
+                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
                   >
                     {PERMISSION_PRESETS.map((p) => (
                       <option key={p.value} value={p.value} className="bg-[#14111F]">
@@ -1900,21 +2020,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 border border-white/10 cursor-pointer text-xs">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 ring-1 ring-white/10 cursor-pointer text-xs">
                     <input
                       type="checkbox"
                       checked={newRoleHoist}
                       onChange={(e) => setNewRoleHoist(e.target.checked)}
-                      className="accent-fuchsia-500"
+                      className="accent-[#C6F24E]"
                     />
                     <span>Tách nhóm (Hoist)</span>
                   </label>
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 border border-white/10 cursor-pointer text-xs">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 ring-1 ring-white/10 cursor-pointer text-xs">
                     <input
                       type="checkbox"
                       checked={newRoleMentionable}
                       onChange={(e) => setNewRoleMentionable(e.target.checked)}
-                      className="accent-fuchsia-500"
+                      className="accent-[#C6F24E]"
                     />
                     <span>Cho phép @ping</span>
                   </label>
@@ -1923,7 +2043,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-2.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition"
+                  className="w-full py-2.5 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition"
                 >
                   <Plus className="w-4 h-4" />
                   Tạo Role Ngay
@@ -1931,7 +2051,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </form>
 
               {/* Right Column: Interactive Role Hierarchy */}
-              <div className="lg:col-span-8 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="lg:col-span-8 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -1950,7 +2070,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         value={roleSearch}
                         onChange={(e) => setRoleSearch(e.target.value)}
                         placeholder="Tìm tên hoặc ID role..."
-                        className="pl-8 pr-3 py-1.5 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                        className="pl-8 pr-3 py-1.5 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
                       />
                     </div>
                   </div>
@@ -1960,19 +2080,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 'ALL', label: 'Tất cả tầng' },
-                    { id: 'staff', label: '👑 Quản trị' },
-                    { id: 'honor', label: '⚜️ Vinh danh & Học thuật' },
-                    { id: 'grade', label: '🎓 Khối lớp' },
-                    { id: 'member', label: '🌱 Thành viên' },
-                    { id: 'divider', label: '╭─ Thanh phân cách' },
-                    { id: 'bot', label: '🤖 Bot' },
+                    { id: 'staff', label: 'Quản trị' },
+                    { id: 'honor', label: 'Vinh danh & Học thuật' },
+                    { id: 'grade', label: 'Khối lớp' },
+                    { id: 'member', label: 'Thành viên' },
+                    { id: 'divider', label: 'Thanh phân cách' },
+                    { id: 'bot', label: 'Hệ thống Bot' },
                   ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setRoleTierFilter(f.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 transition ${
                         roleTierFilter === f.id
-                          ? 'bg-purple-500/25 text-purple-200 border-purple-400/50'
+                          ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
                           : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
                       }`}
                     >
@@ -1997,18 +2117,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       return (
                         <div
                           key={role.id}
-                          className={`p-3 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          className={`p-3 rounded-xl ring-1 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                             role.tier === 'divider'
                               ? 'bg-black/60 border-white/10'
-                              : 'bg-black/35 hover:bg-black/50 border-white/10 hover:border-purple-500/30'
+                              : 'bg-black/35 hover:bg-black/50 border-white/10 hover:ring-[#322D47]'
                           }`}
                         >
                           <div className="flex items-start sm:items-center gap-3 min-w-0">
-                            <span className="w-8 text-center font-mono text-[11px] text-white/45 tabular-nums shrink-0">
+                            <span className="w-8 text-center tabular-nums text-[11px] text-white/45 tabular-nums shrink-0">
                               #{role.position}
                             </span>
                             <span
-                              className="w-4 h-4 rounded-full border border-white/30 shrink-0 mt-0.5 sm:mt-0"
+                              className="w-4 h-4 rounded-full ring-1 ring-white/30 shrink-0 mt-0.5 sm:mt-0"
                               style={{ backgroundColor: role.color }}
                               title={`Màu: ${role.color}`}
                             />
@@ -2021,7 +2141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   {role.name}
                                 </span>
                                 <span
-                                  className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border ${tierInfo.badgeClass}`}
+                                  className={`px-2 py-0.5 text-[10px] font-semibold rounded-md ring-1 ${tierInfo.badgeClass}`}
                                 >
                                   {tierInfo.label}
                                 </span>
@@ -2029,7 +2149,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   {role.member_count} thành viên
                                 </span>
                                 {role.managed && (
-                                  <span className="px-2 py-0.5 text-[10px] rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  <span className="px-2 py-0.5 text-[10px] rounded-md bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
                                     Bot Managed
                                   </span>
                                 )}
@@ -2040,7 +2160,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   {role.permissions_list.slice(0, 6).map((perm) => (
                                     <span
                                       key={perm}
-                                      className="px-1.5 py-0.5 text-[10px] rounded bg-white/[0.06] text-white/70 border border-white/10"
+                                      className="px-1.5 py-0.5 text-[10px] rounded bg-white/[0.06] text-white/70 ring-1 ring-white/10"
                                     >
                                       {PERM_LABELS_VI[perm] || perm}
                                     </span>
@@ -2063,7 +2183,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   type="button"
                                   onClick={() => handleQuickPatchRole(role.id, { hoist: !role.hoist })}
                                   title="Bật/tắt hiển thị tách nhóm trên thanh bên phải Discord (Hoist)"
-                                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition ${
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold ring-1 transition ${
                                     role.hoist
                                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35'
                                       : 'bg-white/5 text-white/45 border-white/10 hover:text-white/80'
@@ -2075,7 +2195,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   type="button"
                                   onClick={() => handleQuickPatchRole(role.id, { direction: 'up' })}
                                   title="Đẩy Role lên cao hơn 1 bậc"
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/75"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 ring-1 ring-white/10 text-white/75"
                                 >
                                   <ChevronUp className="w-3.5 h-3.5" />
                                 </button>
@@ -2083,7 +2203,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   type="button"
                                   onClick={() => handleQuickPatchRole(role.id, { direction: 'down' })}
                                   title="Hạ Role xuống thấp hơn 1 bậc"
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/75"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 ring-1 ring-white/10 text-white/75"
                                 >
                                   <ChevronDown className="w-3.5 h-3.5" />
                                 </button>
@@ -2095,12 +2215,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                 onClick={() => {
                                   setEditingRole(role);
                                   setEditRoleName(role.name);
-                                  setEditRoleColor(role.color.startsWith('#') ? role.color : '#A855F7');
+                                  setEditRoleColor(role.color.startsWith('#') ? role.color : '#C6F24E');
                                   setEditRoleHoist(role.hoist);
                                   setEditRoleMentionable(role.mentionable);
                                   setEditRolePermPreset('');
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-500/35 text-xs font-semibold flex items-center gap-1 transition"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#181624] hover:bg-[#221F32] text-[#E2E2E2] ring-1 ring-[#2C2840] text-xs font-semibold flex items-center gap-1 transition"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 Sửa
@@ -2110,7 +2230,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                               <button
                                 type="button"
                                 onClick={() => handleDeleteRole(role)}
-                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
                                 title="Xóa Role"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -2134,7 +2254,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <div className="space-y-6 hh-swap-panel">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left 7 Cols: Live Member Directory + 1-Click Role Assignment */}
-              <div className="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="lg:col-span-7 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -2142,7 +2262,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       Danh Bạ Thành Viên &amp; Phân Quyền Trực Tiếp ({filteredMembers.length})
                     </h3>
                     <p className="text-[11px] text-white/55 mt-0.5">
-                      Bấm nút <strong className="text-amber-300">🎭 Cấp / Gỡ Role</strong> trên bất kỳ thành viên nào để bật/tắt 100% các Role trong Server.
+                      Bấm nút <strong className="text-[#C6F24E]">Cấp / Gỡ Role</strong> trên bất kỳ thành viên nào để bật/tắt 100% các Role trong Server.
                     </p>
                   </div>
                   <button
@@ -2164,14 +2284,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
                       placeholder="Tìm theo tên, @username hoặc Discord ID..."
-                      className="w-full pl-9 pr-3 py-2 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full pl-9 pr-3 py-2 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#38BDF8]"
                     />
                   </div>
                   <select
                     value={memberRoleFilter}
                     onChange={(e) => setMemberRoleFilter(e.target.value)}
                     aria-label="Lọc thành viên theo Role"
-                    className="px-3 py-2 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="px-3 py-2 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#38BDF8]"
                   >
                     <option value="ALL" className="bg-[#14111F]">
                       Lọc theo Role: Tất cả thành viên ({members.length})
@@ -2200,9 +2320,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       return (
                         <div
                           key={m.user_id}
-                          className={`p-3.5 rounded-xl border transition ${
+                          className={`p-3.5 rounded-xl ring-1 transition ${
                             isSelected
-                              ? 'bg-purple-500/15 border-purple-400/50'
+                              ? 'bg-[#171B14] ring-1 ring-[#384A20]'
                               : 'bg-black/35 hover:bg-black/50 border-white/10'
                           }`}
                         >
@@ -2214,7 +2334,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   'https://cdn.discordapp.com/embed/avatars/0.png'
                                 }
                                 alt={m.display_name}
-                                className="w-10 h-10 rounded-full object-cover border border-white/20 shrink-0"
+                                className="w-10 h-10 rounded-full object-cover ring-1 ring-white/20 shrink-0"
                               />
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-1.5">
@@ -2226,22 +2346,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   </span>
                                   <span className="text-xs text-white/50">@{m.username}</span>
                                   {m.is_owner && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                                      👑 Owner
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/40">
+                                      Chủ sở hữu
                                     </span>
                                   )}
                                   {m.is_bot && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                                      🤖 BOT
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
+                                      BOT
                                     </span>
                                   )}
                                   {m.timed_out_until && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                                      🔇 Đang Mute
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
+                                      Đang tạm khóa
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-[11px] font-mono text-white/40 mt-0.5">
+                                <div className="text-[11px] tabular-nums text-white/40 mt-0.5">
                                   ID: {m.user_id}
                                 </div>
                                 {/* Current Roles Pills */}
@@ -2249,7 +2369,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                                   {(m.roles || []).map((r) => (
                                     <span
                                       key={r.id}
-                                      className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-black/50 border border-white/15 flex items-center gap-1"
+                                      className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-black/50 ring-1 ring-white/15 flex items-center gap-1"
                                       style={{ color: r.color !== '#000000' ? r.color : '#E2E8F0' }}
                                     >
                                       <span
@@ -2267,7 +2387,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                               <button
                                 type="button"
                                 onClick={() => setSelectedMemberForRoles(m)}
-                                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/40 text-xs font-bold flex items-center gap-1.5 transition"
+                                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 ring-1 ring-amber-400/40 text-xs font-bold flex items-center gap-1.5 transition"
                               >
                                 <Crown className="w-3.5 h-3.5" />
                                 Cấp / Gỡ Role
@@ -2290,14 +2410,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
               {/* Right 5 Cols: Moderation Command Box + Bans List */}
               <div className="lg:col-span-5 space-y-6">
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                   <h3 className="text-sm font-bold text-rose-300 flex items-center gap-2">
                     <ShieldAlert className="w-4 h-4" />
                     Bảng Điều Khiển Kỷ Luật (Mute / Kick / Ban)
                   </h3>
 
                   {selectedTargetMember && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2.5">
+                    <div className="p-3 rounded-xl bg-rose-500/10 ring-1 ring-rose-500/30 flex items-center justify-between gap-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img
                           src={
@@ -2305,7 +2425,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             'https://cdn.discordapp.com/embed/avatars/0.png'
                           }
                           alt={selectedTargetMember.display_name}
-                          className="w-9 h-9 rounded-full border border-rose-400/40 shrink-0"
+                          className="w-9 h-9 rounded-full ring-1 ring-rose-400/40 shrink-0"
                         />
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-white truncate">
@@ -2316,7 +2436,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             {(selectedTargetMember.roles || []).length > 0
                               ? `${(selectedTargetMember.roles || []).length} Role hiện tại`
                               : 'Chưa có Role phân nhóm'}
-                            {selectedTargetMember.timed_out_until ? ' • 🔇 Đang bị Mute' : ''}
+                            {selectedTargetMember.timed_out_until ? ' · Đang tạm khóa' : ''}
                           </div>
                         </div>
                       </div>
@@ -2338,7 +2458,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={targetUserId}
                       onChange={(e) => setTargetUserId(e.target.value)}
                       placeholder="Chọn thành viên bên trái hoặc dán Discord ID..."
-                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-rose-400"
+                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[#E5566F]"
                     />
                   </div>
 
@@ -2349,7 +2469,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={modReason}
                       onChange={(e) => setModReason(e.target.value)}
                       placeholder="VD: Vi phạm nội quy server / Spam..."
-                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-rose-400"
+                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#E5566F]"
                     />
                   </div>
 
@@ -2359,7 +2479,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       <select
                         value={muteDuration}
                         onChange={(e) => setMuteDuration(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                        className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                       >
                         <option value={300} className="bg-[#14111F]">5 phút</option>
                         <option value={900} className="bg-[#14111F]">15 phút</option>
@@ -2375,7 +2495,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       <select
                         value={deleteMsgDays}
                         onChange={(e) => setDeleteMsgDays(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                        className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                       >
                         <option value={0} className="bg-[#14111F]">Không xóa tin nhắn</option>
                         <option value={1} className="bg-[#14111F]">Xóa 24 giờ gần nhất</option>
@@ -2392,7 +2512,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       onClick={() =>
                         handleModAction('timeout', { action: 'mute', duration_seconds: muteDuration })
                       }
-                      className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                      className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 ring-1 ring-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
                     >
                       <VolumeX className="w-4 h-4" />
                       Mute (Timeout)
@@ -2401,7 +2521,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       type="button"
                       disabled={submitting}
                       onClick={() => handleModAction('timeout', { action: 'unmute', duration_seconds: 0 })}
-                      className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                      className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 ring-1 ring-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
                     >
                       <Volume2 className="w-4 h-4" />
                       Gỡ Mute (Unmute)
@@ -2410,7 +2530,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       type="button"
                       disabled={submitting}
                       onClick={() => handleModAction('kick')}
-                      className="py-2.5 px-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 text-orange-200 border border-orange-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                      className="py-2.5 px-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 text-orange-200 ring-1 ring-orange-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
                     >
                       <UserMinus className="w-4 h-4" />
                       Kick Khỏi Server
@@ -2428,7 +2548,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 </div>
 
                 {/* Banned Users List */}
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3">
+                <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <UserX className="w-4 h-4 text-rose-400" />
@@ -2437,7 +2557,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     <button
                       onClick={fetchBans}
                       disabled={loadingBans}
-                      className="text-xs text-purple-300 hover:text-purple-200 flex items-center gap-1"
+                      className="text-xs text-[#C6F24E] hover:text-[#E2E2E2] flex items-center gap-1"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${loadingBans ? 'animate-spin' : ''}`} />
                       Tải lại
@@ -2452,7 +2572,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       bans.map((b) => (
                         <div
                           key={b.user_id}
-                          className="p-2.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-2"
+                          className="p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 flex items-center justify-between gap-2"
                         >
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-white truncate">
@@ -2462,7 +2582,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           </div>
                           <button
                             onClick={() => handleModAction('unban', {}, b.user_id)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-500/35 text-[11px] font-bold shrink-0"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 ring-1 ring-emerald-500/35 text-[11px] font-bold shrink-0"
                           >
                             Gỡ Ban
                           </button>
@@ -2483,7 +2603,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <div className="space-y-5 hh-swap-panel">
             {/* Turso Storage Telemetry Bar */}
             {tursoStats && (
-              <div className="p-4 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-0.5">
                   <div className="text-xs font-medium text-[#949494]">
                     Dung lượng lưu trữ Turso Cloud (Hạn mức 5 GB)
@@ -2509,7 +2629,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           `Đã chọn tự động ${duplicateDocsCount} bản sao đề thi trùng lặp để bạn xử lý hoặc xóa 1-Click!`
                         );
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition"
+                      className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 ring-1 ring-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition"
                     >
                       <Layers className="w-3.5 h-3.5" />
                       Chọn {duplicateDocsCount} bản trùng lặp
@@ -2547,9 +2667,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <div className="flex flex-wrap items-center gap-1.5">
                 {[
                   { id: 'ALL' as const, label: `Tất cả đề (${docs.length})` },
-                  { id: 'UNIQUE' as const, label: `✨ Đề gốc độc bản (${uniqueDocsCount})` },
-                  { id: 'DUPLICATE' as const, label: `⚠️ Bản sao trùng lặp (${duplicateDocsCount})` },
-                  { id: 'PENDING_BOT' as const, label: `⏳ Chờ đồng bộ Bot (${pendingBotDocsCount})` },
+                  { id: 'UNIQUE' as const, label: `Đề gốc độc bản (${uniqueDocsCount})` },
+                  { id: 'DUPLICATE' as const, label: `Bản sao trùng lặp (${duplicateDocsCount})` },
+                  { id: 'PENDING_BOT' as const, label: `Chờ đồng bộ Bot (${pendingBotDocsCount})` },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -2558,9 +2678,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       setDocStatusFilter(st.id);
                       setDocPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition ${
                       docStatusFilter === st.id
-                        ? 'bg-purple-500/25 text-purple-200 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+                        ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
                         : 'bg-black/35 text-white/60 border-white/10 hover:text-white'
                     }`}
                   >
@@ -2574,7 +2694,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white/[0.03] border border-white/10 p-4 rounded-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white/[0.03] ring-1 ring-white/10 p-4 rounded-2xl">
               <div className="relative">
                 <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -2585,7 +2705,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     setDocPage(1);
                   }}
                   placeholder="Tìm tiêu đề, ID, trường, mô tả..."
-                  className="w-full pl-9 pr-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                  className="w-full pl-9 pr-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
                 />
               </div>
               <select
@@ -2595,7 +2715,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   setDocPage(1);
                 }}
                 aria-label="Lọc theo môn học"
-                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
               >
                 <option value="ALL" className="bg-[#14111F]">Tất cả môn học ({docs.length})</option>
                 {SUBJECT_OPTIONS.map((s) => (
@@ -2611,7 +2731,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   setDocPage(1);
                 }}
                 aria-label="Lọc theo khối lớp"
-                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
               >
                 <option value="ALL" className="bg-[#14111F]">Tất cả khối lớp</option>
                 {['12', '11', '10', '9', '8', '7', '6'].map((g) => (
@@ -2627,7 +2747,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   setDocPage(1);
                 }}
                 aria-label="Lọc theo phân ban đề thi"
-                className="px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
               >
                 <option value="ALL" className="bg-[#14111F]">Mọi phân ban (Thường / HSG / Chuyên / Quốc tế)</option>
                 {EXAM_TRACK_OPTIONS.map((t) => (
@@ -2639,9 +2759,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             </div>
 
             {/* Bulk Selection Action Bar */}
-            <div className="p-3.5 rounded-2xl bg-purple-950/35 border border-purple-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="p-3.5 rounded-2xl bg-[#110F18] ring-1 ring-[#262235] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs font-bold text-purple-200 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-bold text-[#E2E2E2] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={
@@ -2655,7 +2775,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         setSelectedDocIds(new Set());
                       }
                     }}
-                    className="accent-fuchsia-500 w-4 h-4"
+                    className="accent-[#C6F24E] w-4 h-4"
                   />
                   <span>
                     Chọn tất cả ({selectedDocIds.size}/{filteredDocs.length} đề đang chọn)
@@ -2668,7 +2788,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={bulkSubject}
                     onChange={(e) => setBulkSubject(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
                   >
                     <option value="">-- Đổi môn học --</option>
                     {SUBJECT_OPTIONS.map((s) => (
@@ -2680,7 +2800,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={bulkLevel}
                     onChange={(e) => setBulkLevel(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
                   >
                     <option value="">-- Đổi khối lớp --</option>
                     {GRADE_LEVEL_OPTIONS.map((lvl) => (
@@ -2692,7 +2812,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={bulkTrack}
                     onChange={(e) => setBulkTrack(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-xs text-white"
+                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
                   >
                     <option value="">-- Đổi phân ban --</option>
                     {EXAM_TRACK_OPTIONS.map((t) => (
@@ -2739,9 +2859,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   return (
                     <div
                       key={doc.id}
-                      className={`p-4 rounded-xl border transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
+                      className={`p-4 rounded-xl ring-1 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
                         checked
-                          ? 'bg-purple-500/15 border-purple-400/50'
+                          ? 'bg-[#171B14] ring-1 ring-[#384A20]'
                           : 'bg-black/35 hover:bg-black/50 border-white/10'
                       }`}
                     >
@@ -2757,31 +2877,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                               return next;
                             });
                           }}
-                          className="mt-1 accent-fuchsia-500 w-4 h-4 shrink-0 cursor-pointer"
+                          className="mt-1 accent-[#C6F24E] w-4 h-4 shrink-0 cursor-pointer"
                         />
                         <div className="min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded bg-purple-500/20 text-purple-300 border border-purple-500/35">
+                            <span className="px-2 py-0.5 text-[10px] tabular-nums font-bold rounded bg-[#1A1826] text-[#C6F24E] ring-1 ring-[#2C2840]">
                               #{doc.id}
                             </span>
                             <span className="font-bold text-sm text-white">{doc.title}</span>
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30">
                               {doc.subject}
                             </span>
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30">
                               {doc.estimated_level}
                             </span>
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
                               {doc.exam_track || 'Thường'}
                             </span>
                             {doc.is_duplicate_copy && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                                ⚠️ Bản sao trùng lặp
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
+                                Bản sao trùng lặp
                               </span>
                             )}
                             {doc.queue_status === 'pending_bot' && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-200 border border-amber-400/40">
-                                ⏳ Chờ đồng bộ Bot
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40">
+                                Chờ đồng bộ Bot
                               </span>
                             )}
                           </div>
@@ -2803,7 +2923,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           href={`${getApiBaseUrl()}/api/documents/${doc.id}/view`}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white/85 text-xs font-semibold flex items-center gap-1 transition"
+                          className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 ring-1 ring-white/15 text-white/85 text-xs font-semibold flex items-center gap-1 transition"
                           title="Mở xem trực tiếp tệp PDF đề thi"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -2812,7 +2932,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         <button
                           type="button"
                           onClick={() => openEditDocModal(doc)}
-                          className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-500/35 text-xs font-bold flex items-center gap-1.5 transition"
+                          className="px-3 py-1.5 rounded-xl bg-[#181624] hover:bg-[#221F32] text-[#E2E2E2] ring-1 ring-[#2C2840] text-xs font-bold flex items-center gap-1.5 transition"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                           Chỉnh sửa 100%
@@ -2821,7 +2941,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           type="button"
                           disabled={archivingId === doc.id}
                           onClick={() => handleArchiveDoc(doc)}
-                          className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1 transition"
+                          className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 ring-1 ring-cyan-500/30 text-xs font-semibold flex items-center gap-1 transition"
                           title="Offload tệp lên Discord Cloud"
                         >
                           <Cloud className="w-3.5 h-3.5" />
@@ -2830,7 +2950,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         <button
                           type="button"
                           onClick={() => handleDeleteDoc(doc)}
-                          className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                          className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
                           title="Xóa vĩnh viễn đề thi"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -2844,7 +2964,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
             {/* Pagination Footer */}
             {totalDocPages > 1 && (
-              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between pt-3">
                 <span className="text-xs text-white/55 tabular-nums">
                   Trang <strong className="text-white">{docPage}</strong> / {totalDocPages} • Tổng {filteredDocs.length} đề
                 </span>
@@ -2877,14 +2997,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         {activeTab === 'channels' && (
           <div className="space-y-6 hh-swap-panel">
             {/* 1-Click Refresh Discord Interactive Panels */}
-            <div className="p-5 rounded-xl bg-[#110F18] border border-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="p-5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#C6F24E]" />
                   Đồng bộ &amp; làm mới bảng điều khiển tương tác trên Discord
                 </h3>
                 <p className="text-xs text-[#B4B4B4] mt-1">
-                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-white">#🔗・info</code>, <code className="text-white">#📄・nộp-tài-liệu</code> và <code className="text-white">#📥・lấy-tài-liệu</code>.
+                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-white">#info</code>, <code className="text-white">#nộp-tài-liệu</code> và <code className="text-white">#lấy-tài-liệu</code>.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -2901,21 +3021,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   disabled={refreshingPanels}
                   className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
                 >
-                  #🔗・info
+                  #info
                 </button>
                 <button
                   onClick={() => handleRefreshDiscordPanels('intake')}
                   disabled={refreshingPanels}
                   className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
                 >
-                  #📄・nộp-tài-liệu
+                  #nộp-tài-liệu
                 </button>
                 <button
                   onClick={() => handleRefreshDiscordPanels('search')}
                   disabled={refreshingPanels}
                   className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
                 >
-                  #📥・lấy-tài-liệu
+                  #lấy-tài-liệu
                 </button>
               </div>
             </div>
@@ -2925,7 +3045,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <div className="lg:col-span-5 space-y-6">
                 <form
                   onSubmit={handleCreateChannel}
-                  className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3.5"
+                  className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3.5"
                 >
                   <h3 className="text-sm font-bold text-cyan-300 flex items-center gap-2">
                     <Hash className="w-4 h-4" />
@@ -2935,7 +3055,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     <button
                       type="button"
                       onClick={() => setNewChannelKind('text')}
-                      className={`py-2 rounded-xl text-xs font-bold border ${
+                      className={`py-2 rounded-xl text-xs font-bold ring-1 ${
                         newChannelKind === 'text'
                           ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50'
                           : 'bg-black/40 text-white/60 border-white/10'
@@ -2946,26 +3066,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     <button
                       type="button"
                       onClick={() => setNewChannelKind('voice')}
-                      className={`py-2 rounded-xl text-xs font-bold border ${
+                      className={`py-2 rounded-xl text-xs font-bold ring-1 ${
                         newChannelKind === 'voice'
-                          ? 'bg-purple-500/20 text-purple-200 border-purple-400/50'
+                          ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
                           : 'bg-black/40 text-white/60 border-white/10'
                       }`}
                     >
-                      🔊 Kênh Thoại (Voice)
+                      Kênh Thoại (Voice)
                     </button>
                   </div>
                   <input
                     type="text"
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
-                    placeholder="Tên kênh (VD: 💬・thảo-luận-toán)"
-                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    placeholder="Tên kênh (VD: thảo-luận-toán)"
+                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   />
                   <select
                     value={newChannelCategoryId}
                     onChange={(e) => setNewChannelCategoryId(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   >
                     <option value="" className="bg-[#14111F]">-- Danh mục (Category) tự động --</option>
                     {categories.map((cat) => (
@@ -2980,7 +3100,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={newChannelTopic}
                       onChange={(e) => setNewChannelTopic(e.target.value)}
                       placeholder="Chủ đề kênh (Topic)..."
-                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                     />
                   ) : (
                     <input
@@ -2990,7 +3110,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={newChannelLimit}
                       onChange={(e) => setNewChannelLimit(Number(e.target.value))}
                       placeholder="Giới hạn thành viên (0 = Không giới hạn)"
-                      className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                     />
                   )}
                   <button
@@ -3006,7 +3126,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 {/* Broadcast Embed Form */}
                 <form
                   onSubmit={handleSendAnnouncement}
-                  className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3.5"
+                  className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3.5"
                 >
                   <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
                     <Megaphone className="w-4 h-4" />
@@ -3015,7 +3135,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={selectedChannelId}
                     onChange={(e) => setSelectedChannelId(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   >
                     <option value="" className="bg-[#14111F]">-- Chọn kênh nhận thông báo --</option>
                     {channels
@@ -3031,23 +3151,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     value={announceTitle}
                     onChange={(e) => setAnnounceTitle(e.target.value)}
                     placeholder="Tiêu đề thông báo..."
-                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   />
                   <textarea
                     rows={4}
                     value={announceMsg}
                     onChange={(e) => setAnnounceMsg(e.target.value)}
                     placeholder="Nội dung thông báo (hỗ trợ Markdown Discord)..."
-                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   />
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      {['#A855F7', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'].map((c) => (
+                      {['#C6F24E', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'].map((c) => (
                         <button
                           key={c}
                           type="button"
                           onClick={() => setAnnounceColor(c)}
-                          className={`w-6 h-6 rounded-full border ${
+                          className={`w-6 h-6 rounded-full ring-1 ${
                             announceColor === c ? 'border-white scale-110' : 'border-white/20'
                           }`}
                           style={{ backgroundColor: c }}
@@ -3066,11 +3186,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 </form>
               </div>
 
-              {/* Right 7 Cols: Channel List with Lock/Unlock & Delete */}
-              <div className="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+              {/* Right 7 Cols: Channel List with Lock/Open & Delete */}
+              <div className="lg:col-span-7 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Hash className="w-4 h-4 text-purple-400" />
+                    <Hash className="w-4 h-4 text-[#C6F24E]" />
                     Danh Sách Kênh Trong Máy Chủ ({filteredChannels.length}/{channels.length})
                   </h3>
                   <button
@@ -3092,24 +3212,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       value={channelSearch}
                       onChange={(e) => setChannelSearch(e.target.value)}
                       placeholder="Tìm tên kênh, danh mục hoặc chủ đề..."
-                      className="w-full pl-8 pr-3 py-1.5 bg-black/45 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400"
+                      className="w-full pl-8 pr-3 py-1.5 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
                     />
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {[
                       { id: 'ALL' as const, label: 'Tất cả' },
-                      { id: 'PUBLIC' as const, label: '🌐 Công khai' },
-                      { id: 'PRIVATE' as const, label: '🔒 Riêng tư' },
+                      { id: 'PUBLIC' as const, label: 'Công khai' },
+                      { id: 'PRIVATE' as const, label: 'Riêng tư' },
                       { id: 'TEXT' as const, label: '# Text' },
-                      { id: 'VOICE' as const, label: '🔊 Voice' },
+                      { id: 'VOICE' as const, label: 'Voice' },
                     ].map((cf) => (
                       <button
                         key={cf.id}
                         type="button"
                         onClick={() => setChannelKindFilter(cf.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 transition ${
                           channelKindFilter === cf.id
-                            ? 'bg-purple-500/25 text-purple-200 border-purple-400/50'
+                            ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
                             : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
                         }`}
                       >
@@ -3123,7 +3243,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   {filteredChannels.map((ch) => (
                     <div
                       key={ch.channel_id}
-                      className="p-3 rounded-xl bg-black/35 hover:bg-black/50 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                      className="p-3 rounded-xl bg-black/35 hover:bg-black/50 ring-1 ring-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -3132,12 +3252,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             {ch.category}
                           </span>
                           {ch.is_private ? (
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/35">
-                              🔒 Riêng tư (Staff)
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/35">
+                              Riêng tư (Staff)
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              🌐 Công khai
+                            <span className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
+                              Công khai
                             </span>
                           )}
                         </div>
@@ -3150,7 +3270,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         <button
                           type="button"
                           onClick={() => handleToggleChannelLock(ch)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 border transition ${
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ring-1 transition ${
                             ch.is_private
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/30'
                               : 'bg-amber-500/20 text-amber-300 border-amber-500/35 hover:bg-amber-500/30'
@@ -3158,7 +3278,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         >
                           {ch.is_private ? (
                             <>
-                              <Unlock className="w-3.5 h-3.5" />
+                              <LockOpen className="w-3.5 h-3.5" />
                               Mở khóa
                             </>
                           ) : (
@@ -3171,7 +3291,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         <button
                           type="button"
                           onClick={() => handleDeleteChannel(ch)}
-                          className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition"
+                          className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
                           title="Xóa kênh"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -3192,19 +3312,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <div className="space-y-6 hh-swap-panel">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* GitHub Sync & Hot-Reload */}
-              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <GitBranch className="w-4 h-4 text-emerald-400" />
                     Đồng Bộ GitHub &amp; Hot-Reload Hệ Thống
                   </h3>
-                  <span className="px-2.5 py-0.5 text-[11px] font-mono rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="px-2.5 py-0.5 text-[11px] tabular-nums rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
                     Commit: {updateStatus?.current_hash || 'main'}
                   </span>
                 </div>
 
                 {updateStatus?.commit_msg && (
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs text-white/80">
+                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs text-white/80">
                     <div className="text-[11px] text-white/45 mb-0.5">Bản cập nhật hiện hành:</div>
                     <div className="font-semibold">{updateStatus.commit_msg}</div>
                   </div>
@@ -3230,7 +3350,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <button
                     onClick={handleHotReload}
                     disabled={reloadingBot}
-                    className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-bold flex items-center gap-1.5"
                   >
                     <Sparkles className="w-4 h-4" />
                     {reloadingBot ? 'Đang Reload Cogs...' : 'Hot-Reload Toàn Bộ Cogs'}
@@ -3239,7 +3359,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </div>
 
               {/* API Gateway Switcher */}
-              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <ExternalLink className="w-4 h-4 text-cyan-400" />
                   Cấu Hình Cổng Kết Nối API Gateway
@@ -3250,7 +3370,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     value={customUrlInput}
                     onChange={(e) => setCustomUrlInput(e.target.value)}
                     placeholder="Để trống để dùng Vercel Cloud Bridge mặc định"
-                    className="flex-1 px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                    className="flex-1 px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
                   />
                   <button
                     onClick={() => handleSaveApiEndpoint(customUrlInput)}
@@ -3298,7 +3418,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         showFeedback('error', 'Không thể gửi tín hiệu Webhook, vui lòng kiểm tra mạng.');
                       }
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/40 text-pink-200 text-[11px] font-bold flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 ring-1 ring-pink-500/40 text-pink-200 text-[11px] font-bold flex items-center gap-1.5"
                   >
                     <Send className="w-3 h-3" />
                     Ping Webhook &amp; Kết Nối Bot
@@ -3309,41 +3429,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
             {/* Runtime Info */}
             {configData && (
-              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3">
+              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <HardDrive className="w-4 h-4 text-purple-400" />
+                    <HardDrive className="w-4 h-4 text-[#C6F24E]" />
                     Thông Số Vận Hành Bot &amp; Cogs Đang Hoạt Động
                   </h3>
                   <button
                     onClick={() => fetchConfig(true)}
                     disabled={loadingConfig}
-                    className="text-xs text-purple-300 flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-[#C6F24E] flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
                     Làm mới
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
                     <div className="text-[11px] text-white/50">Bot User</div>
                     <div className="text-sm font-bold text-white mt-0.5">
                       {String(configData.bot?.user || 'Orbit#6143')}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
                     <div className="text-[11px] text-white/50">Độ trễ Gateway</div>
                     <div className="text-sm font-bold text-emerald-400 mt-0.5 tabular-nums">
                       {String(configData.bot?.ping_ms ?? 0)} ms
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
                     <div className="text-[11px] text-white/50">Số Cogs Đã Nạp</div>
-                    <div className="text-sm font-bold text-purple-300 mt-0.5 tabular-nums">
+                    <div className="text-sm font-bold text-[#C6F24E] mt-0.5 tabular-nums">
                       {String(configData.runtime?.cogs_loaded ?? 0)} Cogs
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
                     <div className="text-[11px] text-white/50">Dung lượng SQLite Local</div>
                     <div className="text-sm font-bold text-cyan-300 mt-0.5 tabular-nums">
                       {formatBytes(Number(configData.runtime?.db_size_bytes || 0))}
@@ -3364,9 +3484,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setLogSubView('console')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ring-1 ${
                     logSubView === 'console'
-                      ? 'bg-purple-600/30 text-white border-purple-400/50'
+                      ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
                       : 'bg-black/40 text-white/60 border-white/10'
                   }`}
                 >
@@ -3375,7 +3495,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 </button>
                 <button
                   onClick={() => setLogSubView('audit')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ring-1 ${
                     logSubView === 'audit'
                       ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
                       : 'bg-black/40 text-white/60 border-white/10'
@@ -3393,12 +3513,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     value={logFilter}
                     onChange={(e) => setLogFilter(e.target.value)}
                     placeholder="Lọc từ khóa trong log..."
-                    className="px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   />
                   <select
                     value={logLevel}
                     onChange={(e) => setLogLevel(e.target.value as 'ALL' | 'INFO' | 'WARNING' | 'ERROR')}
-                    className="px-2.5 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="px-2.5 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   >
                     <option value="ALL" className="bg-[#14111F]">Mức: ALL</option>
                     <option value="INFO" className="bg-[#14111F]">INFO</option>
@@ -3408,7 +3528,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   <select
                     value={logCount}
                     onChange={(e) => setLogCount(Number(e.target.value))}
-                    className="px-2.5 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                    className="px-2.5 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                   >
                     <option value={100} className="bg-[#14111F]">100 dòng</option>
                     <option value={200} className="bg-[#14111F]">200 dòng</option>
@@ -3419,7 +3539,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       type="checkbox"
                       checked={autoRefreshLogs}
                       onChange={(e) => setAutoRefreshLogs(e.target.checked)}
-                      className="accent-purple-500"
+                      className="accent-[#C6F24E]"
                     />
                     Tự làm mới
                   </label>
@@ -3445,7 +3565,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             </div>
 
             {logSubView === 'console' ? (
-              <div className="bg-black/75 border border-white/10 rounded-2xl p-4 font-mono text-[11px] leading-relaxed max-h-[540px] overflow-y-auto space-y-1">
+              <pre className="bg-[#08070C] ring-1 ring-[#1E1B2B] rounded-xl p-4 font-mono text-[11px] leading-relaxed max-h-[540px] overflow-y-auto space-y-1 whitespace-pre-wrap">
                 {filteredLogLines.length === 0 ? (
                   <div className="py-12 text-center text-white/40">Không có dòng log nào.</div>
                 ) : (
@@ -3464,7 +3584,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     );
                   })
                 )}
-              </div>
+              </pre>
             ) : (
               <div className="space-y-2 max-h-[540px] overflow-y-auto">
                 {auditEntries.length === 0 ? (
@@ -3475,7 +3595,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   auditEntries.map((en) => (
                     <div
                       key={en.id}
-                      className="p-3 rounded-xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                      className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
                     >
                       <div>
                         <span className="font-bold text-amber-300">{en.action}</span> • Thực hiện bởi{' '}
@@ -3483,7 +3603,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         <span className="text-cyan-300">{en.target}</span>
                         {en.reason && <div className="text-white/55 mt-0.5">Lý do: {en.reason}</div>}
                       </div>
-                      <span className="text-[11px] font-mono text-white/40 shrink-0">
+                      <span className="text-[11px] tabular-nums text-white/40 shrink-0">
                         {en.created_at ? new Date(en.created_at).toLocaleString('vi-VN') : ''}
                       </span>
                     </div>
@@ -3498,15 +3618,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* ================= MODAL 1: EDIT ROLE (100% OPTIONS) ================= */}
       {editingRole && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
           onClick={() => setEditingRole(null)}
         >
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSaveRoleModal}
-            className="w-full max-w-lg bg-[#141122] border border-purple-500/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop"
+            className="w-full max-w-lg bg-[#141122] ring-1 ring-1 ring-[#2E2942] rounded-2xl p-6 space-y-4 hh-card-pop"
           >
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between pb-3 bg-[#141122]">
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
                 <Crown className="w-5 h-5 text-amber-400" />
                 Chỉnh Sửa Toàn Diện Role: {editingRole.name}
@@ -3528,7 +3648,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     type="text"
                     value={editRoleName}
                     onChange={(e) => setEditRoleName(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white"
+                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white"
                   />
                 </div>
                 <div>
@@ -3538,13 +3658,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                       type="color"
                       value={editRoleColor}
                       onChange={(e) => setEditRoleColor(e.target.value)}
-                      className="w-10 h-9 rounded-lg bg-transparent border border-white/20 cursor-pointer"
+                      className="w-10 h-9 rounded-lg bg-transparent ring-1 ring-white/20 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={editRoleColor}
                       onChange={(e) => setEditRoleColor(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-black/50 border border-white/15 rounded-xl text-xs font-mono text-white"
+                      className="flex-1 px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
                     />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -3553,28 +3673,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         key={hex}
                         type="button"
                         onClick={() => setEditRoleColor(hex)}
-                        className="w-6 h-6 rounded-lg border border-white/20"
+                        className="w-6 h-6 rounded-lg ring-1 ring-white/20"
                         style={{ backgroundColor: hex }}
                       />
                     ))}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 border border-white/10 text-xs cursor-pointer">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs cursor-pointer">
                     <input
                       type="checkbox"
                       checked={editRoleHoist}
                       onChange={(e) => setEditRoleHoist(e.target.checked)}
-                      className="accent-fuchsia-500"
+                      className="accent-[#C6F24E]"
                     />
                     <span>Hiển thị tách nhóm (Hoist)</span>
                   </label>
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 border border-white/10 text-xs cursor-pointer">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs cursor-pointer">
                     <input
                       type="checkbox"
                       checked={editRoleMentionable}
                       onChange={(e) => setEditRoleMentionable(e.target.checked)}
-                      className="accent-fuchsia-500"
+                      className="accent-[#C6F24E]"
                     />
                     <span>Cho phép @mention</span>
                   </label>
@@ -3589,7 +3709,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <select
                 value={editRolePermPreset}
                 onChange={(e) => setEditRolePermPreset(e.target.value)}
-                className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
               >
                 <option value="" className="bg-[#14111F]">-- Giữ nguyên quyền hạn hiện tại --</option>
                 {PERMISSION_PRESETS.map((p) => (
@@ -3624,14 +3744,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* ================= MODAL 2: 100% MEMBER ROLE SELECTOR MATRIX ================= */}
       {selectedMemberForRoles && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
           onClick={() => setSelectedMemberForRoles(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl bg-[#141122] border border-amber-400/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop max-h-[88vh] overflow-y-auto"
+            className="w-full max-w-2xl bg-[#141122] ring-1 ring-amber-400/40 rounded-2xl p-6 space-y-4 hh-card-pop max-h-[88vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between pb-3 bg-[#141122]">
               <div className="flex items-center gap-3">
                 <img
                   src={
@@ -3639,7 +3759,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     'https://cdn.discordapp.com/embed/avatars/0.png'
                   }
                   alt={selectedMemberForRoles.display_name}
-                  className="w-10 h-10 rounded-full border border-amber-400/40"
+                  className="w-10 h-10 rounded-full ring-1 ring-amber-400/40"
                 />
                 <div>
                   <h3 className="text-base font-extrabold text-white">
@@ -3669,7 +3789,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 value={modalRoleSearch}
                 onChange={(e) => setModalRoleSearch(e.target.value)}
                 placeholder="Tìm nhanh Role để cấp / gỡ..."
-                className="w-full pl-9 pr-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+                className="w-full pl-9 pr-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F59E0B]"
               />
             </div>
 
@@ -3677,14 +3797,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               const tierRoles = assignableRoles.filter(
                 (r) =>
                   r.tier === tierKey &&
-                  (!modalRoleSearch.trim() ||
-                    r.name.toLowerCase().includes(modalRoleSearch.trim().toLowerCase()))
+                  (!deferredModalRoleSearch.trim() ||
+                    r.name.toLowerCase().includes(deferredModalRoleSearch.trim().toLowerCase()))
               );
               if (tierRoles.length === 0) return null;
               const memberRoleIds = new Set((selectedMemberForRoles.roles || []).map((r) => r.id));
               return (
                 <div key={tierKey} className="space-y-2">
-                  <div className="text-xs font-bold uppercase tracking-wider text-white/60">
+                  <div className="text-xs font-semibold text-[#B4B4B4]">
                     {TIER_META[tierKey]?.label || tierKey}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -3697,9 +3817,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           type="button"
                           disabled={busy}
                           onClick={() => handleToggleMemberRole(selectedMemberForRoles, r.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-2 transition ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 flex items-center gap-2 transition ${
                             active
-                              ? 'bg-emerald-500/20 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                              ? 'bg-emerald-500/20 text-white border-emerald-400'
                               : 'bg-black/45 text-white/65 border-white/15 hover:border-white/35 hover:text-white'
                           }`}
                         >
@@ -3717,7 +3837,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               );
             })}
 
-            <div className="flex justify-end pt-3 border-t border-white/10">
+            <div className="flex justify-end pt-3">
               <button
                 type="button"
                 onClick={() => setSelectedMemberForRoles(null)}
@@ -3733,17 +3853,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       {/* ================= MODAL 3: EDIT DOCUMENT (100% FIELDS) ================= */}
       {editingDoc && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
           onClick={() => setEditingDoc(null)}
         >
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSaveDocEdit}
-            className="w-full max-w-2xl bg-[#141122] border border-purple-500/40 rounded-2xl p-6 space-y-4 shadow-2xl hh-card-pop max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl bg-[#141122] ring-1 ring-1 ring-[#2E2942] rounded-2xl p-6 space-y-4 hh-card-pop max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between pb-3 bg-[#141122]">
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-purple-400" />
+                <FileText className="w-5 h-5 text-[#C6F24E]" />
                 Chỉnh Sửa 100% Thông Tin Đề Thi #{editingDoc.id}
               </h3>
               <button
@@ -3761,7 +3881,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-sm text-white"
+                className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white"
               />
             </div>
 
@@ -3771,7 +3891,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <select
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 >
                   {SUBJECT_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value} className="bg-[#14111F]">
@@ -3785,7 +3905,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <select
                   value={editLevel}
                   onChange={(e) => setEditLevel(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 >
                   {GRADE_LEVEL_OPTIONS.map((lvl) => (
                     <option key={lvl} value={lvl} className="bg-[#14111F]">
@@ -3799,7 +3919,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 <select
                   value={editTrack}
                   onChange={(e) => setEditTrack(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 >
                   {EXAM_TRACK_OPTIONS.map((t) => (
                     <option key={t.value} value={t.value} className="bg-[#14111F]">
@@ -3818,7 +3938,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   value={editYear}
                   onChange={(e) => setEditYear(e.target.value)}
                   placeholder="VD: 2025-2026"
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 />
               </div>
               <div>
@@ -3828,7 +3948,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   value={editSchool}
                   onChange={(e) => setEditSchool(e.target.value)}
                   placeholder="VD: Sở GD&ĐT Hà Nội"
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 />
               </div>
               <div>
@@ -3838,7 +3958,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   value={editAuthorName}
                   onChange={(e) => setEditAuthorName(e.target.value)}
                   placeholder="Tên hiển thị tác giả"
-                  className="w-full px-3 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
                 />
               </div>
             </div>
@@ -3851,7 +3971,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                 rows={3}
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                className="w-full px-3.5 py-2 bg-black/50 border border-white/15 rounded-xl text-xs text-white"
+                className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
               />
             </div>
 
@@ -3866,7 +3986,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-bold flex items-center gap-1.5"
               >
                 <Save className="w-4 h-4" />
                 Lưu Toàn Bộ Thông Tin
