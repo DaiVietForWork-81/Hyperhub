@@ -2860,6 +2860,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     <button
                       onClick={async () => {
                         try {
+                          const res = await fetch(`${getApiBaseUrl()}/api/documents/trigger_45s_scan`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ source: 'admin_hub' }),
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          showFeedback(
+                            'success',
+                            data.message || `Đã chạy chu kỳ 45s quét các đề đã tổng hợp (${data.verified_docs || 0}/${data.total_docs || docs.length} đề chuẩn hóa)!`
+                          );
+                        } catch {
+                          showFeedback('error', 'Không thể kích hoạt lô quét 45s');
+                        }
+                        await fetchDocs();
+                      }}
+                      disabled={loadingDocs}
+                      className="h-8 px-3 rounded-lg bg-[#13261C] hover:bg-[#1B3527] ring-1 ring-[#23422D] text-[#3FC07A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer tabular-nums"
+                      title="Mỗi 45s Bot sẽ tự động quét & chuẩn hóa các đề đã tổng hợp trong kho"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>🤖 Quét Lô 45s (Đề Đã Tổng Hợp)</span>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
                           const res = await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
                             method: 'POST',
                             headers: getAuthHeaders(),

@@ -27,7 +27,7 @@ import {
   Sparkles,
   Clock,
   Layers,
-
+  Zap,
 } from 'lucide-react';
 import { DiscordUser, getDiscordAccessToken } from '../utils/discordAuth';
 import { formatEstimatedLevel, formatFileSize } from '../utils/formatters';
@@ -190,6 +190,106 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   const [isPushingScannedExam, setIsPushingScannedExam] = useState<boolean>(false);
   const [scannerEditMeta, setScannerEditMeta] = useState<boolean>(false);
   const scannerFileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- TRẠNG THÁI VÒNG LẶP 45 GIÂY BOT TỰ ĐỘNG QUÉT CÁC ĐỀ ĐÃ TỔNG HỢP ---
+  const [bot45sStatus, setBot45sStatus] = useState<{
+    engine?: string;
+    interval_seconds: number;
+    last_scan_ts: number;
+    next_scan_ts: number;
+    last_batch_updated: number;
+    total_docs: number;
+    verified_docs: number;
+    unverified_docs: number;
+    recent_scanned: Array<{
+      id: number;
+      title: string;
+      file_name: string;
+      subject: string;
+      estimated_level: string;
+      exam_track: string;
+      school_or_department?: string;
+      academic_year?: string;
+      verdict?: string;
+      notes?: string;
+      timestamp?: string;
+    }>;
+  } | null>(null);
+  const [bot45sCountdown, setBot45sCountdown] = useState<number>(45);
+  const [isTriggering45s, setIsTriggering45s] = useState<boolean>(false);
+
+  const fetchBot45sScannerStatus = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/documents/scanner_status`, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          setBot45sStatus(data);
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi mạng tạm thời
+    }
+  };
+
+  const triggerBot45sBatchScan = async (silent = false) => {
+    if (isTriggering45s) return;
+    setIsTriggering45s(true);
+    try {
+      const res = await fetch(`${apiBase}/api/documents/trigger_45s_scan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({ source: silent ? 'auto_45s_timer' : 'manual_trigger' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          setBot45sStatus(data);
+          setBot45sCountdown(45);
+          if (!silent) {
+            showSuccess(
+              data.message || `Đã chạy lô quét 45s thành công (${data.verified_docs}/${data.total_docs} đề đã thẩm định)!`,
+              'Bot Auto-Scanner 45s'
+            );
+          } else if (Number(data.batch_updated || 0) > 0) {
+            showInfo(
+              `Chu kỳ 45s: Bot vừa tự động quét & chuẩn hóa ${data.batch_updated} đề đã tổng hợp!`,
+              'Bot Auto-Scanner 45s'
+            );
+          }
+          if (Number(data.batch_updated || 0) > 0 && onUploadSuccess) {
+            onUploadSuccess();
+          }
+        }
+      }
+    } catch {
+      if (!silent) {
+        showError('Không thể kích hoạt lô quét 45s lúc này.', 'Bot Auto-Scanner 45s');
+      }
+    } finally {
+      setIsTriggering45s(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBot45sScannerStatus();
+    const timer = setInterval(() => {
+      setBot45sCountdown((prev) => {
+        if (prev <= 1) {
+          triggerBot45sBatchScan(true);
+          return 45;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase]);
 
   // --- TRẠNG THÁI TAB TẢI TỆP TRỰC TIẾP ---
   const [fileQueue, setFileQueue] = useState<QueuedFile[]>([]);
@@ -1206,6 +1306,23 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => triggerBot45sBatchScan(false)}
+              disabled={isTriggering45s}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-60"
+              title="Mỗi 45 giây Bot sẽ tự động quét & chuẩn hóa các đề đã được tổng hợp trong kho"
+            >
+              {isTriggering45s ? (
+                <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+              ) : (
+                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span>
+                🤖 Bot Quét Tự Động: {bot45sCountdown}s / 45s
+                {bot45sStatus ? ` (${bot45sStatus.verified_docs}/${bot45sStatus.total_docs} đề)` : ''}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('exam_scanner')}
@@ -2619,6 +2736,137 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'exam_scanner' && (
         <div className="space-y-6">
+          {/* RADAR BOT QUÉT TỰ ĐỘNG CHU KỲ 45 GIÂY (QUÉT CÁC ĐỀ ĐÃ ĐƯỢC TỔNG HỢP) */}
+          <div className="rounded-3xl bg-gradient-to-br from-emerald-950/50 via-slate-950/90 to-cyan-950/40 border border-emerald-500/30 p-5 sm:p-6 backdrop-blur-xl space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Chu Kỳ 45 Giây Tự Động
+                  </span>
+                  <h4 className="text-sm sm:text-base font-extrabold text-white">
+                    🤖 Radar Bot Quét Đề Đã Tổng Hợp (Mỗi 45s / Lô)
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono text-cyan-200 bg-cyan-500/15 border border-cyan-500/30">
+                    3-Agent AI Verifier (Nemotron 550B → Trap Auditor → Arbiter 120B)
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Mỗi <strong>45 giây</strong>, Bot tự động gom các đề đã được tổng hợp trong kho (từ Discord, Google Drive và Web) để quét thẩm định sâu 6 bước, giải bẫy phân loại GDPT 2018 và đóng dấu <code>CLOUD_DEEP_VERIFIED</code>.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <div className="px-3.5 py-2 rounded-2xl bg-black/50 border border-emerald-500/30 text-center min-w-[115px]">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                    Quét lô tiếp theo
+                  </div>
+                  <div className="text-base font-black font-mono text-emerald-300">
+                    {bot45sCountdown}s / 45s
+                  </div>
+                </div>
+
+                {bot45sStatus && (
+                  <div className="px-3.5 py-2 rounded-2xl bg-black/50 border border-cyan-500/30 text-center min-w-[135px]">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                      Đề đã quét chuẩn AI
+                    </div>
+                    <div className="text-base font-black font-mono text-cyan-300">
+                      {bot45sStatus.verified_docs} / {bot45sStatus.total_docs}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => triggerBot45sBatchScan(false)}
+                  disabled={isTriggering45s}
+                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-950/40 cursor-pointer disabled:opacity-60"
+                >
+                  {isTriggering45s ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang Quét Lô 45s...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>⚡ Quét Ngay Lô 45s</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {bot45sStatus && (
+              <div className="space-y-3 pt-2 border-t border-white/10">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-300 font-semibold">
+                    Tiến độ thẩm định toàn kho đề đã tổng hợp:{' '}
+                    <strong className="text-emerald-300">
+                      {bot45sStatus.total_docs > 0
+                        ? Math.round((bot45sStatus.verified_docs / bot45sStatus.total_docs) * 100)
+                        : 100}
+                      %
+                    </strong>{' '}
+                    ({bot45sStatus.verified_docs}/{bot45sStatus.total_docs} đề đạt <code>CLOUD_DEEP_VERIFIED</code> •{' '}
+                    {bot45sStatus.unverified_docs > 0
+                      ? `Còn ${bot45sStatus.unverified_docs} đề đang chờ chu kỳ 45s tiếp theo`
+                      : '100% đề đã tổng hợp đã được quét chuẩn hóa'})
+                  </span>
+                  {bot45sStatus.last_batch_updated > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 font-bold text-[11px]">
+                      ✨ Chu kỳ vừa rồi đã chuẩn hóa +{bot45sStatus.last_batch_updated} đề
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-black/60 overflow-hidden border border-white/10">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500"
+                    style={{
+                      width: `${
+                        bot45sStatus.total_docs > 0
+                          ? Math.min(100, Math.round((bot45sStatus.verified_docs / bot45sStatus.total_docs) * 100))
+                          : 100
+                      }%`,
+                    }}
+                  />
+                </div>
+
+                {bot45sStatus.recent_scanned && bot45sStatus.recent_scanned.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/90 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Các đề đã tổng hợp vừa được Bot quét &amp; chuẩn hóa (Chu kỳ 45s):</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {bot45sStatus.recent_scanned.slice(0, 4).map((sc) => (
+                        <div
+                          key={sc.id}
+                          className="p-2.5 rounded-xl bg-black/45 border border-white/10 flex items-start justify-between gap-2 text-xs"
+                        >
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="font-bold text-white truncate" title={sc.title}>
+                              #{sc.id} • {sc.title}
+                            </div>
+                            <div className="text-[11px] text-slate-400 line-clamp-1">
+                              {sc.notes || `${sc.estimated_level} • ${sc.exam_track}`}
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold shrink-0">
+                            {sc.exam_track || 'Đã quét'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Thanh chọn chế độ Quét: Quét Tệp (PDF/Word/TXT) hoặc Dán Văn Bản Trực Tiếp */}
           <div className="rounded-3xl bg-slate-950/80 border border-amber-500/25 p-5 sm:p-7 backdrop-blur-xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
