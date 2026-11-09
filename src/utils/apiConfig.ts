@@ -89,9 +89,8 @@ export function isUsingDefaultTunnel(): boolean {
   return false;
 }
 
-export const DISCORD_WEB_SYNC_WEBHOOK_ID = "1568882621470089247";
-export const DISCORD_WEB_SYNC_WEBHOOK_URL =
-  "https://discord.com/api/webhooks/1568882621470089247/Q49ZOF2DnRtl82yiVgv7PYwuvufyrCqY4iSGq0ci43yXsvZA27AlO4mImX3KnH-NuuIO";
+export const DISCORD_WEB_SYNC_WEBHOOK_ID = "1556682296235393034";
+export const DISCORD_WEB_SYNC_WEBHOOK_URL = "";
 
 export interface WebhookHandshakeOptions {
   event?: string;
@@ -103,8 +102,8 @@ export interface WebhookHandshakeOptions {
 }
 
 /**
- * Gửi tín hiệu khởi động/sử dụng từ Web tới kênh Discord qua Webhook 1568882621470089247
- * để Discord Bot ghi nhận kết nối và kích hoạt đồng bộ 2 chiều thời gian thực.
+ * Kết nối trực tiếp giữa Orbit Web và Discord Bot qua Cầu nối Bảo mật 7 Lớp (Turso Cloud RPC).
+ * Đã tắt hoàn toàn thông báo Discord Webhook theo yêu cầu.
  */
 export async function notifyBotViaWebhookHandshake(
   opts: WebhookHandshakeOptions = {}
@@ -118,7 +117,7 @@ export async function notifyBotViaWebhookHandshake(
 
   if (typeof window !== "undefined" && !opts.force) {
     try {
-      const key = `orbit_webhook_handshake_${event}`;
+      const key = `orbit_direct_handshake_${event}`;
       const prevTs = Number(window.sessionStorage.getItem(key) || "0");
       const nowMs = Date.now();
       const cooldownMs = event === "web_boot" ? 180_000 : 90_000;
@@ -145,53 +144,19 @@ export async function notifyBotViaWebhookHandshake(
         tab,
         username,
         user_id: opts.userId || "",
-        notify_discord: true,
+        notify_discord: false,
       }),
     });
     if (resp.ok) {
       const data = await resp.json();
-      if (data?.webhook_sent) {
-        return {
-          ok: true,
-          webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID,
-          bot_online: data.bot_online ?? true,
-          bot_status: data.bot_status || data,
-        };
-      }
+      return {
+        ok: true,
+        webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID,
+        bot_online: data.bot_online ?? true,
+        bot_status: data.bot_status || data,
+      };
     }
   } catch {}
 
-  // Fallback trực tiếp từ trình duyệt tới Discord Webhook nếu API Gateway chưa gửi
-  try {
-    const nowIso = new Date().toISOString();
-    const directResp = await fetch(`${DISCORD_WEB_SYNC_WEBHOOK_URL}?wait=true`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: "Orbit Web Gateway • Vercel",
-        avatar_url: "https://orbit-psi-black.vercel.app/server_icon.png",
-        content: `⚡ **[ORBIT_WEB_SYNC]** Tín hiệu hoạt động từ **Orbit Web** (\`${origin}\`) • Sự kiện: \`${event}\``,
-        embeds: [
-          {
-            title: "🌐 Orbit Web ↔ Discord Bot Handshake",
-            description:
-              "Web đã khởi động/đang được sử dụng và gửi tín hiệu kết nối đồng bộ 2 chiều tới Bot.",
-            color: 0xec4899,
-            fields: [
-              { name: "🔗 Web URL", value: `[orbit-psi-black.vercel.app](${origin})`, inline: true },
-              { name: "⚡ Sự kiện", value: `\`${event}\``, inline: true },
-              { name: "🧭 Giao diện", value: `\`${view} / ${tab}\``, inline: true },
-              { name: "👤 Phiên người dùng", value: `\`${username}\``, inline: true },
-              { name: "🆔 Webhook ID", value: `\`${DISCORD_WEB_SYNC_WEBHOOK_ID}\``, inline: true },
-            ],
-            footer: { text: "Orbit Sync Protocol • Direct Browser Handshake" },
-            timestamp: nowIso,
-          },
-        ],
-      }),
-    });
-    return { ok: directResp.ok, webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID };
-  } catch {
-    return { ok: false, webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID };
-  }
+  return { ok: false, webhook_id: DISCORD_WEB_SYNC_WEBHOOK_ID };
 }

@@ -11,7 +11,7 @@ import { getApiBaseUrl, DEFAULT_VERCEL_URL, API_FETCH_HEADERS } from './apiConfi
 import { getDiscordAccessToken } from './discordAuth';
 
 export const TURSO_DATABASE_URL = 'https://daiviet-daiviet.aws-ap-northeast-1.turso.io';
-export const DISCORD_DATABASE_CHANNEL_ID = '0';
+export const DISCORD_DATABASE_CHANNEL_ID = '1556682296235393034';
 
 /**
  * Helper gọi API với cơ chế tự động fallback sang Vercel Gateway khi chạy dev local
@@ -175,7 +175,6 @@ export function formatBytes(bytes: number, decimals = 2): string {
  * 4. Đo lường dung lượng sử dụng qua GET /api/documents/stats
  */
 export async function getTursoStorageUsage(): Promise<TursoStorageStats> {
-  const FIVE_GB_BYTES = 5 * 1024 * 1024 * 1024;
   const data = await fetchCloudApi<{
     total_real?: number;
     total_items?: number;
@@ -190,10 +189,10 @@ export async function getTursoStorageUsage(): Promise<TursoStorageStats> {
       totalBytes: 0,
       pendingCount: 0,
       syncedCount: 0,
-      limitBytes: FIVE_GB_BYTES,
+      limitBytes: Number.MAX_SAFE_INTEGER,
       usedPercent: 0,
       formattedUsed: '0 B',
-      formattedLimit: '5.00 GB',
+      formattedLimit: '∞ Vô hạn',
     };
   }
 
@@ -201,17 +200,16 @@ export async function getTursoStorageUsage(): Promise<TursoStorageStats> {
   const totalBytes = Number(data.total_bytes || 0);
   const pendingCount = Number(data.pending_count || 0);
   const syncedCount = Number(data.synced_count || totalDocs);
-  const usedPercent = Math.min(100, Math.max(0, (totalBytes / FIVE_GB_BYTES) * 100));
 
   return {
     totalDocs,
     totalBytes,
     pendingCount,
     syncedCount,
-    limitBytes: FIVE_GB_BYTES,
-    usedPercent: parseFloat(usedPercent.toFixed(2)),
+    limitBytes: Number.MAX_SAFE_INTEGER,
+    usedPercent: 0,
     formattedUsed: formatBytes(totalBytes),
-    formattedLimit: '5.00 GB',
+    formattedLimit: '∞ Vô hạn',
   };
 }
 

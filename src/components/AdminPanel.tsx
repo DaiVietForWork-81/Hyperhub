@@ -1,7 +1,6 @@
 import React, {
   useState,
   useEffect,
-  useLayoutEffect,
   useCallback,
   useMemo,
   useRef,
@@ -36,8 +35,6 @@ import {
   Check,
   ChevronUp,
   ChevronDown,
-  GitBranch,
-  ArrowUpCircle,
   ExternalLink,
   HardDrive,
   Cloud,
@@ -283,15 +280,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [syncingSystem, setSyncingSystem] = useState<boolean>(false);
   const bootstrappedGuildRef = useRef<string>('');
 
-  // Sliding Indicator cho thanh Tab Navigation
-  const tabBarRef = useRef<HTMLDivElement | null>(null);
-  const tabBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [tabIndicator, setTabIndicator] = useState<{ left: number; width: number; ready: boolean }>({
-    left: 0,
-    width: 0,
-    ready: false,
-  });
-
   // Feedback Banner
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -388,17 +376,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [loadingConfig, setLoadingConfig] = useState<boolean>(false);
   const [customUrlInput, setCustomUrlInput] = useState<string>(() => getApiBaseUrl());
   const [testingUrl, setTestingUrl] = useState<boolean>(false);
-  const [updateStatus, setUpdateStatus] = useState<{
-    current_hash: string;
-    full_hash?: string;
-    commit_msg?: string;
-    branch?: string;
-    has_update: boolean;
-    remote_hash: string;
-    commits: Array<{ hash: string; message: string; author: string; time: string }>;
-  } | null>(null);
-  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
-  const [applyingUpdate, setApplyingUpdate] = useState<boolean>(false);
   const [reloadingBot, setReloadingBot] = useState<boolean>(false);
 
   // ================= 6. LOGS & AUDIT STATE =================
@@ -437,29 +414,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     }
     return headers;
   }, []);
-
-  // Sliding Tab Indicator calculation
-  const updateTabIndicator = useCallback(() => {
-    const container = tabBarRef.current;
-    const btn = tabBtnRefs.current[activeTab];
-    if (!container || !btn) return;
-    const cRect = container.getBoundingClientRect();
-    const bRect = btn.getBoundingClientRect();
-    setTabIndicator({
-      left: bRect.left - cRect.left + container.scrollLeft,
-      width: bRect.width,
-      ready: true,
-    });
-  }, [activeTab]);
-
-  useLayoutEffect(() => {
-    updateTabIndicator();
-  }, [updateTabIndicator]);
-
-  useEffect(() => {
-    window.addEventListener('resize', updateTabIndicator);
-    return () => window.removeEventListener('resize', updateTabIndicator);
-  }, [updateTabIndicator]);
 
   // Escape key closes modals
   useEffect(() => {
@@ -601,16 +555,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     try {
       const apiBase = getApiBaseUrl();
       const suffix = forceLive ? '?live=1' : '';
-      const [cfgRes, updRes, stRes] = await Promise.allSettled([
+      const [cfgRes, stRes] = await Promise.allSettled([
         fetch(`${apiBase}/api/admin/config${suffix}`, { headers: getAuthHeaders() }),
-        fetch(`${apiBase}/api/system/update_status${suffix}`, { headers: getAuthHeaders() }),
         fetch(`${apiBase}/api/status`, { headers: API_FETCH_HEADERS }),
       ]);
       if (cfgRes.status === 'fulfilled' && cfgRes.value.ok) {
         setConfigData(await cfgRes.value.json());
-      }
-      if (updRes.status === 'fulfilled' && updRes.value.ok) {
-        setUpdateStatus(await updRes.value.json());
       }
       if (stRes.status === 'fulfilled' && stRes.value.ok) {
         const stData = await stRes.value.json();
@@ -707,9 +657,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           if (data.config_data) {
             setConfigData(data.config_data);
           }
-          if (data.update_status) {
-            setUpdateStatus(data.update_status);
-          }
           bootstrappedGuildRef.current = guildId;
           return;
         }
@@ -762,7 +709,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       const whOk = whRes.status === 'fulfilled' && whRes.value.ok;
       showFeedback(
         'success',
-        `Đã đồng bộ 2 chiều Bot ↔ Web qua Webhook 1568882621470089247${
+        `Đã đồng bộ 2 chiều trực tiếp Bot ↔ Web (Bảo mật 7 Lớp · Kho đề #1556682296235393034)${
           syncedPending > 0 ? ` · Đã đồng bộ ${syncedPending} đề chờ lên Discord` : ''
         }${whOk ? ' · Tín hiệu Bot Active!' : '!'}`
       );
@@ -1317,53 +1264,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   };
 
   // ================= SYSTEM ACTIONS =================
-  const handleCheckUpdate = async () => {
-    setCheckingUpdate(true);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/check_update`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUpdateStatus(data);
-        showFeedback(
-          'success',
-          data.has_update
-            ? `Phát hiện ${data.commits?.length || 1} bản cập nhật mới trên GitHub!`
-            : 'Hệ thống đang ở phiên bản mới nhất!'
-        );
-      }
-    } catch {
-      showFeedback('error', 'Lỗi kiểm tra cập nhật GitHub');
-    } finally {
-      setCheckingUpdate(false);
-    }
-  };
-
-  const handleApplyUpdate = async () => {
-    setApplyingUpdate(true);
-    try {
-      const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/api/system/apply_update`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showFeedback('success', data.message || 'Đã cập nhật GitHub & Hot-Reload hoàn tất!');
-        fetchConfig();
-      } else {
-        showFeedback('error', data.error || 'Cập nhật thất bại');
-      }
-    } catch {
-      showFeedback('error', 'Lỗi khi áp dụng cập nhật');
-    } finally {
-      setApplyingUpdate(false);
-    }
-  };
-
   const handleHotReload = async () => {
     setReloadingBot(true);
     try {
@@ -1534,2085 +1434,2219 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const navTabs: Array<{ id: AdminTab; label: string; badge?: number | string; icon: React.ReactNode }> = [
-    { id: 'roles', label: 'Phân Quyền & Role', badge: roles.length || undefined, icon: <Crown className="w-4 h-4" /> },
-    { id: 'members', label: 'Thành Viên & Cấp Role', badge: members.length || undefined, icon: <Users className="w-4 h-4" /> },
-    { id: 'documents', label: 'Kho Đề Toàn Quyền', badge: docs.length || undefined, icon: <FileText className="w-4 h-4" /> },
-    { id: 'channels', label: 'Kênh & Bảng Discord', badge: channels.length || undefined, icon: <Hash className="w-4 h-4" /> },
-    { id: 'config', label: 'Hệ Thống & GitHub', icon: <Settings2 className="w-4 h-4" /> },
-    { id: 'logs', label: 'Nhật Ký & Console', icon: <ScrollText className="w-4 h-4" /> },
+  const navTabs: Array<{
+    id: AdminTab;
+    label: string;
+    subtitle: string;
+    badge?: number | string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      id: 'roles',
+      label: 'Phân Quyền & Role',
+      subtitle: 'Thứ bậc, màu sắc & quyền hạn',
+      badge: roles.length || undefined,
+      icon: <Crown className="w-4 h-4" />,
+    },
+    {
+      id: 'members',
+      label: 'Thành Viên & Kỷ Luật',
+      subtitle: 'Cấp Role, Mute, Kick & Ban',
+      badge: members.length || undefined,
+      icon: <Users className="w-4 h-4" />,
+    },
+    {
+      id: 'documents',
+      label: 'Kho Đề Toàn Quyền',
+      subtitle: 'Biên tập 100% & xử lý trùng lặp',
+      badge: docs.length || undefined,
+      icon: <FileText className="w-4 h-4" />,
+    },
+    {
+      id: 'channels',
+      label: 'Kênh & Bảng Discord',
+      subtitle: 'Tạo kênh, khóa kênh & phát sóng',
+      badge: channels.length || undefined,
+      icon: <Hash className="w-4 h-4" />,
+    },
+    {
+      id: 'config',
+      label: 'Hệ Thống & Cầu Nối',
+      subtitle: 'Hot-Reload Cogs, Turso & API',
+      badge: 'Online',
+      icon: <Settings2 className="w-4 h-4" />,
+    },
+    {
+      id: 'logs',
+      label: 'Nhật Ký & Kiểm Toán',
+      subtitle: 'Console logs & Audit Discord',
+      badge: auditEntries.length || undefined,
+      icon: <ScrollText className="w-4 h-4" />,
+    },
   ];
 
+  const activeModuleMeta = navTabs.find((t) => t.id === activeTab) || navTabs[0];
+
   return (
-    <div className="w-full max-w-[1440px] mx-auto my-2 bg-[#0B0911] ring-1 ring-[#1E1B2B] rounded-2xl overflow-hidden text-white">
-      {/* ================= TOP COMMAND HEADER (RULED T-FRAME) ================= */}
-      <div className="relative px-6 pt-5 pb-0 bg-[#110F18]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Trung tâm quản trị Orbit
-              </h1>
-              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
-                {adminIdentity?.role_name || 'Quản trị viên'}
-              </span>
-              <span
-                className={`px-2.5 py-0.5 text-xs font-medium rounded-md ring-1 flex items-center gap-1.5 tabular-nums ${
-                  botOnline
-                    ? 'bg-[#13261C] text-[#3FC07A] ring-[#23422D]'
-                    : 'bg-[#142234] text-[#38BDF8] ring-[#253748]'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    botOnline ? 'bg-[#3FC07A]' : 'bg-[#38BDF8]'
-                  }`}
-                />
-                {botOnline
-                  ? `Bot trực tuyến · ${botBridgeStatus?.ping_ms ?? 15} ms`
-                  : 'Cloud trực tuyến 24/7'}
-              </span>
-              <code className="px-2 py-0.5 text-[11px] font-mono rounded-md bg-[#16141F] text-[#949494] ring-1 ring-[#221F30] tabular-nums">
-                Webhook #1568882621470089247
-              </code>
-              {isPendingTab && (
-                <span className="px-2 py-0.5 text-[11px] rounded-md bg-[#1A1826] text-[#C6F24E] tabular-nums">
-                  Đang chuyển phân hệ...
-                </span>
-              )}
-            </div>
-            <p className="text-xs sm:text-[13px] text-[#B4B4B4]">
-              Phân cấp Role, kiểm soát thành viên, quản lý kho đề thi và đồng bộ hai chiều giữa Discord Bot và Web.
-            </p>
-          </div>
-
-          {/* Server Selector + 1-Click Sync + Close */}
+    <div className="w-full max-w-[1440px] mx-auto my-2 bg-[#1E1B2B] ring-1 ring-[#1E1B2B] rounded-2xl overflow-hidden text-white flex flex-col gap-px">
+      {/* ================= TOP COMMAND HEADER ================= */}
+      <div className="px-5 lg:px-6 py-4 bg-[#110F18] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleFullSystemSync}
-              disabled={syncingSystem}
-              className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
-              title="Bắn tín hiệu Webhook 1568882621470089247 và đồng bộ tức thì kho đề + cấu hình giữa Bot và Web"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncingSystem ? 'animate-spin' : ''}`} />
-              <span>{syncingSystem ? 'Đang đồng bộ...' : 'Đồng bộ Bot ↔ Web'}</span>
-            </button>
-
-            <div className="h-9 flex items-center gap-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg px-3">
-              <span className="text-xs text-[#949494]">Máy chủ:</span>
-              <select
-                value={selectedGuildId}
-                onChange={(e) => setSelectedGuildId(e.target.value)}
-                aria-label="Chọn máy chủ Discord cần quản trị"
-                className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer tabular-nums"
-              >
-                {guilds.map((g) => (
-                  <option key={g.id} value={g.id} className="bg-[#110F18] text-white">
-                    {g.name} ({g.member_count})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="h-9 px-3 rounded-lg bg-[#16141F] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#B4B4B4] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Đóng</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Command Dock: 1-Click Operational Triggers */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 mb-4 rounded-xl bg-[#0B0911] ring-1 ring-[#1E1B2B]">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-medium text-[#949494] mr-1">Lệnh điều hành nhanh:</span>
-            <button
-              type="button"
-              onClick={handleAlignRoles}
-              disabled={aligningRoles}
-              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3 text-[#C6F24E]" />
-              <span>{aligningRoles ? 'Đang căn chỉnh...' : 'Căn chỉnh Role'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRefreshDiscordPanels('all')}
-              disabled={refreshingPanels}
-              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Layers className="w-3 h-3 text-[#38BDF8]" />
-              <span>{refreshingPanels ? 'Đang làm mới...' : 'Làm mới Panel Discord'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleApplyUpdate}
-              disabled={applyingUpdate}
-              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <GitBranch className="w-3 h-3 text-[#3FC07A]" />
-              <span>{applyingUpdate ? 'Đang cập nhật...' : 'GitHub 1-Click Update'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleHotReload}
-              disabled={reloadingBot}
-              className="h-7 px-2.5 rounded-md bg-[#161421] hover:bg-[#1F1C2E] ring-1 ring-[#262235] text-[11px] font-medium text-[#E2E2E2] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`w-3 h-3 text-[#F59E0B] ${reloadingBot ? 'animate-spin' : ''}`} />
-              <span>{reloadingBot ? 'Đang nạp Cogs...' : 'Hot-Reload Cogs'}</span>
-            </button>
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-[#949494] tabular-nums">
-            <span>Bộ lọc: {filteredRoles.length} role · {filteredMembers.length} thành viên · {filteredDocs.length} đề</span>
-          </div>
-        </div>
-
-        {/* Unified Divided KPI Strip (1px Grid Gap Hairlines + Proportional Telemetry Bars) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px bg-[#1E1B2B] ring-1 ring-[#1E1B2B] rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => switchTab('roles')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'roles' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'roles' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Hệ thống Role</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{roles.length}</div>
-            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
-              {assignableRoles.length} role cấp phát
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div
-                className="h-full bg-[#C6F24E]"
-                style={{
-                  width: `${roles.length > 0 ? Math.min(100, Math.round((assignableRoles.length / roles.length) * 100)) : 0}%`,
-                }}
-              />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('members')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'members' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'members' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Thành viên</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{members.length}</div>
-            <div
-              className={`text-xs mt-0.5 tabular-nums ${
-                bans.length > 0 ? 'text-[#E5566F]' : 'text-[#949494]'
-              }`}
-            >
-              {bans.length > 0 ? `${bans.length} tài khoản bị cấm` : '0 tài khoản bị cấm'}
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div
-                className="h-full bg-[#38BDF8]"
-                style={{ width: `${members.length > 0 ? 100 : 12}%` }}
-              />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('documents')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'documents' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'documents' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Kho đề thi</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{docs.length}</div>
-            <div
-              className={`text-xs mt-0.5 tabular-nums ${
-                duplicateDocsCount > 0 ? 'text-[#E5A93B]' : 'text-[#949494]'
-              }`}
-            >
-              {duplicateDocsCount > 0
-                ? `${duplicateDocsCount} bản trùng lặp`
-                : `${uniqueDocsCount} đề độc bản`}
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div
-                className="h-full bg-[#3FC07A]"
-                style={{
-                  width: `${docs.length > 0 ? Math.min(100, Math.round((uniqueDocsCount / docs.length) * 100)) : 0}%`,
-                }}
-              />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('channels')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'channels' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'channels' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Kênh máy chủ</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">{channels.length}</div>
-            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
-              {privateChannelsCount} riêng tư · {Math.max(0, channels.length - privateChannelsCount)} công khai
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div
-                className="h-full bg-[#F59E0B]"
-                style={{
-                  width: `${channels.length > 0 ? Math.min(100, Math.round(((channels.length - privateChannelsCount) / channels.length) * 100)) : 0}%`,
-                }}
-              />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('config')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'config' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'config' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Dung lượng Turso</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">
-              {tursoStats ? `${(tursoStats.totalBytes / (1024 * 1024)).toFixed(1)} MB` : '0.0 MB'}
-            </div>
-            <div className="text-xs text-[#949494] mt-0.5 tabular-nums">
-              {tursoStats ? `${tursoStats.usedPercent.toFixed(2)}% của 5 GB` : 'Hạn mức 5 GB'}
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div
-                className="h-full bg-[#38BDF8]"
-                style={{ width: `${tursoStats ? Math.max(4, Math.min(100, tursoStats.usedPercent)) : 4}%` }}
-              />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('logs')}
-            className={`p-3.5 text-left transition-colors cursor-pointer relative ${
-              activeTab === 'logs' ? 'bg-[#161421]' : 'bg-[#0B0911] hover:bg-[#12101B]'
-            }`}
-          >
-            {activeTab === 'logs' && (
-              <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
-            )}
-            <div className="text-xs text-[#B4B4B4] font-normal">Phiên bản &amp; Nhật ký</div>
-            <div className="text-2xl font-semibold text-white mt-1 tabular-nums">
-              <code className="font-mono text-xl">{updateStatus?.current_hash || 'main'}</code>
-            </div>
-            <div className="text-xs text-[#3FC07A] mt-0.5 tabular-nums">
-              {botBridgeStatus?.web_handshake_count
-                ? `${botBridgeStatus.web_handshake_count} lần kết nối`
-                : 'Đã đồng bộ Webhook'}
-            </div>
-            <div className="mt-2 h-1 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
-              <div className="h-full bg-[#3FC07A] w-full" />
-            </div>
-          </button>
-        </div>
-
-        {/* Underline Navigation Tabs on a Full-Width 1px Rule */}
-        <div
-          ref={tabBarRef}
-          className="relative flex items-center gap-5 mt-4 overflow-x-auto no-scrollbar"
-        >
-          {tabIndicator.ready && (
+            <span className="w-2 h-2 rounded-full bg-[#C6F24E]" />
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+              Orbit Operations Console
+            </h1>
+            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
+              {adminIdentity?.role_name || 'Quản trị viên'}
+            </span>
             <span
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 h-[2px] bg-[#C6F24E] transition-[left,width] duration-200 ease-out"
-              style={{
-                left: `${tabIndicator.left}px`,
-                width: `${tabIndicator.width}px`,
-              }}
-            />
-          )}
-          {navTabs.map((t) => {
-            const isActive = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                ref={(el) => {
-                  tabBtnRefs.current[t.id] = el;
-                }}
-                onClick={() => switchTab(t.id)}
-                className={`relative py-3 text-[13px] font-medium flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  isActive ? 'text-white' : 'text-[#949494] hover:text-[#E2E2E2]'
+              className={`px-2.5 py-0.5 text-xs font-medium rounded-md ring-1 flex items-center gap-1.5 tabular-nums ${
+                botOnline
+                  ? 'bg-[#13261C] text-[#3FC07A] ring-[#23422D]'
+                  : 'bg-[#142234] text-[#38BDF8] ring-[#253748]'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  botOnline ? 'bg-[#3FC07A]' : 'bg-[#38BDF8]'
                 }`}
-              >
-                <span className={isActive ? 'text-[#C6F24E]' : 'text-[#949494]'}>{t.icon}</span>
-                <span>{t.label}</span>
-                {t.badge !== undefined && (
-                  <span
-                    className={`px-1.5 py-0.5 text-[11px] rounded tabular-nums ${
-                      isActive
-                        ? 'bg-[#22222C] text-white'
-                        : 'bg-[#16141F] text-[#949494]'
-                    }`}
-                  >
-                    {t.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+              />
+              {botOnline
+                ? `Bot trực tuyến · ${botBridgeStatus?.ping_ms ?? 15} ms`
+                : 'Cloud trực tuyến 24/7'}
+            </span>
+            <code className="px-2 py-0.5 text-[11px] font-mono rounded-md bg-[#0B0911] text-[#C6F24E] ring-1 ring-[#2E3B1E] tabular-nums">
+              Kho Đề #1556682296235393034 · ∞ Vô hạn · 7 Lớp Bảo Mật
+            </code>
+            {isPendingTab && (
+              <span className="px-2 py-0.5 text-[11px] rounded-md bg-[#1A1826] text-[#C6F24E] tabular-nums">
+                Đang chuyển phân hệ...
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[#949494]">
+            Trung tâm điều hành tập trung: Phân cấp Role, quản lý thành viên, biên tập Kho Đề và đồng bộ hai chiều Discord Bot ↔ Web.
+          </p>
+        </div>
+
+        {/* Right Command Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="h-9 flex items-center gap-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg px-3">
+            <span className="text-xs text-[#949494]">Máy chủ:</span>
+            <select
+              value={selectedGuildId}
+              onChange={(e) => setSelectedGuildId(e.target.value)}
+              aria-label="Chọn máy chủ Discord cần quản trị"
+              className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer tabular-nums"
+            >
+              {guilds.map((g) => (
+                <option key={g.id} value={g.id} className="bg-[#110F18] text-white">
+                  {g.name} ({g.member_count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleFullSystemSync}
+            disabled={syncingSystem}
+            className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+            title="Đồng bộ trực tiếp kho đề + cấu hình giữa Bot và Web qua cầu nối mã hóa 7 lớp"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncingSystem ? 'animate-spin' : ''}`} />
+            <span>{syncingSystem ? 'Đang đồng bộ...' : 'Đồng bộ Bot ↔ Web'}</span>
+          </button>
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="h-9 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#B4B4B4] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Đóng</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ================= STATUS FEEDBACK BANNER ================= */}
-      {statusMsg && (
-        <div
-          role="status"
-          className={`mx-6 mt-4 p-3.5 rounded-xl ring-1 flex items-center justify-between gap-3 ${
-            statusMsg.type === 'success'
-              ? 'bg-[#172A1D] border-[#254630] text-[#3FC07A]'
-              : 'bg-[#2C1A20] border-[#4A2631] text-[#E5566F]'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
-            {statusMsg.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            )}
-            <span>{statusMsg.text}</span>
-          </div>
-          <button
-            onClick={() => setStatusMsg(null)}
-            className="p-1 rounded-lg hover:bg-white/10 text-white/70"
-            aria-label="Đóng thông báo"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* ================= MAIN CONTENT AREA ================= */}
-      <div className="p-6">
-        {/* =====================================================================
-            TAB 1: QUẢN TRỊ ROLE & PHÂN QUYỀN (100% FULL CONTROL)
-           ===================================================================== */}
-        {activeTab === 'roles' && (
-          <div className="space-y-6 hh-swap-panel">
-            {/* Top Action Banner: 1-Click Auto Alignment */}
-            <div className="p-5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-white font-semibold text-sm">
-                  <Sparkles className="w-4 h-4 text-[#C6F24E]" />
-                  <span>Căn chỉnh chuẩn hệ thống Role &amp; quyền hạn (Bot ưu tiên cao nhất)</span>
-                </div>
-                <p className="text-xs text-[#B4B4B4] leading-relaxed max-w-3xl">
-                  Tự động sắp xếp thứ tự phân cấp chuẩn từ trên xuống dưới (Quản trị viên → Vinh danh Orbit → Khối lớp 12..6 → Thành viên → Bot), chuẩn hóa bảng màu sắc tách biệt, khóa quyền nguy hiểm ở <code className="text-white">@everyone</code> và tự động cấp Role <code className="text-[#3FC07A]">Học sinh</code> / <code className="text-[#E2D4FF]">Tác giả</code> cho thành viên đủ điều kiện.
-                </p>
+      {/* ================= 2-PANE OPERATIONS WORKSPACE ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-[#1E1B2B]">
+        {/* LEFT COMMAND RAIL (SIDEBAR NAVIGATION + QUICK ACTIONS + TELEMETRY) */}
+        <aside className="lg:col-span-3 bg-[#110F18] p-4 flex flex-col justify-between gap-5">
+          <div className="space-y-5">
+            {/* Vertical Module Navigation */}
+            <div className="space-y-1.5">
+              <div className="px-2 pb-1 text-[11px] font-semibold text-[#949494]">
+                Phân hệ điều hành (6 Modules)
               </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {navTabs.map((t) => {
+                const isActive = activeTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => switchTab(t.id)}
+                    className={`w-full p-2.5 rounded-xl text-left transition-colors flex items-center justify-between gap-2.5 cursor-pointer relative ${
+                      isActive
+                        ? 'bg-[#161421] text-white ring-1 ring-[#2E3B1E]'
+                        : 'bg-transparent hover:bg-[#161421]/60 text-[#B4B4B4] hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#C6F24E]" />
+                    )}
+                    <div className="flex items-center gap-2.5 min-w-0 pl-1">
+                      <span
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
+                          isActive
+                            ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                            : 'bg-[#0B0911] text-[#949494] ring-[#1E1B2B]'
+                        }`}
+                      >
+                        {t.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold truncate">{t.label}</div>
+                        <div className="text-[11px] text-[#8E8A9F] truncate">{t.subtitle}</div>
+                      </div>
+                    </div>
+                    {t.badge !== undefined && (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] font-mono rounded-md tabular-nums shrink-0 ${
+                          isActive
+                            ? 'bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]'
+                            : 'bg-[#0B0911] text-[#949494] ring-1 ring-[#1E1B2B]'
+                        }`}
+                      >
+                        {t.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Command Deck */}
+            <div className="p-3.5 rounded-xl bg-[#0B0911] ring-1 ring-[#1E1B2B] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white">Lệnh thực thi nhanh</span>
+                <span className="text-[11px] text-[#C6F24E] tabular-nums">1-Click</span>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5">
                 <button
+                  type="button"
                   onClick={handleAlignRoles}
                   disabled={aligningRoles}
-                  className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
+                  className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] flex items-center justify-between transition-colors cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${aligningRoles ? 'animate-spin' : ''}`} />
-                  <span>{aligningRoles ? 'Đang căn chỉnh Role...' : 'Căn chỉnh Role chuẩn (1-Click)'}</span>
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C6F24E]" />
+                    <span>{aligningRoles ? 'Đang căn chỉnh...' : 'Căn chỉnh thứ bậc Role'}</span>
+                  </span>
+                  <span className="text-[10px] text-[#949494]">Chuẩn hóa</span>
                 </button>
                 <button
-                  onClick={() => fetchRoles(selectedGuildId, true)}
-                  disabled={loadingRoles}
-                  className="h-9 px-3.5 rounded-lg bg-[#181622] hover:bg-[#221F30] ring-1 ring-[#282438] text-xs font-medium text-white flex items-center gap-1.5 transition cursor-pointer"
+                  type="button"
+                  onClick={() => handleRefreshDiscordPanels('all')}
+                  disabled={refreshingPanels}
+                  className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] flex items-center justify-between transition-colors cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
-                  <span>Làm mới</span>
+                  <span className="flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>{refreshingPanels ? 'Đang làm mới...' : 'Làm mới Panel Discord'}</span>
+                  </span>
+                  <span className="text-[10px] text-[#949494]">3 kênh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHotReload}
+                  disabled={reloadingBot}
+                  className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className={`w-3.5 h-3.5 text-[#F59E0B] ${reloadingBot ? 'animate-spin' : ''}`} />
+                    <span>{reloadingBot ? 'Đang nạp Cogs...' : 'Hot-Reload Cogs'}</span>
+                  </span>
+                  <span className="text-[10px] text-[#949494]">22 Cogs</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFullSystemSync}
+                  disabled={syncingSystem}
+                  className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Cloud className="w-3.5 h-3.5 text-[#3FC07A]" />
+                    <span>{syncingSystem ? 'Đang đồng bộ...' : 'Đồng bộ Kho đề chờ'}</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-[#3FC07A] tabular-nums">
+                    Turso ↔ Bot
+                  </span>
                 </button>
               </div>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: Create New Role Form */}
-              <form
-                onSubmit={handleCreateRole}
-                className="lg:col-span-4 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4 h-fit"
+          {/* Infrastructure Telemetry Footer Card */}
+          <div className="p-3.5 rounded-xl bg-[#0B0911] ring-1 ring-[#1E1B2B] space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#949494]">Kho Đề Discord (#1556682296235393034)</span>
+              <span className="font-semibold text-[#3FC07A] tabular-nums">
+                {tursoStats
+                  ? `${(tursoStats.totalBytes / (1024 * 1024)).toFixed(1)} MB / ∞ Vô hạn`
+                  : '∞ Vô hạn'}
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-[#1E1B2B] overflow-hidden">
+              <div className="h-full bg-[#3FC07A]" style={{ width: '100%' }} />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-[#949494] tabular-nums">
+              <span>{uniqueDocsCount} đề độc bản</span>
+              <span>{duplicateDocsCount} bản trùng</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT ACTIVE WORKSPACE */}
+        <main className="lg:col-span-9 bg-[#0B0911] p-5 lg:p-6 space-y-5 min-w-0">
+          {/* Unified 6-Card KPI Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-px bg-[#1E1B2B] ring-1 ring-[#1E1B2B] rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => switchTab('roles')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'roles' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'roles' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Hệ thống Role</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">{roles.length}</div>
+              <div className="text-[11px] text-[#C6F24E] mt-0.5 tabular-nums">
+                {assignableRoles.length} role cấp phát
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab('members')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'members' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'members' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Thành viên</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">{members.length}</div>
+              <div
+                className={`text-[11px] mt-0.5 tabular-nums ${
+                  bans.length > 0 ? 'text-[#E5566F]' : 'text-[#38BDF8]'
+                }`}
               >
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-[#C6F24E]" />
-                  Tạo Role Mới Trên Máy Chủ
-                </h3>
+                {bans.length > 0 ? `${bans.length} tài khoản cấm` : '0 tài khoản cấm'}
+              </div>
+            </button>
 
-                <div>
-                  <label className="block text-xs text-white/70 mb-1 font-medium">Tên Role mới</label>
-                  <input
-                    type="text"
-                    value={newRoleName}
-                    onChange={(e) => setNewRoleName(e.target.value)}
-                    placeholder="VD: Chiến Thần Giải Đề"
-                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
-                  />
+            <button
+              type="button"
+              onClick={() => switchTab('documents')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'documents' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'documents' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Kho đề thi</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">{docs.length}</div>
+              <div
+                className={`text-[11px] mt-0.5 tabular-nums ${
+                  duplicateDocsCount > 0 ? 'text-[#F59E0B]' : 'text-[#3FC07A]'
+                }`}
+              >
+                {duplicateDocsCount > 0
+                  ? `${duplicateDocsCount} bản trùng lặp`
+                  : `${uniqueDocsCount} đề độc bản`}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab('channels')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'channels' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'channels' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Kênh máy chủ</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">{channels.length}</div>
+              <div className="text-[11px] text-[#F59E0B] mt-0.5 tabular-nums">
+                {privateChannelsCount} riêng tư · {Math.max(0, channels.length - privateChannelsCount)} mở
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab('config')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'config' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'config' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Kho Lưu Trữ Đề</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">
+                {tursoStats ? `${(tursoStats.totalBytes / (1024 * 1024)).toFixed(1)} MB` : '0.0 MB'}
+              </div>
+              <div className="text-[11px] text-[#3FC07A] mt-0.5 tabular-nums">
+                #1556682296235393034 · ∞ Vô hạn
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab('logs')}
+              className={`p-3 text-left transition-colors cursor-pointer relative ${
+                activeTab === 'logs' ? 'bg-[#161421]' : 'bg-[#110F18] hover:bg-[#161421]/60'
+              }`}
+            >
+              {activeTab === 'logs' && (
+                <span className="absolute inset-x-0 top-0 h-[2px] bg-[#C6F24E]" />
+              )}
+              <div className="text-[11px] text-[#949494]">Cầu nối Bot ↔ Web</div>
+              <div className="text-xl font-bold text-white mt-0.5 tabular-nums">
+                {botOnline ? 'Active' : 'Cloud'}
+              </div>
+              <div className="text-[11px] text-[#3FC07A] mt-0.5 tabular-nums">
+                {botBridgeStatus?.web_handshake_count
+                  ? `${botBridgeStatus.web_handshake_count} nhịp cầu nối`
+                  : 'Đã kết nối'}
+              </div>
+            </button>
+          </div>
+
+          {/* Active Module Header Bar */}
+          <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-lg bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E] flex items-center justify-center shrink-0">
+                {activeModuleMeta.icon}
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-white">{activeModuleMeta.label}</h2>
+                <p className="text-xs text-[#949494]">{activeModuleMeta.subtitle}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-[#949494] tabular-nums">
+              <span>
+                Đang hiển thị: {filteredRoles.length} role · {filteredMembers.length} thành viên · {filteredDocs.length} đề
+              </span>
+            </div>
+          </div>
+
+          {/* Status Feedback Banner */}
+          {statusMsg && (
+            <div
+              role="status"
+              className={`p-3.5 rounded-xl ring-1 flex items-center justify-between gap-3 ${
+                statusMsg.type === 'success'
+                  ? 'bg-[#13261C] ring-[#23422D] text-[#3FC07A]'
+                  : 'bg-[#2C1620] ring-[#4C2233] text-[#E5566F]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
+                {statusMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{statusMsg.text}</span>
+              </div>
+              <button
+                onClick={() => setStatusMsg(null)}
+                className="p-1 rounded-lg hover:bg-[#1E1B2B] text-[#B4B4B4] hover:text-white cursor-pointer"
+                aria-label="Đóng thông báo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* =====================================================================
+              TAB 1: QUẢN TRỊ ROLE & PHÂN QUYỀN (100% FULL CONTROL)
+             ===================================================================== */}
+          {activeTab === 'roles' && (
+            <div className="space-y-5 hh-swap-panel">
+              {/* Top Action Banner: 1-Click Auto Alignment */}
+              <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-white font-semibold text-sm">
+                    <Sparkles className="w-4 h-4 text-[#C6F24E]" />
+                    <span>Tự động căn chỉnh chuẩn hệ thống Role &amp; quyền hạn</span>
+                  </div>
+                  <p className="text-xs text-[#949494] leading-relaxed max-w-3xl">
+                    Sắp xếp thứ tự phân cấp chuẩn từ trên xuống dưới (Quản trị viên → Vinh danh Orbit → Khối lớp 12..6 → Thành viên → Bot), chuẩn hóa bảng màu, khóa quyền nguy hiểm ở <code className="text-white">@everyone</code> và tự động cấp Role <code className="text-[#3FC07A]">Học sinh</code> / <code className="text-[#C6F24E]">Tác giả</code>.
+                  </p>
                 </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleAlignRoles}
+                    disabled={aligningRoles}
+                    className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] font-semibold text-xs flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${aligningRoles ? 'animate-spin' : ''}`} />
+                    <span>{aligningRoles ? 'Đang căn chỉnh Role...' : 'Căn chỉnh Role chuẩn (1-Click)'}</span>
+                  </button>
+                  <button
+                    onClick={() => fetchRoles(selectedGuildId, true)}
+                    disabled={loadingRoles}
+                    className="h-9 px-3.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
+                    <span>Làm mới</span>
+                  </button>
+                </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs text-white/70 mb-1.5 font-medium">
-                    Màu sắc hiển thị ({newRoleColor})
-                  </label>
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="color"
-                      value={newRoleColor}
-                      onChange={(e) => setNewRoleColor(e.target.value)}
-                      className="w-10 h-9 rounded-lg bg-transparent ring-1 ring-white/20 cursor-pointer"
-                    />
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                {/* Left Column: Create New Role Form */}
+                <form
+                  onSubmit={handleCreateRole}
+                  className="xl:col-span-4 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4 h-fit"
+                >
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-[#C6F24E]" />
+                    <span>Khởi tạo Role mới</span>
+                  </h3>
+
+                  <div>
+                    <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Tên Role mới</label>
                     <input
                       type="text"
-                      value={newRoleColor}
-                      onChange={(e) => setNewRoleColor(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
+                      value={newRoleName}
+                      onChange={(e) => setNewRoleName(e.target.value)}
+                      placeholder="VD: Chiến Thần Giải Đề"
+                      className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
                     />
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ROLE_COLOR_SWATCHES.map((hex) => (
-                      <button
-                        key={hex}
-                        type="button"
-                        onClick={() => setNewRoleColor(hex)}
-                        title={hex}
-                        className={`w-6 h-6 rounded-lg ring-1 transition-transform ${
-                          newRoleColor.toUpperCase() === hex
-                            ? 'scale-110 border-white'
-                            : 'border-white/20 hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: hex }}
-                      />
-                    ))}
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs text-white/70 mb-1 font-medium">Mẫu quyền hạn (Permissions Preset)</label>
-                  <select
-                    value={newRolePermPreset}
-                    onChange={(e) => setNewRolePermPreset(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
-                  >
-                    {PERMISSION_PRESETS.map((p) => (
-                      <option key={p.value} value={p.value} className="bg-[#14111F]">
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 ring-1 ring-white/10 cursor-pointer text-xs">
-                    <input
-                      type="checkbox"
-                      checked={newRoleHoist}
-                      onChange={(e) => setNewRoleHoist(e.target.checked)}
-                      className="accent-[#C6F24E]"
-                    />
-                    <span>Tách nhóm (Hoist)</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/35 ring-1 ring-white/10 cursor-pointer text-xs">
-                    <input
-                      type="checkbox"
-                      checked={newRoleMentionable}
-                      onChange={(e) => setNewRoleMentionable(e.target.checked)}
-                      className="accent-[#C6F24E]"
-                    />
-                    <span>Cho phép @ping</span>
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-2.5 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  Tạo Role Ngay
-                </button>
-              </form>
-
-              {/* Right Column: Interactive Role Hierarchy */}
-              <div className="lg:col-span-8 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Sliders className="w-4 h-4 text-amber-400" />
-                      Thang Phân Cấp Role Trực Tiếp ({filteredRoles.length}/{roles.length})
-                    </h3>
-                    <p className="text-[11px] text-white/55 mt-0.5">
-                      Bấm nút Lên/Xuống để đổi vị trí ưu tiên, bật/tắt Hoist hoặc bấm Sửa để tùy chỉnh 100% thông số Role.
-                    </p>
+                    <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium tabular-nums">
+                      Màu sắc hiển thị ({newRoleColor})
+                    </label>
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <input
+                        type="color"
+                        value={newRoleColor}
+                        onChange={(e) => setNewRoleColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={newRoleColor}
+                        onChange={(e) => setNewRoleColor(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs font-mono tabular-nums text-white"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ROLE_COLOR_SWATCHES.map((hex) => (
+                        <button
+                          key={hex}
+                          type="button"
+                          onClick={() => setNewRoleColor(hex)}
+                          title={hex}
+                          className={`w-6 h-6 rounded-md ring-1 transition-transform cursor-pointer ${
+                            newRoleColor.toUpperCase() === hex
+                              ? 'scale-110 ring-white'
+                              : 'ring-[#262235] hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: hex }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+
+                  <div>
+                    <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Mẫu quyền hạn (Preset)</label>
+                    <select
+                      value={newRolePermPreset}
+                      onChange={(e) => setNewRolePermPreset(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
+                    >
+                      {PERMISSION_PRESETS.map((p) => (
+                        <option key={p.value} value={p.value} className="bg-[#110F18]">
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] cursor-pointer text-xs text-[#E2E2E2]">
+                      <input
+                        type="checkbox"
+                        checked={newRoleHoist}
+                        onChange={(e) => setNewRoleHoist(e.target.checked)}
+                        className="accent-[#C6F24E]"
+                      />
+                      <span>Tách nhóm (Hoist)</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] cursor-pointer text-xs text-[#E2E2E2]">
+                      <input
+                        type="checkbox"
+                        checked={newRoleMentionable}
+                        onChange={(e) => setNewRoleMentionable(e.target.checked)}
+                        className="accent-[#C6F24E]"
+                      />
+                      <span>Cho phép @ping</span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full h-9 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] font-semibold text-xs flex items-center justify-center gap-2 disabled:opacity-50 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tạo Role mới ngay</span>
+                  </button>
+                </form>
+
+                {/* Right Column: Interactive Role Hierarchy */}
+                <div className="xl:col-span-8 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-2 tabular-nums">
+                        <Sliders className="w-4 h-4 text-[#C6F24E]" />
+                        <span>Thang phân cấp Role trực tiếp ({filteredRoles.length}/{roles.length})</span>
+                      </h3>
+                      <p className="text-xs text-[#949494] mt-0.5">
+                        Điều chỉnh vị trí ưu tiên Lên/Xuống, bật/tắt Hoist hoặc bấm Sửa để cấu hình 100% thông số Role.
+                      </p>
+                    </div>
+                    <div className="relative w-full sm:w-60">
+                      <Search className="w-3.5 h-3.5 text-[#949494] absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={roleSearch}
                         onChange={(e) => setRoleSearch(e.target.value)}
                         placeholder="Tìm tên hoặc ID role..."
-                        className="pl-8 pr-3 py-1.5 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
+                        className="w-full pl-8 pr-3 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* Tier Filter Pills */}
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'ALL', label: 'Tất cả tầng' },
-                    { id: 'staff', label: 'Quản trị' },
-                    { id: 'honor', label: 'Vinh danh & Học thuật' },
-                    { id: 'grade', label: 'Khối lớp' },
-                    { id: 'member', label: 'Thành viên' },
-                    { id: 'divider', label: 'Thanh phân cách' },
-                    { id: 'bot', label: 'Hệ thống Bot' },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setRoleTierFilter(f.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 transition ${
-                        roleTierFilter === f.id
-                          ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
-                          : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
+                  {/* Tier Filter Pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: 'ALL', label: 'Tất cả tầng' },
+                      { id: 'staff', label: 'Quản trị' },
+                      { id: 'honor', label: 'Vinh danh & Học thuật' },
+                      { id: 'grade', label: 'Khối lớp' },
+                      { id: 'member', label: 'Thành viên' },
+                      { id: 'divider', label: 'Thanh phân cách' },
+                      { id: 'bot', label: 'Hệ thống Bot' },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setRoleTierFilter(f.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 transition cursor-pointer ${
+                          roleTierFilter === f.id
+                            ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                            : 'bg-[#0B0911] text-[#949494] ring-[#1E1B2B] hover:text-white'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
 
-                {/* Role List */}
-                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
-                  {loadingRoles ? (
-                    <div className="py-12 text-center text-xs text-white/50">
-                      Đang đồng bộ danh sách Role từ máy chủ Discord...
-                    </div>
-                  ) : filteredRoles.length === 0 ? (
-                    <div className="py-12 text-center text-xs text-white/45">
-                      Không có Role nào khớp với bộ lọc hiện tại.
-                    </div>
-                  ) : (
-                    filteredRoles.map((role) => {
-                      const tierInfo = TIER_META[role.tier] || TIER_META.other;
-                      return (
-                        <div
-                          key={role.id}
-                          className={`p-3 rounded-xl ring-1 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                            role.tier === 'divider'
-                              ? 'bg-black/60 border-white/10'
-                              : 'bg-black/35 hover:bg-black/50 border-white/10 hover:ring-[#322D47]'
-                          }`}
-                        >
-                          <div className="flex items-start sm:items-center gap-3 min-w-0">
-                            <span className="w-8 text-center tabular-nums text-[11px] text-white/45 tabular-nums shrink-0">
-                              #{role.position}
-                            </span>
-                            <span
-                              className="w-4 h-4 rounded-full ring-1 ring-white/30 shrink-0 mt-0.5 sm:mt-0"
-                              style={{ backgroundColor: role.color }}
-                              title={`Màu: ${role.color}`}
-                            />
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className="font-bold text-sm truncate"
-                                  style={{ color: role.color !== '#000000' ? role.color : '#FFFFFF' }}
-                                >
-                                  {role.name}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 text-[10px] font-semibold rounded-md ring-1 ${tierInfo.badgeClass}`}
-                                >
-                                  {tierInfo.label}
-                                </span>
-                                <span className="px-2 py-0.5 text-[10px] rounded-md bg-white/5 text-white/65 tabular-nums">
-                                  {role.member_count} thành viên
-                                </span>
-                                {role.managed && (
-                                  <span className="px-2 py-0.5 text-[10px] rounded-md bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
-                                    Bot Managed
+                  {/* Role List */}
+                  <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                    {loadingRoles ? (
+                      <div className="py-12 text-center text-xs text-[#949494]">
+                        Đang đồng bộ danh sách Role từ máy chủ Discord...
+                      </div>
+                    ) : filteredRoles.length === 0 ? (
+                      <div className="py-12 text-center text-xs text-[#949494]">
+                        Không có Role nào khớp với bộ lọc hiện tại.
+                      </div>
+                    ) : (
+                      filteredRoles.map((role) => {
+                        const tierInfo = TIER_META[role.tier] || TIER_META.other;
+                        return (
+                          <div
+                            key={role.id}
+                            className={`p-3 rounded-xl ring-1 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              role.tier === 'divider'
+                                ? 'bg-[#0B0911] ring-[#1E1B2B]'
+                                : 'bg-[#161421] hover:bg-[#1B1828] ring-[#262235]'
+                            }`}
+                          >
+                            <div className="flex items-start sm:items-center gap-3 min-w-0">
+                              <span className="w-8 text-center font-mono tabular-nums text-[11px] text-[#949494] shrink-0">
+                                #{role.position}
+                              </span>
+                              <span
+                                className="w-3.5 h-3.5 rounded-full ring-1 ring-white/25 shrink-0 mt-0.5 sm:mt-0"
+                                style={{ backgroundColor: role.color }}
+                                title={`Màu: ${role.color}`}
+                              />
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className="font-semibold text-sm truncate"
+                                    style={{ color: role.color !== '#000000' ? role.color : '#FFFFFF' }}
+                                  >
+                                    {role.name}
                                   </span>
-                                )}
-                              </div>
-                              {/* Permission Badges */}
-                              {role.permissions_list.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {role.permissions_list.slice(0, 6).map((perm) => (
-                                    <span
-                                      key={perm}
-                                      className="px-1.5 py-0.5 text-[10px] rounded bg-white/[0.06] text-white/70 ring-1 ring-white/10"
-                                    >
-                                      {PERM_LABELS_VI[perm] || perm}
-                                    </span>
-                                  ))}
-                                  {role.permissions_list.length > 6 && (
-                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-white/5 text-white/50">
-                                      +{role.permissions_list.length - 6} quyền khác
+                                  <span
+                                    className={`px-2 py-0.5 text-[10px] font-medium rounded-md ${tierInfo.badgeClass}`}
+                                  >
+                                    {tierInfo.label}
+                                  </span>
+                                  <span className="px-2 py-0.5 text-[10px] rounded-md bg-[#0B0911] text-[#B4B4B4] ring-1 ring-[#262235] tabular-nums">
+                                    {role.member_count} thành viên
+                                  </span>
+                                  {role.managed && (
+                                    <span className="px-2 py-0.5 text-[10px] rounded-md bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
+                                      Bot Managed
                                     </span>
                                   )}
                                 </div>
+                                {role.permissions_list.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {role.permissions_list.slice(0, 6).map((perm) => (
+                                      <span
+                                        key={perm}
+                                        className="px-1.5 py-0.5 text-[10px] rounded bg-[#0B0911] text-[#B4B4B4] ring-1 ring-[#221F30]"
+                                      >
+                                        {PERM_LABELS_VI[perm] || perm}
+                                      </span>
+                                    ))}
+                                    {role.permissions_list.length > 6 && (
+                                      <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#0B0911] text-[#949494] tabular-nums">
+                                        +{role.permissions_list.length - 6} quyền khác
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Role Controls */}
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                              {!role.is_default && !role.managed && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickPatchRole(role.id, { hoist: !role.hoist })}
+                                    title="Bật/tắt hiển thị tách nhóm trên thanh bên phải Discord (Hoist)"
+                                    className={`px-2 py-1 rounded-md text-[10px] font-semibold ring-1 transition cursor-pointer ${
+                                      role.hoist
+                                        ? 'bg-[#13261C] text-[#3FC07A] ring-[#23422D]'
+                                        : 'bg-[#0B0911] text-[#949494] ring-[#262235] hover:text-white'
+                                    }`}
+                                  >
+                                    Hoist: {role.hoist ? 'BẬT' : 'TẮT'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickPatchRole(role.id, { direction: 'up' })}
+                                    title="Đẩy Role lên cao hơn 1 bậc"
+                                    className="p-1.5 rounded-md bg-[#0B0911] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-[#B4B4B4] hover:text-white cursor-pointer"
+                                  >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickPatchRole(role.id, { direction: 'down' })}
+                                    title="Hạ Role xuống thấp hơn 1 bậc"
+                                    className="p-1.5 rounded-md bg-[#0B0911] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-[#B4B4B4] hover:text-white cursor-pointer"
+                                  >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                              {role.editable && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingRole(role);
+                                    setEditRoleName(role.name);
+                                    setEditRoleColor(role.color.startsWith('#') ? role.color : '#C6F24E');
+                                    setEditRoleHoist(role.hoist);
+                                    setEditRoleMentionable(role.mentionable);
+                                    setEditRolePermPreset('');
+                                  }}
+                                  className="px-2.5 py-1 rounded-md bg-[#0B0911] hover:bg-[#1E1B2B] text-[#E2E2E2] ring-1 ring-[#262235] text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Sửa</span>
+                                </button>
+                              )}
+                              {!role.is_default && !role.managed && role.editable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRole(role)}
+                                  className="p-1.5 rounded-md bg-[#2C1620] hover:bg-[#3D1D2B] text-[#FDA4AF] ring-1 ring-[#4C2233] transition cursor-pointer"
+                                  title="Xóa Role"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               )}
                             </div>
                           </div>
-
-                          {/* Role Controls */}
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                            {!role.is_default && !role.managed && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickPatchRole(role.id, { hoist: !role.hoist })}
-                                  title="Bật/tắt hiển thị tách nhóm trên thanh bên phải Discord (Hoist)"
-                                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold ring-1 transition ${
-                                    role.hoist
-                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35'
-                                      : 'bg-white/5 text-white/45 border-white/10 hover:text-white/80'
-                                  }`}
-                                >
-                                  Hoist: {role.hoist ? 'BẬT' : 'TẮT'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickPatchRole(role.id, { direction: 'up' })}
-                                  title="Đẩy Role lên cao hơn 1 bậc"
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 ring-1 ring-white/10 text-white/75"
-                                >
-                                  <ChevronUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickPatchRole(role.id, { direction: 'down' })}
-                                  title="Hạ Role xuống thấp hơn 1 bậc"
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 ring-1 ring-white/10 text-white/75"
-                                >
-                                  <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            )}
-                            {role.editable && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingRole(role);
-                                  setEditRoleName(role.name);
-                                  setEditRoleColor(role.color.startsWith('#') ? role.color : '#C6F24E');
-                                  setEditRoleHoist(role.hoist);
-                                  setEditRoleMentionable(role.mentionable);
-                                  setEditRolePermPreset('');
-                                }}
-                                className="px-2.5 py-1.5 rounded-lg bg-[#181624] hover:bg-[#221F32] text-[#E2E2E2] ring-1 ring-[#2C2840] text-xs font-semibold flex items-center gap-1 transition"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                Sửa
-                              </button>
-                            )}
-                            {!role.is_default && !role.managed && role.editable && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRole(role)}
-                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
-                                title="Xóa Role"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =====================================================================
-            TAB 2: THÀNH VIÊN, CẤP ROLE 100% & KỶ LUẬT SERVER
-           ===================================================================== */}
-        {activeTab === 'members' && (
-          <div className="space-y-6 hh-swap-panel">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 7 Cols: Live Member Directory + 1-Click Role Assignment */}
-              <div className="lg:col-span-7 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Users className="w-4 h-4 text-cyan-400" />
-                      Danh Bạ Thành Viên &amp; Phân Quyền Trực Tiếp ({filteredMembers.length})
-                    </h3>
-                    <p className="text-[11px] text-white/55 mt-0.5">
-                      Bấm nút <strong className="text-[#C6F24E]">Cấp / Gỡ Role</strong> trên bất kỳ thành viên nào để bật/tắt 100% các Role trong Server.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => fetchMembers(memberSearch, selectedGuildId, true)}
-                    disabled={loadingMembers}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5 self-start"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingMembers ? 'animate-spin' : ''}`} />
-                    Làm mới
-                  </button>
-                </div>
-
-                {/* Search & Role Filter */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      placeholder="Tìm theo tên, @username hoặc Discord ID..."
-                      className="w-full pl-9 pr-3 py-2 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#38BDF8]"
-                    />
-                  </div>
-                  <select
-                    value={memberRoleFilter}
-                    onChange={(e) => setMemberRoleFilter(e.target.value)}
-                    aria-label="Lọc thành viên theo Role"
-                    className="px-3 py-2 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#38BDF8]"
-                  >
-                    <option value="ALL" className="bg-[#14111F]">
-                      Lọc theo Role: Tất cả thành viên ({members.length})
-                    </option>
-                    {assignableRoles.map((r) => (
-                      <option key={r.id} value={r.id} className="bg-[#14111F]">
-                        {r.name} ({r.member_count})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Member Cards */}
-                <div className="space-y-2.5 max-h-[540px] overflow-y-auto pr-1">
-                  {loadingMembers ? (
-                    <div className="py-12 text-center text-xs text-white/50">
-                      Đang tải danh sách thành viên máy chủ...
-                    </div>
-                  ) : filteredMembers.length === 0 ? (
-                    <div className="py-12 text-center text-xs text-white/45">
-                      Không tìm thấy thành viên nào phù hợp.
-                    </div>
-                  ) : (
-                    filteredMembers.map((m) => {
-                      const isSelected = targetUserId === m.user_id;
-                      return (
-                        <div
-                          key={m.user_id}
-                          className={`p-3.5 rounded-xl ring-1 transition ${
-                            isSelected
-                              ? 'bg-[#171B14] ring-1 ring-[#384A20]'
-                              : 'bg-black/35 hover:bg-black/50 border-white/10'
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <img
-                                src={
-                                  m.avatar_url ||
-                                  'https://cdn.discordapp.com/embed/avatars/0.png'
-                                }
-                                alt={m.display_name}
-                                className="w-10 h-10 rounded-full object-cover ring-1 ring-white/20 shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span
-                                    className="font-bold text-sm truncate"
-                                    style={{ color: m.top_color || '#FFFFFF' }}
-                                  >
-                                    {m.display_name}
-                                  </span>
-                                  <span className="text-xs text-white/50">@{m.username}</span>
-                                  {m.is_owner && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/40">
-                                      Chủ sở hữu
-                                    </span>
-                                  )}
-                                  {m.is_bot && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
-                                      BOT
-                                    </span>
-                                  )}
-                                  {m.timed_out_until && (
-                                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
-                                      Đang tạm khóa
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] tabular-nums text-white/40 mt-0.5">
-                                  ID: {m.user_id}
-                                </div>
-                                {/* Current Roles Pills */}
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {(m.roles || []).map((r) => (
-                                    <span
-                                      key={r.id}
-                                      className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-black/50 ring-1 ring-white/15 flex items-center gap-1"
-                                      style={{ color: r.color !== '#000000' ? r.color : '#E2E8F0' }}
-                                    >
-                                      <span
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ backgroundColor: r.color }}
-                                      />
-                                      {r.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedMemberForRoles(m)}
-                                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 ring-1 ring-amber-400/40 text-xs font-bold flex items-center gap-1.5 transition"
-                              >
-                                <Crown className="w-3.5 h-3.5" />
-                                Cấp / Gỡ Role
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTargetUserId(m.user_id)}
-                                className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-white/85 transition"
-                              >
-                                Chọn xử lý
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Right 5 Cols: Moderation Command Box + Bans List */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                  <h3 className="text-sm font-bold text-rose-300 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4" />
-                    Bảng Điều Khiển Kỷ Luật (Mute / Kick / Ban)
-                  </h3>
-
-                  {selectedTargetMember && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 ring-1 ring-rose-500/30 flex items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img
-                          src={
-                            selectedTargetMember.avatar_url ||
-                            'https://cdn.discordapp.com/embed/avatars/0.png'
-                          }
-                          alt={selectedTargetMember.display_name}
-                          className="w-9 h-9 rounded-full ring-1 ring-rose-400/40 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-white truncate">
-                            {selectedTargetMember.display_name}{' '}
-                            <span className="text-white/50 font-normal">@{selectedTargetMember.username}</span>
-                          </div>
-                          <div className="text-[10px] text-rose-200/80 truncate">
-                            {(selectedTargetMember.roles || []).length > 0
-                              ? `${(selectedTargetMember.roles || []).length} Role hiện tại`
-                              : 'Chưa có Role phân nhóm'}
-                            {selectedTargetMember.timed_out_until ? ' · Đang tạm khóa' : ''}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setTargetUserId('')}
-                        className="p-1 rounded-lg hover:bg-white/10 text-white/60"
-                        title="Bỏ chọn thành viên"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs text-white/70 mb-1">Discord User ID mục tiêu</label>
-                    <input
-                      type="text"
-                      value={targetUserId}
-                      onChange={(e) => setTargetUserId(e.target.value)}
-                      placeholder="Chọn thành viên bên trái hoặc dán Discord ID..."
-                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[#E5566F]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-white/70 mb-1">Lý do xử lý (Ghi vào Audit Log)</label>
-                    <input
-                      type="text"
-                      value={modReason}
-                      onChange={(e) => setModReason(e.target.value)}
-                      placeholder="VD: Vi phạm nội quy server / Spam..."
-                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#E5566F]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] text-white/65 mb-1">Thời lượng Mute (Timeout)</label>
-                      <select
-                        value={muteDuration}
-                        onChange={(e) => setMuteDuration(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                      >
-                        <option value={300} className="bg-[#14111F]">5 phút</option>
-                        <option value={900} className="bg-[#14111F]">15 phút</option>
-                        <option value={3600} className="bg-[#14111F]">1 giờ</option>
-                        <option value={21600} className="bg-[#14111F]">6 giờ</option>
-                        <option value={86400} className="bg-[#14111F]">24 giờ (1 ngày)</option>
-                        <option value={604800} className="bg-[#14111F]">7 ngày (1 tuần)</option>
-                        <option value={2419200} className="bg-[#14111F]">28 ngày (Tối đa)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-white/65 mb-1">Xóa tin nhắn khi Ban</label>
-                      <select
-                        value={deleteMsgDays}
-                        onChange={(e) => setDeleteMsgDays(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                      >
-                        <option value={0} className="bg-[#14111F]">Không xóa tin nhắn</option>
-                        <option value={1} className="bg-[#14111F]">Xóa 24 giờ gần nhất</option>
-                        <option value={3} className="bg-[#14111F]">Xóa 3 ngày gần nhất</option>
-                        <option value={7} className="bg-[#14111F]">Xóa 7 ngày gần nhất</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() =>
-                        handleModAction('timeout', { action: 'mute', duration_seconds: muteDuration })
-                      }
-                      className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 ring-1 ring-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <VolumeX className="w-4 h-4" />
-                      Mute (Timeout)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => handleModAction('timeout', { action: 'unmute', duration_seconds: 0 })}
-                      className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 ring-1 ring-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                      Gỡ Mute (Unmute)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => handleModAction('kick')}
-                      className="py-2.5 px-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 text-orange-200 ring-1 ring-orange-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                      Kick Khỏi Server
-                    </button>
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => handleModAction('ban', { delete_message_days: deleteMsgDays })}
-                      className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <Ban className="w-4 h-4" />
-                      Ban Vĩnh Viễn
-                    </button>
-                  </div>
-                </div>
-
-                {/* Banned Users List */}
-                <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <UserX className="w-4 h-4 text-rose-400" />
-                      Danh Sách Tài Khoản Bị Cấm ({bans.length})
-                    </h3>
-                    <button
-                      onClick={fetchBans}
-                      disabled={loadingBans}
-                      className="text-xs text-[#C6F24E] hover:text-[#E2E2E2] flex items-center gap-1"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loadingBans ? 'animate-spin' : ''}`} />
-                      Tải lại
-                    </button>
-                  </div>
-                  <div className="space-y-2 max-h-56 overflow-y-auto">
-                    {bans.length === 0 ? (
-                      <div className="py-6 text-center text-xs text-white/45">
-                        Hiện không có tài khoản nào trong danh sách cấm.
-                      </div>
-                    ) : (
-                      bans.map((b) => (
-                        <div
-                          key={b.user_id}
-                          className="p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 flex items-center justify-between gap-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-white truncate">
-                              {b.display_name} (@{b.username})
-                            </div>
-                            <div className="text-[11px] text-white/50 truncate">{b.reason}</div>
-                          </div>
-                          <button
-                            onClick={() => handleModAction('unban', {}, b.user_id)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 ring-1 ring-emerald-500/35 text-[11px] font-bold shrink-0"
-                          >
-                            Gỡ Ban
-                          </button>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* =====================================================================
-            TAB 3: KHO ĐỀ THI TOÀN QUYỀN (100% FIELD EDIT + BULK ACTIONS)
-           ===================================================================== */}
-        {activeTab === 'documents' && (
-          <div className="space-y-5 hh-swap-panel">
-            {/* Turso Storage Telemetry Bar */}
-            {tursoStats && (
-              <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-[#949494]">
-                    Dung lượng lưu trữ Turso Cloud (Hạn mức 5 GB)
-                  </div>
-                  <div className="text-sm font-semibold text-white tabular-nums">
-                    Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
-                    {tursoStats.usedPercent.toFixed(3)}%) · Còn trống{' '}
-                    {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {duplicateDocsCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDocStatusFilter('DUPLICATE');
-                        setDocPage(1);
-                        setSelectedDocIds(
-                          new Set(docs.filter((d) => d.is_duplicate_copy).map((d) => d.id))
-                        );
-                        showFeedback(
-                          'success',
-                          `Đã chọn tự động ${duplicateDocsCount} bản sao đề thi trùng lặp để bạn xử lý hoặc xóa 1-Click!`
-                        );
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 ring-1 ring-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      Chọn {duplicateDocsCount} bản trùng lặp
-                    </button>
-                  )}
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
-                          method: 'POST',
-                          headers: getAuthHeaders(),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        showFeedback(
-                          'success',
-                          data.message || 'Đã đồng bộ Kho Đề giữa Turso Cloud và Discord Bot!'
-                        );
-                      } catch {
-                        showFeedback('error', 'Không thể gọi đồng bộ Kho Đề');
-                      }
-                      await fetchDocs();
-                    }}
-                    disabled={loadingDocs}
-                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingDocs ? 'animate-spin' : ''}`} />
-                    Đồng bộ Kho Đề
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Status Filter Pills (All / Unique / Duplicates / Pending Bot) */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {[
-                  { id: 'ALL' as const, label: `Tất cả đề (${docs.length})` },
-                  { id: 'UNIQUE' as const, label: `Đề gốc độc bản (${uniqueDocsCount})` },
-                  { id: 'DUPLICATE' as const, label: `Bản sao trùng lặp (${duplicateDocsCount})` },
-                  { id: 'PENDING_BOT' as const, label: `Chờ đồng bộ Bot (${pendingBotDocsCount})` },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => {
-                      setDocStatusFilter(st.id);
-                      setDocPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition ${
-                      docStatusFilter === st.id
-                        ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
-                        : 'bg-black/35 text-white/60 border-white/10 hover:text-white'
-                    }`}
-                  >
-                    {st.label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-[11px] text-white/50 tabular-nums">
-                Hiển thị {paginatedDocs.length} / {filteredDocs.length} đề (Trang {docPage}/{totalDocPages})
-              </div>
-            </div>
-
-            {/* Filter & Search Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white/[0.03] ring-1 ring-white/10 p-4 rounded-2xl">
-              <div className="relative">
-                <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={docSearch}
-                  onChange={(e) => {
-                    setDocSearch(e.target.value);
-                    setDocPage(1);
-                  }}
-                  placeholder="Tìm tiêu đề, ID, trường, mô tả..."
-                  className="w-full pl-9 pr-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
-                />
-              </div>
-              <select
-                value={docSubjectFilter}
-                onChange={(e) => {
-                  setDocSubjectFilter(e.target.value);
-                  setDocPage(1);
-                }}
-                aria-label="Lọc theo môn học"
-                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-              >
-                <option value="ALL" className="bg-[#14111F]">Tất cả môn học ({docs.length})</option>
-                {SUBJECT_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value} className="bg-[#14111F]">
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={docLevelFilter}
-                onChange={(e) => {
-                  setDocLevelFilter(e.target.value);
-                  setDocPage(1);
-                }}
-                aria-label="Lọc theo khối lớp"
-                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-              >
-                <option value="ALL" className="bg-[#14111F]">Tất cả khối lớp</option>
-                {['12', '11', '10', '9', '8', '7', '6'].map((g) => (
-                  <option key={g} value={g} className="bg-[#14111F]">
-                    Khối lớp {g}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={docTrackFilter}
-                onChange={(e) => {
-                  setDocTrackFilter(e.target.value);
-                  setDocPage(1);
-                }}
-                aria-label="Lọc theo phân ban đề thi"
-                className="px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-              >
-                <option value="ALL" className="bg-[#14111F]">Mọi phân ban (Thường / HSG / Chuyên / Quốc tế)</option>
-                {EXAM_TRACK_OPTIONS.map((t) => (
-                  <option key={t.value} value={t.value} className="bg-[#14111F]">
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Bulk Selection Action Bar */}
-            <div className="p-3.5 rounded-2xl bg-[#110F18] ring-1 ring-[#262235] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs font-bold text-[#E2E2E2] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={
-                      filteredDocs.length > 0 &&
-                      filteredDocs.every((d) => selectedDocIds.has(d.id))
-                    }
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedDocIds(new Set(filteredDocs.map((d) => d.id)));
-                      } else {
-                        setSelectedDocIds(new Set());
-                      }
-                    }}
-                    className="accent-[#C6F24E] w-4 h-4"
-                  />
-                  <span>
-                    Chọn tất cả ({selectedDocIds.size}/{filteredDocs.length} đề đang chọn)
-                  </span>
-                </label>
-              </div>
-
-              {selectedDocIds.size > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={bulkSubject}
-                    onChange={(e) => setBulkSubject(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
-                  >
-                    <option value="">-- Đổi môn học --</option>
-                    {SUBJECT_OPTIONS.map((s) => (
-                      <option key={s.value} value={s.value} className="bg-[#14111F]">
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={bulkLevel}
-                    onChange={(e) => setBulkLevel(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
-                  >
-                    <option value="">-- Đổi khối lớp --</option>
-                    {GRADE_LEVEL_OPTIONS.map((lvl) => (
-                      <option key={lvl} value={lvl} className="bg-[#14111F]">
-                        {lvl}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={bulkTrack}
-                    onChange={(e) => setBulkTrack(e.target.value)}
-                    className="px-2.5 py-1.5 bg-black/60 ring-1 ring-white/15 rounded-lg text-xs text-white"
-                  >
-                    <option value="">-- Đổi phân ban --</option>
-                    {EXAM_TRACK_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value} className="bg-[#14111F]">
-                        {t.value}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => handleBulkDocsAction('update')}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Áp dụng ({selectedDocIds.size})
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => handleBulkDocsAction('delete')}
-                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Xóa ({selectedDocIds.size})
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Documents List (Paginated for 60fps DOM performance) */}
-            <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
-              {loadingDocs ? (
-                <div className="py-12 text-center text-xs text-white/50">
-                  Đang tải danh sách đề thi trong kho lưu trữ...
-                </div>
-              ) : paginatedDocs.length === 0 ? (
-                <div className="py-12 text-center text-xs text-white/45">
-                  Không có đề thi nào khớp với bộ lọc hiện tại.
-                </div>
-              ) : (
-                paginatedDocs.map((doc) => {
-                  const checked = selectedDocIds.has(doc.id);
-                  return (
-                    <div
-                      key={doc.id}
-                      className={`p-4 rounded-xl ring-1 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
-                        checked
-                          ? 'bg-[#171B14] ring-1 ring-[#384A20]'
-                          : 'bg-black/35 hover:bg-black/50 border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            setSelectedDocIds((prev) => {
-                              const next = new Set(prev);
-                              if (e.target.checked) next.add(doc.id);
-                              else next.delete(doc.id);
-                              return next;
-                            });
-                          }}
-                          className="mt-1 accent-[#C6F24E] w-4 h-4 shrink-0 cursor-pointer"
-                        />
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 py-0.5 text-[10px] tabular-nums font-bold rounded bg-[#1A1826] text-[#C6F24E] ring-1 ring-[#2C2840]">
-                              #{doc.id}
-                            </span>
-                            <span className="font-bold text-sm text-white">{doc.title}</span>
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30">
-                              {doc.subject}
-                            </span>
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30">
-                              {doc.estimated_level}
-                            </span>
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
-                              {doc.exam_track || 'Thường'}
-                            </span>
-                            {doc.is_duplicate_copy && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
-                                Bản sao trùng lặp
-                              </span>
-                            )}
-                            {doc.queue_status === 'pending_bot' && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40">
-                                Chờ đồng bộ Bot
-                              </span>
-                            )}
-                          </div>
-                          {doc.notes && (
-                            <p className="text-xs text-emerald-300/90 line-clamp-2">{doc.notes}</p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/50">
-                            <span>Tệp: {doc.file_name}</span>
-                            <span>• {formatBytes(doc.file_size_bytes)}</span>
-                            {doc.school_or_department && <span>• Trường/Sở: {doc.school_or_department}</span>}
-                            {doc.academic_year && <span>• Năm học: {doc.academic_year}</span>}
-                            <span>• Tác giả: {doc.author_name || 'Thành viên Orbit'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
-                        <a
-                          href={`${getApiBaseUrl()}/api/documents/${doc.id}/view`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 ring-1 ring-white/15 text-white/85 text-xs font-semibold flex items-center gap-1 transition"
-                          title="Mở xem trực tiếp tệp PDF đề thi"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Xem PDF
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => openEditDocModal(doc)}
-                          className="px-3 py-1.5 rounded-xl bg-[#181624] hover:bg-[#221F32] text-[#E2E2E2] ring-1 ring-[#2C2840] text-xs font-bold flex items-center gap-1.5 transition"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          Chỉnh sửa 100%
-                        </button>
-                        <button
-                          type="button"
-                          disabled={archivingId === doc.id}
-                          onClick={() => handleArchiveDoc(doc)}
-                          className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 ring-1 ring-cyan-500/30 text-xs font-semibold flex items-center gap-1 transition"
-                          title="Offload tệp lên Discord Cloud"
-                        >
-                          <Cloud className="w-3.5 h-3.5" />
-                          {archivingId === doc.id ? 'Đang offload...' : 'Offload'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDoc(doc)}
-                          className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
-                          title="Xóa vĩnh viễn đề thi"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+          {/* =====================================================================
+              TAB 2: THÀNH VIÊN, CẤP ROLE 100% & KỶ LUẬT SERVER
+             ===================================================================== */}
+          {activeTab === 'members' && (
+            <div className="space-y-5 hh-swap-panel">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                {/* Left 7 Cols: Live Member Directory + 1-Click Role Assignment */}
+                <div className="xl:col-span-7 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-2 tabular-nums">
+                        <Users className="w-4 h-4 text-[#38BDF8]" />
+                        <span>Danh bạ thành viên &amp; phân quyền ({filteredMembers.length})</span>
+                      </h3>
+                      <p className="text-xs text-[#949494] mt-0.5">
+                        Bấm <strong className="text-[#C6F24E]">Cấp / Gỡ Role</strong> để bật/tắt trực tiếp 100% Role cho thành viên.
+                      </p>
                     </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Pagination Footer */}
-            {totalDocPages > 1 && (
-              <div className="flex items-center justify-between pt-3">
-                <span className="text-xs text-white/55 tabular-nums">
-                  Trang <strong className="text-white">{docPage}</strong> / {totalDocPages} • Tổng {filteredDocs.length} đề
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={docPage <= 1}
-                    onClick={() => setDocPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-xs font-bold"
-                  >
-                    ← Trang trước
-                  </button>
-                  <button
-                    type="button"
-                    disabled={docPage >= totalDocPages}
-                    onClick={() => setDocPage((p) => Math.min(totalDocPages, p + 1))}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-xs font-bold"
-                  >
-                    Trang sau →
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =====================================================================
-            TAB 4: KÊNH DISCORD & BẢNG ĐIỀU KHIỂN TƯƠNG TÁC
-           ===================================================================== */}
-        {activeTab === 'channels' && (
-          <div className="space-y-6 hh-swap-panel">
-            {/* 1-Click Refresh Discord Interactive Panels */}
-            <div className="p-5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#C6F24E]" />
-                  Đồng bộ &amp; làm mới bảng điều khiển tương tác trên Discord
-                </h3>
-                <p className="text-xs text-[#B4B4B4] mt-1">
-                  Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-white">#info</code>, <code className="text-white">#nộp-tài-liệu</code> và <code className="text-white">#lấy-tài-liệu</code>.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <button
-                  onClick={() => handleRefreshDiscordPanels('all')}
-                  disabled={refreshingPanels}
-                  className="h-9 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingPanels ? 'animate-spin' : ''}`} />
-                  Làm mới tất cả Panel
-                </button>
-                <button
-                  onClick={() => handleRefreshDiscordPanels('info')}
-                  disabled={refreshingPanels}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
-                >
-                  #info
-                </button>
-                <button
-                  onClick={() => handleRefreshDiscordPanels('intake')}
-                  disabled={refreshingPanels}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
-                >
-                  #nộp-tài-liệu
-                </button>
-                <button
-                  onClick={() => handleRefreshDiscordPanels('search')}
-                  disabled={refreshingPanels}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
-                >
-                  #lấy-tài-liệu
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 5 Cols: Create Channel + Send Announcement */}
-              <div className="lg:col-span-5 space-y-6">
-                <form
-                  onSubmit={handleCreateChannel}
-                  className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3.5"
-                >
-                  <h3 className="text-sm font-bold text-cyan-300 flex items-center gap-2">
-                    <Hash className="w-4 h-4" />
-                    Tạo Kênh Text / Voice Mới
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2.5">
                     <button
-                      type="button"
-                      onClick={() => setNewChannelKind('text')}
-                      className={`py-2 rounded-xl text-xs font-bold ring-1 ${
-                        newChannelKind === 'text'
-                          ? 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50'
-                          : 'bg-black/40 text-white/60 border-white/10'
-                      }`}
+                      onClick={() => fetchMembers(memberSearch, selectedGuildId, true)}
+                      disabled={loadingMembers}
+                      className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1.5 self-start cursor-pointer"
                     >
-                      # Kênh Văn Bản (Text)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewChannelKind('voice')}
-                      className={`py-2 rounded-xl text-xs font-bold ring-1 ${
-                        newChannelKind === 'voice'
-                          ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
-                          : 'bg-black/40 text-white/60 border-white/10'
-                      }`}
-                    >
-                      Kênh Thoại (Voice)
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingMembers ? 'animate-spin' : ''}`} />
+                      <span>Làm mới</span>
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    value={newChannelName}
-                    onChange={(e) => setNewChannelName(e.target.value)}
-                    placeholder="Tên kênh (VD: thảo-luận-toán)"
-                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  />
-                  <select
-                    value={newChannelCategoryId}
-                    onChange={(e) => setNewChannelCategoryId(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  >
-                    <option value="" className="bg-[#14111F]">-- Danh mục (Category) tự động --</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id} className="bg-[#14111F]">
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  {newChannelKind === 'text' ? (
-                    <input
-                      type="text"
-                      value={newChannelTopic}
-                      onChange={(e) => setNewChannelTopic(e.target.value)}
-                      placeholder="Chủ đề kênh (Topic)..."
-                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                    />
-                  ) : (
-                    <input
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={newChannelLimit}
-                      onChange={(e) => setNewChannelLimit(Number(e.target.value))}
-                      placeholder="Giới hạn thành viên (0 = Không giới hạn)"
-                      className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                    />
-                  )}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Tạo Kênh Ngay
-                  </button>
-                </form>
 
-                {/* Broadcast Embed Form */}
-                <form
-                  onSubmit={handleSendAnnouncement}
-                  className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3.5"
-                >
-                  <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-                    <Megaphone className="w-4 h-4" />
-                    Phát Sóng Thông Báo / Embed Lên Discord
-                  </h3>
-                  <select
-                    value={selectedChannelId}
-                    onChange={(e) => setSelectedChannelId(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  >
-                    <option value="" className="bg-[#14111F]">-- Chọn kênh nhận thông báo --</option>
-                    {channels
-                      .filter((c) => c.kind !== 'voice')
-                      .map((c) => (
-                        <option key={c.channel_id} value={c.channel_id} className="bg-[#14111F]">
-                          {c.name} ({c.category})
+                  {/* Search & Role Filter */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-[#949494] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={memberSearch}
+                        onChange={(e) => setMemberSearch(e.target.value)}
+                        placeholder="Tìm theo tên, @username hoặc Discord ID..."
+                        className="w-full pl-8 pr-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#38BDF8]"
+                      />
+                    </div>
+                    <select
+                      value={memberRoleFilter}
+                      onChange={(e) => setMemberRoleFilter(e.target.value)}
+                      aria-label="Lọc thành viên theo Role"
+                      className="px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#38BDF8]"
+                    >
+                      <option value="ALL" className="bg-[#110F18]">
+                        Lọc theo Role: Tất cả thành viên ({members.length})
+                      </option>
+                      {assignableRoles.map((r) => (
+                        <option key={r.id} value={r.id} className="bg-[#110F18]">
+                          {r.name} ({r.member_count})
                         </option>
                       ))}
-                  </select>
-                  <input
-                    type="text"
-                    value={announceTitle}
-                    onChange={(e) => setAnnounceTitle(e.target.value)}
-                    placeholder="Tiêu đề thông báo..."
-                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  />
-                  <textarea
-                    rows={4}
-                    value={announceMsg}
-                    onChange={(e) => setAnnounceMsg(e.target.value)}
-                    placeholder="Nội dung thông báo (hỗ trợ Markdown Discord)..."
-                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      {['#C6F24E', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'].map((c) => (
+                    </select>
+                  </div>
+
+                  {/* Member Cards */}
+                  <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                    {loadingMembers ? (
+                      <div className="py-12 text-center text-xs text-[#949494]">
+                        Đang tải danh sách thành viên máy chủ...
+                      </div>
+                    ) : filteredMembers.length === 0 ? (
+                      <div className="py-12 text-center text-xs text-[#949494]">
+                        Không tìm thấy thành viên nào phù hợp.
+                      </div>
+                    ) : (
+                      filteredMembers.map((m) => {
+                        const isSelected = targetUserId === m.user_id;
+                        return (
+                          <div
+                            key={m.user_id}
+                            className={`p-3.5 rounded-xl ring-1 transition ${
+                              isSelected
+                                ? 'bg-[#1B2214] ring-[#2E3B1E]'
+                                : 'bg-[#161421] hover:bg-[#1B1828] ring-[#262235]'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img
+                                  src={
+                                    m.avatar_url ||
+                                    'https://cdn.discordapp.com/embed/avatars/0.png'
+                                  }
+                                  alt={m.display_name}
+                                  className="w-10 h-10 rounded-full object-cover ring-1 ring-[#262235] shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span
+                                      className="font-semibold text-sm truncate"
+                                      style={{ color: m.top_color || '#FFFFFF' }}
+                                    >
+                                      {m.display_name}
+                                    </span>
+                                    <span className="text-xs text-[#949494]">@{m.username}</span>
+                                    {m.is_owner && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#281F12] text-[#FCD34D] ring-1 ring-[#45341B]">
+                                        Chủ sở hữu
+                                      </span>
+                                    )}
+                                    {m.is_bot && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
+                                        BOT
+                                      </span>
+                                    )}
+                                    {m.timed_out_until && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#2C1620] text-[#FDA4AF] ring-1 ring-[#4C2233]">
+                                        Đang tạm khóa
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] font-mono tabular-nums text-[#8E8A9F] mt-0.5">
+                                    ID: {m.user_id}
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {(m.roles || []).map((r) => (
+                                      <span
+                                        key={r.id}
+                                        className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-[#0B0911] ring-1 ring-[#262235] flex items-center gap-1"
+                                        style={{ color: r.color !== '#000000' ? r.color : '#E2E8F0' }}
+                                      >
+                                        <span
+                                          className="w-2 h-2 rounded-full"
+                                          style={{ backgroundColor: r.color }}
+                                        />
+                                        {r.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedMemberForRoles(m)}
+                                  className="px-3 py-1.5 rounded-lg bg-[#1B2214] hover:bg-[#242E1A] text-[#C6F24E] ring-1 ring-[#2E3B1E] text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                                >
+                                  <Crown className="w-3.5 h-3.5" />
+                                  <span>Cấp / Gỡ Role</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTargetUserId(m.user_id)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-[#0B0911] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] transition cursor-pointer"
+                                >
+                                  Chọn xử lý
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Right 5 Cols: Moderation Command Box + Bans List */}
+                <div className="xl:col-span-5 space-y-5">
+                  <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                    <h3 className="text-sm font-semibold text-[#FDA4AF] flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-[#E5566F]" />
+                      <span>Trạm kỷ luật trực tiếp (Mute / Kick / Ban)</span>
+                    </h3>
+
+                    {selectedTargetMember && (
+                      <div className="p-3 rounded-xl bg-[#2C1620] ring-1 ring-[#4C2233] flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={
+                              selectedTargetMember.avatar_url ||
+                              'https://cdn.discordapp.com/embed/avatars/0.png'
+                            }
+                            alt={selectedTargetMember.display_name}
+                            className="w-9 h-9 rounded-full ring-1 ring-[#4C2233] shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-white truncate">
+                              {selectedTargetMember.display_name}{' '}
+                              <span className="text-[#B4B4B4] font-normal">@{selectedTargetMember.username}</span>
+                            </div>
+                            <div className="text-[11px] text-[#FDA4AF] truncate tabular-nums">
+                              {(selectedTargetMember.roles || []).length > 0
+                                ? `${(selectedTargetMember.roles || []).length} Role hiện tại`
+                                : 'Chưa có Role phân nhóm'}
+                              {selectedTargetMember.timed_out_until ? ' · Đang tạm khóa' : ''}
+                            </div>
+                          </div>
+                        </div>
                         <button
-                          key={c}
                           type="button"
-                          onClick={() => setAnnounceColor(c)}
-                          className={`w-6 h-6 rounded-full ring-1 ${
-                            announceColor === c ? 'border-white scale-110' : 'border-white/20'
-                          }`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
+                          onClick={() => setTargetUserId('')}
+                          className="p-1 rounded-lg hover:bg-[#3D1D2B] text-[#FDA4AF] cursor-pointer"
+                          title="Bỏ chọn thành viên"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Discord User ID mục tiêu</label>
+                      <input
+                        type="text"
+                        value={targetUserId}
+                        onChange={(e) => setTargetUserId(e.target.value)}
+                        placeholder="Chọn thành viên bên trái hoặc dán Discord ID..."
+                        className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs font-mono tabular-nums text-white focus:outline-none focus:ring-[#E5566F]"
+                      />
                     </div>
+
+                    <div>
+                      <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Lý do xử lý (Ghi vào Audit Log)</label>
+                      <input
+                        type="text"
+                        value={modReason}
+                        onChange={(e) => setModReason(e.target.value)}
+                        placeholder="VD: Vi phạm nội quy server / Spam..."
+                        className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#E5566F]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Thời lượng Mute</label>
+                        <select
+                          value={muteDuration}
+                          onChange={(e) => setMuteDuration(Number(e.target.value))}
+                          className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                        >
+                          <option value={300} className="bg-[#110F18]">5 phút</option>
+                          <option value={900} className="bg-[#110F18]">15 phút</option>
+                          <option value={3600} className="bg-[#110F18]">1 giờ</option>
+                          <option value={21600} className="bg-[#110F18]">6 giờ</option>
+                          <option value={86400} className="bg-[#110F18]">24 giờ (1 ngày)</option>
+                          <option value={604800} className="bg-[#110F18]">7 ngày (1 tuần)</option>
+                          <option value={2419200} className="bg-[#110F18]">28 ngày (Tối đa)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Xóa tin nhắn khi Ban</label>
+                        <select
+                          value={deleteMsgDays}
+                          onChange={(e) => setDeleteMsgDays(Number(e.target.value))}
+                          className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                        >
+                          <option value={0} className="bg-[#110F18]">Không xóa tin nhắn</option>
+                          <option value={1} className="bg-[#110F18]">Xóa 24 giờ gần nhất</option>
+                          <option value={3} className="bg-[#110F18]">Xóa 3 ngày gần nhất</option>
+                          <option value={7} className="bg-[#110F18]">Xóa 7 ngày gần nhất</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() =>
+                          handleModAction('timeout', { action: 'mute', duration_seconds: muteDuration })
+                        }
+                        className="h-9 px-3 rounded-lg bg-[#281F12] hover:bg-[#382B19] text-[#FCD34D] ring-1 ring-[#45341B] text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <VolumeX className="w-4 h-4" />
+                        <span>Mute (Timeout)</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handleModAction('timeout', { action: 'unmute', duration_seconds: 0 })}
+                        className="h-9 px-3 rounded-lg bg-[#13261C] hover:bg-[#1B3527] text-[#3FC07A] ring-1 ring-[#23422D] text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                        <span>Gỡ Mute (Unmute)</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handleModAction('kick')}
+                        className="h-9 px-3 rounded-lg bg-[#2C1C14] hover:bg-[#3B261B] text-[#FDBA74] ring-1 ring-[#4D3122] text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                        <span>Kick khỏi Server</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handleModAction('ban', { delete_message_days: deleteMsgDays })}
+                        className="h-9 px-3 rounded-lg bg-[#E5566F] hover:bg-[#F0657D] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Ban className="w-4 h-4" />
+                        <span>Ban vĩnh viễn</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Banned Users List */}
+                  <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-2 tabular-nums">
+                        <UserX className="w-4 h-4 text-[#E5566F]" />
+                        <span>Danh sách tài khoản bị cấm ({bans.length})</span>
+                      </h3>
+                      <button
+                        onClick={fetchBans}
+                        disabled={loadingBans}
+                        className="text-xs text-[#C6F24E] hover:text-white flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingBans ? 'animate-spin' : ''}`} />
+                        <span>Tải lại</span>
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                      {bans.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-[#949494]">
+                          Hiện không có tài khoản nào trong danh sách cấm.
+                        </div>
+                      ) : (
+                        bans.map((b) => (
+                          <div
+                            key={b.user_id}
+                            className="p-2.5 rounded-lg bg-[#161421] ring-1 ring-[#262235] flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-white truncate">
+                                {b.display_name} (@{b.username})
+                              </div>
+                              <div className="text-[11px] text-[#949494] truncate">{b.reason}</div>
+                            </div>
+                            <button
+                              onClick={() => handleModAction('unban', {}, b.user_id)}
+                              className="px-2.5 py-1 rounded-md bg-[#13261C] hover:bg-[#1B3527] text-[#3FC07A] ring-1 ring-[#23422D] text-[11px] font-semibold shrink-0 cursor-pointer"
+                            >
+                              Gỡ Ban
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =====================================================================
+              TAB 3: KHO ĐỀ THI TOÀN QUYỀN (100% FIELD EDIT + BULK ACTIONS)
+             ===================================================================== */}
+          {activeTab === 'documents' && (
+            <div className="space-y-4 hh-swap-panel">
+              {/* Turso Storage Telemetry Bar */}
+              {tursoStats && (
+                <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-medium text-[#949494]">
+                      Dung lượng lưu trữ Turso Cloud (Hạn mức 5 GB)
+                    </div>
+                    <div className="text-sm font-semibold text-white tabular-nums">
+                      Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
+                      {tursoStats.usedPercent.toFixed(3)}%) · Còn trống{' '}
+                      {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {duplicateDocsCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocStatusFilter('DUPLICATE');
+                          setDocPage(1);
+                          setSelectedDocIds(
+                            new Set(docs.filter((d) => d.is_duplicate_copy).map((d) => d.id))
+                          );
+                          showFeedback(
+                            'success',
+                            `Đã chọn tự động ${duplicateDocsCount} bản sao đề thi trùng lặp để bạn xử lý hoặc xóa 1-Click!`
+                          );
+                        }}
+                        className="h-8 px-3 rounded-lg bg-[#281F12] hover:bg-[#382B19] ring-1 ring-[#45341B] text-[#FCD34D] text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer tabular-nums"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Chọn {duplicateDocsCount} bản trùng lặp</span>
+                      </button>
+                    )}
                     <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center gap-1.5"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`${getApiBaseUrl()}/api/documents/sync_pending`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          showFeedback(
+                            'success',
+                            data.message || 'Đã đồng bộ Kho Đề giữa Turso Cloud và Discord Bot!'
+                          );
+                        } catch {
+                          showFeedback('error', 'Không thể gọi đồng bộ Kho Đề');
+                        }
+                        await fetchDocs();
+                      }}
+                      disabled={loadingDocs}
+                      className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      Gửi Thông Báo
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingDocs ? 'animate-spin' : ''}`} />
+                      <span>Đồng bộ Kho Đề</span>
                     </button>
                   </div>
-                </form>
-              </div>
-
-              {/* Right 7 Cols: Channel List with Lock/Open & Delete */}
-              <div className="lg:col-span-7 bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Hash className="w-4 h-4 text-[#C6F24E]" />
-                    Danh Sách Kênh Trong Máy Chủ ({filteredChannels.length}/{channels.length})
-                  </h3>
-                  <button
-                    onClick={() => fetchChannels(selectedGuildId, true)}
-                    disabled={loadingChannels}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1 self-start"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingChannels ? 'animate-spin' : ''}`} />
-                    Làm mới
-                  </button>
                 </div>
+              )}
 
-                {/* Channel Search & Kind Filter */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="relative flex-1">
-                    <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={channelSearch}
-                      onChange={(e) => setChannelSearch(e.target.value)}
-                      placeholder="Tìm tên kênh, danh mục hoặc chủ đề..."
-                      className="w-full pl-8 pr-3 py-1.5 bg-black/45 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#C6F24E]"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { id: 'ALL' as const, label: 'Tất cả' },
-                      { id: 'PUBLIC' as const, label: 'Công khai' },
-                      { id: 'PRIVATE' as const, label: 'Riêng tư' },
-                      { id: 'TEXT' as const, label: '# Text' },
-                      { id: 'VOICE' as const, label: 'Voice' },
-                    ].map((cf) => (
-                      <button
-                        key={cf.id}
-                        type="button"
-                        onClick={() => setChannelKindFilter(cf.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 transition ${
-                          channelKindFilter === cf.id
-                            ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
-                            : 'bg-black/30 text-white/60 border-white/10 hover:text-white'
-                        }`}
-                      >
-                        {cf.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
-                  {filteredChannels.map((ch) => (
-                    <div
-                      key={ch.channel_id}
-                      className="p-3 rounded-xl bg-black/35 hover:bg-black/50 ring-1 ring-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+              {/* Quick Status Filter Pills (All / Unique / Duplicates / Pending Bot) */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { id: 'ALL' as const, label: `Tất cả đề (${docs.length})` },
+                    { id: 'UNIQUE' as const, label: `Đề gốc độc bản (${uniqueDocsCount})` },
+                    { id: 'DUPLICATE' as const, label: `Bản sao trùng lặp (${duplicateDocsCount})` },
+                    { id: 'PENDING_BOT' as const, label: `Chờ đồng bộ Bot (${pendingBotDocsCount})` },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => {
+                        setDocStatusFilter(st.id);
+                        setDocPage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium ring-1 transition cursor-pointer tabular-nums ${
+                        docStatusFilter === st.id
+                          ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                          : 'bg-[#110F18] text-[#949494] ring-[#1E1B2B] hover:text-white'
+                      }`}
                     >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-xs sm:text-sm text-white">{ch.name}</span>
-                          <span className="px-2 py-0.5 text-[10px] rounded bg-white/5 text-white/60">
-                            {ch.category}
-                          </span>
-                          {ch.is_private ? (
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/35">
-                              Riêng tư (Staff)
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
-                              Công khai
-                            </span>
-                          )}
-                        </div>
-                        {ch.topic && (
-                          <div className="text-[11px] text-white/45 truncate mt-0.5">{ch.topic}</div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleChannelLock(ch)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ring-1 transition ${
-                            ch.is_private
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/30'
-                              : 'bg-amber-500/20 text-amber-300 border-amber-500/35 hover:bg-amber-500/30'
-                          }`}
-                        >
-                          {ch.is_private ? (
-                            <>
-                              <LockOpen className="w-3.5 h-3.5" />
-                              Mở khóa
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-3.5 h-3.5" />
-                              Khóa riêng tư
-                            </>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteChannel(ch)}
-                          className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 ring-1 ring-rose-500/30 transition"
-                          title="Xóa kênh"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                      {st.label}
+                    </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =====================================================================
-            TAB 5: HỆ THỐNG, GITHUB 1-CLICK UPDATE & CẤU HÌNH
-           ===================================================================== */}
-        {activeTab === 'config' && (
-          <div className="space-y-6 hh-swap-panel">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* GitHub Sync & Hot-Reload */}
-              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-emerald-400" />
-                    Đồng Bộ GitHub &amp; Hot-Reload Hệ Thống
-                  </h3>
-                  <span className="px-2.5 py-0.5 text-[11px] tabular-nums rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
-                    Commit: {updateStatus?.current_hash || 'main'}
-                  </span>
-                </div>
-
-                {updateStatus?.commit_msg && (
-                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs text-white/80">
-                    <div className="text-[11px] text-white/45 mb-0.5">Bản cập nhật hiện hành:</div>
-                    <div className="font-semibold">{updateStatus.commit_msg}</div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2.5">
-                  <button
-                    onClick={handleCheckUpdate}
-                    disabled={checkingUpdate}
-                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
-                    Kiểm tra GitHub
-                  </button>
-                  <button
-                    onClick={handleApplyUpdate}
-                    disabled={applyingUpdate}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <ArrowUpCircle className="w-4 h-4" />
-                    {applyingUpdate ? 'Đang cập nhật...' : '1-Click Pull & Update'}
-                  </button>
-                  <button
-                    onClick={handleHotReload}
-                    disabled={reloadingBot}
-                    className="px-3.5 py-2 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {reloadingBot ? 'Đang Reload Cogs...' : 'Hot-Reload Toàn Bộ Cogs'}
-                  </button>
+                <div className="text-xs text-[#949494] tabular-nums">
+                  Hiển thị {paginatedDocs.length} / {filteredDocs.length} đề (Trang {docPage}/{totalDocPages})
                 </div>
               </div>
 
-              {/* API Gateway Switcher */}
-              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4 text-cyan-400" />
-                  Cấu Hình Cổng Kết Nối API Gateway
-                </h3>
-                <div className="flex gap-2">
+              {/* Filter & Search Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-[#110F18] ring-1 ring-[#1E1B2B] p-3.5 rounded-xl">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#949494] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    value={customUrlInput}
-                    onChange={(e) => setCustomUrlInput(e.target.value)}
-                    placeholder="Để trống để dùng Vercel Cloud Bridge mặc định"
-                    className="flex-1 px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
-                  />
-                  <button
-                    onClick={() => handleSaveApiEndpoint(customUrlInput)}
-                    disabled={testingUrl}
-                    className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    Lưu
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSaveApiEndpoint(DEFAULT_TUNNEL_URL)}
-                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] font-semibold"
-                  >
-                    Dùng Vercel Cloud Bridge (Mặc định)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveApiEndpoint(LOCAL_API_URL)}
-                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] font-semibold"
-                  >
-                    Localhost (127.0.0.1:8080)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const stored = getStoredDiscordUser();
-                      const res = await notifyBotViaWebhookHandshake({
-                        event: 'manual_sync',
-                        view: 'dashboard',
-                        tab: 'admin',
-                        username: stored?.global_name || stored?.username || 'Admin Orbit',
-                        userId: stored?.id,
-                        force: true,
-                      });
-                      if (res.ok) {
-                        showFeedback(
-                          'success',
-                          'Đã gửi tín hiệu tới kênh Discord qua Webhook 1568882621470089247 — Bot đang đồng bộ 2 chiều!'
-                        );
-                        fetchConfig();
-                      } else {
-                        showFeedback('error', 'Không thể gửi tín hiệu Webhook, vui lòng kiểm tra mạng.');
-                      }
+                    value={docSearch}
+                    onChange={(e) => {
+                      setDocSearch(e.target.value);
+                      setDocPage(1);
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 ring-1 ring-pink-500/40 text-pink-200 text-[11px] font-bold flex items-center gap-1.5"
-                  >
-                    <Send className="w-3 h-3" />
-                    Ping Webhook &amp; Kết Nối Bot
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Runtime Info */}
-            {configData && (
-              <div className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <HardDrive className="w-4 h-4 text-[#C6F24E]" />
-                    Thông Số Vận Hành Bot &amp; Cogs Đang Hoạt Động
-                  </h3>
-                  <button
-                    onClick={() => fetchConfig(true)}
-                    disabled={loadingConfig}
-                    className="text-xs text-[#C6F24E] flex items-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
-                    Làm mới
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
-                    <div className="text-[11px] text-white/50">Bot User</div>
-                    <div className="text-sm font-bold text-white mt-0.5">
-                      {String(configData.bot?.user || 'Orbit#6143')}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
-                    <div className="text-[11px] text-white/50">Độ trễ Gateway</div>
-                    <div className="text-sm font-bold text-emerald-400 mt-0.5 tabular-nums">
-                      {String(configData.bot?.ping_ms ?? 0)} ms
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
-                    <div className="text-[11px] text-white/50">Số Cogs Đã Nạp</div>
-                    <div className="text-sm font-bold text-[#C6F24E] mt-0.5 tabular-nums">
-                      {String(configData.runtime?.cogs_loaded ?? 0)} Cogs
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10">
-                    <div className="text-[11px] text-white/50">Dung lượng SQLite Local</div>
-                    <div className="text-sm font-bold text-cyan-300 mt-0.5 tabular-nums">
-                      {formatBytes(Number(configData.runtime?.db_size_bytes || 0))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =====================================================================
-            TAB 6: NHẬT KÝ KIỂM TOÁN DISCORD & CONSOLE LOGS
-           ===================================================================== */}
-        {activeTab === 'logs' && (
-          <div className="space-y-4 hh-swap-panel">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setLogSubView('console')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ring-1 ${
-                    logSubView === 'console'
-                      ? 'bg-[#1D2414] text-[#C6F24E] ring-1 ring-[#35461F]'
-                      : 'bg-black/40 text-white/60 border-white/10'
-                  }`}
-                >
-                  <ScrollText className="w-4 h-4" />
-                  Bot Console Logs ({formatBytes(logSize)})
-                </button>
-                <button
-                  onClick={() => setLogSubView('audit')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ring-1 ${
-                    logSubView === 'audit'
-                      ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
-                      : 'bg-black/40 text-white/60 border-white/10'
-                  }`}
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  Nhật Ký Kiểm Toán Discord ({auditEntries.length})
-                </button>
-              </div>
-
-              {logSubView === 'console' ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    value={logFilter}
-                    onChange={(e) => setLogFilter(e.target.value)}
-                    placeholder="Lọc từ khóa trong log..."
-                    className="px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                    placeholder="Tìm tiêu đề, ID, trường, mô tả..."
+                    className="w-full pl-8 pr-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
                   />
-                  <select
-                    value={logLevel}
-                    onChange={(e) => setLogLevel(e.target.value as 'ALL' | 'INFO' | 'WARNING' | 'ERROR')}
-                    className="px-2.5 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  >
-                    <option value="ALL" className="bg-[#14111F]">Mức: ALL</option>
-                    <option value="INFO" className="bg-[#14111F]">INFO</option>
-                    <option value="WARNING" className="bg-[#14111F]">WARNING</option>
-                    <option value="ERROR" className="bg-[#14111F]">ERROR</option>
-                  </select>
-                  <select
-                    value={logCount}
-                    onChange={(e) => setLogCount(Number(e.target.value))}
-                    className="px-2.5 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
-                  >
-                    <option value={100} className="bg-[#14111F]">100 dòng</option>
-                    <option value={200} className="bg-[#14111F]">200 dòng</option>
-                    <option value={500} className="bg-[#14111F]">500 dòng</option>
-                  </select>
-                  <label className="flex items-center gap-1.5 text-xs text-white/75 cursor-pointer px-2">
+                </div>
+                <select
+                  value={docSubjectFilter}
+                  onChange={(e) => {
+                    setDocSubjectFilter(e.target.value);
+                    setDocPage(1);
+                  }}
+                  aria-label="Lọc theo môn học"
+                  className="px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                >
+                  <option value="ALL" className="bg-[#110F18]">Tất cả môn học ({docs.length})</option>
+                  {SUBJECT_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value} className="bg-[#110F18]">
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={docLevelFilter}
+                  onChange={(e) => {
+                    setDocLevelFilter(e.target.value);
+                    setDocPage(1);
+                  }}
+                  aria-label="Lọc theo khối lớp"
+                  className="px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                >
+                  <option value="ALL" className="bg-[#110F18]">Tất cả khối lớp</option>
+                  {['12', '11', '10', '9', '8', '7', '6'].map((g) => (
+                    <option key={g} value={g} className="bg-[#110F18]">
+                      Khối lớp {g}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={docTrackFilter}
+                  onChange={(e) => {
+                    setDocTrackFilter(e.target.value);
+                    setDocPage(1);
+                  }}
+                  aria-label="Lọc theo phân ban đề thi"
+                  className="px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                >
+                  <option value="ALL" className="bg-[#110F18]">Mọi phân ban (Thường / HSG / Chuyên / Quốc tế)</option>
+                  {EXAM_TRACK_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value} className="bg-[#110F18]">
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Bulk Selection Action Bar */}
+              <div className="p-3.5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[#E2E2E2] cursor-pointer tabular-nums">
                     <input
                       type="checkbox"
-                      checked={autoRefreshLogs}
-                      onChange={(e) => setAutoRefreshLogs(e.target.checked)}
-                      className="accent-[#C6F24E]"
+                      checked={
+                        filteredDocs.length > 0 &&
+                        filteredDocs.every((d) => selectedDocIds.has(d.id))
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDocIds(new Set(filteredDocs.map((d) => d.id)));
+                        } else {
+                          setSelectedDocIds(new Set());
+                        }
+                      }}
+                      className="accent-[#C6F24E] w-4 h-4"
                     />
-                    Tự làm mới
+                    <span>
+                      Chọn tất cả ({selectedDocIds.size}/{filteredDocs.length} đề đang chọn)
+                    </span>
                   </label>
-                  <button
-                    onClick={fetchLogs}
-                    disabled={loadingLogs}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
-                    Tải lại
-                  </button>
                 </div>
-              ) : (
-                <button
-                  onClick={fetchAuditLogs}
-                  disabled={loadingAudit}
-                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
-                  Làm mới Audit Log
-                </button>
-              )}
-            </div>
 
-            {logSubView === 'console' ? (
-              <pre className="bg-[#08070C] ring-1 ring-[#1E1B2B] rounded-xl p-4 font-mono text-[11px] leading-relaxed max-h-[540px] overflow-y-auto space-y-1 whitespace-pre-wrap">
-                {filteredLogLines.length === 0 ? (
-                  <div className="py-12 text-center text-white/40">Không có dòng log nào.</div>
+                {selectedDocIds.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={bulkSubject}
+                      onChange={(e) => setBulkSubject(e.target.value)}
+                      className="px-2.5 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="">-- Đổi môn học --</option>
+                      {SUBJECT_OPTIONS.map((s) => (
+                        <option key={s.value} value={s.value} className="bg-[#110F18]">
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={bulkLevel}
+                      onChange={(e) => setBulkLevel(e.target.value)}
+                      className="px-2.5 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="">-- Đổi khối lớp --</option>
+                      {GRADE_LEVEL_OPTIONS.map((lvl) => (
+                        <option key={lvl} value={lvl} className="bg-[#110F18]">
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={bulkTrack}
+                      onChange={(e) => setBulkTrack(e.target.value)}
+                      className="px-2.5 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="">-- Đổi phân ban --</option>
+                      {EXAM_TRACK_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value} className="bg-[#110F18]">
+                          {t.value}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleBulkDocsAction('update')}
+                      className="h-8 px-3 rounded-lg bg-[#3FC07A] hover:bg-[#4CD088] text-[#0B0911] text-xs font-semibold flex items-center gap-1 cursor-pointer tabular-nums"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Áp dụng ({selectedDocIds.size})</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleBulkDocsAction('delete')}
+                      className="h-8 px-3 rounded-lg bg-[#E5566F] hover:bg-[#F0657D] text-white text-xs font-semibold flex items-center gap-1 cursor-pointer tabular-nums"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa ({selectedDocIds.size})</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Documents List (Paginated for 60fps DOM performance) */}
+              <div className="space-y-2 max-h-[580px] overflow-y-auto pr-1">
+                {loadingDocs ? (
+                  <div className="py-12 text-center text-xs text-[#949494]">
+                    Đang tải danh sách đề thi trong kho lưu trữ...
+                  </div>
+                ) : paginatedDocs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-[#949494]">
+                    Không có đề thi nào khớp với bộ lọc hiện tại.
+                  </div>
                 ) : (
-                  filteredLogLines.map((ln, idx) => {
-                    const isErr = ln.includes('[ERROR');
-                    const isWarn = ln.includes('[WARNING');
+                  paginatedDocs.map((doc) => {
+                    const checked = selectedDocIds.has(doc.id);
                     return (
                       <div
-                        key={idx}
-                        className={`break-all ${
-                          isErr ? 'text-rose-400' : isWarn ? 'text-amber-300' : 'text-slate-300'
+                        key={doc.id}
+                        className={`p-3.5 rounded-xl ring-1 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${
+                          checked
+                            ? 'bg-[#1B2214] ring-[#2E3B1E]'
+                            : 'bg-[#110F18] hover:bg-[#161421] ring-[#1E1B2B]'
                         }`}
                       >
-                        {ln}
+                        <div className="flex items-start gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedDocIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(doc.id);
+                                else next.delete(doc.id);
+                                return next;
+                              });
+                            }}
+                            className="mt-1 accent-[#C6F24E] w-4 h-4 shrink-0 cursor-pointer"
+                          />
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="px-2 py-0.5 text-[10px] font-mono tabular-nums font-semibold rounded bg-[#0B0911] text-[#C6F24E] ring-1 ring-[#262235]">
+                                #{doc.id}
+                              </span>
+                              <span className="font-semibold text-sm text-white">{doc.title}</span>
+                              <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59]">
+                                {doc.subject}
+                              </span>
+                              <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-[#281F12] text-[#FCD34D] ring-1 ring-[#45341B]">
+                                {doc.estimated_level}
+                              </span>
+                              <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E]">
+                                {doc.exam_track || 'Thường'}
+                              </span>
+                              {doc.is_duplicate_copy && (
+                                <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[#2C1620] text-[#FDA4AF] ring-1 ring-[#4C2233]">
+                                  Bản sao trùng lặp
+                                </span>
+                              )}
+                              {doc.queue_status === 'pending_bot' && (
+                                <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[#281F12] text-[#FCD34D] ring-1 ring-[#45341B]">
+                                  Chờ đồng bộ Bot
+                                </span>
+                              )}
+                            </div>
+                            {doc.notes && (
+                              <p className="text-xs text-[#3FC07A] line-clamp-2">{doc.notes}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#949494] tabular-nums">
+                              <span>Tệp: {doc.file_name}</span>
+                              <span>· {formatBytes(doc.file_size_bytes)}</span>
+                              {doc.school_or_department && <span>· Trường/Sở: {doc.school_or_department}</span>}
+                              {doc.academic_year && <span>· Năm học: {doc.academic_year}</span>}
+                              <span>· Tác giả: {doc.author_name || 'Thành viên Orbit'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end lg:self-center">
+                          <a
+                            href={`${getApiBaseUrl()}/api/documents/${doc.id}/view`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg bg-[#0B0911] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-[#E2E2E2] text-xs font-medium flex items-center gap-1 transition"
+                            title="Mở xem trực tiếp tệp PDF đề thi"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Xem PDF</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => openEditDocModal(doc)}
+                            className="px-3 py-1.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] text-white ring-1 ring-[#262235] text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[#C6F24E]" />
+                            <span>Sửa 100%</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={archivingId === doc.id}
+                            onClick={() => handleArchiveDoc(doc)}
+                            className="px-2.5 py-1.5 rounded-lg bg-[#142234] hover:bg-[#1D314B] text-[#38BDF8] ring-1 ring-[#233B59] text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+                            title="Offload tệp lên Discord Cloud"
+                          >
+                            <Cloud className="w-3.5 h-3.5" />
+                            <span>{archivingId === doc.id ? 'Đang offload...' : 'Offload'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDoc(doc)}
+                            className="p-1.5 rounded-lg bg-[#2C1620] hover:bg-[#3D1D2B] text-[#FDA4AF] ring-1 ring-[#4C2233] transition cursor-pointer"
+                            title="Xóa vĩnh viễn đề thi"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })
                 )}
-              </pre>
-            ) : (
-              <div className="space-y-2 max-h-[540px] overflow-y-auto">
-                {auditEntries.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-white/45">
-                    Chưa có bản ghi kiểm toán nào.
+              </div>
+
+              {/* Pagination Footer */}
+              {totalDocPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-[#949494] tabular-nums">
+                    Trang <strong className="text-white">{docPage}</strong> / {totalDocPages} · Tổng {filteredDocs.length} đề
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={docPage <= 1}
+                      onClick={() => setDocPage((p) => Math.max(1, p - 1))}
+                      className="px-3 py-1.5 rounded-lg bg-[#110F18] hover:bg-[#161421] ring-1 ring-[#262235] disabled:opacity-40 text-xs font-medium cursor-pointer"
+                    >
+                      ← Trang trước
+                    </button>
+                    <button
+                      type="button"
+                      disabled={docPage >= totalDocPages}
+                      onClick={() => setDocPage((p) => Math.min(totalDocPages, p + 1))}
+                      className="px-3 py-1.5 rounded-lg bg-[#110F18] hover:bg-[#161421] ring-1 ring-[#262235] disabled:opacity-40 text-xs font-medium cursor-pointer"
+                    >
+                      Trang sau →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =====================================================================
+              TAB 4: KÊNH DISCORD & BẢNG ĐIỀU KHIỂN TƯƠNG TÁC
+             ===================================================================== */}
+          {activeTab === 'channels' && (
+            <div className="space-y-5 hh-swap-panel">
+              {/* 1-Click Refresh Discord Interactive Panels */}
+              <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#C6F24E]" />
+                    <span>Đồng bộ &amp; làm mới bảng điều khiển tương tác trên Discord</span>
+                  </h3>
+                  <p className="text-xs text-[#949494] mt-1">
+                    Cập nhật tức thì các bảng hướng dẫn và nút bấm tương tác tại kênh <code className="text-white">#info</code>, <code className="text-white">#nộp-tài-liệu</code> và <code className="text-white">#lấy-tài-liệu</code>.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleRefreshDiscordPanels('all')}
+                    disabled={refreshingPanels}
+                    className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingPanels ? 'animate-spin' : ''}`} />
+                    <span>Làm mới tất cả Panel</span>
+                  </button>
+                  <button
+                    onClick={() => handleRefreshDiscordPanels('info')}
+                    disabled={refreshingPanels}
+                    className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] cursor-pointer"
+                  >
+                    #info
+                  </button>
+                  <button
+                    onClick={() => handleRefreshDiscordPanels('intake')}
+                    disabled={refreshingPanels}
+                    className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] cursor-pointer"
+                  >
+                    #nộp-tài-liệu
+                  </button>
+                  <button
+                    onClick={() => handleRefreshDiscordPanels('search')}
+                    disabled={refreshingPanels}
+                    className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] cursor-pointer"
+                  >
+                    #lấy-tài-liệu
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                {/* Left 5 Cols: Create Channel + Send Announcement */}
+                <div className="xl:col-span-5 space-y-5">
+                  <form
+                    onSubmit={handleCreateChannel}
+                    className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-3.5"
+                  >
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Hash className="w-4 h-4 text-[#38BDF8]" />
+                      <span>Tạo kênh Text / Voice mới</span>
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setNewChannelKind('text')}
+                        className={`h-8 rounded-lg text-xs font-semibold ring-1 cursor-pointer ${
+                          newChannelKind === 'text'
+                            ? 'bg-[#142234] text-[#38BDF8] ring-[#233B59]'
+                            : 'bg-[#0B0911] text-[#949494] ring-[#262235]'
+                        }`}
+                      >
+                        # Kênh văn bản (Text)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewChannelKind('voice')}
+                        className={`h-8 rounded-lg text-xs font-semibold ring-1 cursor-pointer ${
+                          newChannelKind === 'voice'
+                            ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                            : 'bg-[#0B0911] text-[#949494] ring-[#262235]'
+                        }`}
+                      >
+                        Kênh thoại (Voice)
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={newChannelName}
+                      onChange={(e) => setNewChannelName(e.target.value)}
+                      placeholder="Tên kênh (VD: thảo-luận-toán)"
+                      className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#38BDF8]"
+                    />
+                    <select
+                      value={newChannelCategoryId}
+                      onChange={(e) => setNewChannelCategoryId(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="" className="bg-[#110F18]">-- Danh mục (Category) tự động --</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id} className="bg-[#110F18]">
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    {newChannelKind === 'text' ? (
+                      <input
+                        type="text"
+                        value={newChannelTopic}
+                        onChange={(e) => setNewChannelTopic(e.target.value)}
+                        placeholder="Chủ đề kênh (Topic)..."
+                        className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#38BDF8]"
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        value={newChannelLimit}
+                        onChange={(e) => setNewChannelLimit(Number(e.target.value))}
+                        placeholder="Giới hạn thành viên (0 = Không giới hạn)"
+                        className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white tabular-nums"
+                      />
+                    )}
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full h-9 rounded-lg bg-[#38BDF8] hover:bg-[#52C7FA] text-[#0B0911] font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tạo kênh mới ngay</span>
+                    </button>
+                  </form>
+
+                  {/* Broadcast Embed Form */}
+                  <form
+                    onSubmit={handleSendAnnouncement}
+                    className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-3.5"
+                  >
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Megaphone className="w-4 h-4 text-[#F59E0B]" />
+                      <span>Phát sóng thông báo / Embed lên Discord</span>
+                    </h3>
+                    <select
+                      value={selectedChannelId}
+                      onChange={(e) => setSelectedChannelId(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="" className="bg-[#110F18]">-- Chọn kênh nhận thông báo --</option>
+                      {channels
+                        .filter((c) => c.kind !== 'voice')
+                        .map((c) => (
+                          <option key={c.channel_id} value={c.channel_id} className="bg-[#110F18]">
+                            {c.name} ({c.category})
+                          </option>
+                        ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={announceTitle}
+                      onChange={(e) => setAnnounceTitle(e.target.value)}
+                      placeholder="Tiêu đề thông báo..."
+                      className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    />
+                    <textarea
+                      rows={4}
+                      value={announceMsg}
+                      onChange={(e) => setAnnounceMsg(e.target.value)}
+                      placeholder="Nội dung thông báo (hỗ trợ Markdown Discord)..."
+                      className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {['#C6F24E', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setAnnounceColor(c)}
+                            className={`w-6 h-6 rounded-md ring-1 cursor-pointer ${
+                              announceColor === c ? 'ring-white scale-110' : 'ring-[#262235]'
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="h-9 px-4 rounded-lg bg-[#F59E0B] hover:bg-[#FBBF24] text-[#0B0911] font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Gửi thông báo</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right 7 Cols: Channel List with Lock/Open & Delete */}
+                <div className="xl:col-span-7 bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2 tabular-nums">
+                      <Hash className="w-4 h-4 text-[#C6F24E]" />
+                      <span>Danh sách kênh trong máy chủ ({filteredChannels.length}/{channels.length})</span>
+                    </h3>
+                    <button
+                      onClick={() => fetchChannels(selectedGuildId, true)}
+                      disabled={loadingChannels}
+                      className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1 self-start cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingChannels ? 'animate-spin' : ''}`} />
+                      <span>Làm mới</span>
+                    </button>
+                  </div>
+
+                  {/* Channel Search & Kind Filter */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-[#949494] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={channelSearch}
+                        onChange={(e) => setChannelSearch(e.target.value)}
+                        placeholder="Tìm tên kênh, danh mục hoặc chủ đề..."
+                        className="w-full pl-8 pr-3 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { id: 'ALL' as const, label: 'Tất cả' },
+                        { id: 'PUBLIC' as const, label: 'Công khai' },
+                        { id: 'PRIVATE' as const, label: 'Riêng tư' },
+                        { id: 'TEXT' as const, label: '# Text' },
+                        { id: 'VOICE' as const, label: 'Voice' },
+                      ].map((cf) => (
+                        <button
+                          key={cf.id}
+                          type="button"
+                          onClick={() => setChannelKindFilter(cf.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 transition cursor-pointer ${
+                            channelKindFilter === cf.id
+                              ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                              : 'bg-[#0B0911] text-[#949494] ring-[#1E1B2B] hover:text-white'
+                          }`}
+                        >
+                          {cf.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                    {filteredChannels.map((ch) => (
+                      <div
+                        key={ch.channel_id}
+                        className="p-3 rounded-xl bg-[#161421] hover:bg-[#1B1828] ring-1 ring-[#262235] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-xs sm:text-sm text-white">{ch.name}</span>
+                            <span className="px-2 py-0.5 text-[10px] rounded bg-[#0B0911] text-[#B4B4B4] ring-1 ring-[#262235]">
+                              {ch.category}
+                            </span>
+                            {ch.is_private ? (
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[#281F12] text-[#FCD34D] ring-1 ring-[#45341B]">
+                                Riêng tư (Staff)
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D]">
+                                Công khai
+                              </span>
+                            )}
+                          </div>
+                          {ch.topic && (
+                            <div className="text-[11px] text-[#949494] truncate mt-0.5">{ch.topic}</div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChannelLock(ch)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ring-1 transition cursor-pointer ${
+                              ch.is_private
+                                ? 'bg-[#13261C] text-[#3FC07A] ring-[#23422D] hover:bg-[#1B3527]'
+                                : 'bg-[#281F12] text-[#FCD34D] ring-[#45341B] hover:bg-[#382B19]'
+                            }`}
+                          >
+                            {ch.is_private ? (
+                              <>
+                                <LockOpen className="w-3.5 h-3.5" />
+                                <span>Mở khóa</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>Khóa riêng tư</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChannel(ch)}
+                            className="p-1.5 rounded-lg bg-[#2C1620] hover:bg-[#3D1D2B] text-[#FDA4AF] ring-1 ring-[#4C2233] transition cursor-pointer"
+                            title="Xóa kênh"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =====================================================================
+              TAB 5: HỆ THỐNG, HOT-RELOAD COGS & CẤU HÌNH ĐÁM MÂY
+             ===================================================================== */}
+          {activeTab === 'config' && (
+            <div className="space-y-5 hh-swap-panel">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Local Runtime & Hot-Reload */}
+                <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-[#3FC07A]" />
+                      <span>Điều phối Hot-Reload Cogs &amp; Đồng bộ Turso Cloud</span>
+                    </h3>
+                    <span className="px-2.5 py-0.5 text-[11px] font-mono tabular-nums rounded-md bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D]">
+                      Local Runtime Active
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] text-xs text-[#E2E2E2]">
+                    <div className="text-[11px] text-[#949494] mb-0.5">Chế độ vận hành hiện tại:</div>
+                    <div className="font-semibold">
+                      Đồng bộ trực tiếp Turso libSQL Cloud ↔ Discord Bot (Không phụ thuộc GitHub)
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => fetchConfig(true)}
+                      disabled={loadingConfig}
+                      className="h-9 px-3.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
+                      <span>Kiểm tra trạng thái Bot</span>
+                    </button>
+                    <button
+                      onClick={handleFullSystemSync}
+                      disabled={syncingSystem}
+                      className="h-9 px-3.5 rounded-lg bg-[#3FC07A] hover:bg-[#4CD088] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Cloud className="w-4 h-4" />
+                      <span>{syncingSystem ? 'Đang đồng bộ...' : '1-Click Đồng bộ Bot ↔ Web'}</span>
+                    </button>
+                    <button
+                      onClick={handleHotReload}
+                      disabled={reloadingBot}
+                      className="h-9 px-3.5 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>{reloadingBot ? 'Đang Reload Cogs...' : 'Hot-Reload toàn bộ Cogs'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* API Gateway Switcher */}
+                <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4 text-[#38BDF8]" />
+                    <span>Cấu hình cổng kết nối API Gateway</span>
+                  </h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customUrlInput}
+                      onChange={(e) => setCustomUrlInput(e.target.value)}
+                      placeholder="Để trống để dùng Vercel Cloud Bridge mặc định"
+                      className="flex-1 px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs font-mono tabular-nums text-white"
+                    />
+                    <button
+                      onClick={() => handleSaveApiEndpoint(customUrlInput)}
+                      disabled={testingUrl}
+                      className="h-9 px-4 rounded-lg bg-[#38BDF8] hover:bg-[#52C7FA] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Lưu</span>
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveApiEndpoint(DEFAULT_TUNNEL_URL)}
+                      className="px-3 py-1.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] cursor-pointer"
+                    >
+                      Vercel Cloud Bridge (Mặc định)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveApiEndpoint(LOCAL_API_URL)}
+                      className="px-3 py-1.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-[#E2E2E2] cursor-pointer"
+                    >
+                      Localhost (127.0.0.1:8080)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const stored = getStoredDiscordUser();
+                        const res = await notifyBotViaWebhookHandshake({
+                          event: 'manual_sync',
+                          view: 'dashboard',
+                          tab: 'admin',
+                          username: stored?.global_name || stored?.username || 'Admin Orbit',
+                          userId: stored?.id,
+                          force: true,
+                        });
+                        if (res.ok) {
+                          showFeedback(
+                            'success',
+                            'Đã kết nối trực tiếp Bot ↔ Web qua Cầu nối Bảo mật 7 Lớp (Không dùng Discord Webhook)!'
+                          );
+                          fetchConfig();
+                        } else {
+                          showFeedback('error', 'Không thể kết nối cầu nối Bot ↔ Web, vui lòng kiểm tra mạng.');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-[#1B2214] hover:bg-[#242E1A] ring-1 ring-[#2E3B1E] text-[#C6F24E] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Send className="w-3 h-3" />
+                      <span>Kiểm tra Cầu nối Trực tiếp Bot ↔ Web</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7-Layer Defense-in-Depth Security Shield & Infinite Discord Vault Card */}
+              <div className="bg-[#110F18] ring-1 ring-[#2E3B1E] rounded-xl p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#C6F24E]" />
+                    <h3 className="text-sm font-bold text-white">
+                      Khiên Bảo Mật 7 Lớp (7-Layer Defense-in-Depth) &amp; Kho Đề Vô Hạn Discord
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 text-[11px] font-mono rounded-md bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D] tabular-nums">
+                      Kênh Lưu Trữ: #1556682296235393034 (∞ Vô hạn)
+                    </span>
+                    <span className="px-2.5 py-0.5 text-[11px] font-mono rounded-md bg-[#1B2214] text-[#C6F24E] ring-1 ring-[#2E3B1E] tabular-nums">
+                      Webhook Discord: ĐÃ TẮT (Direct RPC)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#C6F24E]">Lớp 1 · Origin &amp; HSTS Guard</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Strict CORS Allowlist, HSTS 2 năm, X-Frame SAMEORIGIN, nosniff.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#C6F24E]">Lớp 2 · Rate-Limit &amp; Anti-BruteForce</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Giới hạn tần suất theo IP (Read/Write/Admin/Upload) + tự khóa IP 10 phút nếu sai xác thực.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#C6F24E]">Lớp 3 · Discord OAuth2 + RBAC</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Xác thực Bearer Token trực tiếp với Discord API + kiểm tra Role Quản trị viên.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#C6F24E]">Lớp 4 · HMAC-SHA256 Signed RPC</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Mọi lệnh Web ↔ Bot đều ký số HMAC-SHA256 kèm chống phát lại (Anti-Replay ±300s).
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#3FC07A]">Lớp 5 · Magic-Byte &amp; SHA-256 Gate</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Quét chữ ký byte tệp (%PDF, PK/DOCX), chặn mã độc EXE/ELF/PHP/Script &amp; đối chiếu SHA-256.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                    <div className="font-semibold text-[#3FC07A]">Lớp 6 · Deep Payload Sanitizer</div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Lọc đệ quy chống Prototype Pollution (__proto__), XSS Script Injection &amp; Null-Byte.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] sm:col-span-2">
+                    <div className="font-semibold text-[#38BDF8]">
+                      Lớp 7 · Cầu Nối Trực Tiếp Bot ↔ Web &amp; Kho Đề Vô Hạn (#1556682296235393034)
+                    </div>
+                    <div className="text-[11px] text-[#949494] mt-0.5">
+                      Tắt hoàn toàn Webhook thông báo ngoài; toàn bộ tệp đề thi được đẩy thẳng vào kênh lưu trữ{' '}
+                      <code className="text-white">#1556682296235393034</code> cho dung lượng vô hạn (∞), chỉ lưu chỉ mục siêu nhẹ trên Turso.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Runtime Info */}
+              {configData && (
+                <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <HardDrive className="w-4 h-4 text-[#C6F24E]" />
+                      <span>Thông số vận hành Bot &amp; Cogs đang hoạt động</span>
+                    </h3>
+                    <button
+                      onClick={() => fetchConfig(true)}
+                      disabled={loadingConfig}
+                      className="text-xs text-[#C6F24E] hover:text-white flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingConfig ? 'animate-spin' : ''}`} />
+                      <span>Làm mới</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                      <div className="text-[11px] text-[#949494]">Bot User</div>
+                      <div className="text-sm font-semibold text-white mt-0.5">
+                        {String(configData.bot?.user || 'Orbit#6143')}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                      <div className="text-[11px] text-[#949494]">Độ trễ Gateway</div>
+                      <div className="text-sm font-semibold text-[#3FC07A] mt-0.5 tabular-nums">
+                        {String(configData.bot?.ping_ms ?? 0)} ms
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                      <div className="text-[11px] text-[#949494]">Số Cogs đã nạp</div>
+                      <div className="text-sm font-semibold text-[#C6F24E] mt-0.5 tabular-nums">
+                        {String(configData.runtime?.cogs_loaded ?? 0)} Cogs
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                      <div className="text-[11px] text-[#949494]">Dung lượng SQLite Local</div>
+                      <div className="text-sm font-semibold text-[#38BDF8] mt-0.5 tabular-nums">
+                        {formatBytes(Number(configData.runtime?.db_size_bytes || 0))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =====================================================================
+              TAB 6: NHẬT KÝ KIỂM TOÁN DISCORD & CONSOLE LOGS
+             ===================================================================== */}
+          {activeTab === 'logs' && (
+            <div className="space-y-4 hh-swap-panel">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#110F18] ring-1 ring-[#1E1B2B] p-3.5 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setLogSubView('console')}
+                    className={`h-8 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ring-1 cursor-pointer tabular-nums ${
+                      logSubView === 'console'
+                        ? 'bg-[#1B2214] text-[#C6F24E] ring-[#2E3B1E]'
+                        : 'bg-[#0B0911] text-[#949494] ring-[#262235]'
+                    }`}
+                  >
+                    <ScrollText className="w-3.5 h-3.5" />
+                    <span>Bot Console Logs ({formatBytes(logSize)})</span>
+                  </button>
+                  <button
+                    onClick={() => setLogSubView('audit')}
+                    className={`h-8 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ring-1 cursor-pointer tabular-nums ${
+                      logSubView === 'audit'
+                        ? 'bg-[#281F12] text-[#FCD34D] ring-[#45341B]'
+                        : 'bg-[#0B0911] text-[#949494] ring-[#262235]'
+                    }`}
+                  >
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    <span>Nhật ký kiểm toán Discord ({auditEntries.length})</span>
+                  </button>
+                </div>
+
+                {logSubView === 'console' ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={logFilter}
+                      onChange={(e) => setLogFilter(e.target.value)}
+                      placeholder="Lọc từ khóa trong log..."
+                      className="px-3 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    />
+                    <select
+                      value={logLevel}
+                      onChange={(e) => setLogLevel(e.target.value as 'ALL' | 'INFO' | 'WARNING' | 'ERROR')}
+                      className="px-2.5 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
+                    >
+                      <option value="ALL" className="bg-[#110F18]">Mức: ALL</option>
+                      <option value="INFO" className="bg-[#110F18]">INFO</option>
+                      <option value="WARNING" className="bg-[#110F18]">WARNING</option>
+                      <option value="ERROR" className="bg-[#110F18]">ERROR</option>
+                    </select>
+                    <select
+                      value={logCount}
+                      onChange={(e) => setLogCount(Number(e.target.value))}
+                      className="px-2.5 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white tabular-nums"
+                    >
+                      <option value={100} className="bg-[#110F18]">100 dòng</option>
+                      <option value={200} className="bg-[#110F18]">200 dòng</option>
+                      <option value={500} className="bg-[#110F18]">500 dòng</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 text-xs text-[#B4B4B4] cursor-pointer px-2">
+                      <input
+                        type="checkbox"
+                        checked={autoRefreshLogs}
+                        onChange={(e) => setAutoRefreshLogs(e.target.checked)}
+                        className="accent-[#C6F24E]"
+                      />
+                      <span>Tự làm mới</span>
+                    </label>
+                    <button
+                      onClick={fetchLogs}
+                      disabled={loadingLogs}
+                      className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                      <span>Tải lại</span>
+                    </button>
                   </div>
                 ) : (
-                  auditEntries.map((en) => (
-                    <div
-                      key={en.id}
-                      className="p-3 rounded-xl bg-black/40 ring-1 ring-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                    >
-                      <div>
-                        <span className="font-bold text-amber-300">{en.action}</span> • Thực hiện bởi{' '}
-                        <span className="font-semibold text-white">{en.actor}</span> → Mục tiêu:{' '}
-                        <span className="text-cyan-300">{en.target}</span>
-                        {en.reason && <div className="text-white/55 mt-0.5">Lý do: {en.reason}</div>}
-                      </div>
-                      <span className="text-[11px] tabular-nums text-white/40 shrink-0">
-                        {en.created_at ? new Date(en.created_at).toLocaleString('vi-VN') : ''}
-                      </span>
-                    </div>
-                  ))
+                  <button
+                    onClick={fetchAuditLogs}
+                    disabled={loadingAudit}
+                    className="h-8 px-3 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
+                    <span>Làm mới Audit Log</span>
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-        )}
+
+              {logSubView === 'console' ? (
+                <pre className="bg-[#08070C] ring-1 ring-[#1E1B2B] rounded-xl p-4 font-mono text-[11px] leading-relaxed max-h-[540px] overflow-y-auto space-y-1 whitespace-pre-wrap">
+                  {filteredLogLines.length === 0 ? (
+                    <div className="py-12 text-center text-[#949494]">Không có dòng log nào.</div>
+                  ) : (
+                    filteredLogLines.map((ln, idx) => {
+                      const isErr = ln.includes('[ERROR');
+                      const isWarn = ln.includes('[WARNING');
+                      return (
+                        <div
+                          key={idx}
+                          className={`break-all ${
+                            isErr ? 'text-[#FDA4AF]' : isWarn ? 'text-[#FCD34D]' : 'text-[#CBD5E1]'
+                          }`}
+                        >
+                          {ln}
+                        </div>
+                      );
+                    })
+                  )}
+                </pre>
+              ) : (
+                <div className="space-y-2 max-h-[540px] overflow-y-auto">
+                  {auditEntries.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-[#949494]">
+                      Chưa có bản ghi kiểm toán nào.
+                    </div>
+                  ) : (
+                    auditEntries.map((en) => (
+                      <div
+                        key={en.id}
+                        className="p-3.5 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                      >
+                        <div>
+                          <span className="font-semibold text-[#FCD34D]">{en.action}</span> · Thực hiện bởi{' '}
+                          <span className="font-semibold text-white">{en.actor}</span> → Mục tiêu:{' '}
+                          <span className="text-[#38BDF8]">{en.target}</span>
+                          {en.reason && <div className="text-[#949494] mt-0.5">Lý do: {en.reason}</div>}
+                        </div>
+                        <span className="text-[11px] font-mono tabular-nums text-[#949494] shrink-0">
+                          {en.created_at ? new Date(en.created_at).toLocaleString('vi-VN') : ''}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
       </div>
 
       {/* ================= MODAL 1: EDIT ROLE (100% OPTIONS) ================= */}
@@ -3624,17 +3658,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSaveRoleModal}
-            className="w-full max-w-lg bg-[#141122] ring-1 ring-1 ring-[#2E2942] rounded-2xl p-6 space-y-4 hh-card-pop"
+            className="w-full max-w-lg bg-[#110F18] ring-1 ring-[#262235] rounded-2xl p-6 space-y-4 hh-card-pop"
           >
-            <div className="flex items-center justify-between pb-3 bg-[#141122]">
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <Crown className="w-5 h-5 text-amber-400" />
-                Chỉnh Sửa Toàn Diện Role: {editingRole.name}
+            <div className="flex items-center justify-between pb-2">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Crown className="w-5 h-5 text-[#C6F24E]" />
+                <span>Chỉnh sửa Role: {editingRole.name}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setEditingRole(null)}
-                className="p-1 rounded-lg hover:bg-white/10 text-white/60"
+                className="p-1 rounded-lg hover:bg-[#1E1B2B] text-[#949494] hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3643,28 +3677,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             {!editingRole.is_default && (
               <>
                 <div>
-                  <label className="block text-xs text-white/70 mb-1">Tên Role</label>
+                  <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Tên Role</label>
                   <input
                     type="text"
                     value={editRoleName}
                     onChange={(e) => setEditRoleName(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white"
+                    className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-sm text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/70 mb-1">Màu sắc ({editRoleColor})</label>
+                  <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium tabular-nums">
+                    Màu sắc ({editRoleColor})
+                  </label>
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       type="color"
                       value={editRoleColor}
                       onChange={(e) => setEditRoleColor(e.target.value)}
-                      className="w-10 h-9 rounded-lg bg-transparent ring-1 ring-white/20 cursor-pointer"
+                      className="w-10 h-9 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] cursor-pointer"
                     />
                     <input
                       type="text"
                       value={editRoleColor}
                       onChange={(e) => setEditRoleColor(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs tabular-nums text-white"
+                      className="flex-1 px-3 py-1.5 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs font-mono tabular-nums text-white"
                     />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -3673,14 +3709,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                         key={hex}
                         type="button"
                         onClick={() => setEditRoleColor(hex)}
-                        className="w-6 h-6 rounded-lg ring-1 ring-white/20"
+                        className="w-6 h-6 rounded-md ring-1 ring-[#262235] cursor-pointer"
                         style={{ backgroundColor: hex }}
                       />
                     ))}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs cursor-pointer">
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] text-xs cursor-pointer">
                     <input
                       type="checkbox"
                       checked={editRoleHoist}
@@ -3689,7 +3725,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     />
                     <span>Hiển thị tách nhóm (Hoist)</span>
                   </label>
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-xs cursor-pointer">
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] text-xs cursor-pointer">
                     <input
                       type="checkbox"
                       checked={editRoleMentionable}
@@ -3703,17 +3739,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
             )}
 
             <div>
-              <label className="block text-xs text-white/70 mb-1">
+              <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">
                 Cập nhật bộ quyền hạn (Để trống nếu giữ nguyên quyền hiện tại)
               </label>
               <select
                 value={editRolePermPreset}
                 onChange={(e) => setEditRolePermPreset(e.target.value)}
-                className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
               >
-                <option value="" className="bg-[#14111F]">-- Giữ nguyên quyền hạn hiện tại --</option>
+                <option value="" className="bg-[#110F18]">-- Giữ nguyên quyền hạn hiện tại --</option>
                 {PERMISSION_PRESETS.map((p) => (
-                  <option key={p.value} value={p.value} className="bg-[#14111F]">
+                  <option key={p.value} value={p.value} className="bg-[#110F18]">
                     {p.label}
                   </option>
                 ))}
@@ -3724,17 +3760,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <button
                 type="button"
                 onClick={() => setEditingRole(null)}
-                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold"
+                className="h-9 px-4 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-xl bg-white hover:bg-neutral-200 text-black text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-5 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                Lưu Thay Đổi Role
+                <span>Lưu thay đổi Role</span>
               </button>
             </div>
           </form>
@@ -3749,9 +3785,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl bg-[#141122] ring-1 ring-amber-400/40 rounded-2xl p-6 space-y-4 hh-card-pop max-h-[88vh] overflow-y-auto"
+            className="w-full max-w-2xl bg-[#110F18] ring-1 ring-[#262235] rounded-2xl p-6 space-y-4 hh-card-pop max-h-[88vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between pb-3 bg-[#141122]">
+            <div className="flex items-center justify-between pb-2">
               <div className="flex items-center gap-3">
                 <img
                   src={
@@ -3759,14 +3795,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     'https://cdn.discordapp.com/embed/avatars/0.png'
                   }
                   alt={selectedMemberForRoles.display_name}
-                  className="w-10 h-10 rounded-full ring-1 ring-amber-400/40"
+                  className="w-10 h-10 rounded-full ring-1 ring-[#2E3B1E]"
                 />
                 <div>
-                  <h3 className="text-base font-extrabold text-white">
-                    Phân Quyền &amp; Cấp Role: {selectedMemberForRoles.display_name}
+                  <h3 className="text-base font-bold text-white">
+                    Phân quyền &amp; cấp Role: {selectedMemberForRoles.display_name}
                   </h3>
-                  <p className="text-xs text-white/55">
-                    Bấm vào bất kỳ Role nào bên dưới để cấp hoặc gỡ ngay lập tức (100% Quyền Lựa Chọn).
+                  <p className="text-xs text-[#949494]">
+                    Bấm vào bất kỳ Role nào bên dưới để cấp hoặc gỡ ngay lập tức (100% quyền lựa chọn).
                   </p>
                 </div>
               </div>
@@ -3776,20 +3812,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                   setSelectedMemberForRoles(null);
                   setModalRoleSearch('');
                 }}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-white/60"
+                className="p-1.5 rounded-lg hover:bg-[#1E1B2B] text-[#949494] hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="relative">
-              <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-[#949494] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={modalRoleSearch}
                 onChange={(e) => setModalRoleSearch(e.target.value)}
                 placeholder="Tìm nhanh Role để cấp / gỡ..."
-                className="w-full pl-9 pr-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F59E0B]"
+                className="w-full pl-9 pr-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white focus:outline-none focus:ring-[#C6F24E]"
               />
             </div>
 
@@ -3817,10 +3853,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                           type="button"
                           disabled={busy}
                           onClick={() => handleToggleMemberRole(selectedMemberForRoles, r.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 flex items-center gap-2 transition ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 flex items-center gap-2 transition cursor-pointer ${
                             active
-                              ? 'bg-emerald-500/20 text-white border-emerald-400'
-                              : 'bg-black/45 text-white/65 border-white/15 hover:border-white/35 hover:text-white'
+                              ? 'bg-[#13261C] text-white ring-[#3FC07A]'
+                              : 'bg-[#0B0911] text-[#B4B4B4] ring-[#262235] hover:text-white'
                           }`}
                         >
                           <span
@@ -3828,7 +3864,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             style={{ backgroundColor: r.color }}
                           />
                           <span>{r.name}</span>
-                          {active && <Check className="w-3.5 h-3.5 text-emerald-300" />}
+                          {active && <Check className="w-3.5 h-3.5 text-[#3FC07A]" />}
                         </button>
                       );
                     })}
@@ -3837,11 +3873,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               );
             })}
 
-            <div className="flex justify-end pt-3">
+            <div className="flex justify-end pt-2">
               <button
                 type="button"
                 onClick={() => setSelectedMemberForRoles(null)}
-                className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold"
+                className="h-9 px-5 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold cursor-pointer"
               >
                 Hoàn tất
               </button>
@@ -3859,70 +3895,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSaveDocEdit}
-            className="w-full max-w-2xl bg-[#141122] ring-1 ring-1 ring-[#2E2942] rounded-2xl p-6 space-y-4 hh-card-pop max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl bg-[#110F18] ring-1 ring-[#262235] rounded-2xl p-6 space-y-4 hh-card-pop max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between pb-3 bg-[#141122]">
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+            <div className="flex items-center justify-between pb-2">
+              <h3 className="text-base font-bold text-white flex items-center gap-2 tabular-nums">
                 <FileText className="w-5 h-5 text-[#C6F24E]" />
-                Chỉnh Sửa 100% Thông Tin Đề Thi #{editingDoc.id}
+                <span>Chỉnh sửa 100% thông tin đề thi #{editingDoc.id}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setEditingDoc(null)}
-                className="p-1 rounded-lg hover:bg-white/10 text-white/60"
+                className="p-1 rounded-lg hover:bg-[#1E1B2B] text-[#949494] hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs text-white/70 mb-1">Tiêu đề đề thi</label>
+              <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Tiêu đề đề thi</label>
               <input
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-sm text-white"
+                className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-sm text-white"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-white/70 mb-1">Môn học</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Môn học</label>
                 <select
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
                 >
                   {SUBJECT_OPTIONS.map((s) => (
-                    <option key={s.value} value={s.value} className="bg-[#14111F]">
+                    <option key={s.value} value={s.value} className="bg-[#110F18]">
                       {s.label}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-white/70 mb-1">Khối lớp</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Khối lớp</label>
                 <select
                   value={editLevel}
                   onChange={(e) => setEditLevel(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
                 >
                   {GRADE_LEVEL_OPTIONS.map((lvl) => (
-                    <option key={lvl} value={lvl} className="bg-[#14111F]">
+                    <option key={lvl} value={lvl} className="bg-[#110F18]">
                       {lvl}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-white/70 mb-1">Phân ban / Cấp độ đề</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Phân ban / Cấp độ đề</label>
                 <select
                   value={editTrack}
                   onChange={(e) => setEditTrack(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
                 >
                   {EXAM_TRACK_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value} className="bg-[#14111F]">
+                    <option key={t.value} value={t.value} className="bg-[#110F18]">
                       {t.label}
                     </option>
                   ))}
@@ -3932,46 +3968,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-white/70 mb-1">Năm học</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Năm học</label>
                 <input
                   type="text"
                   value={editYear}
                   onChange={(e) => setEditYear(e.target.value)}
                   placeholder="VD: 2025-2026"
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white tabular-nums"
                 />
               </div>
               <div>
-                <label className="block text-xs text-white/70 mb-1">Trường / Sở GD&amp;ĐT</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Trường / Sở GD&amp;ĐT</label>
                 <input
                   type="text"
                   value={editSchool}
                   onChange={(e) => setEditSchool(e.target.value)}
                   placeholder="VD: Sở GD&ĐT Hà Nội"
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
                 />
               </div>
               <div>
-                <label className="block text-xs text-white/70 mb-1">Tác giả đóng góp</label>
+                <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">Tác giả đóng góp</label>
                 <input
                   type="text"
                   value={editAuthorName}
                   onChange={(e) => setEditAuthorName(e.target.value)}
                   placeholder="Tên hiển thị tác giả"
-                  className="w-full px-3 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-white/70 mb-1">
-                Mô tả đề thi (VD: Lớp 9 Chuyên Tin • Đề thi chọn HSG...)
+              <label className="block text-xs text-[#B4B4B4] mb-1.5 font-medium">
+                Mô tả đề thi (VD: Lớp 9 Chuyên Tin · Đề thi chọn HSG...)
               </label>
               <textarea
                 rows={3}
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                className="w-full px-3.5 py-2 bg-black/50 ring-1 ring-white/15 rounded-xl text-xs text-white"
+                className="w-full px-3.5 py-2 bg-[#0B0911] ring-1 ring-[#262235] rounded-lg text-xs text-white"
               />
             </div>
 
@@ -3979,17 +4015,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               <button
                 type="button"
                 onClick={() => setEditingDoc(null)}
-                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold"
+                className="h-9 px-4 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-xl bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-bold flex items-center gap-1.5"
+                className="h-9 px-5 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                Lưu Toàn Bộ Thông Tin
+                <span>Lưu toàn bộ thông tin</span>
               </button>
             </div>
           </form>

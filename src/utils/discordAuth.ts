@@ -66,19 +66,16 @@ export function getDiscordAccessToken(): string | null {
       }
     }
 
-    // Migrate legacy token từ localStorage sang sessionStorage rồi xóa khỏi localStorage
     if (typeof localStorage !== 'undefined') {
-      const legacyLocalToken =
+      const localToken =
         localStorage.getItem(TOKEN_STORAGE_KEY) ||
         localStorage.getItem(LEGACY_TOKEN_STORAGE_KEY);
-      if (legacyLocalToken) {
-        memoryAccessToken = legacyLocalToken;
+      if (localToken) {
+        memoryAccessToken = localToken;
         if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem(TOKEN_STORAGE_KEY, legacyLocalToken);
+          sessionStorage.setItem(TOKEN_STORAGE_KEY, localToken);
         }
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
-        return legacyLocalToken;
+        return localToken;
       }
     }
     return null;
@@ -114,12 +111,12 @@ export function getStoredDiscordUser(): DiscordUser | null {
     if (!data) return null;
     const user = JSON.parse(data) as DiscordUser;
 
-    // Nếu bản lưu cũ trong localStorage còn chứa accessToken, chuyển sang sessionStorage và xóa khỏi localStorage
     if (user.accessToken) {
       memoryAccessToken = user.accessToken;
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
       }
+      localStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(scrubTokenForLocalStorage(user)));
     }
 
@@ -140,12 +137,12 @@ export function saveDiscordUser(user: DiscordUser): void {
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
       }
+      localStorage.setItem(TOKEN_STORAGE_KEY, user.accessToken);
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scrubTokenForLocalStorage(user)));
     localStorage.removeItem(LEGACY_STORAGE_KEY);
     localStorage.removeItem(PENDING_STORAGE_KEY);
     localStorage.removeItem(LEGACY_PENDING_STORAGE_KEY);
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem(PENDING_STORAGE_KEY);
