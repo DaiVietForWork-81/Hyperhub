@@ -23,7 +23,8 @@ import {
   GraduationCap,
   Globe,
   Copy,
-
+  Search,
+  Sparkles,
   Clock,
   Layers,
 
@@ -40,6 +41,9 @@ import {
 import { useToast } from '../context/ToastContext';
 import {
   inspectDocumentClient,
+  inspectTextSnippetClient,
+  extractQuestionsPreviewClient,
+  ExtractedQuestionItem,
   buildClientExamDescription,
   ClientInspectionReport,
   SUBJECT_SELECT_OPTIONS,
@@ -162,9 +166,30 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
   onPreviewDoc,
   onUploadSuccess,
 }) => {
-  // Tab chuyển đổi: Tải tệp trực tiếp HOẶC Nộp link Google Drive
-  const [activeTab, setActiveTab] = useState<'file_upload' | 'gdrive_link'>('file_upload');
+  // Tab chuyển đổi: Tải tệp trực tiếp | Nộp link Google Drive | Máy Quét & Thẩm Định Đề (DocInspector)
+  const [activeTab, setActiveTab] = useState<'file_upload' | 'gdrive_link' | 'exam_scanner'>('file_upload');
   const { showSuccess, showInfo, showError } = useToast();
+
+  // --- TRẠNG THÁI TAB 3: MÁY QUÉT & THẨM ĐỊNH ĐỀ THI (DOCINSPECTOR) ---
+  const [scanMode, setScanMode] = useState<'file' | 'text'>('file');
+  const [scannerFile, setScannerFile] = useState<File | null>(null);
+  const [scannerTitleInput, setScannerTitleInput] = useState<string>('');
+  const [scannerRawTextInput, setScannerRawTextInput] = useState<string>('');
+  const [isScanningExam, setIsScanningExam] = useState<boolean>(false);
+  const [scannerStep, setScannerStep] = useState<number>(0);
+  const [scannerReport, setScannerReport] = useState<ClientInspectionReport | null>(null);
+  const [scannerQuestions, setScannerQuestions] = useState<ExtractedQuestionItem[]>([]);
+  const [scannerAnswerMap, setScannerAnswerMap] = useState<Record<number, string>>({});
+  const [scannerDuplicateCheck, setScannerDuplicateCheck] = useState<{
+    checked: boolean;
+    exists: boolean;
+    existingTitle?: string;
+    existingAuthor?: string;
+    existingId?: number;
+  } | null>(null);
+  const [isPushingScannedExam, setIsPushingScannedExam] = useState<boolean>(false);
+  const [scannerEditMeta, setScannerEditMeta] = useState<boolean>(false);
+  const scannerFileInputRef = useRef<HTMLInputElement>(null);
 
   // --- TRẠNG THÁI TAB TẢI TỆP TRỰC TIẾP ---
   const [fileQueue, setFileQueue] = useState<QueuedFile[]>([]);
@@ -512,7 +537,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         }
       }
       let base64Content: string | undefined = undefined;
-      if (file.size <= 5 * 1024 * 1024) {
+      if (file.size <= 15 * 1024 * 1024) {
         base64Content = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve((reader.result as string) || '');
@@ -646,7 +671,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           // Bảo lưu thẳng lên Turso Cloud (5GB Storage) với queue_status = 'pending_bot'
           if (item.clientReport) {
             let base64Content: string | undefined = undefined;
-            if (item.file.size <= 5 * 1024 * 1024) {
+            if (item.file.size <= 15 * 1024 * 1024) {
               base64Content = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve((reader.result as string) || '');
@@ -705,7 +730,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             await queueToOutbox(item.file);
             if (item.clientReport) {
               let base64Content: string | undefined = undefined;
-              if (item.file.size <= 5 * 1024 * 1024) {
+              if (item.file.size <= 15 * 1024 * 1024) {
                 base64Content = await new Promise<string>((resolve) => {
                   const reader = new FileReader();
                   reader.onload = () => resolve((reader.result as string) || '');
@@ -965,6 +990,188 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
     setGdriveProcessingStep(0);
   };
 
+  // ----------------------------------------------------
+  // LOGIC TAB 3: MÁY QUÉT & THẨM ĐỊNH ĐỀ THI (DOCINSPECTOR 6 BƯỚC)
+  // ----------------------------------------------------
+  const runExamScanEngine = async (fileToScan?: File | null, titleText?: string, rawText?: string) => {
+    setIsScanningExam(true);
+    setScannerStep(1);
+    setScannerReport(null);
+    setScannerQuestions([]);
+    setScannerAnswerMap({});
+    setScannerDuplicateCheck(null);
+    setScannerEditMeta(false);
+
+    const t2 = setTimeout(() => setScannerStep(2), 260);
+    const t3 = setTimeout(() => setScannerStep(3), 580);
+    const t4 = setTimeout(() => setScannerStep(4), 920);
+
+    try {
+      let report: ClientInspectionReport;
+      if (fileToScan) {
+        report = await inspectDocumentClient(fileToScan);
+      } else {
+        const cleanRaw = (rawText ?? scannerRawTextInput).trim();
+        const cleanTitle = (titleText ?? scannerTitleInput).trim() || 'De_Thi_Quet_Truc_Tiep.txt';
+        if (cleanRaw.length < 15) {
+          showError('Vui lòng dán ít nhất 1 câu hỏi hoặc đoạn nội dung đề thi để quét!', 'Máy Quét Đề');
+          clearTimeout(t2);
+          clearTimeout(t3);
+          clearTimeout(t4);
+          setIsScanningExam(false);
+          setScannerStep(0);
+          return;
+        }
+        report = await inspectTextSnippetClient(cleanTitle, cleanRaw);
+      }
+
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      setScannerStep(5);
+
+      // Bóc tách danh sách câu hỏi & đáp án trực tiếp
+      const sourceTextForQuestions =
+        !fileToScan && (rawText ?? scannerRawTextInput).trim()
+          ? (rawText ?? scannerRawTextInput)
+          : report.rawTextSnippet || '';
+      const extracted = extractQuestionsPreviewClient(sourceTextForQuestions, 60);
+      setScannerQuestions(extracted.questions);
+      setScannerAnswerMap(extracted.answerMap);
+
+      // Bước 6: Kiểm tra trùng lặp SHA-256 trên Kho Đề Vô Hạn
+      setScannerStep(6);
+      if (report.fileHash) {
+        try {
+          const dup = await checkHashExistsTurso(report.fileHash);
+          setScannerDuplicateCheck({
+            checked: true,
+            exists: dup.exists,
+            existingTitle: dup.existingDoc?.title,
+            existingAuthor: dup.existingDoc?.author_name,
+            existingId: dup.existingDoc?.id,
+          });
+        } catch {
+          setScannerDuplicateCheck({ checked: true, exists: false });
+        }
+      }
+
+      setScannerReport(report);
+      showSuccess(
+        `Đã quét & thẩm định xong: ${report.shortLabel || report.detectedSubjectVi} (${report.questionCount} câu hỏi)!`,
+        'Máy Quét Đề'
+      );
+    } catch (err: any) {
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      showError(err?.message || 'Không thể phân tích tệp đề thi này.', 'Máy Quét Đề');
+    } finally {
+      setIsScanningExam(false);
+    }
+  };
+
+  const handleScannerFileSelect = async (file: File) => {
+    const ext = '.' + (file.name.split('.').pop()?.toLowerCase() || '');
+    if (!['.pdf', '.docx', '.doc', '.txt'].includes(ext)) {
+      showError(
+        `Định dạng ${ext} không hỗ trợ. Máy quét đề hỗ trợ .pdf, .docx, .doc, .txt`,
+        'Máy Quét Đề'
+      );
+      return;
+    }
+    setScannerFile(file);
+    setScanMode('file');
+    await runExamScanEngine(file);
+  };
+
+  const handleUpdateScannerMeta = (patch: {
+    detectedSubject?: string;
+    detectedSubjectVi?: string;
+    estimatedLevel?: string;
+    examType?: string;
+    examTypeVi?: string;
+    schoolOrDepartment?: string;
+    academicYear?: string;
+  }) => {
+    if (!scannerReport) return;
+    const nextReport: ClientInspectionReport = {
+      ...scannerReport,
+      ...patch,
+    };
+    const rebuilt = buildClientExamDescription({
+      subject: nextReport.detectedSubject,
+      subjectVi: nextReport.detectedSubjectVi,
+      estimatedLevel: nextReport.estimatedLevel,
+      examType: nextReport.examType,
+      examTypeVi: nextReport.examTypeVi,
+      fileName: nextReport.fileName,
+      rawText: nextReport.rawTextSnippet,
+      schoolOrDepartment: nextReport.schoolOrDepartment,
+      academicYear: nextReport.academicYear,
+      questionCount: nextReport.questionCount,
+      moet2025Compliant: nextReport.moet2025Compliant,
+      hasAnswerKeys: nextReport.hasAnswerKeys,
+      hasDetailedSolutions: nextReport.hasDetailedSolutions,
+    });
+    nextReport.shortLabel = rebuilt.shortLabel;
+    nextReport.examDescription = rebuilt.examDescription;
+    nextReport.summary = rebuilt.examDescription;
+    setScannerReport(nextReport);
+  };
+
+  const handlePushScannedExamToVault = async () => {
+    if (!scannerReport) return;
+    if (!user) {
+      onOpenAuthModal();
+      showError('Vui lòng kết nối Discord để đẩy đề vừa quét vào Kho Đề Vô Hạn!', 'Kho Đề Vô Hạn');
+      return;
+    }
+    setIsPushingScannedExam(true);
+    try {
+      let targetFile = scannerFile;
+      if (!targetFile) {
+        const cleanTitle = (scannerTitleInput || scannerReport.fileName || 'De_Thi_Quet.txt').trim();
+        const safeName = /\.(pdf|docx|doc|txt)$/i.test(cleanTitle) ? cleanTitle : `${cleanTitle}.txt`;
+        targetFile = new File([scannerRawTextInput || scannerReport.rawTextSnippet], safeName, {
+          type: 'text/plain;charset=utf-8',
+        });
+      }
+      const res = await uploadSingleFile(targetFile, scannerReport);
+      showSuccess(
+        `Đã đẩy đề "${res.title || targetFile.name}" thẳng vào Kho Đề Vô Hạn Discord (#1556682296235393034)!`,
+        'Kho Đề Vô Hạn'
+      );
+      if (onUploadSuccess) onUploadSuccess();
+    } catch (err: any) {
+      showError(err?.message || 'Không thể đẩy đề vào Kho Đề Vô Hạn.', 'Kho Đề Vô Hạn');
+    } finally {
+      setIsPushingScannedExam(false);
+    }
+  };
+
+  const handleCopyScannerDossier = () => {
+    if (!scannerReport) return;
+    const lines = [
+      `📋 HỒ SƠ THẨM ĐỊNH & QUÉT ĐỀ THI (ORBIT DOCINSPECTOR)`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `• Tên đề / Tệp: ${scannerReport.fileName}`,
+      `• Nhãn chuẩn: ${scannerReport.shortLabel}`,
+      `• Môn học: ${scannerReport.detectedSubjectVi} (${scannerReport.detectedSubject})`,
+      `• Khối lớp: ${scannerReport.estimatedLevel} (${scannerReport.educationalLevelVi})`,
+      `• Phân ban / Kỳ thi: ${scannerReport.examTypeVi || scannerReport.examType}`,
+      `• Trường / Sở GD&ĐT: ${scannerReport.schoolOrDepartment || 'Chưa ghi rõ'}`,
+      `• Năm học: ${scannerReport.academicYear || 'Chưa ghi rõ'}`,
+      `• Cấu trúc: ${scannerReport.questionCount} câu hỏi | ${scannerReport.pageCount} trang`,
+      `• Chuẩn Bộ GD&ĐT 2025: ${scannerReport.moet2025Compliant ? 'ĐẠT CHUẨN 2025' : 'Đề tiêu chuẩn'} (Phần I: ${scannerReport.moetPart1Count} câu | Phần II Đúng/Sai: ${scannerReport.moetPart2Count} câu | Phần III Trả lời ngắn: ${scannerReport.moetPart3Count} câu)`,
+      `• Đáp án & Lời giải: ${scannerReport.hasDetailedSolutions ? 'Có bảng đáp án + lời giải chi tiết' : scannerReport.hasAnswerKeys ? 'Có bảng đáp án' : 'Chưa kèm bảng đáp án cuối đề'}`,
+      `• Mã băm toàn vẹn SHA-256: ${scannerReport.fileHash}`,
+      `• Mô tả tổng hợp: ${scannerReport.examDescription}`,
+    ];
+    navigator.clipboard.writeText(lines.join('\n'));
+    showSuccess('Đã sao chép Hồ sơ Thẩm định Đề thi vào bộ nhớ tạm!', 'Máy Quét Đề');
+  };
+
   const successCount = fileQueue.filter((f) => f.status === 'success').length;
   const duplicateCount = fileQueue.filter((f) => f.status === 'duplicate').length;
   const errorCount = fileQueue.filter((f) => f.status === 'error').length;
@@ -972,9 +1179,9 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header Giới Thiệu Nộp Hàng Loạt & 5 Lớp Bảo Mật */}
+      {/* Header Giới Thiệu Nộp Hàng Loạt, Máy Quét Đề & Khiên Bảo Mật 7 Lớp + Kho Vô Hạn Discord */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900/95 via-blue-950/40 to-slate-950/95 border border-blue-500/20 backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
@@ -982,23 +1189,37 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                  Đóng Góp Đề Thi & Tài Liệu Học Tập
+                  Trung Tâm Nạp, Nâng Cấp &amp; Quét Thẩm Định Đề Thi
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <Lock className="w-3 h-3 text-emerald-400" />
-                  Kiểm duyệt an toàn
+                  Khiên Bảo Mật 7 Lớp
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-200 border border-purple-500/30">
+                  Kho Vô Hạn Discord #1556682296235393034 (∞)
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-300 mt-1">
-                Tải lên đề thi qua tệp trực tiếp (PDF, Word) hoặc liên kết Google Drive để chia sẻ cùng cộng đồng.
+                Tải lên đề thi dung lượng lớn (PDF, Word), nạp từ Google Drive hoặc dùng <strong>Máy Quét Đề (DocInspector)</strong> để bóc tách câu hỏi, kiểm tra chuẩn Bộ GD&amp;ĐT 2025 và phân loại tự động trước khi lưu trữ.
               </p>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('exam_scanner')}
+              className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-200 text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5 text-amber-400" />
+              <span>Mở Máy Quét Đề Ngay</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* THANH CHUYỂN TAB: TẢI TỆP TRỰC TIẾP | LINK GOOGLE DRIVE */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl">
+      {/* THANH CHUYỂN TAB: TẢI TỆP TRỰC TIẾP | LINK GOOGLE DRIVE | MÁY QUÉT & THẨM ĐỊNH ĐỀ */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black/50 border border-white/10 w-fit backdrop-blur-xl">
         <button
           type="button"
           onClick={() => setActiveTab('file_upload')}
@@ -1009,7 +1230,7 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
           }`}
         >
           <Folder className="w-4 h-4 text-purple-400" />
-          <span>Tải Tệp Trực Tiếp (PDF/Word)</span>
+          <span>Tải Tệp Trực Tiếp (PDF/Word · ∞ Vô hạn)</span>
         </button>
 
         <button
@@ -1023,6 +1244,19 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
         >
           <Link2 className="w-4 h-4 text-cyan-400" />
           <span>Nộp Link Google Drive</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('exam_scanner')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
+            activeTab === 'exam_scanner'
+              ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-slate-950 shadow-lg shadow-amber-900/30 scale-[1.02]'
+              : 'text-amber-300/90 hover:text-white hover:bg-amber-500/10'
+          }`}
+        >
+          <Sparkles className={`w-4 h-4 ${activeTab === 'exam_scanner' ? 'text-slate-950' : 'text-amber-400'}`} />
+          <span>🔍 Máy Quét &amp; Thẩm Định Đề (DocInspector)</span>
         </button>
       </div>
 
@@ -2374,6 +2608,585 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     </div>
                   );
                   })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* NỘI DUNG TAB 3: MÁY QUÉT & THẨM ĐỊNH ĐỀ THI (DOCINSPECTOR 6 BƯỚC)          */}
+      {/* ========================================================================= */}
+      {activeTab === 'exam_scanner' && (
+        <div className="space-y-6">
+          {/* Thanh chọn chế độ Quét: Quét Tệp (PDF/Word/TXT) hoặc Dán Văn Bản Trực Tiếp */}
+          <div className="rounded-3xl bg-slate-950/80 border border-amber-500/25 p-5 sm:p-7 backdrop-blur-xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-base sm:text-lg font-extrabold text-white">
+                    Máy Quét &amp; Thẩm Định Đề Thi Chuyên Sâu (Orbit DocInspector)
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-200 border border-amber-500/30">
+                    6 Bước Kiểm Chứng + Bóc Tách Câu Hỏi
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">
+                  Quét thử bất kỳ tệp đề thi (`.pdf`, `.docx`, `.doc`, `.txt`) hoặc dán trực tiếp nội dung câu hỏi để kiểm tra phân loại Môn/Khối/Cấp độ, chuẩn Bộ GD&amp;ĐT 2025, bóc tách câu hỏi &amp; đáp án và đối chiếu trùng lặp SHA-256.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 p-1 rounded-xl bg-black/60 border border-white/10 shrink-0 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setScanMode('file')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    scanMode === 'file'
+                      ? 'bg-amber-500 text-slate-950 shadow'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  📄 Quét Tệp Đề Thi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScanMode('text')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    scanMode === 'text'
+                      ? 'bg-amber-500 text-slate-950 shadow'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  📝 Dán Văn Bản / Câu Hỏi
+                </button>
+              </div>
+            </div>
+
+            {scanMode === 'file' ? (
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleScannerFileSelect(e.dataTransfer.files[0]);
+                  }
+                }}
+                onClick={() => scannerFileInputRef.current?.click()}
+                className="p-8 rounded-2xl border-2 border-dashed border-amber-500/35 hover:border-amber-400 bg-amber-950/10 hover:bg-amber-950/20 transition-all cursor-pointer text-center space-y-3"
+              >
+                <input
+                  ref={scannerFileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleScannerFileSelect(e.target.files[0]);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 mx-auto">
+                  {isScanningExam ? (
+                    <Loader2 className="w-7 h-7 animate-spin" />
+                  ) : (
+                    <Search className="w-7 h-7" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-sm sm:text-base font-extrabold text-white">
+                    {scannerFile
+                      ? `Đang chọn tệp: ${scannerFile.name} (${formatFileSize(scannerFile.size)})`
+                      : 'Kéo thả tệp đề thi vào đây hoặc bấm để chọn tệp cần quét'}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Hỗ trợ PDF, Word (.docx, .doc), Text (.txt) • Giải nén &amp; bóc tách câu hỏi trực tiếp ngay trên trình duyệt
+                  </p>
+                </div>
+                {scannerFile && !isScanningExam && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        runExamScanEngine(scannerFile);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Quét Lại Tệp Này</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
+                    Tiêu đề đề thi (Tùy chọn - giúp đối chiếu chéo với nội dung)
+                  </label>
+                  <input
+                    type="text"
+                    value={scannerTitleInput}
+                    onChange={(e) => setScannerTitleInput(e.target.value)}
+                    placeholder="VD: Đề thi thử Tốt nghiệp THPT 2025 môn Toán - Sở GD&ĐT Hà Nội"
+                    className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/10 focus:border-amber-400 focus:outline-none text-xs sm:text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                      Nội dung đề thi / Danh sách câu hỏi &amp; đáp án
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScannerTitleInput(
+                          'Đề thi thử Tốt nghiệp THPT 2025 môn Toán - Sở GD&ĐT Hà Nội'
+                        );
+                        setScannerRawTextInput(
+                          `SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI\nKỲ THI TỐT NGHIỆP TRUNG HỌC PHỔ THÔNG NĂM HỌC 2024 - 2025\nMôn thi: TOÁN - Khối 12 (Thời gian làm bài: 90 phút)\n\nPHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn (12 câu).\nCâu 1. Cho hàm số y = f(x) có đạo hàm f'(x) = x^2 - 4. Hàm số đã cho nghịch biến trên khoảng nào dưới đây?\nA. (-2; 2)\nB. (2; +∞)\nC. (-∞; -2)\nD. (0; 4)\n\nCâu 2. Trong không gian Oxyz, mặt phẳng (P): 2x - y + 3z - 6 = 0 có một vectơ pháp tuyến là:\nA. n = (2; -1; 3)\nB. n = (2; 1; 3)\nC. n = (-2; -1; 3)\nD. n = (2; -1; -6)\n\nPHẦN II. Câu trắc nghiệm đúng sai.\nCâu 3. Cho hàm số f(x) = 2sin(x) - x trên đoạn [0; pi].\na) f(0) = 0.\nb) Đạo hàm của hàm số là f'(x) = 2cos(x) - 1.\nc) Nghiệm của f'(x) = 0 trên đoạn [0; pi] là x = pi/3.\nd) Giá trị lớn nhất của f(x) trên đoạn [0; pi] bằng sqrt(3) - pi/3.\n\nPHẦN III. Câu trắc nghiệm trả lời ngắn.\nCâu 4. Một vật chuyển động với vận tốc v(t) = 3t^2 + 2t (m/s). Tính quãng đường vật đi được trong 3 giây đầu (đơn vị: mét).\nĐáp số: 36\n\nBẢNG ĐÁP ÁN VÀ HƯỚNG DẪN GIẢI CHI TIẾT:\n1.A  2.A  3.Đ-Đ-Đ-Đ  4.36`
+                        );
+                      }}
+                      className="text-[11px] font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer"
+                    >
+                      Nạp đề mẫu Chuẩn 2025 để thử máy quét
+                    </button>
+                  </div>
+                  <textarea
+                    rows={8}
+                    value={scannerRawTextInput}
+                    onChange={(e) => setScannerRawTextInput(e.target.value)}
+                    placeholder="Dán nội dung đề thi (Câu 1, Câu 2, Phần I, Phần II, Phần III, Bảng đáp án...) vào đây để máy quét bóc tách tự động..."
+                    className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/10 focus:border-amber-400 focus:outline-none text-xs sm:text-sm text-white font-mono leading-relaxed"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  {scannerRawTextInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScannerTitleInput('');
+                        setScannerRawTextInput('');
+                        setScannerReport(null);
+                        setScannerQuestions([]);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                    >
+                      Xóa trắng
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isScanningExam || !scannerRawTextInput.trim()}
+                    onClick={() => runExamScanEngine(null, scannerTitleInput, scannerRawTextInput)}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-950/40 cursor-pointer disabled:opacity-40"
+                  >
+                    {isScanningExam ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang Quét &amp; Bóc Tách Đề...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        <span>Quét &amp; Thẩm Định Đề Ngay</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Thanh tiến trình 6 Bước Quét Đề */}
+            {(isScanningExam || scannerStep > 0) && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
+                {[
+                  { step: 1, title: 'Magic-Byte & SHA-256', desc: 'Kiểm tra chữ ký tệp & mã băm' },
+                  { step: 2, title: 'Giải Nén Văn Bản', desc: 'PDF Stream / DOCX XML Native' },
+                  { step: 3, title: 'Phân Loại Học Thuật', desc: 'Môn, Khối 6→12 & Phân ban' },
+                  { step: 4, title: 'Chuẩn Bộ GD&ĐT 2025', desc: 'Phần I, II (Đ/S), III & Đáp án' },
+                  { step: 5, title: 'Bóc Tách Câu Hỏi', desc: 'Tách từng câu & phương án' },
+                  { step: 6, title: 'Đối Chiếu Kho Vô Hạn', desc: 'Kiểm tra trùng lặp #1556682296235393034' },
+                ].map((st) => {
+                  const done = scannerStep >= st.step;
+                  return (
+                    <div
+                      key={st.step}
+                      className={`p-3 rounded-2xl border transition-all ${
+                        done
+                          ? 'bg-amber-500/15 border-amber-400/50 text-white'
+                          : 'bg-white/[0.02] border-white/5 text-slate-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-black uppercase text-amber-300">
+                          Bước {st.step}
+                        </span>
+                        {done ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Clock className="w-3.5 h-3.5 text-slate-600" />
+                        )}
+                      </div>
+                      <div className="text-xs font-bold">{st.title}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{st.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* KẾT QUẢ HỒ SƠ THẨM ĐỊNH & BÓC TÁCH CÂU HỎI */}
+          {scannerReport && (
+            <div className="rounded-3xl bg-slate-950/90 border border-emerald-500/35 p-5 sm:p-7 space-y-6 shadow-2xl">
+              {/* Header Kết quả Quét */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Độ tin cậy: {Math.round(scannerReport.confidenceScore * 100)}%</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-200 border border-amber-500/40 text-xs font-extrabold">
+                      🏷️ {scannerReport.shortLabel}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-200 border border-purple-500/40 text-xs font-bold">
+                      {scannerReport.educationalLevelVi}
+                    </span>
+                    {scannerReport.moet2025Compliant && (
+                      <span className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-xs font-bold">
+                        ✨ Chuẩn Cấu Trúc Bộ GD&amp;ĐT 2025
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-base sm:text-lg font-extrabold text-white pt-1">
+                    {scannerReport.fileName}
+                  </h4>
+                  <p className="text-xs sm:text-sm text-emerald-300 font-medium">
+                    {scannerReport.examDescription}
+                  </p>
+                </div>
+
+                {/* Các nút hành động 1-Click sau khi quét */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setScannerEditMeta((v) => !v)}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{scannerEditMeta ? 'Đóng chỉnh sửa nhãn' : 'Chỉnh sửa nhãn'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyScannerDossier}
+                    className="px-3.5 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Sao chép Hồ sơ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isPushingScannedExam || Boolean(scannerDuplicateCheck?.exists)}
+                    onClick={handlePushScannedExamToVault}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-emerald-950/50 cursor-pointer disabled:opacity-40"
+                  >
+                    {isPushingScannedExam ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang đẩy vào Kho Vô Hạn...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-4 h-4" />
+                        <span>Đẩy Vào Kho Đề Vô Hạn (#1556682296235393034)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Khung chỉnh sửa nhanh nhãn phân loại nếu người dùng muốn tinh chỉnh trước khi đẩy */}
+              {scannerEditMeta && (
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/30 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Môn học</label>
+                    <select
+                      value={scannerReport.detectedSubject}
+                      onChange={(e) => {
+                        const found = SUBJECT_SELECT_OPTIONS.find((s) => s.value === e.target.value);
+                        handleUpdateScannerMeta({
+                          detectedSubject: e.target.value,
+                          detectedSubjectVi: found?.label || e.target.value,
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-black/70 border border-white/15 text-xs text-white"
+                    >
+                      {SUBJECT_SELECT_OPTIONS.map((s) => (
+                        <option key={s.value} value={s.value} className="bg-slate-950">
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Khối lớp</label>
+                    <select
+                      value={scannerReport.estimatedLevel}
+                      onChange={(e) => handleUpdateScannerMeta({ estimatedLevel: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-black/70 border border-white/15 text-xs text-white"
+                    >
+                      {GRADE_SELECT_OPTIONS.map((g) => (
+                        <option key={g} value={g} className="bg-slate-950">
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Cấp độ / Phân ban</label>
+                    <select
+                      value={scannerReport.examType}
+                      onChange={(e) => {
+                        const found = EXAM_TYPE_SELECT_OPTIONS.find((t) => t.value === e.target.value);
+                        handleUpdateScannerMeta({
+                          examType: e.target.value,
+                          examTypeVi: found?.label || e.target.value,
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-black/70 border border-white/15 text-xs text-white"
+                    >
+                      {EXAM_TYPE_SELECT_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value} className="bg-slate-950">
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Trường / Sở GD&amp;ĐT</label>
+                    <input
+                      type="text"
+                      value={scannerReport.schoolOrDepartment || ''}
+                      onChange={(e) => handleUpdateScannerMeta({ schoolOrDepartment: e.target.value })}
+                      placeholder="VD: Sở GD&ĐT Hà Nội"
+                      className="w-full px-3 py-2 rounded-xl bg-black/70 border border-white/15 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Năm học</label>
+                    <input
+                      type="text"
+                      value={scannerReport.academicYear || ''}
+                      onChange={(e) => handleUpdateScannerMeta({ academicYear: e.target.value })}
+                      placeholder="VD: 2024 - 2025"
+                      className="w-full px-3 py-2 rounded-xl bg-black/70 border border-white/15 text-xs text-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Trạng thái kiểm tra trùng lặp SHA-256 trên Kho Đề Vô Hạn */}
+              {scannerDuplicateCheck && (
+                <div
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+                    scannerDuplicateCheck.exists
+                      ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+                      : 'bg-emerald-950/25 border-emerald-500/30 text-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {scannerDuplicateCheck.exists ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    )}
+                    <span>
+                      {scannerDuplicateCheck.exists ? (
+                        <>
+                          <strong>Phát hiện trùng lặp SHA-256:</strong> Đề thi này đã có trong Kho Đề Vô Hạn với tên{' '}
+                          <span className="underline">{scannerDuplicateCheck.existingTitle}</span> (nộp bởi{' '}
+                          {scannerDuplicateCheck.existingAuthor || 'thành viên Orbit'}).
+                        </>
+                      ) : (
+                        <>
+                          <strong>Đề thi độc bản (Chưa trùng lặp):</strong> Mã băm SHA-256{' '}
+                          <code className="text-emerald-300">{scannerReport.fileHash.slice(0, 16)}...</code> chưa từng xuất hiện trong Kho Đề Vô Hạn #1556682296235393034.
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-black/40 border border-white/10 shrink-0">
+                    SHA-256 Verified
+                  </span>
+                </div>
+              )}
+
+              {/* Lưới 8 Chỉ số Học thuật & Cấu trúc Chuẩn 2025 */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Môn học nhận diện</div>
+                  <div className="text-sm font-extrabold text-purple-300 mt-0.5">
+                    {scannerReport.detectedSubjectVi} ({scannerReport.detectedSubject})
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Khối lớp &amp; Cấp học</div>
+                  <div className="text-sm font-extrabold text-blue-300 mt-0.5">
+                    {scannerReport.estimatedLevel}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Phân ban / Kỳ thi</div>
+                  <div className="text-sm font-extrabold text-amber-300 mt-0.5">
+                    {scannerReport.examTypeVi || scannerReport.examType}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Trường / Sở GD&amp;ĐT</div>
+                  <div className="text-sm font-extrabold text-cyan-300 mt-0.5 truncate">
+                    {scannerReport.schoolOrDepartment || 'Đề tổng hợp chung'}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Tổng số câu hỏi &amp; Trang</div>
+                  <div className="text-sm font-extrabold text-white mt-0.5">
+                    {scannerReport.questionCount} câu • {scannerReport.pageCount} trang
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Phần I (Trắc nghiệm ABCD)</div>
+                  <div className="text-sm font-extrabold text-emerald-300 mt-0.5">
+                    {scannerReport.moetPart1Count} câu hỏi
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Phần II (Đúng/Sai a,b,c,d)</div>
+                  <div className="text-sm font-extrabold text-teal-300 mt-0.5">
+                    {scannerReport.moetPart2Count} câu hỏi
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10">
+                  <div className="text-[11px] text-slate-400">Phần III (Trả lời ngắn) &amp; Đáp án</div>
+                  <div className="text-sm font-extrabold text-pink-300 mt-0.5">
+                    {scannerReport.moetPart3Count} câu •{' '}
+                    {scannerReport.hasDetailedSolutions
+                      ? 'Có lời giải'
+                      : scannerReport.hasAnswerKeys
+                      ? 'Có đáp án'
+                      : 'Chưa kèm ĐA'}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Bước Kiểm Chứng Đa Tầng & Cảnh Báo Bẫy Ngữ Cảnh */}
+              {scannerReport.verificationSteps && scannerReport.verificationSteps.length > 0 && (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-amber-400" />
+                    <span>Biên Bản Kiểm Chứng 4 Bước &amp; Giải Bẫy Ngữ Cảnh</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {scannerReport.verificationSteps.map((vs) => (
+                      <div
+                        key={vs.stepNumber}
+                        className={`p-3 rounded-2xl border text-xs ${
+                          vs.status === 'passed'
+                            ? 'bg-emerald-950/15 border-emerald-500/30 text-slate-200'
+                            : 'bg-amber-950/20 border-amber-500/40 text-amber-200'
+                        }`}
+                      >
+                        <div className="font-bold flex items-center justify-between">
+                          <span>
+                            Bước {vs.stepNumber}: {vs.title}
+                          </span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded uppercase font-extrabold ${
+                              vs.status === 'passed'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {vs.status === 'passed' ? 'Đạt chuẩn' : 'Cần lưu ý'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-300 mt-1">{vs.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Danh sách Câu hỏi & Đáp án bóc tách trực tiếp từ đề */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-400" />
+                    <span>
+                      Danh Sách Câu Hỏi &amp; Phương Án Bóc Tách Trực Tiếp ({scannerQuestions.length} câu hiển thị)
+                    </span>
+                  </div>
+                  {Object.keys(scannerAnswerMap).length > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
+                      Đã khớp tự động {Object.keys(scannerAnswerMap).length} đáp án từ bảng đáp án
+                    </span>
+                  )}
+                </div>
+
+                {scannerQuestions.length === 0 ? (
+                  <div className="p-4 rounded-2xl bg-black/50 border border-white/10 text-xs text-slate-300 space-y-2">
+                    <div className="font-bold text-slate-200">
+                      Trích đoạn văn bản thô bóc tách từ tệp ({scannerReport.rawTextSnippet.length} ký tự):
+                    </div>
+                    <pre className="whitespace-pre-wrap font-mono text-[11px] text-slate-400 max-h-48 overflow-y-auto">
+                      {scannerReport.rawTextSnippet || 'Không có văn bản dạng text hoặc tệp là bản scan ảnh.'}
+                    </pre>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[460px] overflow-y-auto pr-1">
+                    {scannerQuestions.map((q, qIdx) => (
+                      <div
+                        key={`${q.number}-${qIdx}`}
+                        className="p-3.5 rounded-2xl bg-black/55 border border-white/10 hover:border-amber-500/35 transition space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold">
+                              {q.label}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-400">
+                              {q.partLabel}
+                            </span>
+                          </div>
+                          {q.answer && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-extrabold">
+                              Đáp án: {q.answer}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-200 leading-relaxed">{q.stem}</p>
+                        {q.options.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                            {q.options.map((opt, oIdx) => (
+                              <div
+                                key={oIdx}
+                                className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[11px] text-slate-300 truncate"
+                                title={opt}
+                              >
+                                {opt}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

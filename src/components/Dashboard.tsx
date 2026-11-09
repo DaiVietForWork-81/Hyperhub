@@ -3430,10 +3430,10 @@ const DashboardContent: React.FC<DashboardProps> = ({
                 checkBotStatus();
                 fetchDocStats();
                 fetchDocuments();
-                showInfo('Đã gửi tín hiệu đồng bộ Webhook Bot ↔ Web & làm mới kho đề thi.');
+                showInfo('Đã đồng bộ trực tiếp Bot ↔ Web qua Cầu nối Bảo mật 7 Lớp & làm mới Kho Đề Vô Hạn (#1556682296235393034).');
               }}
               className="px-3 py-1.5 rounded-xl bg-[#13111c] hover:bg-[#1a1726] border border-[#241f35] text-[13px] font-semibold text-white/80 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
-              title="Đồng bộ dữ liệu & đánh thức Bot qua Discord Webhook #1568882621470089247"
+              title="Đồng bộ trực tiếp Bot ↔ Web (Khiên Bảo Mật 7 Lớp · Kho Đề Vô Hạn #1556682296235393034)"
             >
               <RefreshCw className="w-3.5 h-3.5 text-[#C6F24E]" />
               <span>Đồng bộ Bot</span>

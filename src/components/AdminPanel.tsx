@@ -54,6 +54,12 @@ import {
 } from '../utils/apiConfig';
 import { getDiscordAccessToken, getStoredDiscordUser } from '../utils/discordAuth';
 import { getTursoStorageUsage, TursoStorageStats } from '../utils/tursoClient';
+import {
+  inspectTextSnippetClient,
+  extractQuestionsPreviewClient,
+  ExtractedQuestionItem,
+  ClientInspectionReport,
+} from '../utils/clientDocInspector';
 
 interface BannedUser {
   user_id: string;
@@ -378,6 +384,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
   const [testingUrl, setTestingUrl] = useState<boolean>(false);
   const [reloadingBot, setReloadingBot] = useState<boolean>(false);
 
+  // ================= 5B. SYSTEM UPGRADE (3-REPO OTA SYNC) & EXAM SCANNER STATE =================
+  const [updateStatus, setUpdateStatus] = useState<{
+    local_hash?: string;
+    remote_hash?: string;
+    has_update?: boolean;
+    github_api_online?: boolean;
+    commits?: string[];
+    checked_at?: string;
+    message?: string;
+    repos?: Array<{
+      id: string;
+      label: string;
+      slug: string;
+      url: string;
+      online: boolean;
+      hash: string;
+      message: string;
+      committed_at?: string;
+    }>;
+  } | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [applyingUpdate, setApplyingUpdate] = useState<boolean>(false);
+
+  const [scanningDocId, setScanningDocId] = useState<number | null>(null);
+  const [bulkScanningDocs, setBulkScanningDocs] = useState<boolean>(false);
+  const [scannedDocModal, setScannedDocModal] = useState<{
+    doc: AdminExamDocument;
+    report: ClientInspectionReport;
+    questions: ExtractedQuestionItem[];
+    answerMap: Record<number, string>;
+  } | null>(null);
+  const [applyingScannedDoc, setApplyingScannedDoc] = useState<boolean>(false);
+
   // ================= 6. LOGS & AUDIT STATE =================
   const [logSubView, setLogSubView] = useState<'console' | 'audit'>('console');
   const [logLines, setLogLines] = useState<string[]>([]);
@@ -555,9 +594,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
     try {
       const apiBase = getApiBaseUrl();
       const suffix = forceLive ? '?live=1' : '';
-      const [cfgRes, stRes] = await Promise.allSettled([
+      const [cfgRes, stRes, updRes] = await Promise.allSettled([
         fetch(`${apiBase}/api/admin/config${suffix}`, { headers: getAuthHeaders() }),
         fetch(`${apiBase}/api/status`, { headers: API_FETCH_HEADERS }),
+        fetch(`${apiBase}/api/system/update_status${suffix}`, { headers: getAuthHeaders() }),
       ]);
       if (cfgRes.status === 'fulfilled' && cfgRes.value.ok) {
         setConfigData(await cfgRes.value.json());
@@ -566,6 +606,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
         const stData = await stRes.value.json();
         setBotBridgeStatus(stData);
         setBotOnline(stData.bridge_mode !== 'vercel_cloud_standby');
+      }
+      if (updRes.status === 'fulfilled' && updRes.value.ok) {
+        const updData = await updRes.value.json();
+        if (updData) setUpdateStatus(updData);
       }
     } catch {
       /* ignore */
@@ -656,6 +700,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           }
           if (data.config_data) {
             setConfigData(data.config_data);
+          }
+          if (data.update_status) {
+            setUpdateStatus(data.update_status);
           }
           bootstrappedGuildRef.current = guildId;
           return;
@@ -1308,6 +1355,215 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
       showFeedback('success', `Đã lưu cấu hình địa chỉ API: ${clean || 'Mặc định'}`);
     } finally {
       setTestingUrl(false);
+    }
+  };
+
+  // ================= SYSTEM UPGRADE (3-REPO OTA SYNC) & EXAM SCANNER ACTIONS =================
+  const handleCheckSystemUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/check_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setUpdateStatus(data);
+        showFeedback(
+          'success',
+          data.message || 'Đã kiểm tra trạng thái phiên bản trên cả 3 kho GitHub (hyproject, Hyperhub, hyperhub-bot)!'
+        );
+      } else {
+        showFeedback('error', data.error || 'Không thể kiểm tra bản cập nhật');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi kiểm tra bản cập nhật hệ thống');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleApplySystemUpgrade = async () => {
+    setApplyingUpdate(true);
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/system/apply_update`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback(
+          'success',
+          data.message ||
+            'Đã kích hoạt nâng cấp OTA & đồng bộ cả 3 repo (hyproject, Hyperhub, hyperhub-bot) qua Cầu nối Bảo mật 7 Lớp!'
+        );
+        await handleCheckSystemUpdate();
+        fetchConfig(true);
+      } else {
+        showFeedback('error', data.error || 'Không thể kích hoạt nâng cấp hệ thống');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi kích hoạt nâng cấp OTA');
+    } finally {
+      setApplyingUpdate(false);
+    }
+  };
+
+  const mapExamTypeToTrack = (examType: string): string => {
+    if (/QUOC_TE|SAT|IELTS|OLYMPIAD/i.test(examType)) return 'Quốc tế';
+    if (/CHUYEN/i.test(examType)) return 'Chuyên';
+    if (/HSG/i.test(examType)) return 'HSG';
+    return 'Thường';
+  };
+
+  const handleScanSingleDoc = async (doc: AdminExamDocument) => {
+    setScanningDocId(doc.id);
+    try {
+      const apiBase = getApiBaseUrl();
+      let rawText = `${doc.title}\n${doc.notes || ''}\n${doc.school_or_department || ''}`;
+      try {
+        const res = await fetch(`${apiBase}/api/documents/${doc.id}/content`, {
+          headers: API_FETCH_HEADERS,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.raw_text && String(data.raw_text).trim().length > 20) {
+            rawText = String(data.raw_text);
+          }
+        }
+      } catch {
+        /* fallback sang tiêu đề + ghi chú */
+      }
+
+      const report = await inspectTextSnippetClient(doc.file_name || doc.title, rawText);
+      const extracted = extractQuestionsPreviewClient(rawText, 50);
+      setScannedDocModal({
+        doc,
+        report,
+        questions: extracted.questions,
+        answerMap: extracted.answerMap,
+      });
+      showFeedback(
+        'success',
+        `Đã quét xong đề #${doc.id}: ${report.shortLabel} (${report.questionCount} câu hỏi)!`
+      );
+    } catch {
+      showFeedback('error', `Không thể quét đề thi #${doc.id}`);
+    } finally {
+      setScanningDocId(null);
+    }
+  };
+
+  const handleApplyScannedDocReport = async () => {
+    if (!scannedDocModal) return;
+    setApplyingScannedDoc(true);
+    try {
+      const { doc, report } = scannedDocModal;
+      const track = mapExamTypeToTrack(report.examType);
+      const apiBase = getApiBaseUrl();
+      const payload = {
+        title: doc.title,
+        subject: report.detectedSubject || doc.subject,
+        estimated_level: report.estimatedLevel || doc.estimated_level,
+        exam_track: track,
+        academic_year: report.academicYear || doc.academic_year || '',
+        school_or_department: report.schoolOrDepartment || doc.school_or_department || '',
+        author_name: doc.author_name || '',
+        notes: report.examDescription || report.summary || doc.notes || '',
+      };
+      const res = await fetch(`${apiBase}/api/admin/documents/${doc.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDocs((prev) =>
+          prev.map((d) =>
+            d.id === doc.id
+              ? {
+                  ...d,
+                  subject: payload.subject,
+                  estimated_level: payload.estimated_level,
+                  exam_track: payload.exam_track,
+                  academic_year: payload.academic_year,
+                  school_or_department: payload.school_or_department,
+                  notes: payload.notes,
+                }
+              : d
+          )
+        );
+        showFeedback(
+          'success',
+          `Đã áp dụng kết quả quét & chuẩn hóa đề thi #${doc.id} (${report.shortLabel})!`
+        );
+        setScannedDocModal(null);
+        onRefreshParentDocs?.();
+      } else {
+        showFeedback('error', data.error || 'Không thể lưu kết quả quét đề');
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối khi áp dụng kết quả quét đề');
+    } finally {
+      setApplyingScannedDoc(false);
+    }
+  };
+
+  const handleBulkScanDocs = async () => {
+    const ids = Array.from(selectedDocIds);
+    if (ids.length === 0) {
+      showFeedback('error', 'Vui lòng tích chọn ít nhất 1 đề thi để quét & chuẩn hóa!');
+      return;
+    }
+    setBulkScanningDocs(true);
+    const apiBase = getApiBaseUrl();
+    let updatedCount = 0;
+    try {
+      for (const docId of ids.slice(0, 15)) {
+        const doc = docs.find((d) => d.id === docId);
+        if (!doc) continue;
+        let rawText = `${doc.title}\n${doc.notes || ''}\n${doc.school_or_department || ''}`;
+        try {
+          const cRes = await fetch(`${apiBase}/api/documents/${doc.id}/content`, {
+            headers: API_FETCH_HEADERS,
+          });
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            if (cData?.raw_text && String(cData.raw_text).trim().length > 20) {
+              rawText = String(cData.raw_text);
+            }
+          }
+        } catch {}
+        const report = await inspectTextSnippetClient(doc.file_name || doc.title, rawText);
+        const track = mapExamTypeToTrack(report.examType);
+        const pRes = await fetch(`${apiBase}/api/admin/documents/${doc.id}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            title: doc.title,
+            subject: report.detectedSubject || doc.subject,
+            estimated_level: report.estimatedLevel || doc.estimated_level,
+            exam_track: track,
+            academic_year: report.academicYear || doc.academic_year || '',
+            school_or_department: report.schoolOrDepartment || doc.school_or_department || '',
+            author_name: doc.author_name || '',
+            notes: report.examDescription || report.summary || doc.notes || '',
+          }),
+        });
+        if (pRes.ok) updatedCount++;
+      }
+      showFeedback(
+        'success',
+        `Đã quét & tự động chuẩn hóa xong ${updatedCount}/${Math.min(ids.length, 15)} đề thi đã chọn!`
+      );
+      await fetchDocs();
+      onRefreshParentDocs?.();
+    } catch {
+      showFeedback('error', 'Có lỗi xảy ra khi quét chuẩn hóa hàng loạt');
+    } finally {
+      setBulkScanningDocs(false);
     }
   };
 
@@ -2566,17 +2822,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
              ===================================================================== */}
           {activeTab === 'documents' && (
             <div className="space-y-4 hh-swap-panel">
-              {/* Turso Storage Telemetry Bar */}
+              {/* Infinite Discord Vault & Turso Storage Telemetry Bar */}
               {tursoStats && (
                 <div className="p-4 rounded-xl bg-[#110F18] ring-1 ring-[#1E1B2B] flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <div className="text-xs font-medium text-[#949494]">
-                      Dung lượng lưu trữ Turso Cloud (Hạn mức 5 GB)
+                    <div className="text-xs font-medium text-[#949494] flex items-center gap-2">
+                      <span>Kho Đề Vô Hạn Discord (#1556682296235393034) &amp; Chỉ Mục Turso Cloud</span>
+                      <span className="px-2 py-0.2 rounded bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D] text-[10px] font-bold">
+                        ∞ Vô hạn
+                      </span>
                     </div>
                     <div className="text-sm font-semibold text-white tabular-nums">
-                      Đã dùng {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / 5,120 MB (
-                      {tursoStats.usedPercent.toFixed(3)}%) · Còn trống{' '}
-                      {(Math.max(0, tursoStats.limitBytes - tursoStats.totalBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                      Tổng kho: {(tursoStats.totalBytes / (1024 * 1024)).toFixed(2)} MB / ∞ Vô hạn (Lưu trữ trực tiếp trên Discord CDN #1556682296235393034)
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -2788,6 +3045,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                     </select>
                     <button
                       type="button"
+                      disabled={submitting || bulkScanningDocs}
+                      onClick={handleBulkScanDocs}
+                      className="h-8 px-3 rounded-lg bg-[#281F12] hover:bg-[#382B19] text-[#FCD34D] ring-1 ring-[#45341B] text-xs font-semibold flex items-center gap-1 cursor-pointer tabular-nums"
+                      title="Quét tự động nội dung & chuẩn hóa nhãn phân loại cho các đề đang chọn"
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${bulkScanningDocs ? 'animate-spin' : ''}`} />
+                      <span>
+                        {bulkScanningDocs
+                          ? 'Đang quét đề...'
+                          : `Quét & Chuẩn Hóa (${selectedDocIds.size})`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
                       disabled={submitting}
                       onClick={() => handleBulkDocsAction('update')}
                       className="h-8 px-3 rounded-lg bg-[#3FC07A] hover:bg-[#4CD088] text-[#0B0911] text-xs font-semibold flex items-center gap-1 cursor-pointer tabular-nums"
@@ -2894,6 +3165,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
                             <ExternalLink className="w-3.5 h-3.5" />
                             <span>Xem PDF</span>
                           </a>
+                          <button
+                            type="button"
+                            disabled={scanningDocId === doc.id}
+                            onClick={() => handleScanSingleDoc(doc)}
+                            className="px-2.5 py-1.5 rounded-lg bg-[#281F12] hover:bg-[#382B19] text-[#FCD34D] ring-1 ring-[#45341B] text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                            title="Quét thẩm định nội dung, câu hỏi & chuẩn Bộ GD&ĐT 2025 của đề thi này"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${scanningDocId === doc.id ? 'animate-spin' : ''}`} />
+                            <span>{scanningDocId === doc.id ? 'Đang quét...' : 'Quét đề'}</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => openEditDocModal(doc)}
@@ -3271,10 +3552,129 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
           )}
 
           {/* =====================================================================
-              TAB 5: HỆ THỐNG, HOT-RELOAD COGS & CẤU HÌNH ĐÁM MÂY
+              TAB 5: HỆ THỐNG, NÂNG CẤP 3-REPO OTA, HOT-RELOAD COGS & CẤU HÌNH ĐÁM MÂY
              ===================================================================== */}
           {activeTab === 'config' && (
             <div className="space-y-5 hh-swap-panel">
+              {/* 🚀 TRUNG TÂM NÂNG CẤP HỆ THỐNG & ĐỒNG BỘ 3 REPO (SYSTEM UPGRADE & 3-REPO OTA SYNC) */}
+              <div className="bg-[#110F18] ring-1 ring-[#38BDF8]/40 rounded-xl p-5 space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#C6F24E]" />
+                      <h3 className="text-sm sm:text-base font-bold text-white">
+                        Trung Tâm Nâng Cấp Hệ Thống &amp; Đồng Bộ 3 Kho Mã Nguồn (OTA Upgrade Center)
+                      </h3>
+                      <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D] tabular-nums">
+                        Phiên bản: {updateStatus?.local_hash || 'main'}
+                      </span>
+                      <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded bg-[#142234] text-[#38BDF8] ring-1 ring-[#233B59] tabular-nums">
+                        3 Repos Connected
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#949494] mt-1">
+                      Quản lý phiên bản, kiểm tra commit mới nhất và kích hoạt nâng cấp đồng bộ trên cả 3 kho GitHub (Monorepo <code className="text-white">hyproject</code>, Web <code className="text-white">Hyperhub</code>, Bot <code className="text-white">hyperhub-bot</code>) cùng Vercel Production.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCheckSystemUpdate}
+                      disabled={checkingUpdate}
+                      className="h-9 px-3.5 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin text-[#C6F24E]' : ''}`} />
+                      <span>{checkingUpdate ? 'Đang kiểm tra 3 Repo...' : 'Kiểm tra Bản Cập Nhật'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplySystemUpgrade}
+                      disabled={applyingUpdate}
+                      className="h-9 px-4 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{applyingUpdate ? 'Đang nâng cấp OTA...' : 'Kích Hoạt Nâng Cấp OTA (3 Repo)'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lưới trạng thái 3 Kho GitHub (hyproject, Hyperhub, hyperhub-bot) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {(
+                    updateStatus?.repos || [
+                      {
+                        id: 'hyproject',
+                        label: 'Monorepo (Chung Web + Bot)',
+                        slug: 'DaiVietForWork-81/hyproject',
+                        url: 'https://github.com/DaiVietForWork-81/hyproject',
+                        online: true,
+                        hash: updateStatus?.local_hash || 'main',
+                        message: 'Đồng bộ hợp nhất Web + Discord Bot + 7 Lớp Bảo Mật',
+                      },
+                      {
+                        id: 'Hyperhub',
+                        label: 'Web Riêng (Vercel Production)',
+                        slug: 'DaiVietForWork-81/Hyperhub',
+                        url: 'https://github.com/DaiVietForWork-81/Hyperhub',
+                        online: true,
+                        hash: updateStatus?.local_hash || 'main',
+                        message: 'Triển khai tự động trên orbit-psi-black.vercel.app',
+                      },
+                      {
+                        id: 'hyperhub-bot',
+                        label: 'Bot Riêng (Discord Bot Engine)',
+                        slug: 'DaiVietForWork-81/hyperhub-bot',
+                        url: 'https://github.com/DaiVietForWork-81/hyperhub-bot',
+                        online: true,
+                        hash: updateStatus?.local_hash || 'main',
+                        message: 'Cầu nối trực tiếp Bot ↔ Web & Kho Đề Vô Hạn #1556682296235393034',
+                      },
+                    ]
+                  ).map((repo) => (
+                    <div
+                      key={repo.id}
+                      className="p-3.5 rounded-xl bg-[#0B0911] ring-1 ring-[#262235] flex flex-col justify-between gap-2"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-[#C6F24E]">{repo.label}</span>
+                          <span className="px-2 py-0.5 rounded bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D] text-[10px] font-mono tabular-nums">
+                            #{repo.hash}
+                          </span>
+                        </div>
+                        <a
+                          href={repo.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] font-mono text-[#38BDF8] hover:underline flex items-center gap-1 mt-1"
+                        >
+                          <span>{repo.slug}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <div className="text-[11px] text-[#B4B4B4] mt-1.5 line-clamp-2">
+                          {repo.message}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Nhật ký Commit / Changelog mới nhất */}
+                {updateStatus?.commits && updateStatus.commits.length > 0 && (
+                  <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] space-y-1">
+                    <div className="text-[11px] font-semibold text-[#949494]">
+                      Nhật ký Commit &amp; Bản dựng mới nhất:
+                    </div>
+                    {updateStatus.commits.slice(0, 5).map((cm, idx) => (
+                      <div key={idx} className="text-xs font-mono text-[#E2E2E2] truncate">
+                        {cm}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* Local Runtime & Hot-Reload */}
                 <div className="bg-[#110F18] ring-1 ring-[#1E1B2B] rounded-xl p-5 space-y-4">
@@ -4029,6 +4429,137 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefreshParent
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ================= MODAL 4: ADMIN EXAM SCANNER & AUTO-CLASSIFIER ================= */}
+      {scannedDocModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          onClick={() => setScannedDocModal(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-3xl bg-[#110F18] ring-1 ring-[#45341B] rounded-2xl p-6 space-y-4 hh-card-pop max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-[#262235] pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#FCD34D]" />
+                  <h3 className="text-base font-bold text-white tabular-nums">
+                    Hồ Sơ Quét &amp; Thẩm Định Đề Thi #{scannedDocModal.doc.id}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded bg-[#13261C] text-[#3FC07A] ring-1 ring-[#23422D] text-[10px] font-bold">
+                    Độ tin cậy {Math.round(scannedDocModal.report.confidenceScore * 100)}%
+                  </span>
+                </div>
+                <p className="text-xs text-[#949494] mt-0.5 truncate">
+                  {scannedDocModal.doc.title}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScannedDocModal(null)}
+                className="p-1.5 rounded-lg hover:bg-[#1E1B2B] text-[#949494] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#0B0911] ring-1 ring-[#262235] space-y-1">
+              <div className="text-xs font-bold text-[#C6F24E]">
+                Nhãn chuẩn đề xuất: {scannedDocModal.report.shortLabel}
+              </div>
+              <div className="text-xs text-[#3FC07A]">
+                {scannedDocModal.report.examDescription}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+              <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                <div className="text-[11px] text-[#949494]">Môn học nhận diện</div>
+                <div className="font-bold text-[#38BDF8] mt-0.5">
+                  {scannedDocModal.report.detectedSubjectVi} ({scannedDocModal.report.detectedSubject})
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                <div className="text-[11px] text-[#949494]">Khối lớp</div>
+                <div className="font-bold text-[#FCD34D] mt-0.5">
+                  {scannedDocModal.report.estimatedLevel}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                <div className="text-[11px] text-[#949494]">Cấu trúc câu hỏi</div>
+                <div className="font-bold text-white mt-0.5 tabular-nums">
+                  {scannedDocModal.report.questionCount} câu · P.I: {scannedDocModal.report.moetPart1Count} · P.II:{' '}
+                  {scannedDocModal.report.moetPart2Count} · P.III: {scannedDocModal.report.moetPart3Count}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235]">
+                <div className="text-[11px] text-[#949494]">Trường / Sở &amp; Năm học</div>
+                <div className="font-bold text-[#3FC07A] mt-0.5 truncate">
+                  {scannedDocModal.report.schoolOrDepartment || 'Đề chung'} ·{' '}
+                  {scannedDocModal.report.academicYear || 'Mới'}
+                </div>
+              </div>
+            </div>
+
+            {/* Danh sách câu hỏi bóc tách từ đề */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-[#B4B4B4]">
+                Câu hỏi bóc tách từ đề ({scannedDocModal.questions.length} câu):
+              </div>
+              {scannedDocModal.questions.length === 0 ? (
+                <pre className="p-3 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] text-[11px] font-mono text-[#949494] max-h-44 overflow-y-auto whitespace-pre-wrap">
+                  {scannedDocModal.report.rawTextSnippet || 'Không có văn bản trích xuất.'}
+                </pre>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {scannedDocModal.questions.slice(0, 15).map((q, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-lg bg-[#0B0911] ring-1 ring-[#262235] text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#FCD34D]">
+                          {q.label} · {q.partLabel}
+                        </span>
+                        {q.answer && (
+                          <span className="px-2 py-0.5 rounded bg-[#13261C] text-[#3FC07A] text-[10px] font-bold">
+                            Đáp án: {q.answer}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[#E2E2E2]">{q.stem}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setScannedDocModal(null)}
+                className="h-9 px-4 rounded-lg bg-[#161421] hover:bg-[#1E1B2B] ring-1 ring-[#262235] text-xs font-medium cursor-pointer"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                disabled={applyingScannedDoc}
+                onClick={handleApplyScannedDocReport}
+                className="h-9 px-5 rounded-lg bg-[#C6F24E] hover:bg-[#D4F773] text-[#0B0911] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>
+                  {applyingScannedDoc
+                    ? 'Đang cập nhật...'
+                    : 'Áp dụng kết quả quét vào Kho Đề'}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

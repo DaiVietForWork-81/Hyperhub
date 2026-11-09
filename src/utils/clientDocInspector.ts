@@ -1070,3 +1070,142 @@ async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: str
   }
   return null;
 }
+
+// =========================================================================
+// BỘ BÓC TÁCH CÂU HỎI, ĐÁP ÁN & QUÉT VĂN BẢN TRỰC TIẾP (LIVE EXAM SCANNER)
+// =========================================================================
+export interface ExtractedQuestionItem {
+  number: number;
+  label: string;
+  part: 'PART_1_MCQ' | 'PART_2_TF' | 'PART_3_SHORT' | 'ESSAY';
+  partLabel: string;
+  stem: string;
+  options: string[];
+  answer?: string;
+}
+
+export function extractQuestionsPreviewClient(
+  rawText: string,
+  maxQuestions: number = 60
+): {
+  questions: ExtractedQuestionItem[];
+  answerMap: Record<number, string>;
+} {
+  if (!rawText || !rawText.trim()) {
+    return { questions: [], answerMap: {} };
+  }
+
+  // 1. Dò bảng đáp án ở cuối đề (VD: 1.A 2.B 3.C hoặc Câu 1: A, 1-D...)
+  const answerMap: Record<number, string> = {};
+  const tailText = rawText.slice(-Math.min(rawText.length, 14000));
+  const ansRegex = /(?:câu\s*)?\b(\d{1,3})\s*[.:\-)]\s*([A-D])\b/gi;
+  let ansMatch: RegExpExecArray | null;
+  while ((ansMatch = ansRegex.exec(tailText)) !== null) {
+    const qNum = parseInt(ansMatch[1], 10);
+    const ansChar = ansMatch[2].toUpperCase();
+    if (qNum >= 1 && qNum <= 200) {
+      answerMap[qNum] = ansChar;
+    }
+  }
+
+  // 2. Tách các khối câu hỏi (Câu 1., Câu 2:, Question 1, Bài 1...)
+  const normalized = rawText.replace(/\r\n/g, '\n');
+  const qHeaderRegex = /(?:^|\n)\s*((?:Câu|Cau|Question|Bài|Bai)\s+(\d{1,3})\s*[.:)\-]?)/gi;
+  const matches: Array<{ index: number; label: string; num: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = qHeaderRegex.exec(normalized)) !== null) {
+    const num = parseInt(m[2], 10);
+    if (num >= 1 && num <= 250) {
+      matches.push({
+        index: m.index,
+        label: m[1].trim(),
+        num,
+      });
+    }
+    if (matches.length >= maxQuestions + 10) break;
+  }
+
+  const questions: ExtractedQuestionItem[] = [];
+  for (let i = 0; i < Math.min(matches.length, maxQuestions); i++) {
+    const start = matches[i].index;
+    const end = i + 1 < matches.length ? matches[i + 1].index : Math.min(normalized.length, start + 1400);
+    const block = normalized.slice(start, end).trim();
+    const withoutHeader = block.replace(/^\s*(?:Câu|Cau|Question|Bài|Bai)\s+\d{1,3}\s*[.:)\-]?\s*/i, '').trim();
+
+    // Phân loại Phần I (A. B. C. D.), Phần II (a) b) c) d)), Phần III / Tự luận
+    const mcqOpts: string[] = [];
+    const mcqSplit = withoutHeader.split(/(?=\b[A-D]\s*[.)]\s+)/);
+    let stemText = withoutHeader;
+
+    if (mcqSplit.length >= 3) {
+      stemText = mcqSplit[0].trim();
+      for (let k = 1; k < mcqSplit.length; k++) {
+        const optClean = mcqSplit[k].replace(/\s+/g, ' ').trim();
+        if (optClean) mcqOpts.push(optClean.slice(0, 180));
+      }
+    }
+
+    const tfOpts: string[] = [];
+    if (mcqOpts.length < 2) {
+      const tfSplit = withoutHeader.split(/(?=(?:^|\s)[a-d]\s*[)]\s+)/);
+      if (tfSplit.length >= 3) {
+        stemText = tfSplit[0].trim();
+        for (let k = 1; k < tfSplit.length; k++) {
+          const optClean = tfSplit[k].replace(/\s+/g, ' ').trim();
+          if (optClean) tfOpts.push(optClean.slice(0, 180));
+        }
+      }
+    }
+
+    // Dò đáp án inline trong câu (nếu có "Đáp án: A" hoặc "Chọn B" hoặc "Đáp số: 12,5")
+    let inlineAns = answerMap[matches[i].num];
+    const inlineMatch = block.match(/(?:Đáp\s*án|Dap\s*an|Chọn|Đáp\s*số)\s*[:\-]?\s*([A-D]|[-+]?\d+(?:[.,]\d+)?)/i);
+    if (inlineMatch && inlineMatch[1]) {
+      inlineAns = inlineMatch[1].toUpperCase();
+    }
+
+    let part: ExtractedQuestionItem['part'] = 'ESSAY';
+    let partLabel = 'Tự luận / Bài toán';
+    let options: string[] = [];
+
+    if (mcqOpts.length >= 2) {
+      part = 'PART_1_MCQ';
+      partLabel = 'Phần I · Trắc nghiệm 4 lựa chọn';
+      options = mcqOpts.slice(0, 4);
+    } else if (tfOpts.length >= 2) {
+      part = 'PART_2_TF';
+      partLabel = 'Phần II · Đúng / Sai (a, b, c, d)';
+      options = tfOpts.slice(0, 4);
+    } else if (/^Câu|Cau|Question/i.test(matches[i].label) && withoutHeader.length < 420) {
+      part = 'PART_3_SHORT';
+      partLabel = 'Phần III · Trả lời ngắn';
+    }
+
+    questions.push({
+      number: matches[i].num,
+      label: matches[i].label.replace(/[.:)\-]+$/, ''),
+      part,
+      partLabel,
+      stem: stemText.replace(/\s+/g, ' ').slice(0, 420),
+      options,
+      answer: inlineAns,
+    });
+  }
+
+  return { questions, answerMap };
+}
+
+/**
+ * Quét & thẩm định trực tiếp từ văn bản đề thi dán vào (không cần file đính kèm)
+ */
+export async function inspectTextSnippetClient(
+  titleInput: string,
+  rawTextInput: string
+): Promise<ClientInspectionReport> {
+  const virtualTitle = (titleInput || 'De_Thi_Quet_Truc_Tiep.txt').trim();
+  const safeName = /\.(pdf|docx|doc|txt|md)$/i.test(virtualTitle)
+    ? virtualTitle
+    : `${virtualTitle}.txt`;
+  const virtualFile = new File([rawTextInput], safeName, { type: 'text/plain;charset=utf-8' });
+  return inspectDocumentClient(virtualFile);
+}
