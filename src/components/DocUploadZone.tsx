@@ -2749,11 +2749,11 @@ export const DocUploadZone: React.FC<DocUploadZoneProps> = ({
                     🤖 Radar Bot Quét Đề Đã Tổng Hợp (Mỗi 45s / Lô)
                   </h4>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono text-cyan-200 bg-cyan-500/15 border border-cyan-500/30">
-                    3-Agent AI Verifier (Nemotron 550B → Trap Auditor → Arbiter 120B)
+                    nvidia/nemotron-3-ultra-550b-a55b • 16K Context / Đề
                   </span>
                 </div>
                 <p className="text-xs text-slate-300">
-                  Mỗi <strong>45 giây</strong>, Bot tự động gom các đề đã được tổng hợp trong kho (từ Discord, Google Drive và Web) để quét thẩm định sâu 6 bước, giải bẫy phân loại GDPT 2018 và đóng dấu <code>CLOUD_DEEP_VERIFIED</code>.
+                  Mỗi <strong>45 giây</strong>, Bot tự động gom các đề đã được tổng hợp trong kho và quét sâu bằng <code>nvidia/nemotron-3-ultra-550b-a55b</code> với <strong>16K context (16.384 ký tự/tokens) mỗi đề</strong> (8K Đầu + 4K Giữa + 4K Cuối) để giải bẫy GDPT 2018 và đóng dấu <code>CLOUD_DEEP_VERIFIED</code>.
                 </p>
               </div>
 

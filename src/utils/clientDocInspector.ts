@@ -966,7 +966,7 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     moetPart3Count: p3Count,
     hasAnswerKeys,
     hasDetailedSolutions,
-    rawTextSnippet: extractedText.slice(0, 5000),
+    rawTextSnippet: slice16kExamContextClient(extractedText),
     shortLabel,
     examDescription,
     summary,
@@ -974,6 +974,21 @@ export async function inspectDocumentClient(file: File): Promise<ClientInspectio
     ambiguityWarnings,
     needsUserReview: ambiguityWarnings.length > 0,
   };
+}
+
+export const PER_EXAM_CONTEXT_16K = 16_384;
+
+export function slice16kExamContextClient(text: string): string {
+  const clean = (text || '').trim();
+  if (clean.length <= PER_EXAM_CONTEXT_16K) return clean;
+  const mid = Math.floor(clean.length / 2);
+  return (
+    clean.slice(0, 8_192) +
+    '\n...[PHẦN GIỮA ĐỀ]...\n' +
+    clean.slice(mid - 2_048, mid + 2_048) +
+    '\n...[PHẦN CUỐI ĐỀ & ĐÁP ÁN]...\n' +
+    clean.slice(-4_096)
+  );
 }
 
 // =========================================================================
@@ -1038,15 +1053,8 @@ async function callDeepVerifyWithQuotaGuard(fileName: string, extractedText: str
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45_000); // Cho phép tối đa 45s (< 1 phút / 1 file) để model 550B đọc & phân tích sâu
-  const fullOrSampledText =
-    extractedText.length > 32_000
-      ? extractedText.slice(0, 16_000) +
-        '\n...[PHẦN GIỮA ĐỀ]...\n' +
-        extractedText.slice(Math.floor(extractedText.length / 2) - 4_000, Math.floor(extractedText.length / 2) + 4_000) +
-        '\n...[PHẦN CUỐI ĐỀ & ĐÁP ÁN]...\n' +
-        extractedText.slice(-8_000)
-      : extractedText;
+  const timeoutId = setTimeout(() => controller.abort(), 45_000); // Cho phép tối đa 45s (< 1 phút / 1 file) để model 550B đọc & phân tích sâu (16K context mỗi đề)
+  const fullOrSampledText = slice16kExamContextClient(extractedText);
 
   try {
     const verifyResp = await fetch('/api/documents/deep_verify', {

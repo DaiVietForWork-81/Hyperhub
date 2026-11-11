@@ -3259,12 +3259,12 @@ export default async function handler(req, res) {
       }
 
       const snippet =
-        rawText.length > 32000
-          ? rawText.slice(0, 16000) +
+        rawText.length > 16384
+          ? rawText.slice(0, 8192) +
             "\n...[PHẦN GIỮA ĐỀ]...\n" +
-            rawText.slice(Math.floor(rawText.length / 2) - 4000, Math.floor(rawText.length / 2) + 4000) +
+            rawText.slice(Math.floor(rawText.length / 2) - 2048, Math.floor(rawText.length / 2) + 2048) +
             "\n...[PHẦN CUỐI ĐỀ & ĐÁP ÁN]...\n" +
-            rawText.slice(-8000)
+            rawText.slice(-4096)
           : rawText;
 
       const sysPrompt = `Bạn là Hội đồng Thẩm định & Phân loại Học thuật Quốc gia (Chương trình GDPT 2018 - Bộ GD&ĐT Việt Nam).
@@ -3525,7 +3525,9 @@ Trả về đúng 1 JSON:
 
       return res.status(200).json({
         success: true,
-        engine: "Bot 45s Auto-Scanner + 3-Agent Cloud Verifier (Nemotron 550B -> Trap Auditor -> Arbiter 120B)",
+        engine: "Bot 45s Auto-Scanner • nvidia/nemotron-3-ultra-550b-a55b (16K Context / Đề)",
+        primary_model: "nvidia/nemotron-3-ultra-550b-a55b",
+        context_per_exam: 16384,
         interval_seconds: 45,
         last_scan_ts: lastScanTs,
         next_scan_ts: lastScanTs + 45,
@@ -3534,6 +3536,8 @@ Trả về đúng 1 JSON:
         verified_docs: verifiedDocs,
         unverified_docs: unverifiedDocs,
         quota: kvData.quota || {
+          primary_model: "nvidia/nemotron-3-ultra-550b-a55b",
+          context_per_exam: 16384,
           rpm_limit: 34,
           rpd_limit: 9500,
           batch_interval_seconds: 45,
@@ -3547,7 +3551,7 @@ Trả về đúng 1 JSON:
       // 1. Đánh thức Bot xử lý hàng đợi 45s qua cầu nối 7 lớp
       const botScanPromise = forwardRpcToBot("POST", "/api/documents/trigger_45s_scan", {}, req.body || {}, 3800).catch(() => null);
 
-      // 2. Đồng thời quét & chuẩn hóa tối đa 6 đề đã tổng hợp chưa được đóng dấu CLOUD_DEEP_VERIFIED trên Turso Cloud
+      // 2. Đồng thời quét & chuẩn hóa tối đa 6 đề đã tổng hợp chưa được đóng dấu CLOUD_DEEP_VERIFIED trên Turso Cloud (16K context mỗi đề)
       const unvRes = await executeTurso(
         `SELECT id, title, file_name, subject, estimated_level, exam_track,
                 raw_text, notes, academic_year, school_or_department, verdict
@@ -3561,7 +3565,8 @@ Trả về đúng 1 JSON:
         const docId = Number(row.id || 0);
         if (!docId) continue;
         const fName = String(row.file_name || row.title || `de_${docId}.pdf`);
-        const combinedText = `${row.title || ""}\n${fName}\n${row.notes || ""}\n${String(row.raw_text || "").slice(0, 4000)}`;
+        const raw16k = String(row.raw_text || "").slice(0, 16384);
+        const combinedText = `${row.title || ""}\n${fName}\n${row.notes || ""}\n${raw16k}`.slice(0, 16384);
         const lower = combinedText.toLowerCase();
 
         // Chuẩn hóa Môn học theo GDPT 2018
@@ -3691,7 +3696,9 @@ Trả về đúng 1 JSON:
       const scannerPayload = {
         success: true,
         triggered: true,
-        engine: "Bot 45s Auto-Scanner + 3-Agent Cloud Verifier (Nemotron 550B -> Trap Auditor -> Arbiter 120B)",
+        engine: "Bot 45s Auto-Scanner • nvidia/nemotron-3-ultra-550b-a55b (16K Context / Đề)",
+        primary_model: "nvidia/nemotron-3-ultra-550b-a55b",
+        context_per_exam: 16384,
         interval_seconds: 45,
         last_scan_ts: nowSec,
         next_scan_ts: nowSec + 45,
