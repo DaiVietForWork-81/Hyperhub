@@ -1429,7 +1429,8 @@ export default async function handler(req, res) {
       }
 
       const nowIso = new Date().toISOString();
-      const rawTextSnippet = String(body.rawTextSnippet || "").slice(0, 50000);
+      // Cầu nối Turso chỉ giữ tối đa 16K context tạm thời để Bot Server kéo về data/bot.db trong chu kỳ 45s rồi thu gọn
+      const rawTextSnippet = String(body.rawTextSnippet || "").slice(0, 16384);
       const base64Raw = body.fileContentBase64 ? String(body.fileContentBase64) : null;
       const cleanBase64 = base64Raw
         ? base64Raw.replace(/^data:[^;]+;base64,/, "")
@@ -1438,7 +1439,7 @@ export default async function handler(req, res) {
       let targetChannelId = DISCORD_DATABASE_CHANNEL_ID;
       let targetMessageId = 0;
       let targetJumpUrl = `https://discord.com/channels/${DISCORD_GUILD_ID}/${DISCORD_DATABASE_CHANNEL_ID}`;
-      let queueStatus = body.queueStatus === "synced_discord" ? "synced_discord" : "pending_bot";
+      let queueStatus = "pending_bot";
       let directCdnUrl = null;
       let fallbackBase64ForBot = null;
 
@@ -1471,26 +1472,32 @@ export default async function handler(req, res) {
             });
           }
 
-          // Upload thẳng vào kênh Discord lưu trữ đề vô hạn 1556682296235393034 (#🗄️・file-chunks)
+          // Upload thẳng vào kênh Server Discord lưu trữ đề vô hạn 1556682296235393034 (#🗄️・database)
           const uploaded = await uploadBufferToDiscordArchiveChannel(fileBuf, fileName, {
             subject,
-            estimatedLevel: String(body.estimatedLevel || "Phổ thông"),
+            estimatedLevel: String(body.estimatedLevel || "Khối 12"),
             authorName,
             fileHash,
           });
-          if (uploaded && uploaded.ok) {
+          if (uploaded && uploaded.ok && Number(uploaded.messageId) > 0) {
             targetChannelId = uploaded.channelId || DISCORD_DATABASE_CHANNEL_ID;
-            targetMessageId = uploaded.messageId || 0;
+            targetMessageId = uploaded.messageId;
             targetJumpUrl = uploaded.jumpUrl || targetJumpUrl;
             directCdnUrl = uploaded.directUrl || null;
             queueStatus = "synced_discord";
-            // Đã lưu vĩnh viễn trên Discord 1556682296235393034 -> Không tốn dung lượng Turso!
+            // Đã lưu vĩnh viễn trên Server Discord 1556682296235393034 -> Không lưu base64 trên cầu nối Turso!
             fallbackBase64ForBot = null;
           } else if (cleanBase64.length <= 7_500_000) {
+            queueStatus = "pending_bot";
             fallbackBase64ForBot = cleanBase64;
           }
         }
       }
+
+      const rawExamTrack = String(body.examTrack || "THUONG").toUpperCase();
+      const normExamTrack = ["THUONG", "CHUYEN", "HSG", "QUOC_TE"].includes(rawExamTrack)
+        ? rawExamTrack
+        : "THUONG";
 
       const insRes = await executeTurso(
         `INSERT INTO documents_archive (
@@ -1518,7 +1525,7 @@ export default async function handler(req, res) {
           fileName,
           Math.max(0, Number(body.fileSizeBytes || 0)),
           String(body.fileType || "PDF").slice(0, 20),
-          String(body.estimatedLevel || "Phổ thông").slice(0, 80),
+          String(body.estimatedLevel || "Khối 12").slice(0, 80),
           Math.max(0, Number(body.questionCount || 0)),
           Math.max(1, Number(body.pageCount || 1)),
           authorIdStr,
@@ -1529,11 +1536,11 @@ export default async function handler(req, res) {
           nowIso,
           fileHash,
           rawTextSnippet,
-          String(body.notes || `${body.estimatedLevel || "Phổ thông"} — ${title}`).slice(0, 1000),
+          String(body.notes || `${body.estimatedLevel || "Khối 12"} — ${title}`).slice(0, 1000),
           body.academicYear ? String(body.academicYear).slice(0, 30) : null,
           body.schoolOrDepartment ? String(body.schoolOrDepartment).slice(0, 160) : null,
-          "XAC_MINH",
-          "THI_THU_THPT",
+          "PENDING_550B_SCAN",
+          normExamTrack,
           0.95,
           body.moet2025Compliant ? 1 : 0,
           Math.max(0, Number(body.moetPart1Count || 0)),
@@ -1585,33 +1592,33 @@ export default async function handler(req, res) {
         message_id: targetMessageId,
         jump_url: targetJumpUrl,
         queue_status: queueStatus,
-        storage_mode: "discord_infinite_1556682296235393034",
+        storage_mode: "server_master_turso_bridge",
       });
     }
 
-    // Helper: điều kiện lọc exam_type giống hệt Bot/services/api_bridge.py
+    // Helper: điều kiện lọc exam_type giống hệt Bot/services/api_bridge.py (kết hợp cột exam_track chuẩn hóa)
     function applyExamTypeClause(examTypeRaw, clauses, sqlParams) {
       if (!examTypeRaw || examTypeRaw.toUpperCase() === "ALL") return;
       const et = examTypeRaw.toUpperCase().trim();
       if (et === "THUONG") {
         clauses.push(
-          "(LOWER(estimated_level) LIKE '%thuong%' OR LOWER(estimated_level) LIKE '%thường%' OR LOWER(title) LIKE '%thường%' OR LOWER(title) LIKE '%học kỳ%' OR LOWER(title) LIKE '%định kỳ%' OR LOWER(title) LIKE '%thi thử%')"
+          "(UPPER(COALESCE(exam_track, '')) IN ('THUONG', 'THƯỜNG') OR LOWER(estimated_level) LIKE '%thuong%' OR LOWER(estimated_level) LIKE '%thường%' OR LOWER(title) LIKE '%thường%' OR LOWER(title) LIKE '%học kỳ%' OR LOWER(title) LIKE '%định kỳ%' OR LOWER(title) LIKE '%thi thử%')"
         );
       } else if (et === "HSG") {
         clauses.push(
-          "(LOWER(estimated_level) LIKE '%hsg%' OR LOWER(title) LIKE '%hsg%' OR LOWER(title) LIKE '%học sinh giỏi%')"
+          "(UPPER(COALESCE(exam_track, '')) = 'HSG' OR LOWER(estimated_level) LIKE '%hsg%' OR LOWER(title) LIKE '%hsg%' OR LOWER(title) LIKE '%học sinh giỏi%')"
         );
       } else if (et === "CHUYEN") {
         clauses.push(
-          "(LOWER(estimated_level) LIKE '%chuyen%' OR LOWER(estimated_level) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyen%')"
+          "(UPPER(COALESCE(exam_track, '')) IN ('CHUYEN', 'CHUYÊN') OR LOWER(estimated_level) LIKE '%chuyen%' OR LOWER(estimated_level) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyên%' OR LOWER(title) LIKE '%chuyen%')"
         );
       } else if (et === "QUOC_TE" || et === "QUOCTE" || et === "INTERNATIONAL") {
         clauses.push(
-          "(LOWER(estimated_level) LIKE '%quốc tế%' OR LOWER(estimated_level) LIKE '%quoc te%' OR LOWER(title) LIKE '%quốc tế%' OR LOWER(title) LIKE '%quoc te%' OR LOWER(title) LIKE '%international%' OR LOWER(title) LIKE '%imo%' OR LOWER(title) LIKE '%amc%' OR LOWER(title) LIKE '%kangaroo%' OR LOWER(title) LIKE '%ikmc%' OR LOWER(title) LIKE '%sasmo%' OR LOWER(title) LIKE '%timo%' OR LOWER(title) LIKE '%hkimo%' OR LOWER(title) LIKE '%sat%' OR LOWER(title) LIKE '%cambridge%')"
+          "(UPPER(COALESCE(exam_track, '')) IN ('QUOC_TE', 'QUỐC TẾ') OR LOWER(estimated_level) LIKE '%quốc tế%' OR LOWER(estimated_level) LIKE '%quoc te%' OR LOWER(title) LIKE '%quốc tế%' OR LOWER(title) LIKE '%quoc te%' OR LOWER(title) LIKE '%international%' OR LOWER(title) LIKE '%ielts%' OR LOWER(title) LIKE '%toeic%' OR LOWER(title) LIKE '%toefl%' OR LOWER(title) LIKE '%imo%' OR LOWER(title) LIKE '%amc%' OR LOWER(title) LIKE '%kangaroo%' OR LOWER(title) LIKE '%ikmc%' OR LOWER(title) LIKE '%sasmo%' OR LOWER(title) LIKE '%timo%' OR LOWER(title) LIKE '%hkimo%' OR LOWER(title) LIKE '%sat%' OR LOWER(title) LIKE '%cambridge%')"
         );
       } else if (et === "CHUNG" || et === "TONG_HOP") {
         clauses.push(
-          "(LOWER(estimated_level) LIKE '%chung%' OR LOWER(estimated_level) LIKE '%phổ thông chung%' OR LOWER(title) LIKE '%tổng hợp%' OR LOWER(title) LIKE '%đề cương%' OR LOWER(title) LIKE '%lý thuyết%')"
+          "(LOWER(estimated_level) LIKE '%chung%' OR LOWER(estimated_level) LIKE '%đề cương%' OR LOWER(estimated_level) LIKE '%tài liệu ôn tập%' OR LOWER(title) LIKE '%tổng hợp%' OR LOWER(title) LIKE '%đề cương%' OR LOWER(title) LIKE '%lý thuyết%')"
         );
       } else {
         clauses.push("(file_type LIKE ? OR estimated_level LIKE ? OR title LIKE ?)");
@@ -1626,6 +1633,20 @@ export default async function handler(req, res) {
         pathname === "/api/docs/archive") &&
       req.method === "GET"
     ) {
+      // Ưu tiên truy vấn trực tiếp Server Master DB (data/bot.db) qua Bot API Bridge nếu kết nối trực tiếp khả dụng
+      const botDirectDocs = await tryForwardToBotApi(
+        "GET",
+        `/api/documents${urlObj.search || ""}`,
+        req.headers,
+        null,
+        1800
+      );
+      if (botDirectDocs && botDirectDocs.ok && botDirectDocs.data && Array.isArray(botDirectDocs.data.documents)) {
+        return res.status(200).json({
+          ...botDirectDocs.data,
+          storage_architecture: "server_master_direct",
+        });
+      }
       const rawLimit = (searchParams.get("limit") || "20").trim().toLowerCase();
       let limit = 20;
       let page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
