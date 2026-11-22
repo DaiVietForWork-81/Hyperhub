@@ -3,7 +3,6 @@ import {
   Search,
   BookOpen,
   Dices,
-  UploadCloud,
   GraduationCap,
   MessageSquare,
   Home,
@@ -18,7 +17,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   documents: ExamDocument[];
   onSelectExam: (doc: ExamDocument) => void;
-  onNavigateTab: (tab: 'overview' | 'courses' | 'forum' | 'vault' | 'get_exam' | 'submit_doc') => void;
+  onNavigateTab: (tab: 'overview' | 'courses' | 'forum' | 'vault') => void;
   onNavigateHome: () => void;
   onTriggerRandomExam: () => void;
 }
@@ -97,16 +96,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: <BookOpen className="w-4 h-4 text-[#FFA8DC]" />,
       action: () => {
         onNavigateTab('vault');
-        onClose();
-      },
-    },
-    {
-      id: 'action-submit',
-      title: 'Nộp Đề Thi Mới (PDF / Word / Google Drive)',
-      category: 'Thao tác',
-      icon: <UploadCloud className="w-4 h-4 text-[#FF3CA6]" />,
-      action: () => {
-        onNavigateTab('submit_doc');
         onClose();
       },
     },

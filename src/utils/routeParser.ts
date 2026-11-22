@@ -28,12 +28,6 @@ export function parseAppRoute(pathname: string = '/', hash: string = ''): Parsed
   if (p.startsWith('/vault') || p.startsWith('/khode') || h === '#vault') {
     return { view: 'dashboard', tab: 'vault' };
   }
-  if (p.startsWith('/get_exam') || h === '#get_exam') {
-    return { view: 'dashboard', tab: 'get_exam' };
-  }
-  if (p.startsWith('/submit_doc') || h === '#submit_doc') {
-    return { view: 'dashboard', tab: 'submit_doc' };
-  }
   if (p.startsWith('/courses') || p.startsWith('/khoahoc') || h === '#courses') {
     return { view: 'dashboard', tab: 'courses' };
   }
