@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { PixelWordmark } from './hh/PixelWordmark';
 import { PixelButton } from './hh/Controls';
+import { DiscordGlyph } from './hh/BrandGlyphs';
 import { useHubPulse } from '../hooks/useHubPulse';
 import { allowRichMotion } from '../motion/capabilities';
 import { hubIntentProps } from '../hubLoader';
@@ -208,7 +209,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) 
           <h1 id="hero-title" className="hh-hero-lede">
             <span className="hh-accent-text">Kho đề chuẩn hóa</span>
             <br />
-            & cộng đồng ôn thi.
+            &amp; cộng đồng ôn thi.
           </h1>
 
           <p className="hh-hero-sub hh-intro-rise" style={{ ['--d' as string]: '360ms' }}>
@@ -237,18 +238,19 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDashboard, onSelectSubject }) 
                 {...hubIntentProps}
                 trailing={<ArrowRight className="w-4 h-4" aria-hidden="true" />}
               >
-                Vào Orbit Hub
+                Vào Orbit Hub &amp; lấy đề
               </PixelButton>
             </span>
             <span className="hh-intro-rise" style={{ ['--d' as string]: '740ms' }}>
               <PixelButton
                 variant="ghost"
-                disabled
-                className="opacity-50 cursor-not-allowed"
-                title="Đang trong quá trình beta"
+                href="https://discord.gg/D34HX87bGe"
+                target="_blank"
+                rel="noopener noreferrer"
+                icon={<DiscordGlyph className="w-4 h-4" />}
               >
-                Tham gia Discord (Beta)
-                <span className="sr-only"> (đang trong quá trình beta)</span>
+                Tham gia Discord
+                <span className="sr-only"> (mở tab mới)</span>
               </PixelButton>
             </span>
           </div>
